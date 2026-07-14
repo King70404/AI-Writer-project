@@ -1,0 +1,16 @@
+import { Route, Routes } from "react-router-dom";
+
+import { FoundationPage } from "../pages/FoundationPage";
+import { NotFoundPage } from "../pages/NotFoundPage";
+import { AppShell } from "./AppShell";
+
+export function AppRouter() {
+  return (
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route index element={<FoundationPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
+  );
+}

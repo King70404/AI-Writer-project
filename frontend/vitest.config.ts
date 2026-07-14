@@ -1,0 +1,56 @@
+import { createRequire } from "node:module";
+
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+
+const resolveFromFrontend = createRequire(import.meta.url).resolve;
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: [
+      {
+        find: "react/jsx-dev-runtime",
+        replacement: resolveFromFrontend("react/jsx-dev-runtime"),
+      },
+      {
+        find: "react/jsx-runtime",
+        replacement: resolveFromFrontend("react/jsx-runtime"),
+      },
+      {
+        find: "react",
+        replacement: resolveFromFrontend("react"),
+      },
+      {
+        find: "react-router-dom",
+        replacement: resolveFromFrontend("react-router-dom"),
+      },
+      {
+        find: "@testing-library/react",
+        replacement: resolveFromFrontend("@testing-library/react"),
+      },
+      {
+        find: "@testing-library/user-event",
+        replacement: resolveFromFrontend("@testing-library/user-event"),
+      },
+    ],
+  },
+  server: {
+    fs: {
+      allow: [".."],
+    },
+  },
+  test: {
+    environment: "jsdom",
+    environmentOptions: {
+      jsdom: {
+        url: "http://localhost/",
+      },
+    },
+    setupFiles: ["./src/test/setup.ts"],
+    include: ["../tests/frontend/**/*.test.{ts,tsx}"],
+    clearMocks: true,
+    mockReset: true,
+    restoreMocks: true,
+  },
+});

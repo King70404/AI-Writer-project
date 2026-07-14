@@ -1,0 +1,253 @@
+:root {
+  font-family:
+    system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: #17212b;
+  background: #eef1f3;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: #eef1f3;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+a {
+  color: #8a3f20;
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: #652b14;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid #176b87;
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 10;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.35rem;
+  color: #ffffff;
+  background: #17324d;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.app-shell {
+  width: min(100% - 3rem, 72rem);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 2.25rem 0 1.5rem;
+}
+
+.app-shell__header,
+.app-shell__footer,
+.app-shell__main {
+  min-width: 0;
+}
+
+.app-shell__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 0 0.25rem 1.5rem;
+  border-bottom: 1px solid #c8d0d6;
+}
+
+.app-shell__eyebrow,
+.section-kicker {
+  margin: 0 0 0.45rem;
+  color: #52606c;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.app-shell__title {
+  margin: 0;
+  color: #17324d;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  line-height: 1.1;
+}
+
+.phase-label {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #9aa9b5;
+  border-radius: 999px;
+  color: #273b4c;
+  background: #ffffff;
+  font-weight: 700;
+}
+
+.app-shell__main {
+  padding: 3rem 0;
+}
+
+.foundation-page,
+.not-found-page {
+  max-width: 56rem;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid #d0d7dc;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  box-shadow: 0 0.75rem 2rem rgb(23 50 77 / 8%);
+  overflow-wrap: anywhere;
+}
+
+.foundation-page h2,
+.not-found-page h2,
+.error-fallback h1 {
+  margin: 0;
+  color: #17324d;
+  font-size: clamp(1.65rem, 4vw, 2.35rem);
+  line-height: 1.25;
+}
+
+.foundation-page__lead {
+  max-width: 44rem;
+  margin: 1rem 0 2rem;
+  color: #3e4b56;
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+.foundation-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.foundation-facts div {
+  padding: 1.15rem;
+  border-left: 4px solid #b45f35;
+  background: #f7f5f1;
+}
+
+.foundation-facts dt {
+  color: #253746;
+  font-weight: 700;
+}
+
+.foundation-facts dd {
+  margin: 0.55rem 0 0;
+  color: #46545f;
+  line-height: 1.65;
+}
+
+.not-found-page p:not(.section-kicker) {
+  margin: 1rem 0 1.5rem;
+  color: #46545f;
+  line-height: 1.7;
+}
+
+.text-link {
+  font-weight: 700;
+}
+
+.app-shell__footer {
+  padding: 1.25rem 0.25rem 0;
+  border-top: 1px solid #c8d0d6;
+  color: #52606c;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.app-shell__footer p {
+  margin: 0;
+}
+
+.error-fallback {
+  width: min(100% - 3rem, 40rem);
+  margin: 10vh auto 0;
+  padding: 2rem;
+  border: 1px solid #d0d7dc;
+  border-radius: 0.75rem;
+  background: #ffffff;
+}
+
+.error-fallback p {
+  margin: 1rem 0 1.5rem;
+  color: #46545f;
+  line-height: 1.7;
+}
+
+.error-fallback button {
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 0.4rem;
+  color: #ffffff;
+  background: #17324d;
+  cursor: pointer;
+}
+
+.error-fallback button:hover {
+  background: #244b6d;
+}
+
+.loading-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: #3e4b56;
+}
+
+.loading-state__mark {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid #17324d;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+@media (max-width: 48rem) {
+  .app-shell {
+    width: min(100% - 2rem, 72rem);
+    padding-top: 1.25rem;
+  }
+
+  .app-shell__header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .app-shell__main {
+    padding: 2rem 0;
+  }
+
+  .foundation-facts {
+    grid-template-columns: 1fr;
+  }
+}
