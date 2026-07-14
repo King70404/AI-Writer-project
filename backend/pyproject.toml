@@ -19,8 +19,90 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "httpx>=0.28,<1.0",
+    "mypy>=1.14,<2.0",
     "pytest>=8.3,<10.0",
+    "pytest-cov>=6.0,<8.0",
+    "ruff>=0.9,<1.0",
 ]
+
+[tool.pytest.ini_options]
+minversion = "8.3"
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+]
+testpaths = [
+    "../tests/backend",
+    "../tests/architecture",
+]
+markers = [
+    "unit: isolated deterministic behavior with no external service dependency",
+    "integration: behavior spanning multiple application or infrastructure components",
+    "architecture: deterministic source, dependency, or repository boundary checks",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+allowed-confusables = ["，"]
+select = [
+    "B",
+    "BLE",
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    "I",
+    "RSE",
+    "RUF",
+    "SIM",
+    "UP",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["aiwebnovel"]
+
+[tool.ruff.format]
+indent-style = "space"
+line-ending = "lf"
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
+strict = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_no_return = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+show_error_codes = true
+show_error_context = true
+pretty = true
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+source = ["aiwebnovel"]
+
+[tool.coverage.report]
+fail_under = 80
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_also = [
+    "if __name__ == [\"']__main__[\"']:",
+]
+
+[tool.coverage.json]
+output = "coverage/backend.json"
+pretty_print = true
 
 [tool.setuptools.packages.find]
 where = ["src"]

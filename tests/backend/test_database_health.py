@@ -2,16 +2,17 @@
 
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, inspect
 from sqlalchemy.engine import URL
-import pytest
 
 from aiwebnovel.core.config import Settings
 from aiwebnovel.core.middleware import is_valid_request_id
-from aiwebnovel.db.engine import create_database_engine
 from aiwebnovel.db.health import DatabaseHealthError, check_database_health
 from aiwebnovel.main import create_app
+
+pytestmark = pytest.mark.integration
 
 
 def _database_url(path: Path) -> str:
@@ -122,9 +123,7 @@ def test_application_instances_isolate_and_dispose_database_resources(
             assert first_engine is not second_engine
             assert first_factory is not second_factory
             with first_engine.begin() as connection:
-                connection.exec_driver_sql(
-                    "CREATE TABLE first_app_only (id INTEGER PRIMARY KEY)"
-                )
+                connection.exec_driver_sql("CREATE TABLE first_app_only (id INTEGER PRIMARY KEY)")
             assert "first_app_only" in inspect(first_engine).get_table_names()
             assert "first_app_only" not in inspect(second_engine).get_table_names()
 

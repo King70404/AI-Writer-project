@@ -38,9 +38,7 @@ def database_session(
 
 def get_database_session(request: Request) -> Iterator[Session]:
     """FastAPI dependency that supplies one non-shared session per request."""
-    session_factory = getattr(
-        request.app.state, "database_session_factory", None
-    )
+    session_factory = getattr(request.app.state, "database_session_factory", None)
     if session_factory is None:
         raise RuntimeError("Database session factory is not initialized")
     with database_session(session_factory) as session:

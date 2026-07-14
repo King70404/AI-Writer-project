@@ -1,11 +1,12 @@
 """Health, request-ID, logging, and application-factory tests."""
 
-from collections import Counter
-from io import StringIO
 import json
 import logging
+from collections import Counter
+from io import StringIO
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import URL
 
@@ -19,6 +20,8 @@ from aiwebnovel.core.logging import (
 )
 from aiwebnovel.core.middleware import is_valid_request_id
 from aiwebnovel.main import create_app
+
+pytestmark = pytest.mark.integration
 
 
 def _test_settings(
@@ -91,12 +94,8 @@ def test_request_ids_are_preserved_replaced_and_not_reused(
         preserved = client.get(
             "/api/v1/health/live", headers={"X-Request-ID": "client.Safe-123:abc"}
         )
-        invalid = client.get(
-            "/api/v1/health/live", headers={"X-Request-ID": "unsafe request id"}
-        )
-        too_long = client.get(
-            "/api/v1/health/live", headers={"X-Request-ID": "a" * 129}
-        )
+        invalid = client.get("/api/v1/health/live", headers={"X-Request-ID": "unsafe request id"})
+        too_long = client.get("/api/v1/health/live", headers={"X-Request-ID": "a" * 129})
         generated_one = client.get("/api/v1/health/live")
         generated_two = client.get("/api/v1/health/live")
 

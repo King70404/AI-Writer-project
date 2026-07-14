@@ -55,9 +55,7 @@ function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isBackendErrorEnvelope(
-  value: unknown,
-): value is BackendErrorEnvelope {
+function isBackendErrorEnvelope(value: unknown): value is BackendErrorEnvelope {
   if (!isJsonObject(value) || !isJsonObject(value.error)) {
     return false;
   }
@@ -76,8 +74,7 @@ function isBackendErrorEnvelope(
 }
 
 type JsonReadResult =
-  | { readonly ok: true; readonly value: unknown }
-  | { readonly ok: false };
+  { readonly ok: true; readonly value: unknown } | { readonly ok: false };
 
 async function readJson(response: Response): Promise<JsonReadResult> {
   try {

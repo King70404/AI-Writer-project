@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import URL
 
@@ -11,11 +12,11 @@ from aiwebnovel.core.config import Settings
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.main import create_app
 
+pytestmark = pytest.mark.integration
+
 
 def _test_settings(tmp_path: Path, filename: str) -> Settings:
-    database_url = str(
-        URL.create("sqlite+pysqlite", database=(tmp_path / filename).as_posix())
-    )
+    database_url = str(URL.create("sqlite+pysqlite", database=(tmp_path / filename).as_posix()))
     return Settings(environment="test", database_url=database_url)
 
 
@@ -106,9 +107,7 @@ def test_internal_error_is_generic_and_contains_no_diagnostics(
         raise RuntimeError("sensitive diagnostic marker")
 
     with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get(
-            "/_test/internal-error", headers={"X-Request-ID": "client-internal"}
-        )
+        response = client.get("/_test/internal-error", headers={"X-Request-ID": "client-internal"})
 
     assert response.status_code == 500
     payload = response.json()

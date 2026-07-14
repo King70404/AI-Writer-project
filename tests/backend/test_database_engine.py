@@ -1,9 +1,9 @@
 """SQLite engine, PRAGMA, import-side-effect, and foreign-key tests."""
 
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 from sqlalchemy import inspect
@@ -14,6 +14,8 @@ from aiwebnovel.core.config import Settings
 from aiwebnovel.db.base import Base
 from aiwebnovel.db.engine import create_database_engine
 from aiwebnovel.main import create_app
+
+pytestmark = pytest.mark.integration
 
 
 def _database_url(path: Path) -> str:
@@ -94,10 +96,7 @@ def test_file_engine_enforces_required_pragmas_and_releases_file(
             assert first.exec_driver_sql("SELECT 1").scalar_one() == 1
             assert first.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
             assert second.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
-            assert (
-                str(first.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower()
-                == "wal"
-            )
+            assert str(first.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower() == "wal"
             assert first.exec_driver_sql("PRAGMA synchronous").scalar_one() == 1
             assert first.exec_driver_sql("PRAGMA busy_timeout").scalar_one() == 3210
             assert engine.pool.checkedout() == 2
@@ -120,39 +119,25 @@ def test_foreign_key_enforcement_rejects_orphan_rows_on_new_connections(
     engine = create_database_engine(_settings(database_path))
     try:
         with engine.begin() as connection:
-            connection.exec_driver_sql(
-                "CREATE TABLE parent (id INTEGER PRIMARY KEY)"
-            )
+            connection.exec_driver_sql("CREATE TABLE parent (id INTEGER PRIMARY KEY)")
             connection.exec_driver_sql(
                 "CREATE TABLE child ("
                 "id INTEGER PRIMARY KEY, "
                 "parent_id INTEGER NOT NULL REFERENCES parent(id))"
             )
             connection.exec_driver_sql("INSERT INTO parent (id) VALUES (1)")
-            connection.exec_driver_sql(
-                "INSERT INTO child (id, parent_id) VALUES (1, 1)"
-            )
+            connection.exec_driver_sql("INSERT INTO child (id, parent_id) VALUES (1, 1)")
 
-        with pytest.raises(IntegrityError):
-            with engine.begin() as connection:
-                connection.exec_driver_sql(
-                    "INSERT INTO child (id, parent_id) VALUES (2, 999)"
-                )
+        with pytest.raises(IntegrityError), engine.begin() as connection:
+            connection.exec_driver_sql("INSERT INTO child (id, parent_id) VALUES (2, 999)")
 
         engine.dispose()
-        with pytest.raises(IntegrityError):
-            with engine.begin() as connection:
-                assert connection.exec_driver_sql(
-                    "PRAGMA foreign_keys"
-                ).scalar_one() == 1
-                connection.exec_driver_sql(
-                    "INSERT INTO child (id, parent_id) VALUES (3, 999)"
-                )
+        with pytest.raises(IntegrityError), engine.begin() as connection:
+            assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
+            connection.exec_driver_sql("INSERT INTO child (id, parent_id) VALUES (3, 999)")
 
         with engine.connect() as connection:
-            assert connection.exec_driver_sql(
-                "SELECT COUNT(*) FROM child"
-            ).scalar_one() == 1
+            assert connection.exec_driver_sql("SELECT COUNT(*) FROM child").scalar_one() == 1
     finally:
         engine.dispose()
         _remove_sqlite_artifacts(database_path)
@@ -170,8 +155,9 @@ def test_memory_database_does_not_claim_wal_mode() -> None:
             assert connection.exec_driver_sql("SELECT 1").scalar_one() == 1
             assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
             assert connection.exec_driver_sql("PRAGMA busy_timeout").scalar_one() == 876
-            assert str(
-                connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()
-            ).lower() == "memory"
+            assert (
+                str(connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower()
+                == "memory"
+            )
     finally:
         engine.dispose()

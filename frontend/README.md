@@ -40,11 +40,16 @@ npm run dev
 ```powershell
 npm install
 npm run dev
+npm run format:check
+npm run lint
 npm run typecheck
 npm run test:run
+npm run test:coverage
+npm run quality
 npm run test
 npm run build
 npm run preview
+npm ls --depth=0
 ```
 
-`npm run test` 进入交互测试模式，`npm run test:run` 单次运行全部前端测试。`npm run build` 先执行严格类型检查，再生成本地生产构建；`npm run preview` 仅用于本地查看该构建。M0 仍未完成，后续还有质量门禁和本地数据目录任务。
+`npm run test` 进入交互测试模式，`npm run test:run` 单次运行全部前端测试。`npm run test:coverage` 强制 statements 80%、branches 75%、functions 80% 和 lines 80% 的门槛。`npm run quality` 统一执行前端格式检查、lint、类型检查、覆盖率测试和生产构建；它不会自动改写源码。`npm run build` 先执行严格类型检查，再生成本地生产构建；`npm run preview` 仅用于本地查看该构建。完整的跨栈门禁和可选联网审计见 [本地质量门禁](../docs/QUALITY_GATES.md)。当前仍没有小说业务功能。

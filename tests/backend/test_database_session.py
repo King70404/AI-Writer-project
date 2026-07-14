@@ -1,10 +1,11 @@
 """Session commit, rollback, request isolation, and release tests."""
 
 from pathlib import Path
+from typing import Annotated
 
+import pytest
 from fastapi import Depends
 from fastapi.testclient import TestClient
-import pytest
 from sqlalchemy import text
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session
@@ -17,6 +18,8 @@ from aiwebnovel.db.session import (
     get_database_session,
 )
 from aiwebnovel.main import create_app
+
+pytestmark = pytest.mark.integration
 
 
 def _database_url(path: Path) -> str:
@@ -45,27 +48,21 @@ def test_session_requires_explicit_commit_and_rolls_back_failures(
             )
 
         with database_session(session_factory) as session:
-            session.execute(
-                text("INSERT INTO session_test (id, value) VALUES (1, 'committed')")
-            )
+            session.execute(text("INSERT INTO session_test (id, value) VALUES (1, 'committed')"))
             session.commit()
 
         with database_session(session_factory) as session:
-            session.execute(
-                text("INSERT INTO session_test (id, value) VALUES (2, 'uncommitted')")
-            )
+            session.execute(text("INSERT INTO session_test (id, value) VALUES (2, 'uncommitted')"))
 
-        with pytest.raises(RuntimeError, match="rollback marker"):
-            with database_session(session_factory) as session:
-                session.execute(
-                    text("INSERT INTO session_test (id, value) VALUES (3, 'failed')")
-                )
-                raise RuntimeError("rollback marker")
+        with (
+            pytest.raises(RuntimeError, match="rollback marker"),
+            database_session(session_factory) as session,
+        ):
+            session.execute(text("INSERT INTO session_test (id, value) VALUES (3, 'failed')"))
+            raise RuntimeError("rollback marker")
 
         with database_session(session_factory) as session:
-            rows = session.execute(
-                text("SELECT id, value FROM session_test ORDER BY id")
-            ).all()
+            rows = session.execute(text("SELECT id, value FROM session_test ORDER BY id")).all()
 
         assert rows == [(1, "committed")]
         assert engine.pool.checkedout() == 0
@@ -81,7 +78,7 @@ def test_fastapi_requests_receive_distinct_sessions(tmp_path: Path) -> None:
 
     @app.get("/_test/session")
     def session_route(
-        session: Session = Depends(get_database_session),
+        session: Annotated[Session, Depends(get_database_session)],
     ) -> dict[str, int]:
         observed_sessions.append(session)
         session.execute(text("SELECT 1"))

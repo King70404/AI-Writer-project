@@ -5,6 +5,8 @@ from pydantic import ValidationError
 
 from aiwebnovel.core.config import Settings, get_settings
 
+pytestmark = pytest.mark.unit
+
 
 _SETTING_ENV_VARS = (
     "AIWEBNOVEL_APP_NAME",

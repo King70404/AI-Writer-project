@@ -10,6 +10,10 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: "eslint",
+        replacement: resolveFromFrontend("eslint"),
+      },
+      {
         find: "react/jsx-dev-runtime",
         replacement: resolveFromFrontend("react/jsx-dev-runtime"),
       },
@@ -52,5 +56,18 @@ export default defineConfig({
     clearMocks: true,
     mockReset: true,
     restoreMocks: true,
+    coverage: {
+      provider: "v8",
+      reportsDirectory: "./coverage",
+      reporter: ["text", "json-summary"],
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/main.tsx", "src/test/**", "src/vite-env.d.ts"],
+      thresholds: {
+        statements: 80,
+        branches: 75,
+        functions: 80,
+        lines: 80,
+      },
+    },
   },
 });

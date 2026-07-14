@@ -1,12 +1,11 @@
 """Standard-library JSON logging with request-scoped correlation IDs."""
 
-from contextvars import ContextVar, Token
-from datetime import UTC, datetime
 import json
 import logging
 import sys
+from contextvars import ContextVar, Token
+from datetime import UTC, datetime
 from typing import Any
-
 
 _LOGGER_NAME = "aiwebnovel"
 _HANDLER_MARKER = "_aiwebnovel_json_handler"
@@ -34,7 +33,7 @@ class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         try:
             message = record.getMessage()
-        except Exception:
+        except Exception:  # noqa: BLE001 - arbitrary log arguments must not break logging.
             message = "Log message could not be formatted"
 
         payload: dict[str, Any] = {
@@ -53,7 +52,7 @@ class JsonFormatter(logging.Formatter):
         if record.exc_info:
             try:
                 payload["exception"] = self.formatException(record.exc_info)
-            except Exception:
+            except Exception:  # noqa: BLE001 - formatter extensions are an untrusted boundary.
                 payload["exception"] = "Exception details could not be formatted"
 
         try:
@@ -93,9 +92,7 @@ def configure_logging(level: str | int = "INFO") -> logging.Logger:
     logger.propagate = False
 
     managed_handlers = [
-        handler
-        for handler in logger.handlers
-        if getattr(handler, _HANDLER_MARKER, False)
+        handler for handler in logger.handlers if getattr(handler, _HANDLER_MARKER, False)
     ]
     if managed_handlers:
         handler = managed_handlers[0]

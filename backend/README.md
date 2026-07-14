@@ -104,11 +104,16 @@ Remove-Item Env:AIWEBNOVEL_DATABASE_URL
 
 当前初始迁移仅建立 Alembic 基线。除 Alembic 自身的版本表外，不包含任何业务表或业务数据。迁移在用于未来正式数据前必须经过对应任务的审查和验证。
 
-## 测试
+## 后端质量检查
 
 在仓库根目录执行：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest tests/backend -q
+.\.venv\Scripts\python.exe -m ruff format --check --config backend/pyproject.toml backend/src tests/backend tests/architecture
+.\.venv\Scripts\python.exe -m ruff check --config backend/pyproject.toml backend/src tests/backend tests/architecture
+.\.venv\Scripts\python.exe -m mypy --config-file backend/pyproject.toml backend/src/aiwebnovel
+.\.venv\Scripts\python.exe -m pytest tests/backend tests/architecture --cov=aiwebnovel --cov-branch --cov-config=backend/pyproject.toml
 .\.venv\Scripts\python.exe -m pip check
 ```
+
+完整本地门禁由 `.\scripts\quality_gate.ps1` 负责生成系统临时目录中的覆盖率 JSON，并分别强制语句覆盖率 80% 与分支覆盖率 75%，完成后删除报告。完整命令和失败规则见 [本地质量门禁](../docs/QUALITY_GATES.md)。

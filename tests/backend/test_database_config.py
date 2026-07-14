@@ -9,6 +9,8 @@ from aiwebnovel.db.engine import (
     create_database_engine,
 )
 
+pytestmark = pytest.mark.unit
+
 
 _DATABASE_ENV_VARS = (
     "AIWEBNOVEL_DATABASE_URL",
@@ -29,9 +31,7 @@ def isolated_database_settings(monkeypatch: pytest.MonkeyPatch):
 def test_database_defaults_are_phase_zero_development_values() -> None:
     settings = get_settings()
 
-    assert settings.database_url == (
-        "sqlite+pysqlite:///./.runtime/aiwebnovel-dev.sqlite3"
-    )
+    assert settings.database_url == ("sqlite+pysqlite:///./.runtime/aiwebnovel-dev.sqlite3")
     assert settings.database_echo is False
     assert settings.database_busy_timeout_ms == 5000
 
@@ -39,9 +39,7 @@ def test_database_defaults_are_phase_zero_development_values() -> None:
 def test_database_environment_overrides_are_typed_and_cacheable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv(
-        "AIWEBNOVEL_DATABASE_URL", "sqlite+pysqlite:///:memory:"
-    )
+    monkeypatch.setenv("AIWEBNOVEL_DATABASE_URL", "sqlite+pysqlite:///:memory:")
     monkeypatch.setenv("AIWEBNOVEL_DATABASE_ECHO", "true")
     monkeypatch.setenv("AIWEBNOVEL_DATABASE_BUSY_TIMEOUT_MS", "2345")
 

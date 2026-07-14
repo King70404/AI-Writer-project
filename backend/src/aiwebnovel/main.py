@@ -16,7 +16,6 @@ from aiwebnovel.db.health import check_database_health
 from aiwebnovel.db.session import create_database_session_factory
 from aiwebnovel.web.frontend import FrontendStaticService
 
-
 logger = get_logger("health")
 
 
@@ -29,9 +28,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         engine = create_database_engine(resolved_settings)
         application.state.database_engine = engine
-        application.state.database_session_factory = (
-            create_database_session_factory(engine)
-        )
+        application.state.database_session_factory = create_database_session_factory(engine)
         application.state.initialized = True
         try:
             yield
@@ -80,20 +77,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         configuration_status = (
             "ok" if isinstance(application.state.settings, Settings) else "failed"
         )
-        application_status = (
-            "ok" if application.state.initialized is True else "failed"
-        )
+        application_status = "ok" if application.state.initialized is True else "failed"
         database_status = "failed"
         frontend_status = (
-            frontend_service.status()
-            if resolved_settings.serve_frontend
-            else "not_required"
+            frontend_service.status() if resolved_settings.serve_frontend else "not_required"
         )
         engine = application.state.database_engine
         if engine is not None:
             try:
                 check_database_health(engine)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - readiness must degrade safely.
                 logger.error(
                     "database readiness check failed error_type=%s",
                     type(exc).__name__,
@@ -123,9 +116,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if resolved_settings.serve_frontend:
 
         @application.get("/{frontend_path:path}", include_in_schema=False)
-        async def serve_frontend(
-            request: Request, frontend_path: str
-        ) -> Response:
+        async def serve_frontend(request: Request, frontend_path: str) -> Response:
             return await frontend_service.serve(request, frontend_path)
 
     return application

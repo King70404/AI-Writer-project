@@ -30,9 +30,7 @@ describe("AppErrorBoundary", () => {
     expect(document.body).not.toHaveTextContent(testModuleUrl);
     expect(document.body).not.toHaveTextContent("file:///");
 
-    await user.click(
-      screen.getByRole("button", { name: "重新加载当前页面" }),
-    );
+    await user.click(screen.getByRole("button", { name: "重新加载当前页面" }));
     expect(reload).toHaveBeenCalledOnce();
   });
 });

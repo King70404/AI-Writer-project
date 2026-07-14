@@ -11,7 +11,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from aiwebnovel.core.errors import AppError
 
-
 FrontendBuildStatus = Literal["ok", "failed"]
 
 
@@ -60,9 +59,7 @@ def _safe_relative_path(request: Request, route_path: str) -> str | None:
             return None
         segments = decoded.split("/")
         if any(
-            segment in {".", ".."} or segment.startswith(".")
-            for segment in segments
-            if segment
+            segment in {".", ".."} or segment.startswith(".") for segment in segments if segment
         ):
             return None
 

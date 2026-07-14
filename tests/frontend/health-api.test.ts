@@ -8,12 +8,7 @@ import {
   HealthCheckTimeoutError,
 } from "../../frontend/src/api/health";
 
-
-function response(
-  body: unknown,
-  status = 200,
-  requestId = "req_health_test",
-) {
+function response(body: unknown, status = 200, requestId = "req_health_test") {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -23,11 +18,9 @@ function response(
   });
 }
 
-
 function liveBody() {
   return { status: "ok", service: "AIWebNovel", version: "0.0.0" };
 }
-
 
 function readyBody(
   status: "ready" | "not_ready" = "ready",
@@ -44,12 +37,10 @@ function readyBody(
   };
 }
 
-
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
-
 
 describe("frontend health API", () => {
   it("parses live health, preserves the request ID, and passes AbortSignal", async () => {
@@ -173,9 +164,9 @@ describe("frontend health API", () => {
     fetchMock.mockRejectedValue(networkError);
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(
-      checkBackendHealth({ timeoutMs: 1_000 }),
-    ).rejects.toBe(networkError);
+    await expect(checkBackendHealth({ timeoutMs: 1_000 })).rejects.toBe(
+      networkError,
+    );
   });
 
   it("aborts a stalled request at the controlled timeout", async () => {
@@ -197,12 +188,10 @@ describe("frontend health API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const probe = checkBackendHealth({ timeoutMs: 50 });
-    const assertion = expect(probe).rejects.toBeInstanceOf(
-      HealthCheckTimeoutError,
-    );
+    const rejection = probe.catch((error: unknown) => error);
     await vi.advanceTimersByTimeAsync(50);
 
-    await assertion;
+    await expect(rejection).resolves.toBeInstanceOf(HealthCheckTimeoutError);
     expect(requestSignals).toHaveLength(1);
     expect(requestSignals[0]?.aborted).toBe(true);
   });

@@ -22,14 +22,17 @@ describe("AIWebNovel frontend foundation", () => {
         name: "AIWebNovel 前端基础已启动",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("阶段 0", { selector: ".phase-label" })).toBeVisible();
     expect(
-      screen.getAllByText(/小说业务功能尚未实现/).length,
-    ).toBeGreaterThan(0);
+      screen.getByText("阶段 0", { selector: ".phase-label" }),
+    ).toBeVisible();
+    expect(screen.getAllByText(/小说业务功能尚未实现/).length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getByRole("main")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "跳至主要内容" }),
-    ).toHaveAttribute("href", "#main-content");
+    expect(screen.getByRole("link", { name: "跳至主要内容" })).toHaveAttribute(
+      "href",
+      "#main-content",
+    );
     expect(screen.getByText("本地系统状态")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(
       "正在检查本地后端状态。",

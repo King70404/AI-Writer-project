@@ -21,9 +21,7 @@ export function AppShell() {
       </main>
 
       <footer className="app-shell__footer">
-        <p>
-          当前状态：前端工程基础可运行；小说业务功能尚未实现。
-        </p>
+        <p>当前状态：前端工程基础可运行；小说业务功能尚未实现。</p>
       </footer>
     </div>
   );

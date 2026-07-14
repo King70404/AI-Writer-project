@@ -1,7 +1,7 @@
 """Synchronous SQLAlchemy engine creation and SQLite connection policy."""
 
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.engine import URL, make_url
@@ -9,7 +9,6 @@ from sqlalchemy.exc import ArgumentError
 from sqlalchemy.pool import StaticPool
 
 from aiwebnovel.core.config import Settings
-
 
 _SUPPORTED_SQLITE_DRIVERS = {"sqlite", "sqlite+pysqlite"}
 
@@ -23,14 +22,10 @@ def get_sqlite_url(value: str | URL) -> URL:
     try:
         url = value if isinstance(value, URL) else make_url(value)
     except ArgumentError as exc:
-        raise DatabaseConfigurationError(
-            "database_url must be a valid SQLite URL"
-        ) from exc
+        raise DatabaseConfigurationError("database_url must be a valid SQLite URL") from exc
 
     if url.drivername not in _SUPPORTED_SQLITE_DRIVERS:
-        raise DatabaseConfigurationError(
-            "Only the SQLite pysqlite driver is supported"
-        )
+        raise DatabaseConfigurationError("Only the SQLite pysqlite driver is supported")
     return url
 
 
@@ -56,11 +51,7 @@ def ensure_database_parent_directory(settings: Settings) -> Path | None:
     database_path = database_file_path(settings.database_url)
     if database_path is None:
         return None
-    absolute_path = (
-        database_path
-        if database_path.is_absolute()
-        else Path.cwd() / database_path
-    )
+    absolute_path = database_path if database_path.is_absolute() else Path.cwd() / database_path
     absolute_path.parent.mkdir(parents=True, exist_ok=True)
     return absolute_path
 
@@ -96,13 +87,9 @@ def create_database_engine(settings: Settings) -> Engine:
             if not is_memory:
                 cursor.execute("PRAGMA journal_mode = WAL")
                 journal_mode_row = cursor.fetchone()
-                journal_mode = (
-                    str(journal_mode_row[0]).lower() if journal_mode_row else ""
-                )
+                journal_mode = str(journal_mode_row[0]).lower() if journal_mode_row else ""
                 if journal_mode != "wal":
-                    raise sqlite3.OperationalError(
-                        "SQLite WAL mode could not be enabled"
-                    )
+                    raise sqlite3.OperationalError("SQLite WAL mode could not be enabled")
             cursor.execute("PRAGMA synchronous = NORMAL")
         finally:
             cursor.close()

@@ -75,9 +75,7 @@ class Settings(BaseSettings):
 
     @field_validator("cors_allowed_origins")
     @classmethod
-    def validate_cors_allowed_origins(
-        cls, origins: tuple[str, ...]
-    ) -> tuple[str, ...]:
+    def validate_cors_allowed_origins(cls, origins: tuple[str, ...]) -> tuple[str, ...]:
         """Require explicit HTTP origins without paths, wildcards, or credentials."""
         normalized_origins: list[str] = []
         for origin in origins:
@@ -93,7 +91,7 @@ class Settings(BaseSettings):
 
             parsed = urlsplit(normalized)
             try:
-                parsed_port = parsed.port
+                _validated_port = parsed.port
             except ValueError as exc:
                 raise ValueError("CORS origin has an invalid port") from exc
 
@@ -106,9 +104,7 @@ class Settings(BaseSettings):
                 or parsed.username is not None
                 or parsed.password is not None
             ):
-                raise ValueError(
-                    "CORS origins must contain only scheme, host, and optional port"
-                )
+                raise ValueError("CORS origins must contain only scheme, host, and optional port")
             if normalized in normalized_origins:
                 raise ValueError("CORS origins must not contain duplicates")
             normalized_origins.append(normalized)

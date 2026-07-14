@@ -2,7 +2,8 @@
 
 import json
 import secrets
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -15,7 +16,6 @@ from aiwebnovel.core.logging import (
     get_request_id,
     reset_request_id,
 )
-
 
 logger = get_logger("errors")
 
@@ -99,9 +99,7 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     )
 
 
-async def validation_error_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Return a controlled subset of request validation diagnostics."""
     errors = [
         {
@@ -120,9 +118,7 @@ async def validation_error_handler(
     )
 
 
-async def http_error_handler(
-    request: Request, exc: StarletteHTTPException
-) -> JSONResponse:
+async def http_error_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """Normalize routing and other framework HTTP errors."""
     if exc.status_code == 404:
         return _error_response(
@@ -164,7 +160,7 @@ async def internal_error_handler(request: Request, exc: Exception) -> JSONRespon
 
 def register_error_handlers(app: FastAPI) -> None:
     """Register all handlers used by production and test application instances."""
-    app.add_exception_handler(AppError, app_error_handler)
-    app.add_exception_handler(RequestValidationError, validation_error_handler)
-    app.add_exception_handler(StarletteHTTPException, http_error_handler)
-    app.add_exception_handler(Exception, internal_error_handler)
+    app.exception_handler(AppError)(app_error_handler)
+    app.exception_handler(RequestValidationError)(validation_error_handler)
+    app.exception_handler(StarletteHTTPException)(http_error_handler)
+    app.exception_handler(Exception)(internal_error_handler)

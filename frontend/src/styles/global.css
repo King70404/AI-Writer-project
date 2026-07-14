@@ -1,7 +1,11 @@
 :root {
   font-family:
-    system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", "Microsoft YaHei", sans-serif;
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Microsoft YaHei",
+    sans-serif;
   color: #17212b;
   background: #eef1f3;
   font-synthesis: none;

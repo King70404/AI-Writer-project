@@ -10,8 +10,7 @@ export interface LiveHealthResponse {
 
 export type RequiredHealthCheckStatus = "ok" | "failed";
 export type FrontendHealthCheckStatus =
-  | RequiredHealthCheckStatus
-  | "not_required";
+  RequiredHealthCheckStatus | "not_required";
 
 export interface ReadyHealthResponse {
   readonly status: "ready" | "not_ready";
@@ -24,11 +23,7 @@ export interface ReadyHealthResponse {
 }
 
 export type BackendNotReadyReason =
-  | "configuration"
-  | "application"
-  | "database"
-  | "frontend"
-  | "readiness";
+  "configuration" | "application" | "database" | "frontend" | "readiness";
 
 export type BackendHealthResult =
   | {

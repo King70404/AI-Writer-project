@@ -13,7 +13,6 @@ from aiwebnovel.core.logging import (
     reset_request_id,
 )
 
-
 REQUEST_ID_HEADER = "X-Request-ID"
 MAX_REQUEST_ID_LENGTH = 128
 _SAFE_REQUEST_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -35,15 +34,12 @@ def generate_request_id() -> str:
 class RequestIdMiddleware(BaseHTTPMiddleware):
     """Validate or generate a request ID and scope it to one request."""
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         supplied_request_id = request.headers.get(REQUEST_ID_HEADER)
-        request_id = (
-            supplied_request_id
-            if is_valid_request_id(supplied_request_id)
-            else generate_request_id()
-        )
+        if supplied_request_id is not None and is_valid_request_id(supplied_request_id):
+            request_id = supplied_request_id
+        else:
+            request_id = generate_request_id()
         request.state.request_id = request_id
         token = bind_request_id(request_id)
         started_at = perf_counter()

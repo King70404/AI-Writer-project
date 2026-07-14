@@ -1,13 +1,16 @@
 """Alembic online and offline migration baseline tests."""
 
 import os
-from contextlib import closing
-from pathlib import Path
 import sqlite3
 import subprocess
 import sys
+from contextlib import closing
+from pathlib import Path
 
+import pytest
 from sqlalchemy.engine import URL
+
+pytestmark = pytest.mark.integration
 
 
 _REVISION = "0001_initialize_database"
@@ -45,8 +48,7 @@ def _database_state(path: Path) -> tuple[list[str], list[str]]:
         tables = [
             row[0]
             for row in connection.execute(
-                "SELECT name FROM sqlite_master "
-                "WHERE type = 'table' ORDER BY name"
+                "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"
             )
         ]
         versions = (

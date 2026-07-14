@@ -2,17 +2,13 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  BackendHealthResult,
-} from "../../frontend/src/api/health";
+import type { BackendHealthResult } from "../../frontend/src/api/health";
 import {
   SystemStatus,
   type SystemStatusProps,
 } from "../../frontend/src/components/SystemStatus";
 
-
 type CheckHealth = NonNullable<SystemStatusProps["checkHealth"]>;
-
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -23,7 +19,6 @@ function deferred<T>() {
   });
   return { promise, resolve, reject };
 }
-
 
 function readyResult(): BackendHealthResult {
   return {
@@ -47,7 +42,6 @@ function readyResult(): BackendHealthResult {
   };
 }
 
-
 function notReadyResult(): BackendHealthResult {
   return {
     kind: "backend_not_ready",
@@ -55,7 +49,6 @@ function notReadyResult(): BackendHealthResult {
     requestId: "req_not_ready",
   };
 }
-
 
 describe("SystemStatus", () => {
   it("starts in checking and shows ready only after the real probe resolves", async () => {
@@ -92,8 +85,12 @@ describe("SystemStatus", () => {
       await screen.findByText("本地后端可访问，但尚未就绪。"),
     ).toBeInTheDocument();
     expect(screen.getByText("数据库基础检查未通过。")).toBeInTheDocument();
-    expect(screen.queryByText("当前无法连接本地后端。")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Traceback|\\Users\\|sqlite3/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("当前无法连接本地后端。"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Traceback|\\Users\\|sqlite3/),
+    ).not.toBeInTheDocument();
   });
 
   it("maps network failure to backend_unavailable without blaming the database", async () => {
@@ -104,7 +101,9 @@ describe("SystemStatus", () => {
     expect(
       await screen.findByText("当前无法连接本地后端。"),
     ).toBeInTheDocument();
-    expect(screen.queryByText("数据库基础检查未通过。")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("数据库基础检查未通过。"),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重新检查" })).toBeEnabled();
   });
 
@@ -153,7 +152,9 @@ describe("SystemStatus", () => {
       signal = options.signal;
       return probe.promise;
     });
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const view = render(<SystemStatus checkHealth={checkHealth} />);
 
     view.unmount();

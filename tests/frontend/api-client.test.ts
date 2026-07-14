@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  getJson,
-  joinApiPath,
-} from "../../frontend/src/api/client";
+import { getJson, joinApiPath } from "../../frontend/src/api/client";
 import { ApiError } from "../../frontend/src/api/errors";
 
 interface ExamplePayload {
@@ -35,12 +32,10 @@ afterEach(() => {
 
 describe("typed API client", () => {
   it("joins relative API paths without producing duplicate separators", () => {
-    expect(joinApiPath("/api/v1/", "/health/live")).toBe(
-      "/api/v1/health/live",
-    );
-    expect(() => joinApiPath("/api/v1", "https://example.invalid/data")).toThrow(
-      "API 请求路径必须是相对路径。",
-    );
+    expect(joinApiPath("/api/v1/", "/health/live")).toBe("/api/v1/health/live");
+    expect(() =>
+      joinApiPath("/api/v1", "https://example.invalid/data"),
+    ).toThrow("API 请求路径必须是相对路径。");
     expect(() => joinApiPath("/api/v1", "//example.invalid/data")).toThrow(
       "API 请求路径必须是相对路径。",
     );
@@ -190,7 +185,10 @@ describe("typed API client", () => {
   });
 
   it("preserves cancellation errors from fetch", async () => {
-    const abortError = new DOMException("The operation was aborted.", "AbortError");
+    const abortError = new DOMException(
+      "The operation was aborted.",
+      "AbortError",
+    );
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockRejectedValue(abortError);
     vi.stubGlobal("fetch", fetchMock);

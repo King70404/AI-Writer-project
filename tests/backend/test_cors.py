@@ -2,11 +2,14 @@
 
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import URL
 
 from aiwebnovel.core.config import Settings
 from aiwebnovel.main import create_app
+
+pytestmark = pytest.mark.integration
 
 
 ALLOWED_ORIGIN = "http://127.0.0.1:5173"
@@ -16,9 +19,7 @@ def _settings(tmp_path: Path) -> Settings:
     return Settings(
         environment="test",
         database_url=str(
-            URL.create(
-                "sqlite+pysqlite", database=(tmp_path / "cors.sqlite3").as_posix()
-            )
+            URL.create("sqlite+pysqlite", database=(tmp_path / "cors.sqlite3").as_posix())
         ),
     )
 
@@ -54,9 +55,7 @@ def test_allowed_origin_receives_only_the_configured_cors_policy(
     assert "OPTIONS" in preflight.headers["Access-Control-Allow-Methods"]
     assert "*" not in preflight.headers["Access-Control-Allow-Methods"]
     assert "*" not in preflight.headers["Access-Control-Allow-Headers"]
-    assert "authorization" not in preflight.headers[
-        "Access-Control-Allow-Headers"
-    ].lower()
+    assert "authorization" not in preflight.headers["Access-Control-Allow-Headers"].lower()
     assert "Access-Control-Allow-Credentials" not in preflight.headers
 
 
@@ -91,9 +90,7 @@ def test_unlisted_origin_and_unneeded_preflight_permissions_are_rejected(
     assert method_preflight.status_code == 400
     assert "POST" not in method_preflight.headers["Access-Control-Allow-Methods"]
     assert header_preflight.status_code == 400
-    assert "authorization" not in header_preflight.headers[
-        "Access-Control-Allow-Headers"
-    ].lower()
+    assert "authorization" not in header_preflight.headers["Access-Control-Allow-Headers"].lower()
 
 
 def test_same_origin_style_request_does_not_depend_on_cors(tmp_path: Path) -> None:
