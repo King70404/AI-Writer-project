@@ -1,0 +1,92 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Node dependencies and frontend build output
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# IDE and editor-local files
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and local diagnostics
+*.log
+logs/
+
+# Local databases and SQLite sidecar files
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite-journal
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.sqlite3-journal
+
+# Runtime state and task sandboxes
+.runtime/
+runtime_data/
+sandboxes/
+task_sandboxes/
+
+# Local model files
+local_models/
+*.gguf
+*.safetensors
+*.onnx
+
+# Backups and generated exports
+backups/
+exports/
+*.bak
+*.backup
+
+# Environment variables and local sensitive configuration
+.env
+.env.*
+!.env.example
+.secrets/
+secrets.local.*
+config.local.*
+*.local.json
+*.local.yaml
+*.local.yml
+*.local.toml
+*.pem
+*.key
+*.p12
+*.pfx
