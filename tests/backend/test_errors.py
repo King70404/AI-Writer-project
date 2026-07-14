@@ -1,13 +1,22 @@
 """Tests for the frozen API error schema and safe failure handling."""
 
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 from fastapi.testclient import TestClient
+from sqlalchemy.engine import URL
 
 from aiwebnovel.core.config import Settings
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.main import create_app
+
+
+def _test_settings(tmp_path: Path, filename: str) -> Settings:
+    database_url = str(
+        URL.create("sqlite+pysqlite", database=(tmp_path / filename).as_posix())
+    )
+    return Settings(environment="test", database_url=database_url)
 
 
 def assert_error_schema(payload: Mapping[str, Any]) -> None:
@@ -24,8 +33,10 @@ def assert_error_schema(payload: Mapping[str, Any]) -> None:
     assert isinstance(payload["request_id"], str)
 
 
-def test_unknown_path_uses_not_found_schema_and_matching_request_id() -> None:
-    app = create_app(Settings(environment="test"))
+def test_unknown_path_uses_not_found_schema_and_matching_request_id(
+    tmp_path: Path,
+) -> None:
+    app = create_app(_test_settings(tmp_path, "not-found.sqlite3"))
 
     with TestClient(app) as client:
         response = client.get("/api/v1/unknown", headers={"X-Request-ID": "client-404"})
@@ -38,8 +49,8 @@ def test_unknown_path_uses_not_found_schema_and_matching_request_id() -> None:
     assert response.headers["X-Request-ID"] == payload["request_id"]
 
 
-def test_validation_error_uses_controlled_details() -> None:
-    app = create_app(Settings(environment="test"))
+def test_validation_error_uses_controlled_details(tmp_path: Path) -> None:
+    app = create_app(_test_settings(tmp_path, "validation.sqlite3"))
 
     @app.get("/_test/validation")
     async def validation_route(value: int) -> dict[str, int]:
@@ -56,8 +67,8 @@ def test_validation_error_uses_controlled_details() -> None:
     assert response.headers["X-Request-ID"] == payload["request_id"]
 
 
-def test_app_error_is_normalized() -> None:
-    app = create_app(Settings(environment="test"))
+def test_app_error_is_normalized(tmp_path: Path) -> None:
+    app = create_app(_test_settings(tmp_path, "app-error.sqlite3"))
 
     @app.get("/_test/app-error")
     async def app_error_route() -> None:
@@ -85,8 +96,10 @@ def test_app_error_is_normalized() -> None:
     assert response.headers["X-Request-ID"] == payload["request_id"]
 
 
-def test_internal_error_is_generic_and_contains_no_diagnostics() -> None:
-    app = create_app(Settings(environment="test"))
+def test_internal_error_is_generic_and_contains_no_diagnostics(
+    tmp_path: Path,
+) -> None:
+    app = create_app(_test_settings(tmp_path, "internal-error.sqlite3"))
 
     @app.get("/_test/internal-error")
     async def internal_error_route() -> None:

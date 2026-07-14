@@ -4,8 +4,10 @@ from collections import Counter
 from io import StringIO
 import json
 import logging
+from pathlib import Path
 
 from fastapi.testclient import TestClient
+from sqlalchemy.engine import URL
 
 from aiwebnovel.core.config import Settings
 from aiwebnovel.core.logging import (
@@ -19,11 +21,31 @@ from aiwebnovel.core.middleware import is_valid_request_id
 from aiwebnovel.main import create_app
 
 
-def test_live_health_uses_configuration_and_returns_request_id() -> None:
-    settings = Settings(
+def _test_settings(
+    tmp_path: Path, filename: str = "health.sqlite3", **overrides: object
+) -> Settings:
+    values: dict[str, object] = {
+        "environment": "test",
+        "database_url": str(
+            URL.create("sqlite+pysqlite", database=(tmp_path / filename).as_posix())
+        ),
+    }
+    values.update(overrides)
+    return Settings(**values)
+
+
+def _remove_sqlite_artifacts(path: Path) -> None:
+    for suffix in ("", "-wal", "-shm", "-journal"):
+        Path(f"{path}{suffix}").unlink(missing_ok=True)
+
+
+def test_live_health_uses_configuration_and_returns_request_id(
+    tmp_path: Path,
+) -> None:
+    settings = _test_settings(
+        tmp_path,
         app_name="HealthService",
         app_version="9.8.7",
-        environment="test",
     )
     app = create_app(settings)
 
@@ -39,8 +61,9 @@ def test_live_health_uses_configuration_and_returns_request_id() -> None:
     assert is_valid_request_id(response.headers["X-Request-ID"])
 
 
-def test_ready_health_reports_only_real_checks() -> None:
-    app = create_app(Settings(environment="test"))
+def test_ready_health_reports_only_real_checks(tmp_path: Path) -> None:
+    database_path = tmp_path / "health.sqlite3"
+    app = create_app(_test_settings(tmp_path))
 
     with TestClient(app) as client:
         response = client.get("/api/v1/health/ready")
@@ -48,13 +71,20 @@ def test_ready_health_reports_only_real_checks() -> None:
     assert response.status_code == 200
     assert response.json() == {
         "status": "ready",
-        "checks": {"configuration": "ok", "application": "ok"},
+        "checks": {
+            "configuration": "ok",
+            "application": "ok",
+            "database": "ok",
+        },
     }
-    assert not ({"database", "codex", "model"} & response.json()["checks"].keys())
+    assert not ({"codex", "model", "business"} & response.json()["checks"].keys())
+    _remove_sqlite_artifacts(database_path)
 
 
-def test_request_ids_are_preserved_replaced_and_not_reused() -> None:
-    app = create_app(Settings(environment="test"))
+def test_request_ids_are_preserved_replaced_and_not_reused(
+    tmp_path: Path,
+) -> None:
+    app = create_app(_test_settings(tmp_path))
 
     with TestClient(app) as client:
         preserved = client.get(
@@ -78,9 +108,11 @@ def test_request_ids_are_preserved_replaced_and_not_reused() -> None:
     assert get_request_id() is None
 
 
-def test_create_app_is_repeatable_without_duplicate_routes_or_handlers() -> None:
-    first = create_app(Settings(environment="test"))
-    second = create_app(Settings(environment="test"))
+def test_create_app_is_repeatable_without_duplicate_routes_or_handlers(
+    tmp_path: Path,
+) -> None:
+    first = create_app(_test_settings(tmp_path, "first.sqlite3"))
+    second = create_app(_test_settings(tmp_path, "second.sqlite3"))
 
     first_paths = [route.path for route in first.routes]
     second_paths = [route.path for route in second.routes]

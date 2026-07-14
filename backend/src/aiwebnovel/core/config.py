@@ -25,8 +25,11 @@ class Settings(BaseSettings):
     host: Literal["127.0.0.1"] = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)
     log_level: Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"] = "INFO"
+    database_url: str = "sqlite+pysqlite:///./.runtime/aiwebnovel-dev.sqlite3"
+    database_echo: bool = False
+    database_busy_timeout_ms: int = Field(default=5000, ge=1, le=600_000)
 
-    @field_validator("app_name", "app_version", "environment")
+    @field_validator("app_name", "app_version", "environment", "database_url")
     @classmethod
     def validate_non_empty_text(cls, value: str) -> str:
         """Reject blank identifying configuration values."""
