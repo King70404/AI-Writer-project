@@ -1,0 +1,23 @@
+# Normalize text files and store them with LF in the repository.
+* text=auto eol=lf
+
+# Windows command scripts conventionally use CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files must never receive text conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.zip binary
+*.7z binary
+*.exe binary
+*.dll binary
+*.sqlite3 binary
+*.db binary
