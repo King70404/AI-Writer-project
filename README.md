@@ -4,9 +4,34 @@ AIWebNovel 是项目暂定名称，目标是开发一套面向中文男频网文
 
 ## 当前阶段与状态
 
-项目当前处于阶段 0——工程底座。DEV-0.3 已建立可测试的 SQLite、SQLAlchemy 与 Alembic 数据库基础，DEV-0.4 已建立 React、TypeScript 与 Vite 前端工程基础；仓库仍未实现任何小说业务功能。
+项目当前处于阶段 0——工程底座。DEV-0.3 已建立可测试的 SQLite、SQLAlchemy 与 Alembic 数据库基础，DEV-0.4 已建立 React、TypeScript 与 Vite 前端工程基础，DEV-0.5 已建立本地前后端健康检查集成与可选生产静态服务；仓库仍未实现任何小说业务功能。
 
-当前已有 FastAPI、数据库连接和迁移基线等后端基础设施，以及独立运行的前端工程基础页；前端尚未连接后端，也没有小说业务表、Agent、Skill、Prompt、工作流或小说业务界面。基础服务、SQLite 文件、迁移基线或前端目录存在都不代表小说业务已经完成。后端环境、数据库迁移和测试说明见 [后端 README](backend/README.md)，前端环境与命令见 [前端 README](frontend/README.md)。
+当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI 与 SQLite 基础状态。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。项目仍没有小说业务表、Agent、Skill、Prompt、工作流或小说业务界面；健康检查通过只代表工程基础可用，不代表系统已经能够创作小说。后端环境、数据库迁移和测试说明见 [后端 README](backend/README.md)，前端环境与命令见 [前端 README](frontend/README.md)，已实现工程能力见 [功能真实性矩阵](docs/FEATURE_REALITY_MATRIX.md)。
+
+## 本地运行模式
+
+开发模式分别启动后端和前端，且都只绑定 `127.0.0.1`：
+
+```powershell
+.\.venv\Scripts\python.exe -m aiwebnovel
+Set-Location frontend
+npm run dev
+```
+
+浏览器访问 `http://127.0.0.1:5173`。Vite 只把 `/api` 代理到 `http://127.0.0.1:8000`，不代理其他路径或 WebSocket。
+
+生产集成模式先构建前端，再显式启用后端静态服务：
+
+```powershell
+Set-Location frontend
+npm run build
+Set-Location ..
+$env:AIWEBNOVEL_SERVE_FRONTEND = "true"
+.\.venv\Scripts\python.exe -m aiwebnovel
+Remove-Item Env:AIWEBNOVEL_SERVE_FRONTEND
+```
+
+此时浏览器只访问 `http://127.0.0.1:8000`。默认 CORS 来源是明确的 `http://127.0.0.1:5173`，不使用通配符，也不启用跨域凭据。
 
 ## 计划技术栈
 
@@ -17,7 +42,7 @@ AIWebNovel 是项目暂定名称，目标是开发一套面向中文男频网文
 - 数据治理：候选数据、正式数据与分支数据严格隔离；
 - Codex：通过统一的 CodexExecutor 适配器接入。
 
-以上包含当前基础设施和后续阶段计划，不表示业务模型、正式数据存储、前后端集成或完整系统已经完成，也不表示 M0 已完成。
+以上包含当前基础设施和后续阶段计划，不表示业务模型、正式数据存储或完整系统已经完成，也不表示 M0 已完成。M0 后续仍有质量门禁和正式本地数据目录等任务。
 
 ## 开发规范
 

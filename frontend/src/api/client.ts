@@ -93,9 +93,8 @@ function responseRequestId(response: Response): string | null {
   return requestId === undefined || requestId.length === 0 ? null : requestId;
 }
 
-async function toApiError(response: Response): Promise<ApiError> {
+function toApiError(response: Response, parsed: JsonReadResult): ApiError {
   const headerRequestId = responseRequestId(response);
-  const parsed = await readJson(response);
 
   if (parsed.ok && isBackendErrorEnvelope(parsed.value)) {
     return new ApiError({
@@ -136,11 +135,16 @@ export async function getJson<T>(
     signal: options.signal,
   });
 
-  if (!response.ok) {
-    throw await toApiError(response);
+  const parsed = await readJson(response);
+  const acceptedStatus =
+    options.acceptedStatuses?.includes(response.status) === true;
+  if (
+    !response.ok &&
+    (!acceptedStatus || (parsed.ok && isBackendErrorEnvelope(parsed.value)))
+  ) {
+    throw toApiError(response, parsed);
   }
 
-  const parsed = await readJson(response);
   if (!parsed.ok) {
     throw new ApiError({
       status: response.status,

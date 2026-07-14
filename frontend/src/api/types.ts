@@ -21,4 +21,5 @@ export type JsonDecoder<T> = (value: unknown) => T;
 export interface GetJsonOptions {
   readonly headers?: HeadersInit;
   readonly signal?: AbortSignal;
+  readonly acceptedStatuses?: readonly number[];
 }

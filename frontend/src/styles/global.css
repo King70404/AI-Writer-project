@@ -141,6 +141,58 @@ button:focus-visible {
   line-height: 1.8;
 }
 
+.system-status {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 1.4fr) auto;
+  align-items: center;
+  gap: 1.25rem;
+  margin: 0 0 2rem;
+  padding: 1.2rem;
+  border: 1px solid #bac6ce;
+  border-radius: 0.55rem;
+  background: #f5f8fa;
+}
+
+.system-status h3,
+.system-status p {
+  margin: 0;
+}
+
+.system-status h3 {
+  color: #253746;
+  font-size: 1.1rem;
+}
+
+.system-status__message {
+  color: #314450;
+  line-height: 1.6;
+}
+
+.system-status__reason {
+  margin-top: 0.25rem !important;
+  color: #6b3b27;
+}
+
+.system-status button {
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 0.4rem;
+  color: #ffffff;
+  background: #17324d;
+  cursor: pointer;
+}
+
+.system-status button:hover:not(:disabled) {
+  background: #244b6d;
+}
+
+.system-status button:disabled {
+  color: #56636c;
+  background: #d4dce1;
+  cursor: not-allowed;
+}
+
 .foundation-facts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -249,5 +301,14 @@ button:focus-visible {
 
   .foundation-facts {
     grid-template-columns: 1fr;
+  }
+
+  .system-status {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .system-status button {
+    justify-self: start;
   }
 }

@@ -75,6 +75,7 @@ def test_ready_health_reports_only_real_checks(tmp_path: Path) -> None:
             "configuration": "ok",
             "application": "ok",
             "database": "ok",
+            "frontend": "not_required",
         },
     }
     assert not ({"codex", "model", "business"} & response.json()["checks"].keys())

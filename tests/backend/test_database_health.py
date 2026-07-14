@@ -60,6 +60,7 @@ def test_ready_database_failure_is_private_while_live_stays_available(
             "configuration": "ok",
             "application": "ok",
             "database": "failed",
+            "frontend": "not_required",
         },
     }
     assert ready_response.headers["X-Request-ID"] == "database-failure-test"
@@ -68,7 +69,7 @@ def test_ready_database_failure_is_private_while_live_stays_available(
     assert database_target.name not in ready_response.text
     assert "OperationalError" not in ready_response.text
     assert "Traceback" not in ready_response.text
-    assert not ({"codex", "model", "frontend", "business"} & ready_response.json()["checks"].keys())
+    assert not ({"codex", "model", "business"} & ready_response.json()["checks"].keys())
 
 
 def test_application_does_not_run_migrations_automatically(tmp_path: Path) -> None:

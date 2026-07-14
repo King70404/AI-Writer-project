@@ -30,11 +30,21 @@ describe("AIWebNovel frontend foundation", () => {
     expect(
       screen.getByRole("link", { name: "跳至主要内容" }),
     ).toHaveAttribute("href", "#main-content");
+    expect(screen.getByText("本地系统状态")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "正在检查本地后端状态。",
+    );
+    expect(screen.getByRole("button", { name: "重新检查" })).toBeDisabled();
+    expect(
+      document.querySelector('[data-feature-id="FND-002"]'),
+    ).toHaveAttribute("data-state", "checking");
 
     expect(
       screen.queryByRole("button", { name: "开始创作" }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText(/项目数量|任务数量|系统健康|Codex 在线/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/项目数量|任务数量|Codex 在线|模型状态/),
+    ).not.toBeInTheDocument();
 
     for (const button of screen.queryAllByRole("button")) {
       expect(button).not.toHaveAccessibleName("");
