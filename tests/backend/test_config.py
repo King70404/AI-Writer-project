@@ -26,6 +26,13 @@ _SETTING_ENV_VARS = (
     "AIWEBNOVEL_SERVE_FRONTEND",
     "AIWEBNOVEL_FRONTEND_DIST_PATH",
     "AIWEBNOVEL_CORS_ALLOWED_ORIGINS",
+    "AIWEBNOVEL_TRUSTED_HOSTS",
+    "AIWEBNOVEL_MAX_REQUEST_BODY_BYTES",
+    "AIWEBNOVEL_SESSION_COOKIE_NAME",
+    "AIWEBNOVEL_SESSION_TTL_SECONDS",
+    "AIWEBNOVEL_SESSION_MAX_ENTRIES",
+    "AIWEBNOVEL_CSRF_HEADER_NAME",
+    "AIWEBNOVEL_EXPOSE_API_DOCS",
 )
 
 
@@ -64,6 +71,13 @@ def test_default_settings_are_local_and_versioned(
     assert settings.serve_frontend is False
     assert settings.frontend_dist_path.as_posix() == "frontend/dist"
     assert settings.cors_allowed_origins == ("http://127.0.0.1:5173",)
+    assert settings.trusted_hosts == ("127.0.0.1", "localhost")
+    assert settings.max_request_body_bytes == 1_048_576
+    assert settings.session_cookie_name == "aiwebnovel_session"
+    assert settings.session_ttl_seconds == 28_800
+    assert settings.session_max_entries == 16
+    assert settings.csrf_header_name == "X-CSRF-Token"
+    assert settings.expose_api_docs is True
     assert not local_app_data.exists()
 
 
@@ -79,6 +93,16 @@ def test_environment_overrides_and_cache_can_be_cleared(
         "AIWEBNOVEL_CORS_ALLOWED_ORIGINS",
         '["http://127.0.0.1:5174"]',
     )
+    monkeypatch.setenv(
+        "AIWEBNOVEL_TRUSTED_HOSTS",
+        '["127.0.0.1","localhost"]',
+    )
+    monkeypatch.setenv("AIWEBNOVEL_MAX_REQUEST_BODY_BYTES", "2048")
+    monkeypatch.setenv("AIWEBNOVEL_SESSION_COOKIE_NAME", "local_session")
+    monkeypatch.setenv("AIWEBNOVEL_SESSION_TTL_SECONDS", "3600")
+    monkeypatch.setenv("AIWEBNOVEL_SESSION_MAX_ENTRIES", "8")
+    monkeypatch.setenv("AIWEBNOVEL_CSRF_HEADER_NAME", "X-Local-CSRF")
+    monkeypatch.setenv("AIWEBNOVEL_EXPOSE_API_DOCS", "false")
 
     first = get_settings()
     assert first.port == 8123
@@ -87,6 +111,13 @@ def test_environment_overrides_and_cache_can_be_cleared(
     assert first.data_root == data_root
     assert first.frontend_dist_path.as_posix() == "local-build"
     assert first.cors_allowed_origins == ("http://127.0.0.1:5174",)
+    assert first.trusted_hosts == ("127.0.0.1", "localhost")
+    assert first.max_request_body_bytes == 2048
+    assert first.session_cookie_name == "local_session"
+    assert first.session_ttl_seconds == 3600
+    assert first.session_max_entries == 8
+    assert first.csrf_header_name == "X-Local-CSRF"
+    assert first.expose_api_docs is False
 
     monkeypatch.setenv("AIWEBNOVEL_PORT", "8124")
     assert get_settings() is first
@@ -160,8 +191,10 @@ def test_filesystem_root_is_rejected(tmp_path: Path) -> None:
         ("port", 0),
         ("port", 65536),
         ("api_prefix", "api/v1"),
+        ("api_prefix", "/custom/v1"),
         ("api_prefix", "/api/v1/"),
         ("host", "0.0.0.0"),
+        ("host", "192.168.1.20"),
         ("log_level", "VERBOSE"),
         ("environment", "   "),
         ("serve_frontend", "maybe"),
@@ -176,8 +209,44 @@ def test_filesystem_root_is_rejected(tmp_path: Path) -> None:
             "cors_allowed_origins",
             ("http://127.0.0.1:5173", "http://127.0.0.1:5173"),
         ),
+        ("trusted_hosts", ()),
+        ("trusted_hosts", ("*",)),
+        ("trusted_hosts", ("localhost:8000",)),
+        ("trusted_hosts", ("http://localhost",)),
+        ("trusted_hosts", ("user@localhost",)),
+        ("trusted_hosts", ("localhost/path",)),
+        ("trusted_hosts", ("localhost?query=yes",)),
+        ("max_request_body_bytes", 0),
+        ("max_request_body_bytes", 16_777_217),
+        ("session_ttl_seconds", 59),
+        ("session_ttl_seconds", 604_801),
+        ("session_max_entries", 0),
+        ("session_max_entries", 257),
+        ("session_cookie_name", "unsafe cookie"),
+        ("csrf_header_name", "Unsafe Header"),
     ],
 )
 def test_invalid_configuration_is_rejected(field: str, value: object) -> None:
     with pytest.raises(ValidationError):
         Settings(**{field: value})
+
+
+def test_api_document_exposure_defaults_follow_environment_without_side_effects(
+    tmp_path: Path,
+) -> None:
+    data_root = tmp_path / "configuration-only-root"
+
+    development = Settings(environment="development", data_root=data_root)
+    test = Settings(environment="test", data_root=data_root)
+    production = Settings(environment="production", data_root=data_root)
+    explicitly_enabled = Settings(
+        environment="production",
+        expose_api_docs=True,
+        data_root=data_root,
+    )
+
+    assert development.expose_api_docs is True
+    assert test.expose_api_docs is True
+    assert production.expose_api_docs is False
+    assert explicitly_enabled.expose_api_docs is True
+    assert not data_root.exists()

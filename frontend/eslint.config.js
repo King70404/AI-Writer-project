@@ -8,6 +8,7 @@ import tseslint from "typescript-eslint";
 
 const typedFiles = [
   "frontend/src/**/*.{ts,tsx}",
+  "frontend/tests/**/*.{ts,tsx}",
   "tests/frontend/**/*.{ts,tsx}",
   "tests/e2e/**/*.{ts,tsx}",
   "frontend/*.ts",
@@ -155,7 +156,11 @@ export default [
     },
   },
   {
-    files: ["tests/e2e/**/*.{ts,tsx}", "frontend/playwright*.ts"],
+    files: [
+      "tests/e2e/**/*.{ts,tsx}",
+      "frontend/tests/**/*.{ts,tsx}",
+      "frontend/playwright*.ts",
+    ],
     languageOptions: {
       globals: globals.node,
     },

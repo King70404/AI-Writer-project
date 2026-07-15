@@ -8,7 +8,7 @@
 .\scripts\quality_gate.ps1
 ```
 
-默认顺序检查 Git 差异、仓库卫生、Ruff 格式与规则、mypy、后端测试与覆盖率、Python 依赖完整性、前端质量脚本与 npm 依赖树。任一步失败都会立即返回非零退出码。默认模式不访问网络。
+默认顺序检查 Git 差异、仓库卫生、只面向 Git 跟踪生产代码的安全基线、Ruff 格式与规则、mypy、后端测试与覆盖率、Python 依赖完整性、前端质量脚本与 npm 依赖树。任一步失败都会立即返回非零退出码。默认模式不访问网络。
 
 需要额外审计 npm 生产依赖时：
 
@@ -38,6 +38,17 @@
 ```
 
 该脚本只在 Windows 上运行。它在当前用户的 `LOCALAPPDATA` 下选择带固定 DEV-0.8 标识的唯一临时根，通过 `AIWEBNOVEL_DATA_ROOT` 启动真实后端，验证标准目录、访问探针、派生数据库及 ready 状态，然后只终止已核验身份的自有进程并清理该临时根。脚本对正式默认根只检查是否存在，不枚举、读取、修改或删除其内容，也不修改 ACL 或请求提权。
+
+## 安全基线与真实运行烟测
+
+```powershell
+.\scripts\check_security_baseline.ps1
+.\scripts\check_security_runtime.ps1
+```
+
+`check_security_baseline.ps1` 只使用 `git ls-files` 枚举已跟踪的生产代码和运行配置，检查通配符 CORS、跨域凭据、代理头信任、非环回默认绑定、明文令牌、CSRF 持久存储、敏感日志、Host 验证关闭，以及配置、应用工厂中间件、生产文档、CSRF 和 Uvicorn 安全选项接线。它不读取未跟踪用户文件，不打印匹配值、不联网、不自动修复。架构测试使用受控正负夹具证明跟踪违规返回非零且 canary 不泄漏。
+
+`check_security_runtime.ps1` 在唯一临时数据根和动态环回端口启动 production 集成服务，验证合法/非法 Host、代理头、ready 安全状态、响应头和 CSP、文档关闭、session Cookie、请求限制、内容类型与日志无秘密。它核验实际监听进程归属，结束后必须释放端口并清理数据库、sidecar、诊断与临时根。两个脚本都不是运行时测试的替代品。
 
 ## 显式格式化
 

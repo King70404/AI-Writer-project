@@ -2,10 +2,12 @@
 
 import re
 import secrets
+from collections.abc import Callable
 from time import perf_counter
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.types import ASGIApp
 
 from aiwebnovel.core.logging import (
     bind_request_id,
@@ -34,6 +36,15 @@ def generate_request_id() -> str:
 class RequestIdMiddleware(BaseHTTPMiddleware):
     """Validate or generate a request ID and scope it to one request."""
 
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        path_sanitizer: Callable[[str], str] | None = None,
+    ) -> None:
+        super().__init__(app)
+        self._path_sanitizer = path_sanitizer or (lambda path: path)
+
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         supplied_request_id = request.headers.get(REQUEST_ID_HEADER)
         if supplied_request_id is not None and is_valid_request_id(supplied_request_id):
@@ -48,10 +59,14 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             response.headers[REQUEST_ID_HEADER] = request_id
             elapsed_ms = (perf_counter() - started_at) * 1000
+            try:
+                safe_path = self._path_sanitizer(request.url.path)
+            except Exception:  # noqa: BLE001 - diagnostic helpers must never break a request.
+                safe_path = "/"
             logger.info(
                 "request completed method=%s path=%s status=%s duration_ms=%.3f",
                 request.method,
-                request.url.path,
+                safe_path,
                 response.status_code,
                 elapsed_ms,
             )

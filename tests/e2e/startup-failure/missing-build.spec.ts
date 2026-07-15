@@ -40,6 +40,7 @@ test("E2E-STARTUP-001 exposes safe health failures when the real frontend build 
     const readyChecks = asRecord(asRecord(readyBody).checks);
     expect(readyChecks.storage).toBe("ok");
     expect(readyChecks.database).toBe("ok");
+    expect(readyChecks.security).toBe("ok");
     expect(readyChecks.frontend).toBe("failed");
 
     const root = await client.get("/", {

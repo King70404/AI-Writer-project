@@ -218,8 +218,8 @@ def test_application_factories_keep_frontend_routes_and_status_isolated(
         )
     )
 
-    disabled_paths = [route.path for route in disabled.routes]
-    enabled_paths = [route.path for route in enabled.routes]
+    disabled_paths = [route.path for route in disabled.routes if hasattr(route, "path")]
+    enabled_paths = [route.path for route in enabled.routes if hasattr(route, "path")]
     assert Counter(disabled_paths)["/{frontend_path:path}"] == 0
     assert Counter(enabled_paths)["/{frontend_path:path}"] == 1
 

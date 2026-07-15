@@ -29,28 +29,36 @@
 - `core`：类型化配置、通用错误、日志和中间件；
 - `storage`：不可变 `StoragePaths`、标准目录初始化、重解析点检查、访问探针和存储健康结果；
 - `db`：SQLite 引擎、会话与数据库健康检查；
+- `security`：环回和 Host 策略、请求限制、本地临时会话、Origin/CSRF、安全响应头、脱敏及安全健康结果；
 - `web`：HTTP 与前端静态服务适配；
-- `main`：组合 `core`、`storage`、`db` 和 `web` 的应用组合根。
+- `main`：组合 `core`、`storage`、`db`、`security` 和 `web` 的应用组合根。
 
 允许的依赖方向：
 
 - `storage` 可以导入 `core` 的公开配置契约；
 - `db` 可以读取公开的 `StoragePaths` 契约或由组合根传入的配置；
 - `db` 不得导入 `storage` 的目录初始化、访问探针或健康检查实现；
-- `main` 可以组合 `core`、`storage`、`db` 和 `web`；
+- `security` 可以导入 `core` 的公开配置和错误契约；
+- `web` 只能使用 Security 的公开 DTO 或响应工具，不得访问会话内部存储；
+- `main` 可以组合 `core`、`storage`、`db`、`security` 和 `web`；
 - 生产代码不得导入测试临时路径工具。
 
 阶段 0 后端的明确禁止：
 
-- `core` 不得导入 `storage`、`db`、`web` 或 `main`；
-- `storage` 不得导入 `db`、`web` 或 `main`；
+- `core` 不得导入 `storage`、`db`、`security`、`web` 或 `main`；
+- `storage` 不得导入 `db`、`security`、`web` 或 `main`；
+- `security` 不得导入 `storage`、`db`、`web` 或 `main`；
 - `web` 不得直接导入 `storage` 或访问其内部文件操作；
+- `web` 不得导入 Security 的会话、CSRF 或中间件内部实现；
+- `db` 不得访问会话或 CSRF，Security 会话管理器不得写入数据库或文件；
 - `db` 不得自行读取或重新推导 LocalAppData 路径；
 - 除 `core` 的配置边界外，其他生产模块不得硬编码 LocalAppData 数据根；
-- `core`、`storage`、`db` 和 `web` 不得反向导入组合根；
+- `core`、`storage`、`db`、`security` 和 `web` 不得反向导入组合根；
 - 各层不得形成循环依赖。
 
 `StoragePaths` 是路径契约，不是新的业务数据所有者。`storage` 只管理本地目录边界和访问能力，`db` 仍负责 SQLite；两者都不得创建小说业务表或业务 Repository。
+
+Security 是请求边界而不是身份或业务权限所有者。本地会话只存在于进程内存，不能写入 SQLite 或文件；CSRF 只保护 HTTP 请求完整性，不等于用户登录，也不授予 Canon 或其他业务权限。生产代码不得导入测试安全路由。
 
 ## 所有权与跨模块规则
 

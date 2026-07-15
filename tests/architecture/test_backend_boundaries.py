@@ -21,7 +21,7 @@ def _write_module(package_root: Path, relative_path: str, source: str) -> None:
 def _fixture_package(tmp_path: Path) -> Path:
     package_root = tmp_path / "aiwebnovel"
     _write_module(package_root, "__init__.py", "")
-    for layer in ("core", "storage", "db", "web"):
+    for layer in ("core", "storage", "db", "security", "web"):
         _write_module(package_root, f"{layer}/__init__.py", "")
     return package_root
 
@@ -53,6 +53,11 @@ def test_current_backend_respects_declared_layer_boundaries() -> None:
             "core-must-not-import-web",
         ),
         (
+            "core/bad_security.py",
+            "from aiwebnovel.security import health\n",
+            "core-must-not-import-security",
+        ),
+        (
             "storage/bad_db.py",
             "from aiwebnovel.db import session\n",
             "storage-must-not-import-db",
@@ -63,9 +68,34 @@ def test_current_backend_respects_declared_layer_boundaries() -> None:
             "storage-must-not-import-web",
         ),
         (
+            "storage/bad_security.py",
+            "from aiwebnovel.security import sessions\n",
+            "storage-must-not-import-security",
+        ),
+        (
             "db/bad.py",
             "import aiwebnovel.web.frontend\n",
             "db-must-not-import-web",
+        ),
+        (
+            "db/bad_security.py",
+            "from aiwebnovel.security import csrf\n",
+            "db-must-not-import-security",
+        ),
+        (
+            "security/bad_storage.py",
+            "from aiwebnovel.storage import paths\n",
+            "security-must-not-import-storage",
+        ),
+        (
+            "security/bad_db.py",
+            "from aiwebnovel.db import session\n",
+            "security-must-not-import-db",
+        ),
+        (
+            "security/bad_web.py",
+            "from aiwebnovel.web import frontend\n",
+            "security-must-not-import-web",
         ),
         (
             "web/bad_storage.py",
@@ -83,6 +113,11 @@ def test_current_backend_respects_declared_layer_boundaries() -> None:
             "storage-must-not-import-main",
         ),
         (
+            "security/bad_main.py",
+            "from aiwebnovel import main\n",
+            "security-must-not-import-main",
+        ),
+        (
             "core/test_leak.py",
             "from tests.backend import helpers\n",
             "production-must-not-import-tests",
@@ -92,12 +127,19 @@ def test_current_backend_respects_declared_layer_boundaries() -> None:
         "core-to-storage",
         "core-to-db",
         "core-to-web",
+        "core-to-security",
         "storage-to-db",
         "storage-to-web",
+        "storage-to-security",
         "db-to-web",
+        "db-to-security",
+        "security-to-storage",
+        "security-to-db",
+        "security-to-web",
         "web-to-storage",
         "web-to-db",
         "storage-to-main",
+        "security-to-main",
         "production-to-tests",
     ),
 )
@@ -147,6 +189,13 @@ def test_checker_accepts_composition_root_and_inward_dependencies(
     _write_module(
         package_root,
         "web/frontend.py",
+        "from aiwebnovel.core import config\n"
+        "from aiwebnovel.security.dto import SecurityStatus\n"
+        "from aiwebnovel.security.responses import security_error_response\n",
+    )
+    _write_module(
+        package_root,
+        "security/health.py",
         "from aiwebnovel.core import config\n",
     )
     _write_module(
@@ -155,6 +204,7 @@ def test_checker_accepts_composition_root_and_inward_dependencies(
         "from aiwebnovel.core import config\n"
         "from aiwebnovel.storage import paths\n"
         "from aiwebnovel.db import repository\n"
+        "from aiwebnovel.security import health\n"
         "from aiwebnovel.web import frontend\n",
     )
 
@@ -184,6 +234,48 @@ def test_checker_rejects_db_imports_of_storage_implementation_details(
         if violation.rule == "db-must-use-public-storage-paths"
     }
     assert storage_violations == {"bad_storage_detail.py", "bad_storage_package.py"}
+
+
+def test_checker_rejects_web_access_to_security_session_internals(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "web/bad_sessions.py",
+        "from aiwebnovel.security.sessions import InMemorySessionManager\n",
+    )
+
+    violations = check_backend_boundaries(package_root)
+
+    assert "web-must-use-public-security-contracts" in {violation.rule for violation in violations}
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_fragment"),
+    [
+        ("from pathlib import Path\n", "file or database persistence"),
+        ("def persist() -> None:\n    open('sessions.db', 'wb')\n", "file persistence"),
+    ],
+    ids=("persistence-import", "file-write-call"),
+)
+def test_checker_keeps_session_manager_in_memory(
+    tmp_path: Path,
+    source: str,
+    expected_fragment: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "security/sessions.py", source)
+
+    violations = check_backend_boundaries(package_root)
+
+    matching = [
+        violation
+        for violation in violations
+        if violation.rule == "session-manager-must-remain-in-memory"
+    ]
+    assert matching
+    assert expected_fragment in matching[0].message
 
 
 def test_checker_keeps_localappdata_resolution_in_core_config(tmp_path: Path) -> None:

@@ -74,11 +74,55 @@ export async function expectHealthyPair(pair: HealthPair): Promise<void> {
       application: "ok",
       storage: "ok",
       database: "ok",
+      security: "ok",
     },
   });
   expectNoAbsoluteLocalPath(liveBody);
   expectNoAbsoluteLocalPath(readyBody);
   expect(pair.liveRequestId).not.toBe(pair.readyRequestId);
+}
+
+export function expectSecurityHeaders(
+  headers: Record<string, string>,
+  responseKind: "api" | "base" | "html",
+): void {
+  expect(headers["x-content-type-options"]).toBe("nosniff");
+  expect(headers["referrer-policy"]).toBe("no-referrer");
+  expect(headers["x-frame-options"]).toBe("DENY");
+  expect(headers["cross-origin-opener-policy"]).toBe("same-origin");
+  expect(headers["permissions-policy"]).toContain("camera=()");
+  expect(headers["permissions-policy"]).toContain("microphone=()");
+  expect(headers["permissions-policy"]).toContain("geolocation=()");
+  expect(headers["permissions-policy"]).toContain("payment=()");
+  expect(headers["permissions-policy"]).toContain("usb=()");
+  expect(headers.server).toBeUndefined();
+
+  if (responseKind === "api") {
+    expect(headers["cache-control"]).toContain("no-store");
+    return;
+  }
+  if (responseKind === "base") {
+    return;
+  }
+
+  const csp = headers["content-security-policy"] ?? "";
+  for (const directive of [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+  ]) {
+    expect(csp).toContain(directive);
+  }
+  expect(csp).not.toContain("unsafe-eval");
+  expect(csp).not.toContain("unsafe-inline");
+  expect(csp).not.toMatch(/(?:^|[;\s])\*(?:[;\s]|$)/u);
 }
 
 export async function expectSystemReady(page: Page): Promise<void> {

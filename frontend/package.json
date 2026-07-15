@@ -12,7 +12,7 @@
     "build:assets": "vite build",
     "format": "prettier --write . ../tests/frontend ../tests/e2e",
     "format:check": "prettier --check . ../tests/frontend ../tests/e2e",
-    "lint": "cd .. && node frontend/node_modules/eslint/bin/eslint.js --config frontend/eslint.config.js frontend/src tests/frontend tests/e2e frontend/vite.config.ts frontend/vitest.config.ts frontend/playwright.shared.ts frontend/playwright.dev.config.ts frontend/playwright.integrated.config.ts frontend/eslint.config.js",
+    "lint": "cd .. && node frontend/node_modules/eslint/bin/eslint.js --config frontend/eslint.config.js frontend/src frontend/tests tests/frontend tests/e2e frontend/vite.config.ts frontend/vitest.config.ts frontend/playwright.shared.ts frontend/playwright.dev.config.ts frontend/playwright.integrated.config.ts frontend/eslint.config.js",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest",
     "test:run": "vitest run",

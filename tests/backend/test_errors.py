@@ -1,5 +1,6 @@
 """Tests for the frozen API error schema and safe failure handling."""
 
+import secrets
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -102,16 +103,23 @@ def test_app_error_is_normalized(tmp_path: Path) -> None:
 
 
 def test_internal_error_is_generic_and_contains_no_diagnostics(
+    capsys: pytest.CaptureFixture[str],
     tmp_path: Path,
 ) -> None:
     app = create_app(_test_settings(tmp_path, "internal-error.sqlite3"))
+    canary = secrets.token_urlsafe(24)
 
-    @app.get("/_test/internal-error")
+    @app.get("/api/v1/_test/internal-error")
     async def internal_error_route() -> None:
-        raise RuntimeError("sensitive diagnostic marker")
+        raise RuntimeError(canary)
 
     with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get("/_test/internal-error", headers={"X-Request-ID": "client-internal"})
+        response = client.get(
+            "/api/v1/_test/internal-error",
+            headers={"X-Request-ID": "client-internal"},
+        )
+    captured = capsys.readouterr()
+    captured_logs = captured.out + captured.err
 
     assert response.status_code == 500
     payload = response.json()
@@ -125,6 +133,10 @@ def test_internal_error_is_generic_and_contains_no_diagnostics(
     }
     assert payload["request_id"] == "client-internal"
     assert response.headers["X-Request-ID"] == payload["request_id"]
-    assert "sensitive diagnostic marker" not in response.text
+    if canary in response.text or canary in captured_logs:
+        pytest.fail("internal error handling leaked a canary secret")
     assert "RuntimeError" not in response.text
     assert "Traceback" not in response.text
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"

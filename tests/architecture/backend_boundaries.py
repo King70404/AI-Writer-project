@@ -8,25 +8,43 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-Layer = Literal["core", "storage", "db", "web", "main"]
+Layer = Literal["core", "storage", "db", "security", "web", "main"]
 
-_LAYERS: tuple[Layer, ...] = ("core", "storage", "db", "web", "main")
+_LAYERS: tuple[Layer, ...] = ("core", "storage", "db", "security", "web", "main")
 _FORBIDDEN_LAYER_IMPORTS: dict[tuple[Layer, Layer], str] = {
     ("core", "storage"): "core-must-not-import-storage",
     ("core", "db"): "core-must-not-import-db",
+    ("core", "security"): "core-must-not-import-security",
     ("core", "web"): "core-must-not-import-web",
     ("core", "main"): "core-must-not-import-main",
     ("storage", "db"): "storage-must-not-import-db",
+    ("storage", "security"): "storage-must-not-import-security",
     ("storage", "web"): "storage-must-not-import-web",
     ("storage", "main"): "storage-must-not-import-main",
+    ("db", "security"): "db-must-not-import-security",
     ("db", "web"): "db-must-not-import-web",
     ("db", "main"): "db-must-not-import-main",
+    ("security", "storage"): "security-must-not-import-storage",
+    ("security", "db"): "security-must-not-import-db",
+    ("security", "web"): "security-must-not-import-web",
+    ("security", "main"): "security-must-not-import-main",
     ("web", "storage"): "web-must-not-import-storage",
     ("web", "db"): "web-must-not-import-db",
     ("web", "main"): "web-must-not-import-main",
 }
 _PUBLIC_STORAGE_MODULES_FOR_DB = {
     "aiwebnovel.storage.paths",
+}
+_PUBLIC_SECURITY_MODULES_FOR_WEB = {
+    "aiwebnovel.security.dto",
+    "aiwebnovel.security.responses",
+}
+_SESSION_PERSISTENCE_MODULES = {
+    "dbm",
+    "pathlib",
+    "shelve",
+    "sqlite3",
+    "sqlalchemy",
 }
 _LOCAL_APP_DATA_OWNER = "aiwebnovel.core.config"
 
@@ -136,7 +154,7 @@ def _import_references(package_root: Path) -> tuple[_ImportReference, ...]:
 def _layer_for(module_name: str) -> Layer | None:
     if module_name == "aiwebnovel.main":
         return "main"
-    for layer in ("core", "storage", "db", "web"):
+    for layer in ("core", "storage", "db", "security", "web"):
         prefix = f"aiwebnovel.{layer}"
         if module_name == prefix or module_name.startswith(f"{prefix}."):
             return layer
@@ -220,6 +238,19 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
                 )
             )
 
+        if reference.source_module.startswith("aiwebnovel.security.sessions") and any(
+            reference.target_module == module or reference.target_module.startswith(f"{module}.")
+            for module in _SESSION_PERSISTENCE_MODULES
+        ):
+            violations.append(
+                ArchitectureViolation(
+                    path=reference.path,
+                    line=reference.line,
+                    rule="session-manager-must-remain-in-memory",
+                    message="session management must not import file or database persistence",
+                )
+            )
+
         if source_layer is None or target_layer is None or source_layer == target_layer:
             continue
 
@@ -238,6 +269,22 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
                     message=(
                         "db layer may import only the public StoragePaths contract, not "
                         f"{reference.target_module!r}"
+                    ),
+                )
+            )
+        if (
+            source_layer == "web"
+            and target_layer == "security"
+            and reference.target_module not in _PUBLIC_SECURITY_MODULES_FOR_WEB
+        ):
+            violations.append(
+                ArchitectureViolation(
+                    path=reference.path,
+                    line=reference.line,
+                    rule="web-must-use-public-security-contracts",
+                    message=(
+                        "web layer may import only public security DTO or response "
+                        f"contracts, not {reference.target_module!r}"
                     ),
                 )
             )
@@ -278,6 +325,30 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
                         ),
                     )
                 )
+
+        if module_name.startswith("aiwebnovel.security.sessions"):
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                called_name: str | None = None
+                if isinstance(node.func, ast.Name):
+                    called_name = node.func.id
+                elif isinstance(node.func, ast.Attribute):
+                    called_name = node.func.attr
+                if called_name in {
+                    "open",
+                    "touch",
+                    "write_bytes",
+                    "write_text",
+                }:
+                    violations.append(
+                        ArchitectureViolation(
+                            path=source_file,
+                            line=node.lineno,
+                            rule="session-manager-must-remain-in-memory",
+                            message="session management must not perform file persistence",
+                        )
+                    )
 
     for component in _strongly_connected_components(graph):
         if len(component) < 2:

@@ -20,6 +20,10 @@ def isolated_backend_data_root(
     """Give every backend test a unique explicit data root and remove it afterward."""
     data_root = tmp_path / "aiwebnovel-test-data-root"
     monkeypatch.setenv("AIWEBNOVEL_DATA_ROOT", os.fspath(data_root))
+    monkeypatch.setenv(
+        "AIWEBNOVEL_TRUSTED_HOSTS",
+        '["127.0.0.1","localhost","testserver"]',
+    )
     monkeypatch.delenv("AIWEBNOVEL_DATABASE_URL", raising=False)
     get_settings.cache_clear()
     try:

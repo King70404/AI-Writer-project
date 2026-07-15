@@ -121,7 +121,8 @@ function Invoke-QualityGate {
         "backend/src",
         "tests/backend",
         "tests/architecture",
-        "scripts/check_backend_coverage.py"
+        "scripts/check_backend_coverage.py",
+        "scripts/check_security_ast.py"
     )
     $backendConfig = "backend/pyproject.toml"
     $coverageReport = Join-Path (
@@ -138,6 +139,14 @@ function Invoke-QualityGate {
             -NoProfile `
             -ExecutionPolicy Bypass `
             -File (Join-Path $PSScriptRoot "check_repository_hygiene.ps1") `
+            -RepositoryRoot $repositoryRoot
+    }
+
+    Invoke-QualityGateStep -Name "Security baseline" -Action {
+        & powershell.exe `
+            -NoProfile `
+            -ExecutionPolicy Bypass `
+            -File (Join-Path $PSScriptRoot "check_security_baseline.ps1") `
             -RepositoryRoot $repositoryRoot
     }
 

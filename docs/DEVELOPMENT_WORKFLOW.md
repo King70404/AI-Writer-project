@@ -25,6 +25,17 @@
 
 DEV-0.8 的真实 Windows 存储冒烟验收是唯一受控例外。它只在 LocalAppData 下使用名称唯一的 `AIWebNovel-DEV-0.8-*` 兄弟目录，不读取、枚举、修改或删除正式 `AIWebNovel` 目录的内容。详细边界见 [本地存储](LOCAL_STORAGE.md)。
 
+## 安全开发纪律
+
+- 本地服务必须保持环回绑定，不得为了调试改为 LAN 或公网监听；
+- 不得信任 `Forwarded` 或 `X-Forwarded-*`，也不得通过通配符放宽 Host 或 CORS；
+- 新增不安全 API 方法默认继承请求体、JSON 内容类型、Origin、本地会话和 CSRF 保护，任何豁免必须在对应编号任务中逐路由说明与测试；
+- 本地会话不是用户登录或业务授权，不得持久化到数据库或文件，CSRF 令牌不得进入浏览器持久存储；
+- 不得记录请求正文、Cookie、Authorization、会话 ID、CSRF 令牌、完整查询字符串或其他秘密；
+- 安全 ready、静态安全基线、受控负向测试、E2E 或真实冒烟失败时，不得通过放宽策略或跳过门禁继续。
+
+完整威胁边界、Cookie、响应头、CSP 和当前明确缺失能力见 [本地应用安全基线](SECURITY_BASELINE.md)。
+
 ## 本地质量门禁
 
 每个编号任务在声明完成前，必须从仓库根目录执行适用于当前基线的统一门禁：
@@ -35,11 +46,13 @@ DEV-0.8 的真实 Windows 存储冒烟验收是唯一受控例外。它只在 Lo
 
 任一检查返回非零时，当前任务不得声明完成，也不得开始下一编号任务。需要联网审计 npm 生产依赖时，只在任务明确要求后执行 `.\scripts\quality_gate.ps1 -IncludeDependencyAudit`；默认门禁保持离线可运行。
 
-质量门禁只检查而不改写代码。需要格式化时应单独运行 `.\scripts\format_code.ps1`，人工审查差异后重新执行统一门禁。完整顺序、单项命令和覆盖率阈值见 [本地质量门禁](QUALITY_GATES.md)。
+质量门禁只检查而不改写代码。仓库卫生与安全基线只读取 Git 已跟踪文件；拟提交源码必须先按任务允许范围暂存并审查，未跟踪用户文件不会被扫描。需要格式化时应单独运行 `.\scripts\format_code.ps1`，人工审查差异后重新执行统一门禁。完整顺序、单项命令和覆盖率阈值见 [本地质量门禁](QUALITY_GATES.md)。
 
 需要真实浏览器验收的任务必须显式运行 `.\scripts\quality_gate.ps1 -IncludeE2E`；如任务同时要求 npm 生产依赖审计，则运行 `.\scripts\quality_gate.ps1 -IncludeDependencyAudit -IncludeE2E`。浏览器缺失、E2E 失败、专用端口未释放或临时数据残留均视为门禁失败。默认门禁仍不启动浏览器，CI 和后续业务能力也不因 DEV-0.7 自动进入范围。E2E 细则见 [浏览器端到端测试](E2E_TESTING.md)。
 
 DEV-0.8 还要求单独执行 `.\scripts\check_windows_storage.ps1`。该冒烟验收不属于默认门禁，也不代替三种规定的质量门禁。
+
+DEV-0.9 还要求执行 `.\scripts\check_security_runtime.ps1` 的真实安全运行冒烟。它必须使用独立数据根和临时环回端口，验证安全失败路径、日志无秘密及进程、端口、数据库和临时文件清理；该冒烟同样不代替三种规定门禁。
 
 ## 统一执行报告
 

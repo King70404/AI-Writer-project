@@ -873,6 +873,7 @@ function Invoke-E2EScenario {
             "E2E-INT-002",
             "E2E-INT-003",
             "E2E-INT-004",
+            "E2E-INT-005",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -1145,6 +1146,7 @@ try {
         "E2E-INT-002" = "Integrated"
         "E2E-INT-003" = "Integrated"
         "E2E-INT-004" = "Integrated"
+        "E2E-INT-005" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -1153,6 +1155,7 @@ try {
         "E2E-INT-002",
         "E2E-INT-003",
         "E2E-INT-004",
+        "E2E-INT-005",
         "E2E-STARTUP-001"
     )
 

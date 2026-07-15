@@ -4,9 +4,9 @@ AIWebNovel 是项目暂定名称，目标是开发一套面向中文男频网文
 
 ## 当前阶段与状态
 
-项目当前处于阶段 0——工程底座。DEV-0.3 已建立可测试的 SQLite、SQLAlchemy 与 Alembic 数据库基础，DEV-0.4 已建立 React、TypeScript 与 Vite 前端工程基础，DEV-0.5 已建立本地前后端健康检查集成与可选生产静态服务，DEV-0.6 已建立本地质量门禁，DEV-0.7 已建立真实本地服务的 Chromium 浏览器验收，DEV-0.8 已建立 Windows 本地数据目录、访问探针与运行时隔离；仓库仍未实现任何小说业务功能。
+项目当前处于阶段 0——工程底座。DEV-0.3 已建立数据库基础，DEV-0.4 至 DEV-0.5 已建立前端与本地健康集成，DEV-0.6 至 DEV-0.7 已建立本地质量门禁和 Chromium 浏览器验收，DEV-0.8 已建立 Windows 本地数据目录与运行时隔离，DEV-0.9 已建立环回、Host、请求限制、本地临时会话、CSRF、安全响应头和日志脱敏基线；仓库仍未实现任何小说业务功能。
 
-当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI、存储目录访问能力与 SQLite 基础状态。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。默认用户数据根是 `%LOCALAPPDATA%\AIWebNovel`，正式数据不存放在 Git 仓库；目录只在应用生命周期启动或显式初始化时按需创建。项目仍没有小说业务表、Agent、Skill、Prompt、工作流或小说业务界面；健康检查通过只代表工程基础可用，不代表系统已经能够创作小说。存储规则见 [本地存储](docs/LOCAL_STORAGE.md)，后端环境、数据库迁移和测试说明见 [后端 README](backend/README.md)，前端环境与命令见 [前端 README](frontend/README.md)，已实现工程能力见 [功能真实性矩阵](docs/FEATURE_REALITY_MATRIX.md)。
+当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI、安全配置、存储目录访问能力与 SQLite 基础状态。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。默认用户数据根是 `%LOCALAPPDATA%\AIWebNovel`，正式数据不存放在 Git 仓库；目录只在应用生命周期启动或显式初始化时按需创建。项目仍没有用户登录、小说业务写入 API、业务表、Agent、Skill、Prompt、工作流或小说业务界面；健康检查通过只代表工程基础可用，不代表系统已经能够创作小说。安全边界见 [本地应用安全基线](docs/SECURITY_BASELINE.md)，存储规则见 [本地存储](docs/LOCAL_STORAGE.md)，后端环境、数据库迁移和测试说明见 [后端 README](backend/README.md)，前端环境与命令见 [前端 README](frontend/README.md)，已实现工程能力见 [功能真实性矩阵](docs/FEATURE_REALITY_MATRIX.md)。
 
 ## 本地运行模式
 
@@ -30,13 +30,15 @@ Set-Location frontend
 npm run build
 Set-Location ..
 $env:AIWEBNOVEL_DATA_ROOT = Join-Path $env:LOCALAPPDATA "AIWebNovel-Development"
+$env:AIWEBNOVEL_ENVIRONMENT = "production"
 $env:AIWEBNOVEL_SERVE_FRONTEND = "true"
 .\.venv\Scripts\python.exe -m aiwebnovel
 Remove-Item Env:AIWEBNOVEL_DATA_ROOT
+Remove-Item Env:AIWEBNOVEL_ENVIRONMENT
 Remove-Item Env:AIWEBNOVEL_SERVE_FRONTEND
 ```
 
-此时浏览器只访问 `http://127.0.0.1:8000`。默认 CORS 来源是明确的 `http://127.0.0.1:5173`，不使用通配符，也不启用跨域凭据。
+此时浏览器只访问 `http://127.0.0.1:8000`。默认 CORS 来源是明确的 `http://127.0.0.1:5173`，不使用通配符，也不启用跨域凭据。服务不支持 LAN，不信任代理转发头，production 默认关闭 API 文档。
 
 ## 计划技术栈
 
@@ -51,7 +53,7 @@ Remove-Item Env:AIWEBNOVEL_SERVE_FRONTEND
 
 ## 本地质量门禁
 
-在仓库根目录运行 `.\scripts\quality_gate.ps1` 可统一检查 Git 差异与仓库卫生、后端格式、类型、测试和覆盖率，以及前端格式、lint、类型、测试、覆盖率和构建。默认门禁不依赖网络；任一检查失败都不得开始下一编号任务。单项命令、覆盖率阈值和可选依赖审计见 [本地质量门禁](docs/QUALITY_GATES.md)。门禁通过只证明当前工程基线满足质量要求，不代表小说业务功能已实现。
+在仓库根目录运行 `.\scripts\quality_gate.ps1` 可统一检查 Git 差异、仓库卫生、Git 跟踪代码的安全基线、后端格式、类型、测试和覆盖率，以及前端格式、lint、类型、测试、覆盖率和构建。默认门禁不依赖网络；任一检查失败都不得开始下一编号任务。单项命令、覆盖率阈值和可选依赖审计见 [本地质量门禁](docs/QUALITY_GATES.md)。门禁通过只证明当前工程基线满足质量要求，不代表小说业务功能已实现。
 
 ## 浏览器端到端测试
 

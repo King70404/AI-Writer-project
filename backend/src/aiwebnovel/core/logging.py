@@ -2,14 +2,22 @@
 
 import json
 import logging
+import re
 import sys
 from contextvars import ContextVar, Token
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Protocol
 
 _LOGGER_NAME = "aiwebnovel"
 _HANDLER_MARKER = "_aiwebnovel_json_handler"
+_SAFE_EXCEPTION_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,127}$")
 _request_id: ContextVar[str | None] = ContextVar("aiwebnovel_request_id", default=None)
+
+
+class TextRedactor(Protocol):
+    """Callable boundary used to keep security policy outside the core layer."""
+
+    def __call__(self, value: str) -> str: ...
 
 
 def get_request_id() -> str | None:
@@ -30,9 +38,13 @@ def reset_request_id(token: Token[str | None]) -> None:
 class JsonFormatter(logging.Formatter):
     """Render one safe JSON object per log record."""
 
+    def __init__(self, text_redactor: TextRedactor | None = None) -> None:
+        super().__init__()
+        self._text_redactor = text_redactor or (lambda value: value)
+
     def format(self, record: logging.LogRecord) -> str:
         try:
-            message = record.getMessage()
+            message = self._text_redactor(record.getMessage())
         except Exception:  # noqa: BLE001 - arbitrary log arguments must not break logging.
             message = "Log message could not be formatted"
 
@@ -50,10 +62,12 @@ class JsonFormatter(logging.Formatter):
             payload["request_id"] = request_id
 
         if record.exc_info:
-            try:
-                payload["exception"] = self.formatException(record.exc_info)
-            except Exception:  # noqa: BLE001 - formatter extensions are an untrusted boundary.
-                payload["exception"] = "Exception details could not be formatted"
+            exception_name = getattr(record.exc_info[0], "__name__", "Exception")
+            if not isinstance(exception_name, str) or not _SAFE_EXCEPTION_TYPE.fullmatch(
+                exception_name
+            ):
+                exception_name = "Exception"
+            payload["exception"] = {"error_type": exception_name}
 
         try:
             return json.dumps(
@@ -84,7 +98,11 @@ def _level_number(level: str | int) -> int:
     return resolved
 
 
-def configure_logging(level: str | int = "INFO") -> logging.Logger:
+def configure_logging(
+    level: str | int = "INFO",
+    *,
+    text_redactor: TextRedactor | None = None,
+) -> logging.Logger:
     """Configure exactly one JSON stdout handler for application loggers."""
     level_number = _level_number(level)
     logger = logging.getLogger(_LOGGER_NAME)
@@ -105,7 +123,7 @@ def configure_logging(level: str | int = "INFO") -> logging.Logger:
         logger.addHandler(handler)
 
     handler.setLevel(level_number)
-    handler.setFormatter(JsonFormatter())
+    handler.setFormatter(JsonFormatter(text_redactor))
     return logger
 
 

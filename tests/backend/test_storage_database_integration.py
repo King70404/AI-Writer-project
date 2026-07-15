@@ -58,6 +58,7 @@ def test_default_database_is_created_only_after_storage_and_readiness(
                 "checks": {
                     "configuration": "ok",
                     "application": "ok",
+                    "security": "ok",
                     "storage": "ok",
                     "database": "ok",
                     "frontend": "not_required",
@@ -103,7 +104,7 @@ def test_configuration_failure_keeps_live_available_and_ready_private(
 
     app = create_app(settings_provider=invalid_settings)
 
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://127.0.0.1") as client:
         live = client.get("/api/v1/health/live")
         ready = client.get(
             "/api/v1/health/ready",
@@ -117,6 +118,7 @@ def test_configuration_failure_keeps_live_available_and_ready_private(
         "checks": {
             "configuration": "failed",
             "application": "ok",
+            "security": "failed",
             "storage": "failed",
             "database": "failed",
             "frontend": "not_required",
@@ -136,7 +138,7 @@ def test_missing_local_app_data_does_not_fallback_or_disable_live(
     get_settings.cache_clear()
     app = create_app()
 
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://127.0.0.1") as client:
         live = client.get("/api/v1/health/live")
         ready = client.get("/api/v1/health/ready")
 
@@ -145,6 +147,7 @@ def test_missing_local_app_data_does_not_fallback_or_disable_live(
     assert ready.json()["checks"] == {
         "configuration": "failed",
         "application": "ok",
+        "security": "failed",
         "storage": "failed",
         "database": "failed",
         "frontend": "not_required",

@@ -128,6 +128,7 @@ export async function getJson<T>(
 
   const response = await fetch(joinApiPath(API_BASE_URL, path), {
     method: "GET",
+    credentials: "same-origin",
     headers,
     signal: options.signal,
   });

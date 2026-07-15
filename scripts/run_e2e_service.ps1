@@ -222,7 +222,11 @@ if ($Service -eq "Backend") {
 
     $env:AIWEBNOVEL_APP_NAME = "AIWebNovel"
     $env:AIWEBNOVEL_APP_VERSION = "0.0.0"
-    $env:AIWEBNOVEL_ENVIRONMENT = "e2e"
+    $env:AIWEBNOVEL_ENVIRONMENT = if ($ServeFrontend) {
+        "production"
+    } else {
+        "development"
+    }
     $env:AIWEBNOVEL_API_PREFIX = "/api/v1"
     $env:AIWEBNOVEL_HOST = "127.0.0.1"
     $env:AIWEBNOVEL_PORT = $Port.ToString()
@@ -236,6 +240,7 @@ if ($Service -eq "Backend") {
     $env:AIWEBNOVEL_DATABASE_ECHO = "false"
     $env:AIWEBNOVEL_DATABASE_BUSY_TIMEOUT_MS = "5000"
     $env:AIWEBNOVEL_SERVE_FRONTEND = if ($ServeFrontend) { "true" } else { "false" }
+    $env:AIWEBNOVEL_EXPOSE_API_DOCS = if ($ServeFrontend) { "false" } else { "true" }
 
     if ($CorsPort -gt 0) {
         $env:AIWEBNOVEL_CORS_ALLOWED_ORIGINS = (

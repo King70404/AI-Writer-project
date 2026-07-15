@@ -38,6 +38,7 @@ export interface BrowserAudit {
   readonly unexpectedDownloads: string[];
   readonly unexpectedCookies: string[];
   readonly allowOneExpectedHealthCancellation: () => void;
+  readonly allowOneExpectedSessionCookie: () => void;
   readonly allowExpectedConsoleHttpFailure: (
     path: string,
     status: number,
@@ -259,6 +260,7 @@ export async function installBrowserAudit(
   const endpoint = parseLocalEndpoint(baseURL, "Playwright baseURL");
   const expectedConsoleHttpFailures: ExpectedConsoleHttpFailure[] = [];
   const expectedHealthCancellations = { count: 0 };
+  const expectedSessionCookies = { count: 0 };
   const audit: BrowserAudit = {
     allowedOrigin: endpoint.origin,
     events: [],
@@ -272,6 +274,9 @@ export async function installBrowserAudit(
     unexpectedCookies: [],
     allowOneExpectedHealthCancellation: () => {
       expectedHealthCancellations.count += 1;
+    },
+    allowOneExpectedSessionCookie: () => {
+      expectedSessionCookies.count += 1;
     },
     allowExpectedConsoleHttpFailure: (path, status) => {
       if (
@@ -375,8 +380,26 @@ export async function installBrowserAudit(
     finalize: async () => {
       const cookies = await context.cookies();
       for (const cookie of cookies) {
+        const isExpectedSessionCookie =
+          expectedSessionCookies.count > 0 &&
+          cookie.name === "aiwebnovel_session" &&
+          cookie.domain === endpoint.hostname &&
+          cookie.path === "/api" &&
+          cookie.httpOnly &&
+          cookie.sameSite === "Strict" &&
+          !cookie.secure &&
+          cookie.expires > Date.now() / 1_000;
+        if (isExpectedSessionCookie) {
+          expectedSessionCookies.count -= 1;
+          continue;
+        }
         audit.unexpectedCookies.push(
           `Unexpected cookie for ${cookie.domain}${cookie.path}`,
+        );
+      }
+      if (expectedSessionCookies.count > 0) {
+        audit.unexpectedCookies.push(
+          "Expected secure local session cookie was not observed.",
         );
       }
 

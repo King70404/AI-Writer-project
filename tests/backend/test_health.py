@@ -78,6 +78,7 @@ def test_ready_health_reports_only_real_checks(tmp_path: Path) -> None:
         "checks": {
             "configuration": "ok",
             "application": "ok",
+            "security": "ok",
             "storage": "ok",
             "database": "ok",
             "frontend": "not_required",
@@ -116,8 +117,8 @@ def test_create_app_is_repeatable_without_duplicate_routes_or_handlers(
     first = create_app(_test_settings(tmp_path, "first.sqlite3"))
     second = create_app(_test_settings(tmp_path, "second.sqlite3"))
 
-    first_paths = [route.path for route in first.routes]
-    second_paths = [route.path for route in second.routes]
+    first_paths = [route.path for route in first.routes if hasattr(route, "path")]
+    second_paths = [route.path for route in second.routes if hasattr(route, "path")]
     assert first_paths == second_paths
     assert Counter(first_paths)["/api/v1/health/live"] == 1
     assert Counter(first_paths)["/api/v1/health/ready"] == 1

@@ -64,6 +64,7 @@ def test_ready_database_failure_is_private_while_live_stays_available(
         "checks": {
             "configuration": "ok",
             "application": "ok",
+            "security": "ok",
             "storage": "ok",
             "database": "failed",
             "frontend": "not_required",

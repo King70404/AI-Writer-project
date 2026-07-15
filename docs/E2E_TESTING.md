@@ -1,6 +1,6 @@
 # 浏览器端到端测试
 
-DEV-0.7 使用 Playwright Test 在干净、无认证状态的 Chromium 上验收真实本地服务；DEV-0.8 又为每个场景加入独立本地数据根。浏览器测试覆盖开发模式下的 FastAPI、Vite 与 React 协作，以及生产集成模式下由 FastAPI 独立提供 API、静态资源和 SPA 回退。它只证明阶段 0 工程基础可用，当前仍没有小说业务测试。
+DEV-0.7 使用 Playwright Test 在干净、无认证状态的 Chromium 上验收真实本地服务；DEV-0.8 为每个场景加入独立本地数据根；DEV-0.9 在生产集成场景增加 Host、响应头、CSP、文档关闭和临时会话的浏览器安全验收。浏览器测试覆盖开发模式下的 FastAPI、Vite 与 React 协作，以及生产集成模式下由 FastAPI 独立提供 API、静态资源和 SPA 回退。它只证明阶段 0 工程基础与安全请求边界可用，当前仍没有小说业务测试。
 
 ## 安装
 
@@ -26,7 +26,7 @@ npm run e2e
 ```
 
 - `e2e:dev` 验证 Vite 页面、真实健康检查、手动重新检查和客户端路由；
-- `e2e:integrated` 先构建前端，再验证 FastAPI 静态服务、API/资源/SPA 隔离以及缺失构建的安全失败；
+- `e2e:integrated` 先构建前端，再验证 FastAPI 静态服务、API/资源/SPA 隔离、`E2E-INT-005` 生产安全基线，以及缺失构建的安全失败；
 - `e2e` 按开发模式、生产集成模式的顺序运行全部浏览器验收，任一阶段失败即返回非零。
 
 每个场景都重新启动所需服务并使用独立 `AIWEBNOVEL_DATA_ROOT`，不依赖其他场景的执行顺序。需要独立复现单项时，在对应模式后传入固定场景编号，例如：
@@ -34,7 +34,10 @@ npm run e2e
 ```powershell
 npm run e2e:dev -- -Scenario E2E-DEV-001
 npm run e2e:integrated -- -Scenario E2E-INT-003
+npm run e2e:integrated -- -Scenario E2E-INT-005
 ```
+
+当前完整集共 9 个场景：3 个开发模式、5 个生产集成模式和 1 个缺失构建启动失败场景。
 
 默认使用无头 Chromium、`retries=0` 和单 worker，不自动打开报告或浏览器窗口。人工调试时可执行 `npm run e2e:headed`；失败后执行 `npm run e2e:report` 查看本地 HTML 报告。截图和 trace 只在失败时保留，视频关闭；成功运行会删除无用的模式报告和结果目录。
 
@@ -57,9 +60,11 @@ E2E 使用固定专用 loopback 端口，启动前必须确认端口空闲，绝
 
 所有正常开发和生产集成场景的 ready 响应必须包含真实的 `storage=ok` 与 `database=ok`。缺失构建场景只允许 `frontend=failed`，不能以存储失败掩盖预期的前端故障。
 
+DEV-0.9 起，正常场景的 ready 还必须包含 `security=ok`。生产集成验收同时证明：HTML 与 API 基础安全头存在、CSP 不阻止本地 React 构建、Uvicorn 不公开 Server 版本、生产 `/docs`、`/redoc` 与 `/openapi.json` 关闭、非法 Host 被拒绝、session 接口设置 HttpOnly/SameSite Cookie，且浏览器 `localStorage` 与 `sessionStorage` 中没有 CSRF 令牌。测试和诊断不得打印 Cookie 或 CSRF 原值。
+
 ## 安全隔离与诊断
 
-每个浏览器上下文安装网络守卫，只允许当前模式的 `http://127.0.0.1:<端口>`，同时阻止外部 HTTP、WebSocket 和 `file://`。页面错误、非预期控制台错误和非预期请求失败会使测试失败。诊断只记录主机与路径摘要，不记录查询参数、Cookie、Authorization 或完整页面 HTML。
+每个浏览器上下文安装网络守卫，只允许当前模式的 `http://127.0.0.1:<端口>`，同时阻止外部 HTTP、WebSocket 和 `file://`。页面错误、非预期控制台错误和非预期请求失败会使测试失败。诊断只记录主机与路径摘要，不记录查询参数、Cookie、Authorization、CSRF 令牌或完整页面 HTML。伪造代理头不能改变 Host、scheme、客户端来源或同源判断；服务启动器显式保持代理头不受信任。
 
 失败产物只保存在被 Git 忽略的 `frontend/playwright-results/` 与 `frontend/playwright-report/`。服务启动错误只输出经过路径替换、行数和长度限制的日志尾部；无论成功、断言失败或受控启动中断，服务和临时数据库清理都在 `finally` 中执行。
 

@@ -4,9 +4,9 @@
 
 ## 当前范围
 
-当前只有阶段 0 工程基础页、最小路由、全局错误边界、类型化原生 `fetch` 客户端和真实 `SystemStatus`。状态区会依次请求后端 live 与 ready 接口，区分检查中、已就绪、后端未就绪和当前无法连接，并提供会取消旧请求的“重新检查”按钮；不会后台轮询。
+当前只有阶段 0 工程基础页、最小路由、全局错误边界、类型化原生 `fetch` 客户端和真实 `SystemStatus`。状态区会依次请求后端 live 与 ready 接口，区分检查中、已就绪、后端未就绪和当前无法连接，并提供会取消旧请求的“重新检查”按钮；不会后台轮询。客户端还提供内部本地安全 session 类型与模块内存 CSRF 基础，但当前健康检查不会创建会话。
 
-前端没有小说项目、规划、写作、评审、Codex 或其他业务功能。状态显示正常只代表本地工程基础检查通过。
+前端没有用户登录、安全设置页、业务写入操作、小说项目、规划、写作、评审、Codex 或其他业务功能。本地 session 不是身份认证；CSRF 令牌只保存在当前 JavaScript 模块内存，不写入 `localStorage` 或 `sessionStorage`，页面不显示它。状态显示正常只代表本地工程与安全基线检查通过。
 
 ## 环境要求
 
@@ -29,9 +29,11 @@ npm run dev
 
 浏览器只访问 `http://127.0.0.1:5173`。前端始终使用相对 `/api/v1`；Vite 仅代理 `/api` 到固定的本地开发后端 `http://127.0.0.1:8000`，不代理其他路径或 WebSocket。开发服务器只绑定 `127.0.0.1`。
 
+原生 `fetch` 默认不携带外部凭据；同源安全 session 可接收 HttpOnly Cookie。未来不安全请求必须先建立本地 session，再从模块内存加入 CSRF 头，不得将 Cookie 或令牌输出到控制台。
+
 ## 生产集成模式
 
-在本目录执行 `npm run build` 后，回到仓库根目录显式设置 `AIWEBNOVEL_SERVE_FRONTEND=true` 并启动 FastAPI。浏览器只访问后端端口，前端通过同源相对 API 工作；不需要 Vite 开发服务器。`dist/` 是本地构建产物并保持被 Git 忽略。
+在本目录执行 `npm run build` 后，回到仓库根目录显式设置 `AIWEBNOVEL_ENVIRONMENT=production` 和 `AIWEBNOVEL_SERVE_FRONTEND=true`，再启动 FastAPI。浏览器只访问后端端口，前端通过同源相对 API 工作；不需要 Vite 开发服务器。`dist/` 是本地构建产物并保持被 Git 忽略，production 默认关闭 API 文档。
 
 ## 浏览器端到端验收
 
@@ -49,7 +51,7 @@ npm run e2e:report
 
 每个场景使用独立服务和数据库。可用 `npm run e2e:dev -- -Scenario E2E-DEV-001` 或 `npm run e2e:integrated -- -Scenario E2E-INT-003` 独立运行固定场景编号。
 
-当前 E2E 只验收阶段 0 基础页、真实健康状态、客户端路由及 API/静态资源/SPA 隔离；仍没有小说业务 E2E。
+当前 E2E 验收阶段 0 基础页、真实 ready、客户端路由、API/静态资源/SPA 隔离，以及生产页安全头、CSP、文档关闭、本地 session Cookie 和浏览器无 CSRF 持久数据；仍没有小说业务 E2E。
 
 ## 本地命令
 

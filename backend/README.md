@@ -1,8 +1,8 @@
 # AIWebNovel 后端
 
-本目录包含阶段 0 的 Python 后端基础设施。目前提供 FastAPI 应用工厂、类型化配置、严格本地 CORS、标准输出 JSON 日志、请求 ID、统一 API 错误格式、Windows 本地存储路径与访问探针、同步 SQLAlchemy SQLite 引擎、请求级会话管理、Alembic 迁移环境、存活与就绪健康检查，以及可选的 Vite 构建静态服务。
+本目录包含阶段 0 的 Python 后端基础设施。目前提供 FastAPI 应用工厂、类型化配置、环回绑定与 Host 验证、严格本地 CORS、请求体和 JSON 类型限制、进程内临时会话与 CSRF、安全响应头、集中脱敏日志、请求 ID、统一 API 错误格式、Windows 本地存储、SQLite 引擎、Alembic 迁移环境、存活与就绪健康检查，以及可选的 Vite 构建静态服务。
 
-当前没有任何小说业务表、业务 Repository、Codex 调用、工作流或小说业务 API。健康检查成功仅表示基础后端、配置、当前进程的存储读写删除能力、数据库连接和按配置要求的前端构建可用，不表示小说数据已经可以保存，也不表示备份、导出、模型管理、文件日志或小说系统已经完成。
+当前没有用户账号或登录、小说业务表、业务 Repository、业务写入 API、Codex 调用或工作流。安全 session 只是本机浏览器 CSRF 基础，不代表身份认证。健康检查成功仅表示基础后端、安全配置、存储能力、数据库连接和按配置要求的前端构建可用，不表示小说数据已经可以保存，也不表示备份、导出、上传、模型管理、文件日志或小说系统已经完成。
 
 ## 环境要求
 
@@ -39,7 +39,7 @@ Remove-Item Env:AIWEBNOVEL_DATA_ROOT
 - `http://127.0.0.1:8000/api/v1/health/live`
 - `http://127.0.0.1:8000/api/v1/health/ready`
 
-应用生命周期按“加载配置、解析 `StoragePaths`、初始化标准目录、执行访问探针、创建数据库引擎、进入就绪判断”的顺序启动。就绪检查会先报告真实 `checks.storage`，再执行数据库连接、`SELECT 1`、外键状态和文件型 SQLite WAL 状态检查。存储失败时 ready 返回 503，`checks.storage` 与 `checks.database` 统一为 `failed`，live 仍尽量返回 200；响应不包含数据根、数据库、探针路径或底层系统异常。`checks.frontend` 在静态服务关闭、有效构建和无效构建时分别为 `not_required`、`ok` 和 `failed`。应用启动不会静默执行 Alembic 升级，也不会自动创建、删除或重建业务表。
+应用生命周期按“加载配置、注册安全请求边界、解析 `StoragePaths`、初始化标准目录、执行访问探针、创建数据库引擎、进入就绪判断”的顺序启动。ready 真实报告 `checks.security`、`checks.storage` 和 `checks.database`；关键安全配置或中间件失败时 ready 返回 503 且 `checks.security=failed`，live 仍尽量返回 200。响应不包含 Host 原值、会话、令牌、数据根、数据库、探针路径或底层系统异常。`checks.frontend` 在静态服务关闭、有效构建和无效构建时分别为 `not_required`、`ok` 和 `failed`。应用启动不会静默执行 Alembic 升级，也不会自动创建、删除或重建业务表。
 
 ## 生产集成模式
 
@@ -50,9 +50,11 @@ Set-Location frontend
 npm run build
 Set-Location ..
 $env:AIWEBNOVEL_DATA_ROOT = Join-Path $env:LOCALAPPDATA "AIWebNovel-Development"
+$env:AIWEBNOVEL_ENVIRONMENT = "production"
 $env:AIWEBNOVEL_SERVE_FRONTEND = "true"
 .\.venv\Scripts\python.exe -m aiwebnovel
 Remove-Item Env:AIWEBNOVEL_DATA_ROOT
+Remove-Item Env:AIWEBNOVEL_ENVIRONMENT
 Remove-Item Env:AIWEBNOVEL_SERVE_FRONTEND
 ```
 
@@ -72,7 +74,21 @@ CORS 来源必须是明确的 HTTP(S) origin，不能包含通配符、凭据、
 $env:AIWEBNOVEL_CORS_ALLOWED_ORIGINS = '["http://127.0.0.1:5173"]'
 ```
 
-策略仅允许前端健康检查所需的 `GET`、`OPTIONS`、`Accept` 与 `X-Request-ID`，不允许跨域凭据，并只暴露 `X-Request-ID`。生产同源模式不依赖 CORS。
+当前策略仅允许已实现读接口所需的 `GET`、`HEAD`、`OPTIONS`，以及 `Accept`、`Content-Type`、`X-Request-ID` 和配置的 CSRF 头；不允许跨域凭据，并只暴露 `X-Request-ID`。生产同源模式不依赖 CORS，后续业务写入还必须逐任务审查 CORS 方法范围。
+
+## 本地安全配置
+
+安全配置使用同一 `AIWEBNOVEL_` 前缀：
+
+- `AIWEBNOVEL_TRUSTED_HOSTS`：默认 `127.0.0.1` 与 `localhost`，列表要使用 JSON；
+- `AIWEBNOVEL_MAX_REQUEST_BODY_BYTES`：默认 1,048,576；
+- `AIWEBNOVEL_SESSION_COOKIE_NAME`：默认 `aiwebnovel_session`；
+- `AIWEBNOVEL_SESSION_TTL_SECONDS`：默认 28,800；
+- `AIWEBNOVEL_SESSION_MAX_ENTRIES`：默认 16；
+- `AIWEBNOVEL_CSRF_HEADER_NAME`：默认 `X-CSRF-Token`；
+- `AIWEBNOVEL_EXPOSE_API_DOCS`：development/test 默认开启，production 默认关闭。
+
+启动入口仅允许 `127.0.0.1` 或显式 IPv6 环回值，并向 Uvicorn 显式传入 `proxy_headers=False` 和 `server_header=False`。`GET /api/v1/security/session` 只创建进程内本地 CSRF 会话，设置 HttpOnly、SameSite=Strict、`Path=/api` Cookie；它不是用户登录。POST、PUT、PATCH、DELETE 默认要求合法 Origin、会话 Cookie 和 CSRF 头。完整威胁边界、响应头、CSP、脱敏与明确不做项见 [本地应用安全基线](../docs/SECURITY_BASELINE.md)。
 
 ## 本地存储与数据库配置
 
@@ -129,4 +145,4 @@ Remove-Item Env:AIWEBNOVEL_DATA_ROOT
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-完整本地门禁由 `.\scripts\quality_gate.ps1` 负责生成系统临时目录中的覆盖率 JSON，并分别强制语句覆盖率 80% 与分支覆盖率 75%，完成后删除报告。完整命令和失败规则见 [本地质量门禁](../docs/QUALITY_GATES.md)。
+完整本地门禁由 `.\scripts\quality_gate.ps1` 负责，并在 Python 检查前运行只扫描 Git 跟踪生产代码的安全静态基线。后端语句覆盖率不得低于 80%，分支覆盖率不得低于 75%。完整命令和失败规则见 [本地质量门禁](../docs/QUALITY_GATES.md)。

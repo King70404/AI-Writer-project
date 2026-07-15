@@ -52,7 +52,10 @@ export default defineConfig({
       },
     },
     setupFiles: ["./src/test/setup.ts"],
-    include: ["../tests/frontend/**/*.test.{ts,tsx}"],
+    include: [
+      "../tests/frontend/**/*.test.{ts,tsx}",
+      "./tests/**/*.test.{ts,tsx}",
+    ],
     clearMocks: true,
     mockReset: true,
     restoreMocks: true,
@@ -61,7 +64,7 @@ export default defineConfig({
       reportsDirectory: "./coverage",
       reporter: ["text", "json-summary"],
       include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/main.tsx", "src/test/**", "src/vite-env.d.ts"],
+      exclude: ["src/main.tsx", "src/test/**", "src/vite-env.d.ts", "tests/**"],
       thresholds: {
         statements: 80,
         branches: 75,
