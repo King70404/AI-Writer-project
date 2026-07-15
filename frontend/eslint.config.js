@@ -9,6 +9,7 @@ import tseslint from "typescript-eslint";
 const typedFiles = [
   "frontend/src/**/*.{ts,tsx}",
   "tests/frontend/**/*.{ts,tsx}",
+  "tests/e2e/**/*.{ts,tsx}",
   "frontend/*.ts",
 ];
 const sourceFiles = ["frontend/src/**/*.{ts,tsx}"];
@@ -39,6 +40,8 @@ export default [
       "frontend/node_modules/**",
       "frontend/dist/**",
       "frontend/coverage/**",
+      "frontend/playwright-report/**",
+      "frontend/playwright-results/**",
       "frontend/.vite/**",
       "**/*.tsbuildinfo",
     ],
@@ -62,6 +65,7 @@ export default [
           "./tsconfig.app.json",
           "./tsconfig.test.json",
           "./tsconfig.node.json",
+          "./tsconfig.e2e.json",
         ],
         tsconfigRootDir: import.meta.dirname,
       },
@@ -148,6 +152,12 @@ export default [
         ...globals.node,
         ...vitest.environments.env.globals,
       },
+    },
+  },
+  {
+    files: ["tests/e2e/**/*.{ts,tsx}", "frontend/playwright*.ts"],
+    languageOptions: {
+      globals: globals.node,
     },
   },
 ];

@@ -4,7 +4,7 @@ AIWebNovel 是项目暂定名称，目标是开发一套面向中文男频网文
 
 ## 当前阶段与状态
 
-项目当前处于阶段 0——工程底座。DEV-0.3 已建立可测试的 SQLite、SQLAlchemy 与 Alembic 数据库基础，DEV-0.4 已建立 React、TypeScript 与 Vite 前端工程基础，DEV-0.5 已建立本地前后端健康检查集成与可选生产静态服务，DEV-0.6 已建立本地质量门禁；仓库仍未实现任何小说业务功能。
+项目当前处于阶段 0——工程底座。DEV-0.3 已建立可测试的 SQLite、SQLAlchemy 与 Alembic 数据库基础，DEV-0.4 已建立 React、TypeScript 与 Vite 前端工程基础，DEV-0.5 已建立本地前后端健康检查集成与可选生产静态服务，DEV-0.6 已建立本地质量门禁，DEV-0.7 已建立真实本地服务的 Chromium 浏览器验收；仓库仍未实现任何小说业务功能。
 
 当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI 与 SQLite 基础状态。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。项目仍没有小说业务表、Agent、Skill、Prompt、工作流或小说业务界面；健康检查通过只代表工程基础可用，不代表系统已经能够创作小说。后端环境、数据库迁移和测试说明见 [后端 README](backend/README.md)，前端环境与命令见 [前端 README](frontend/README.md)，已实现工程能力见 [功能真实性矩阵](docs/FEATURE_REALITY_MATRIX.md)。
 
@@ -47,6 +47,10 @@ Remove-Item Env:AIWEBNOVEL_SERVE_FRONTEND
 ## 本地质量门禁
 
 在仓库根目录运行 `.\scripts\quality_gate.ps1` 可统一检查 Git 差异与仓库卫生、后端格式、类型、测试和覆盖率，以及前端格式、lint、类型、测试、覆盖率和构建。默认门禁不依赖网络；任一检查失败都不得开始下一编号任务。单项命令、覆盖率阈值和可选依赖审计见 [本地质量门禁](docs/QUALITY_GATES.md)。门禁通过只证明当前工程基线满足质量要求，不代表小说业务功能已实现。
+
+## 浏览器端到端测试
+
+在 `frontend` 目录运行 `npm run e2e:dev`、`npm run e2e:integrated` 或 `npm run e2e`，可用 Playwright 管理的无头 Chromium 验证开发与生产集成启动。浏览器只访问 E2E 专用的 `127.0.0.1` 端口，服务使用独立临时 SQLite，并在结束后清理自有进程、端口和临时数据。浏览器安装、失败诊断和 `-IncludeE2E` 可选门禁说明见 [浏览器端到端测试](docs/E2E_TESTING.md)。这些验收不代表已经存在小说业务功能。
 
 ## 开发规范
 

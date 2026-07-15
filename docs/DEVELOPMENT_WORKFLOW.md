@@ -22,7 +22,9 @@
 
 任一检查返回非零时，当前任务不得声明完成，也不得开始下一编号任务。需要联网审计 npm 生产依赖时，只在任务明确要求后执行 `.\scripts\quality_gate.ps1 -IncludeDependencyAudit`；默认门禁保持离线可运行。
 
-质量门禁只检查而不改写代码。需要格式化时应单独运行 `.\scripts\format_code.ps1`，人工审查差异后重新执行统一门禁。完整顺序、单项命令和覆盖率阈值见 [本地质量门禁](QUALITY_GATES.md)。浏览器 E2E、CI 和后续业务能力不属于本阶段门禁。
+质量门禁只检查而不改写代码。需要格式化时应单独运行 `.\scripts\format_code.ps1`，人工审查差异后重新执行统一门禁。完整顺序、单项命令和覆盖率阈值见 [本地质量门禁](QUALITY_GATES.md)。
+
+需要真实浏览器验收的任务必须显式运行 `.\scripts\quality_gate.ps1 -IncludeE2E`；如任务同时要求 npm 生产依赖审计，则运行 `.\scripts\quality_gate.ps1 -IncludeDependencyAudit -IncludeE2E`。浏览器缺失、E2E 失败、专用端口未释放或临时数据残留均视为门禁失败。默认门禁仍不启动浏览器，CI 和后续业务能力也不因 DEV-0.7 自动进入范围。E2E 细则见 [浏览器端到端测试](E2E_TESTING.md)。
 
 ## 统一执行报告
 

@@ -2,5 +2,7 @@ node_modules/
 dist/
 coverage/
 .vite/
+playwright-report/
+playwright-results/
 package-lock.json
 *.tsbuildinfo

@@ -10,15 +10,21 @@
     "dev": "vite",
     "build": "npm run typecheck && npm run build:assets",
     "build:assets": "vite build",
-    "format": "prettier --write . ../tests/frontend",
-    "format:check": "prettier --check . ../tests/frontend",
-    "lint": "cd .. && node frontend/node_modules/eslint/bin/eslint.js --config frontend/eslint.config.js frontend/src tests/frontend frontend/vite.config.ts frontend/vitest.config.ts frontend/eslint.config.js",
+    "format": "prettier --write . ../tests/frontend ../tests/e2e",
+    "format:check": "prettier --check . ../tests/frontend ../tests/e2e",
+    "lint": "cd .. && node frontend/node_modules/eslint/bin/eslint.js --config frontend/eslint.config.js frontend/src tests/frontend tests/e2e frontend/vite.config.ts frontend/vitest.config.ts frontend/playwright.shared.ts frontend/playwright.dev.config.ts frontend/playwright.integrated.config.ts frontend/eslint.config.js",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -b",
-    "quality": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run build:assets"
+    "quality": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run build:assets",
+    "e2e:install": "playwright install chromium",
+    "e2e:dev": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/run_e2e.ps1 -Mode Development",
+    "e2e:integrated": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/run_e2e.ps1 -Mode Integrated",
+    "e2e": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/run_e2e.ps1 -Mode All",
+    "e2e:headed": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/run_e2e.ps1 -Mode All -Headed",
+    "e2e:report": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/show_e2e_report.ps1"
   },
   "dependencies": {
     "react": "^19.2.7",
@@ -27,6 +33,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.61.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

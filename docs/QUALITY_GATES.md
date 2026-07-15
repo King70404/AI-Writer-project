@@ -30,7 +30,24 @@
 
 该模式在默认检查后增加 `npm audit --omit=dev`，可能访问 npm 网络服务。当前不引入 Python 联网漏洞扫描器。
 
-脚本必须从仓库根目录运行，并要求根目录 `.venv`、前端 `node_modules`、64 位 Python 3.12 和 64 位 Node.js 24 已经可用。它不要求工作区干净，也不会格式化、暂存或提交文件，不会启动服务器、数据库或浏览器。
+脚本必须从仓库根目录运行，并要求根目录 `.venv`、前端 `node_modules`、64 位 Python 3.12 和 64 位 Node.js 24 已经可用。它不要求工作区干净，也不会格式化、暂存或提交文件。默认模式不会启动服务器、数据库或浏览器。
+
+## 可选浏览器端到端验收
+
+浏览器 E2E 需要本地 Chromium 缓存、真实服务进程和更长运行时间，因此默认门禁不执行。需要时显式运行：
+
+```powershell
+.\scripts\quality_gate.ps1 -IncludeE2E
+.\scripts\quality_gate.ps1 -IncludeDependencyAudit -IncludeE2E
+```
+
+`-IncludeE2E` 在全部默认检查以及请求的依赖审计之后依次执行：
+
+1. 检查本地 `@playwright/test` 对应的 Chromium 可执行文件；
+2. 运行 `npm run e2e`，验收开发模式和生产集成模式；
+3. 检查 E2E 专用端口已释放且 `.runtime/e2e` 不含临时数据。
+
+门禁不会自动下载浏览器。浏览器缺失时明确失败，并提示在 `frontend` 目录运行 `npm run e2e:install`。E2E 失败或清理失败都会使统一门禁返回非零。运行方式、网络隔离和失败产物见 [浏览器端到端测试](E2E_TESTING.md)。
 
 ## 只运行后端检查
 
@@ -113,4 +130,4 @@ npm ls --depth=0
 
 任何适用门禁失败，都不得声称当前任务完成，也不得开始下一编号任务。应先修复真实原因并完整重跑；不得降低阈值、跳过检查或把失败输出为成功。
 
-DEV-0.6 不建立浏览器端到端测试。真实 E2E 框架将在后续 DEV-0.7 按对应任务范围建立。本阶段仍没有 Project、写作、评审、Agent、Skill、Prompt 或其他小说业务功能。
+DEV-0.7 已建立可选的 Chromium 浏览器端到端验收，但不把它放入默认离线门禁。本阶段仍没有 Project、写作、评审、Agent、Skill、Prompt 或其他小说业务功能。

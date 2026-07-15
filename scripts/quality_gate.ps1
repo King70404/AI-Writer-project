@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$IncludeDependencyAudit
+    [switch]$IncludeDependencyAudit,
+    [switch]$IncludeE2E
 )
 
 Set-StrictMode -Version Latest
@@ -228,6 +229,43 @@ function Invoke-QualityGate {
             } finally {
                 Pop-Location
             }
+        }
+    }
+
+    if ($IncludeE2E) {
+        Invoke-QualityGateStep -Name "Playwright Chromium availability" -Action {
+            Push-Location (Join-Path $repositoryRoot "frontend")
+            try {
+                & node -e (
+                    "const fs=require('node:fs');" +
+                    "const {chromium}=require('@playwright/test');" +
+                    "process.exit(fs.existsSync(chromium.executablePath())?0:1);"
+                )
+                if ($LASTEXITCODE -ne 0) {
+                    [Console]::Error.WriteLine(
+                        "[quality] Playwright Chromium is missing; " +
+                        "run 'Set-Location frontend; npm run e2e:install'"
+                    )
+                }
+            } finally {
+                Pop-Location
+            }
+        }
+
+        Invoke-QualityGateStep -Name "Browser end-to-end tests" -Action {
+            Push-Location (Join-Path $repositoryRoot "frontend")
+            try {
+                & npm.cmd run e2e
+            } finally {
+                Pop-Location
+            }
+        }
+
+        Invoke-QualityGateStep -Name "E2E cleanup verification" -Action {
+            & powershell.exe `
+                -NoProfile `
+                -ExecutionPolicy Bypass `
+                -File (Join-Path $PSScriptRoot "check_e2e_cleanup.ps1")
         }
     }
 

@@ -78,6 +78,13 @@ function Get-ProhibitedTrackedPathTypes {
         $types.Add("coverage-output")
     }
     if (
+        $segments -contains "test-results" -or
+        $segments -contains "playwright-results" -or
+        $segments -contains "playwright-report"
+    ) {
+        $types.Add("browser-test-output")
+    }
+    if (
         $segments -contains ".runtime" -or
         $segments -contains "runtime_data" -or
         $segments -contains "sandboxes" -or

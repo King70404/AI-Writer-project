@@ -27,6 +27,11 @@ coverage/
 .vite/
 *.tsbuildinfo
 
+# Playwright browser-test artifacts (browser binaries use the user cache)
+frontend/test-results/
+frontend/playwright-results/
+frontend/playwright-report/
+
 # IDE and editor-local files
 .idea/
 .vscode/

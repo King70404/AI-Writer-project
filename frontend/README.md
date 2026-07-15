@@ -33,6 +33,24 @@ npm run dev
 
 在本目录执行 `npm run build` 后，回到仓库根目录显式设置 `AIWEBNOVEL_SERVE_FRONTEND=true` 并启动 FastAPI。浏览器只访问后端端口，前端通过同源相对 API 工作；不需要 Vite 开发服务器。`dist/` 是本地构建产物并保持被 Git 忽略。
 
+## 浏览器端到端验收
+
+浏览器验收使用项目本地的 Playwright Test，并且只安装和运行其管理的 Chromium。首次运行前执行 `npm run e2e:install`；该命令不会安装 Firefox、WebKit 或项目 npm 依赖。
+
+```powershell
+npm run e2e:dev
+npm run e2e:integrated
+npm run e2e
+npm run e2e:headed
+npm run e2e:report
+```
+
+`e2e:dev` 自动启动 E2E 专用的 FastAPI 与 Vite，`e2e:integrated` 先构建前端并只启动提供 API 和静态文件的 FastAPI，`e2e` 依次执行两种模式。默认测试无头运行；`e2e:headed` 仅用于人工调试，`e2e:report` 打开本地失败报告。测试服务只绑定专用的 `127.0.0.1` 端口，使用临时数据库，阻止外部网络，并在结束后清理本次测试拥有的进程和临时数据。
+
+每个场景使用独立服务和数据库。可用 `npm run e2e:dev -- -Scenario E2E-DEV-001` 或 `npm run e2e:integrated -- -Scenario E2E-INT-003` 独立运行固定场景编号。
+
+当前 E2E 只验收阶段 0 基础页、真实健康状态、客户端路由及 API/静态资源/SPA 隔离；仍没有小说业务 E2E。
+
 ## 本地命令
 
 以下命令均从本目录执行：
