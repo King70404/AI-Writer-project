@@ -45,6 +45,19 @@ $artifactPaths = @(
     (Join-Path $frontendRoot "playwright-results"),
     (Join-Path $frontendRoot "playwright-report")
 )
+function Test-ControlledRuntimeRootSafe {
+    if (-not (Test-Path -LiteralPath $runtimeRoot)) {
+        return $true
+    }
+    if (-not (Test-Path -LiteralPath $runtimeRoot -PathType Container)) {
+        return $false
+    }
+    $runtimeRootItem = Get-Item -LiteralPath $runtimeRoot -Force
+    return (
+        ($runtimeRootItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0
+    )
+}
+
 function Test-E2ECleanupComplete {
     foreach ($port in @(14173, 18120, 18121, 18122)) {
         if (-not (Test-LoopbackPortAvailable -Port $port)) {
@@ -52,7 +65,10 @@ function Test-E2ECleanupComplete {
         }
     }
 
-    if (Test-Path -LiteralPath $runtimeRoot) {
+    if (-not (Test-ControlledRuntimeRootSafe)) {
+        return $false
+    }
+    if (Test-Path -LiteralPath $runtimeRoot -PathType Container) {
         $remainingItems = @(Get-ChildItem -LiteralPath $runtimeRoot -Force)
         if ($remainingItems.Count -ne 0) {
             return $false
@@ -83,7 +99,9 @@ foreach ($port in @(14173, 18120, 18121, 18122)) {
         $issues.Add("E2E port is still listening: $port")
     }
 }
-if (Test-Path -LiteralPath $runtimeRoot) {
+if (-not (Test-ControlledRuntimeRootSafe)) {
+    $issues.Add("E2E runtime root is not a safe ordinary directory")
+} elseif (Test-Path -LiteralPath $runtimeRoot -PathType Container) {
     $remainingItems = @(Get-ChildItem -LiteralPath $runtimeRoot -Force)
     if ($remainingItems.Count -gt 0) {
         $issues.Add("E2E runtime directory still contains temporary items")

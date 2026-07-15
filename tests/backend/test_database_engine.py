@@ -25,6 +25,7 @@ def _database_url(path: Path) -> str:
 def _settings(path: Path, busy_timeout_ms: int = 3210) -> Settings:
     return Settings(
         environment="test",
+        data_root=path.parent / f"{path.stem}-storage",
         database_url=_database_url(path),
         database_busy_timeout_ms=busy_timeout_ms,
     )
@@ -143,9 +144,10 @@ def test_foreign_key_enforcement_rejects_orphan_rows_on_new_connections(
         _remove_sqlite_artifacts(database_path)
 
 
-def test_memory_database_does_not_claim_wal_mode() -> None:
+def test_memory_database_does_not_claim_wal_mode(tmp_path: Path) -> None:
     settings = Settings(
         environment="test",
+        data_root=tmp_path / "memory-storage",
         database_url="sqlite+pysqlite:///:memory:",
         database_busy_timeout_ms=876,
     )

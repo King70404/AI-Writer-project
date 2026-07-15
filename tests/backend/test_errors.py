@@ -17,7 +17,11 @@ pytestmark = pytest.mark.integration
 
 def _test_settings(tmp_path: Path, filename: str) -> Settings:
     database_url = str(URL.create("sqlite+pysqlite", database=(tmp_path / filename).as_posix()))
-    return Settings(environment="test", database_url=database_url)
+    return Settings(
+        environment="test",
+        data_root=tmp_path / f"{filename}-storage",
+        database_url=database_url,
+    )
 
 
 def assert_error_schema(payload: Mapping[str, Any]) -> None:

@@ -9,6 +9,7 @@ from sqlalchemy.exc import ArgumentError
 from sqlalchemy.pool import StaticPool
 
 from aiwebnovel.core.config import Settings
+from aiwebnovel.storage.paths import StoragePaths
 
 _SUPPORTED_SQLITE_DRIVERS = {"sqlite", "sqlite+pysqlite"}
 
@@ -46,9 +47,19 @@ def database_file_path(value: str | URL) -> Path | None:
     return Path(url.database).expanduser()
 
 
-def ensure_database_parent_directory(settings: Settings) -> Path | None:
+def resolve_database_url(settings: Settings, storage_paths: StoragePaths) -> URL:
+    """Honor an explicit URL or safely derive the default from managed storage."""
+    if settings.database_url is not None:
+        return get_sqlite_url(settings.database_url)
+    return URL.create(
+        drivername="sqlite+pysqlite",
+        database=storage_paths.database_file.as_posix(),
+    )
+
+
+def ensure_database_parent_directory(value: str | URL) -> Path | None:
     """Create a file database parent only during explicit engine initialization."""
-    database_path = database_file_path(settings.database_url)
+    database_path = database_file_path(value)
     if database_path is None:
         return None
     absolute_path = database_path if database_path.is_absolute() else Path.cwd() / database_path
@@ -56,11 +67,25 @@ def ensure_database_parent_directory(settings: Settings) -> Path | None:
     return absolute_path
 
 
-def create_database_engine(settings: Settings) -> Engine:
+def create_database_engine(
+    settings: Settings,
+    database_url: str | URL | None = None,
+    *,
+    storage_paths: StoragePaths | None = None,
+) -> Engine:
     """Create an unconnected synchronous engine with enforced SQLite PRAGMAs."""
-    url = get_sqlite_url(settings.database_url)
+    if database_url is not None:
+        url = get_sqlite_url(database_url)
+    elif settings.database_url is not None:
+        url = get_sqlite_url(settings.database_url)
+    elif storage_paths is not None:
+        url = resolve_database_url(settings, storage_paths)
+    else:
+        raise DatabaseConfigurationError(
+            "storage_paths is required when database_url is not configured"
+        )
     is_memory = is_memory_database_url(url)
-    ensure_database_parent_directory(settings)
+    ensure_database_parent_directory(url)
 
     engine_options: dict[str, object] = {
         "echo": settings.database_echo,

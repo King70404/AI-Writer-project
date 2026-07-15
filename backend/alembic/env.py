@@ -1,11 +1,10 @@
 """Alembic environment driven by validated AIWebNovel settings."""
 
+import sys
 from logging.config import fileConfig
 from pathlib import Path
-import sys
 
 from alembic import context
-
 
 backend_root = Path(__file__).resolve().parents[1]
 source_root = backend_root / "src"
@@ -16,23 +15,25 @@ from aiwebnovel.core.config import get_settings  # noqa: E402
 from aiwebnovel.db.base import Base  # noqa: E402
 from aiwebnovel.db.engine import (  # noqa: E402
     create_database_engine,
-    get_sqlite_url,
+    resolve_database_url,
 )
-
+from aiwebnovel.storage.initializer import initialize_storage  # noqa: E402
+from aiwebnovel.storage.paths import StoragePaths  # noqa: E402
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 settings = get_settings()
-get_sqlite_url(settings.database_url)
+storage_paths = StoragePaths.from_settings(settings)
+database_url = resolve_database_url(settings, storage_paths)
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
     """Run migrations without creating a database connection."""
     context.configure(
-        url=settings.database_url,
+        url=database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -46,7 +47,12 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations through the configured synchronous SQLite engine."""
-    engine = create_database_engine(settings)
+    initialize_storage(storage_paths)
+    engine = create_database_engine(
+        settings,
+        database_url,
+        storage_paths=storage_paths,
+    )
     try:
         with engine.connect() as connection:
             context.configure(

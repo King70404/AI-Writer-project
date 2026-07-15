@@ -25,6 +25,7 @@ def _settings(
 ) -> Settings:
     return Settings(
         environment="test",
+        data_root=tmp_path / f"{database_name}-storage",
         serve_frontend=serve_frontend,
         frontend_dist_path=frontend_dist_path,
         database_url=str(

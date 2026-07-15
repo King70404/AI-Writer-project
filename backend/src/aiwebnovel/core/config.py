@@ -1,5 +1,6 @@
 """Typed application configuration sourced from environment variables."""
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -7,6 +8,35 @@ from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def normalize_data_root(value: str | os.PathLike[str]) -> Path:
+    """Return one absolute, lexical data root without touching the filesystem."""
+    raw_value = os.fspath(value)
+    if "\x00" in raw_value:
+        raise ValueError("data_root must not contain null bytes")
+
+    normalized_text = raw_value.strip()
+    if not normalized_text:
+        raise ValueError("data_root must not be blank")
+
+    candidate = Path(normalized_text)
+    if not candidate.is_absolute():
+        raise ValueError("data_root must be an absolute path")
+
+    normalized = Path(os.path.normpath(normalized_text))
+    anchor = normalized.anchor
+    if not anchor or normalized == Path(anchor):
+        raise ValueError("data_root must not be a filesystem root")
+    return normalized
+
+
+def _default_data_root() -> Path:
+    """Derive the Windows default without falling back to another location."""
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data is None or not local_app_data.strip():
+        raise ValueError("LOCALAPPDATA is required when data_root is not configured")
+    return normalize_data_root(Path(local_app_data) / "AIWebNovel")
 
 
 class Settings(BaseSettings):
@@ -18,6 +48,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
         frozen=True,
+        validate_default=True,
     )
 
     app_name: str = "AIWebNovel"
@@ -27,20 +58,40 @@ class Settings(BaseSettings):
     host: Literal["127.0.0.1"] = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)
     log_level: Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"] = "INFO"
-    database_url: str = "sqlite+pysqlite:///./.runtime/aiwebnovel-dev.sqlite3"
+    data_root: Path = Field(default_factory=_default_data_root)
+    database_url: str | None = None
     database_echo: bool = False
     database_busy_timeout_ms: int = Field(default=5000, ge=1, le=600_000)
     serve_frontend: bool = False
     frontend_dist_path: Path = Path("frontend/dist")
     cors_allowed_origins: tuple[str, ...] = ("http://127.0.0.1:5173",)
 
-    @field_validator("app_name", "app_version", "environment", "database_url")
+    @field_validator("app_name", "app_version", "environment")
     @classmethod
     def validate_non_empty_text(cls, value: str) -> str:
         """Reject blank identifying configuration values."""
         normalized = value.strip()
         if not normalized:
             raise ValueError("value must not be blank")
+        return normalized
+
+    @field_validator("data_root", mode="before")
+    @classmethod
+    def validate_data_root(cls, value: object) -> Path:
+        """Validate and normalize the managed root without creating it."""
+        if not isinstance(value, (str, os.PathLike)):
+            raise ValueError("data_root must be a filesystem path")
+        return normalize_data_root(value)
+
+    @field_validator("database_url")
+    @classmethod
+    def validate_database_url_text(cls, value: str | None) -> str | None:
+        """Keep an explicit database URL optional while rejecting blank overrides."""
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("database_url must not be blank")
         return normalized
 
     @field_validator("api_prefix")

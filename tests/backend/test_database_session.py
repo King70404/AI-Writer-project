@@ -27,7 +27,11 @@ def _database_url(path: Path) -> str:
 
 
 def _settings(path: Path) -> Settings:
-    return Settings(environment="test", database_url=_database_url(path))
+    return Settings(
+        environment="test",
+        data_root=path.parent / f"{path.stem}-storage",
+        database_url=_database_url(path),
+    )
 
 
 def _remove_sqlite_artifacts(path: Path) -> None:

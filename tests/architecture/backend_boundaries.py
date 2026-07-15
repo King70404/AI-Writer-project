@@ -8,15 +8,27 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-Layer = Literal["core", "db", "web", "main"]
+Layer = Literal["core", "storage", "db", "web", "main"]
 
-_LAYERS: tuple[Layer, ...] = ("core", "db", "web", "main")
+_LAYERS: tuple[Layer, ...] = ("core", "storage", "db", "web", "main")
 _FORBIDDEN_LAYER_IMPORTS: dict[tuple[Layer, Layer], str] = {
+    ("core", "storage"): "core-must-not-import-storage",
     ("core", "db"): "core-must-not-import-db",
     ("core", "web"): "core-must-not-import-web",
+    ("core", "main"): "core-must-not-import-main",
+    ("storage", "db"): "storage-must-not-import-db",
+    ("storage", "web"): "storage-must-not-import-web",
+    ("storage", "main"): "storage-must-not-import-main",
     ("db", "web"): "db-must-not-import-web",
+    ("db", "main"): "db-must-not-import-main",
+    ("web", "storage"): "web-must-not-import-storage",
     ("web", "db"): "web-must-not-import-db",
+    ("web", "main"): "web-must-not-import-main",
 }
+_PUBLIC_STORAGE_MODULES_FOR_DB = {
+    "aiwebnovel.storage.paths",
+}
+_LOCAL_APP_DATA_OWNER = "aiwebnovel.core.config"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -124,7 +136,7 @@ def _import_references(package_root: Path) -> tuple[_ImportReference, ...]:
 def _layer_for(module_name: str) -> Layer | None:
     if module_name == "aiwebnovel.main":
         return "main"
-    for layer in ("core", "db", "web"):
+    for layer in ("core", "storage", "db", "web"):
         prefix = f"aiwebnovel.{layer}"
         if module_name == prefix or module_name.startswith(f"{prefix}."):
             return layer
@@ -213,6 +225,22 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
 
         graph[source_layer].add(target_layer)
         edge_locations[(source_layer, target_layer)].append(reference)
+        if (
+            source_layer == "db"
+            and target_layer == "storage"
+            and reference.target_module not in _PUBLIC_STORAGE_MODULES_FOR_DB
+        ):
+            violations.append(
+                ArchitectureViolation(
+                    path=reference.path,
+                    line=reference.line,
+                    rule="db-must-use-public-storage-paths",
+                    message=(
+                        "db layer may import only the public StoragePaths contract, not "
+                        f"{reference.target_module!r}"
+                    ),
+                )
+            )
         rule = _FORBIDDEN_LAYER_IMPORTS.get((source_layer, target_layer))
         if rule is not None:
             violations.append(
@@ -226,6 +254,30 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
                     ),
                 )
             )
+
+    for source_file in sorted(resolved_root.rglob("*.py")):
+        module_name = _module_name(resolved_root, source_file)
+        if module_name == _LOCAL_APP_DATA_OWNER:
+            continue
+        source_text = source_file.read_text(encoding="utf-8")
+        tree = ast.parse(source_text, filename=str(source_file))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and "LOCALAPPDATA" in node.value.upper()
+            ):
+                violations.append(
+                    ArchitectureViolation(
+                        path=source_file,
+                        line=node.lineno,
+                        rule="localappdata-resolution-owned-by-core-config",
+                        message=(
+                            "only aiwebnovel.core.config may resolve the LocalAppData "
+                            "environment boundary"
+                        ),
+                    )
+                )
 
     for component in _strongly_connected_components(graph):
         if len(component) < 2:

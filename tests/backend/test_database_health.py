@@ -20,7 +20,11 @@ def _database_url(path: Path) -> str:
 
 
 def _settings(path: Path) -> Settings:
-    return Settings(environment="test", database_url=_database_url(path))
+    return Settings(
+        environment="test",
+        data_root=path.parent / f"{path.stem}-storage",
+        database_url=_database_url(path),
+    )
 
 
 def _remove_sqlite_artifacts(path: Path) -> None:
@@ -60,6 +64,7 @@ def test_ready_database_failure_is_private_while_live_stays_available(
         "checks": {
             "configuration": "ok",
             "application": "ok",
+            "storage": "ok",
             "database": "failed",
             "frontend": "not_required",
         },

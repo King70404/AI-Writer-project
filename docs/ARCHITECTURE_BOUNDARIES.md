@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档仅记录 AIWebNovel 的高层模块边界和交互约束，不创建或代表任何实现代码。
+本文档记录 AIWebNovel 的高层模块边界，以及阶段 0 后端基础设施的依赖方向。边界说明不代表小说业务模块已经实现。
 
 ## 业务模块
 
@@ -21,6 +21,36 @@
 - Search
 - CodexRuntime
 - Infrastructure
+
+## 阶段 0 后端基础设施分层
+
+当前后端由以下基础层组成：
+
+- `core`：类型化配置、通用错误、日志和中间件；
+- `storage`：不可变 `StoragePaths`、标准目录初始化、重解析点检查、访问探针和存储健康结果；
+- `db`：SQLite 引擎、会话与数据库健康检查；
+- `web`：HTTP 与前端静态服务适配；
+- `main`：组合 `core`、`storage`、`db` 和 `web` 的应用组合根。
+
+允许的依赖方向：
+
+- `storage` 可以导入 `core` 的公开配置契约；
+- `db` 可以读取公开的 `StoragePaths` 契约或由组合根传入的配置；
+- `db` 不得导入 `storage` 的目录初始化、访问探针或健康检查实现；
+- `main` 可以组合 `core`、`storage`、`db` 和 `web`；
+- 生产代码不得导入测试临时路径工具。
+
+阶段 0 后端的明确禁止：
+
+- `core` 不得导入 `storage`、`db`、`web` 或 `main`；
+- `storage` 不得导入 `db`、`web` 或 `main`；
+- `web` 不得直接导入 `storage` 或访问其内部文件操作；
+- `db` 不得自行读取或重新推导 LocalAppData 路径；
+- 除 `core` 的配置边界外，其他生产模块不得硬编码 LocalAppData 数据根；
+- `core`、`storage`、`db` 和 `web` 不得反向导入组合根；
+- 各层不得形成循环依赖。
+
+`StoragePaths` 是路径契约，不是新的业务数据所有者。`storage` 只管理本地目录边界和访问能力，`db` 仍负责 SQLite；两者都不得创建小说业务表或业务 Repository。
 
 ## 所有权与跨模块规则
 

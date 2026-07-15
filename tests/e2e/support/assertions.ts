@@ -59,20 +59,25 @@ export function observeHealthPair(page: Page): Promise<HealthPair> {
 export async function expectHealthyPair(pair: HealthPair): Promise<void> {
   expect(pair.live.status()).toBe(200);
   expect(pair.live.headers()["content-type"]).toContain("application/json");
-  expect(await pair.live.json()).toMatchObject({
+  const liveBody: unknown = await pair.live.json();
+  expect(liveBody).toMatchObject({
     status: "ok",
     service: "AIWebNovel",
   });
   expect(pair.ready.status()).toBe(200);
   expect(pair.ready.headers()["content-type"]).toContain("application/json");
-  expect(await pair.ready.json()).toMatchObject({
+  const readyBody: unknown = await pair.ready.json();
+  expect(readyBody).toMatchObject({
     status: "ready",
     checks: {
       configuration: "ok",
       application: "ok",
+      storage: "ok",
       database: "ok",
     },
   });
+  expectNoAbsoluteLocalPath(liveBody);
+  expectNoAbsoluteLocalPath(readyBody);
   expect(pair.liveRequestId).not.toBe(pair.readyRequestId);
 }
 

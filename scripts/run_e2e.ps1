@@ -63,6 +63,141 @@ function Assert-SafeContainedPath {
     }
 }
 
+function Assert-E2ERunDirectoryIdentity {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RunDirectory
+    )
+
+    $fullRunDirectory = [System.IO.Path]::GetFullPath($RunDirectory)
+    $runtimeRoot = [System.IO.Path]::GetFullPath($script:RuntimeRoot)
+    $runParent = [System.IO.Path]::GetFullPath((Split-Path -Parent $fullRunDirectory))
+    if (-not $runParent.Equals(
+            $runtimeRoot,
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) {
+        throw "E2E run directory must be a direct child of its controlled root"
+    }
+    $runName = Split-Path -Leaf $fullRunDirectory
+    if ($runName -notmatch '^e2e-(?:dev|int|startup)-\d{3}-\d+-[0-9a-f]{32}$') {
+        throw "E2E run directory must carry its exact ownership marker"
+    }
+}
+
+function Assert-E2EDataRootIdentity {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DataRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$RunDirectory
+    )
+
+    Assert-E2ERunDirectoryIdentity -RunDirectory $RunDirectory
+    Assert-SafeContainedPath `
+        -Candidate $DataRoot `
+        -Container $RunDirectory `
+        -Description "E2E data root"
+    $fullDataRoot = [System.IO.Path]::GetFullPath($DataRoot)
+    $dataRootParent = [System.IO.Path]::GetFullPath((Split-Path -Parent $fullDataRoot))
+    if (-not $dataRootParent.Equals(
+            [System.IO.Path]::GetFullPath($RunDirectory),
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) {
+        throw "E2E data root must be a direct child of its run directory"
+    }
+    $dataRootName = Split-Path -Leaf $fullDataRoot
+    if ($dataRootName -notmatch '^AIWebNovel-E2E-DataRoot-[0-9a-f]{32}$') {
+        throw "E2E data root must carry its exact ownership marker"
+    }
+}
+
+function Assert-NoReparsePointsInTree {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+        [Parameter(Mandatory = $true)]
+        [string]$Description
+    )
+
+    $fullRoot = [System.IO.Path]::GetFullPath($Root)
+    if (-not (Test-Path -LiteralPath $fullRoot -PathType Container)) {
+        throw "$Description is not an existing directory"
+    }
+    $pending = [System.Collections.Generic.Stack[string]]::new()
+    $pending.Push($fullRoot)
+    while ($pending.Count -gt 0) {
+        $currentDirectory = $pending.Pop()
+        $directoryItem = Get-Item -LiteralPath $currentDirectory -Force
+        if (
+            ($directoryItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+        ) {
+            throw "$Description must not contain a reparse point"
+        }
+        foreach ($item in Get-ChildItem -LiteralPath $currentDirectory -Force) {
+            if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "$Description must not contain a reparse point"
+            }
+            if ($item.PSIsContainer) {
+                $pending.Push($item.FullName)
+            }
+        }
+    }
+}
+
+function Assert-E2EStorageLayout {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DataRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$RunDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$ScenarioName
+    )
+
+    Assert-E2EDataRootIdentity -DataRoot $DataRoot -RunDirectory $RunDirectory
+    Assert-NoReparsePointsInTree -Root $DataRoot -Description "E2E data root"
+    foreach ($relativePath in @(
+            "data",
+            "assets",
+            "runtime",
+            "runtime/app",
+            "runtime/temp",
+            "runtime/locks",
+            "models",
+            "backups",
+            "exports",
+            "logs",
+            "config"
+        )) {
+        $directory = Join-Path $DataRoot $relativePath
+        Assert-SafeContainedPath `
+            -Candidate $directory `
+            -Container $DataRoot `
+            -Description "E2E storage directory"
+        if (-not (Test-Path -LiteralPath $directory -PathType Container)) {
+            throw "E2E storage initialization did not create every standard directory"
+        }
+    }
+
+    $databasePath = Join-Path $DataRoot "data/aiwebnovel.sqlite3"
+    Assert-SafeContainedPath `
+        -Candidate $databasePath `
+        -Container $DataRoot `
+        -Description "E2E derived database"
+    if (-not (Test-Path -LiteralPath $databasePath -PathType Leaf)) {
+        throw "E2E database was not derived inside the data directory"
+    }
+    $databaseItem = Get-Item -LiteralPath $databasePath -Force
+    if (($databaseItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "E2E derived database must not be a reparse point"
+    }
+
+    $formerDatabaseFile = Join-Path $RunDirectory "$ScenarioName.sqlite3"
+    if (Test-Path -LiteralPath $formerDatabaseFile) {
+        throw "E2E database must not use the former run-directory location"
+    }
+}
+
 function Test-LoopbackPortAvailable {
     param(
         [Parameter(Mandatory = $true)]
@@ -182,11 +317,17 @@ function Start-OwnedService {
         [string]$RunDirectory,
         [int]$BackendPort = 0,
         [int]$CorsPort = 0,
-        [string]$DatabasePath = "",
+        [string]$DataRoot = "",
         [switch]$ServeFrontend,
         [string]$FrontendDistPath = ""
     )
 
+    if ($Service -eq "Backend" -and [string]::IsNullOrWhiteSpace($DataRoot)) {
+        throw "backend E2E service requires an explicit data root"
+    }
+    if ($Service -eq "Vite" -and -not [string]::IsNullOrWhiteSpace($DataRoot)) {
+        throw "Vite E2E service must not receive an application data root"
+    }
     Assert-PortAvailable -Port $Port
     $stdoutPath = Join-Path $RunDirectory "$Name.stdout.log"
     $stderrPath = Join-Path $RunDirectory "$Name.stderr.log"
@@ -211,10 +352,10 @@ function Start-OwnedService {
     if ($CorsPort -gt 0) {
         $arguments += @("-CorsPort", $CorsPort.ToString())
     }
-    if (-not [string]::IsNullOrWhiteSpace($DatabasePath)) {
+    if (-not [string]::IsNullOrWhiteSpace($DataRoot)) {
         $arguments += @(
-            "-DatabasePath",
-            (ConvertTo-QuotedArgument -Value $DatabasePath)
+            "-DataRoot",
+            (ConvertTo-QuotedArgument -Value $DataRoot)
         )
     }
     if ($ServeFrontend) {
@@ -244,6 +385,7 @@ function Start-OwnedService {
         StdoutPath = $stdoutPath
         StderrPath = $stderrPath
         ManifestPath = $manifestPath
+        DataRoot = $DataRoot
     }
     $script:OwnedProcesses.Add($record)
     $null = $script:OwnedPorts.Add($Port)
@@ -490,6 +632,7 @@ function Remove-ValidatedRunDirectory {
         [string]$RunDirectory
     )
 
+    Assert-E2ERunDirectoryIdentity -RunDirectory $RunDirectory
     Assert-SafeContainedPath `
         -Candidate $RunDirectory `
         -Container $script:RepositoryRoot `
@@ -500,9 +643,21 @@ function Remove-ValidatedRunDirectory {
         -Description "E2E run directory"
     $fullRunDirectory = [System.IO.Path]::GetFullPath($RunDirectory)
     if (Test-Path -LiteralPath $fullRunDirectory) {
+        Assert-NoReparsePointsInTree `
+            -Root $fullRunDirectory `
+            -Description "E2E run directory"
         Remove-Item -LiteralPath $fullRunDirectory -Recurse -Force
     }
+    if (Test-Path -LiteralPath $fullRunDirectory) {
+        throw "E2E run directory still exists after controlled cleanup"
+    }
     if (Test-Path -LiteralPath $script:RuntimeRoot -PathType Container) {
+        $runtimeRootItem = Get-Item -LiteralPath $script:RuntimeRoot -Force
+        if (
+            ($runtimeRootItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+        ) {
+            throw "E2E runtime root must not be a reparse point"
+        }
         $remaining = @(Get-ChildItem -LiteralPath $script:RuntimeRoot -Force)
         if ($remaining.Count -eq 0) {
             Remove-Item -LiteralPath $script:RuntimeRoot -Force
@@ -538,6 +693,9 @@ function Remove-SuccessArtifacts {
             -Container $script:FrontendRoot `
             -Description "Playwright artifact directory"
         if (Test-Path -LiteralPath $fullCandidate) {
+            Assert-NoReparsePointsInTree `
+                -Root $fullCandidate `
+                -Description "Playwright artifact directory"
             Remove-Item -LiteralPath $fullCandidate -Recurse -Force
         }
     }
@@ -729,8 +887,11 @@ function Invoke-E2EScenario {
     $isMissingBuild = $SelectedScenario -eq "E2E-STARTUP-001"
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
-    $runId = "{0}-{1}-{2}" -f $scenarioName, $PID, ([guid]::NewGuid().ToString("N"))
+    $runToken = [guid]::NewGuid().ToString("N")
+    $runId = "{0}-{1}-{2}" -f $scenarioName, $PID, $runToken
     $runDirectory = Join-Path $script:RuntimeRoot $runId
+    $dataRoot = Join-Path $runDirectory "AIWebNovel-E2E-DataRoot-$runToken"
+    Assert-E2ERunDirectoryIdentity -RunDirectory $runDirectory
     Assert-SafeContainedPath `
         -Candidate $runDirectory `
         -Container $script:RepositoryRoot `
@@ -739,6 +900,7 @@ function Invoke-E2EScenario {
         -Candidate $runDirectory `
         -Container $script:RuntimeRoot `
         -Description "E2E run directory"
+    Assert-E2EDataRootIdentity -DataRoot $dataRoot -RunDirectory $runDirectory
     foreach ($artifactPath in @(
             (Join-Path $script:FrontendRoot "playwright-results/$modeName"),
             (Join-Path $script:FrontendRoot "playwright-report/$modeName")
@@ -748,12 +910,14 @@ function Invoke-E2EScenario {
             -Container $script:FrontendRoot `
             -Description "Playwright artifact directory"
     }
-    New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
-
     $runSucceeded = $false
     $runFailure = $null
     $cleanupFailure = $null
     try {
+        New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
+        if (Test-Path -LiteralPath $dataRoot) {
+            throw "E2E data root must not exist before backend storage initialization"
+        }
         if ($isDevelopment) {
             $backendPort = 18120
             $vitePort = 14173
@@ -766,19 +930,22 @@ function Invoke-E2EScenario {
                 Assert-PortAvailable -Port $selectedProxyPort
             }
 
-            $backendDatabase = Join-Path $runDirectory "$scenarioName.sqlite3"
             $backend = Start-OwnedService `
                 -Service Backend `
                 -Name "development-backend" `
                 -Port $backendPort `
                 -RunDirectory $runDirectory `
-                -DatabasePath $backendDatabase `
+                -DataRoot $dataRoot `
                 -CorsPort $vitePort
             Wait-ServiceUrl `
                 -Name "development backend" `
                 -Url "http://127.0.0.1:$backendPort/api/v1/health/ready" `
                 -AcceptedStatusCodes @(200) `
                 -ServiceRecord $backend
+            Assert-E2EStorageLayout `
+                -DataRoot $dataRoot `
+                -RunDirectory $runDirectory `
+                -ScenarioName $scenarioName
 
             $vite = Start-OwnedService `
                 -Service Vite `
@@ -806,7 +973,6 @@ function Invoke-E2EScenario {
                 -GrepPattern "^$SelectedScenario"
         } elseif ($isMissingBuild) {
             $missingBuildPort = 18122
-            $missingBuildDatabase = Join-Path $runDirectory "$scenarioName.sqlite3"
             $missingBuildDist = Join-Path $runDirectory "missing-build-dist"
             New-Item -ItemType Directory -Path $missingBuildDist -Force | Out-Null
 
@@ -815,7 +981,7 @@ function Invoke-E2EScenario {
                 -Name "missing-build-backend" `
                 -Port $missingBuildPort `
                 -RunDirectory $runDirectory `
-                -DatabasePath $missingBuildDatabase `
+                -DataRoot $dataRoot `
                 -ServeFrontend `
                 -FrontendDistPath $missingBuildDist
             Wait-ServiceUrl `
@@ -828,6 +994,10 @@ function Invoke-E2EScenario {
                 -Url "http://127.0.0.1:$missingBuildPort/api/v1/health/ready" `
                 -AcceptedStatusCodes @(503) `
                 -ServiceRecord $missingBuild
+            Assert-E2EStorageLayout `
+                -DataRoot $dataRoot `
+                -RunDirectory $runDirectory `
+                -ScenarioName $scenarioName
             Wait-ServiceUrl `
                 -Name "missing-build root endpoint" `
                 -Url "http://127.0.0.1:$missingBuildPort/" `
@@ -851,7 +1021,6 @@ function Invoke-E2EScenario {
                 -GrepPattern "^$SelectedScenario"
         } else {
             $integratedPort = 18121
-            $integratedDatabase = Join-Path $runDirectory "$scenarioName.sqlite3"
             $frontendDist = Join-Path $script:FrontendRoot "dist"
 
             $integrated = Start-OwnedService `
@@ -859,7 +1028,7 @@ function Invoke-E2EScenario {
                 -Name "integrated-backend" `
                 -Port $integratedPort `
                 -RunDirectory $runDirectory `
-                -DatabasePath $integratedDatabase `
+                -DataRoot $dataRoot `
                 -ServeFrontend `
                 -FrontendDistPath $frontendDist
             Wait-ServiceUrl `
@@ -867,6 +1036,10 @@ function Invoke-E2EScenario {
                 -Url "http://127.0.0.1:$integratedPort/api/v1/health/ready" `
                 -AcceptedStatusCodes @(200) `
                 -ServiceRecord $integrated
+            Assert-E2EStorageLayout `
+                -DataRoot $dataRoot `
+                -RunDirectory $runDirectory `
+                -ScenarioName $scenarioName
             Wait-ServiceUrl `
                 -Name "integrated frontend" `
                 -Url "http://127.0.0.1:$integratedPort/" `

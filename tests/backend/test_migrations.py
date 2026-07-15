@@ -1,6 +1,7 @@
 """Alembic online and offline migration baseline tests."""
 
 import os
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -22,8 +23,13 @@ def _database_url(path: Path) -> str:
     return str(URL.create("sqlite+pysqlite", database=path.as_posix()))
 
 
+def _storage_root(database_path: Path) -> Path:
+    return database_path.parents[1] / f"{database_path.stem}-storage"
+
+
 def _run_alembic(database_path: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     environment = os.environ.copy()
+    environment["AIWEBNOVEL_DATA_ROOT"] = str(_storage_root(database_path))
     environment["AIWEBNOVEL_DATABASE_URL"] = _database_url(database_path)
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     return subprocess.run(
@@ -94,12 +100,18 @@ def test_migration_upgrade_downgrade_and_reupgrade_are_repeatable(
         assert str(database_path) not in combined_output
     finally:
         _remove_sqlite_artifacts(database_path)
+        storage_root = _storage_root(database_path)
+        if storage_root.exists():
+            assert storage_root.is_relative_to(tmp_path)
+            shutil.rmtree(storage_root)
+            assert not storage_root.exists()
 
 
 def test_offline_migration_generates_sql_without_creating_database(
     tmp_path: Path,
 ) -> None:
     database_path = tmp_path / "offline migration" / "offline.sqlite3"
+    data_root = _storage_root(database_path)
 
     result = _run_alembic(database_path, "upgrade", "head", "--sql")
 
@@ -111,3 +123,4 @@ def test_offline_migration_generates_sql_without_creating_database(
     assert "chapter" not in result.stdout.lower()
     assert not database_path.parent.exists()
     assert not database_path.exists()
+    assert not data_root.exists()

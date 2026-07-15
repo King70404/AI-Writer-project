@@ -1,5 +1,7 @@
 """Database setting defaults, overrides, validation, and URL policy tests."""
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -7,7 +9,9 @@ from aiwebnovel.core.config import Settings, get_settings
 from aiwebnovel.db.engine import (
     DatabaseConfigurationError,
     create_database_engine,
+    resolve_database_url,
 )
+from aiwebnovel.storage.paths import StoragePaths
 
 pytestmark = pytest.mark.unit
 
@@ -28,10 +32,15 @@ def isolated_database_settings(monkeypatch: pytest.MonkeyPatch):
     get_settings.cache_clear()
 
 
-def test_database_defaults_are_phase_zero_development_values() -> None:
+def test_database_default_is_derived_from_the_managed_data_root() -> None:
     settings = get_settings()
+    paths = StoragePaths.from_settings(settings)
+    resolved_url = resolve_database_url(settings, paths)
 
-    assert settings.database_url == ("sqlite+pysqlite:///./.runtime/aiwebnovel-dev.sqlite3")
+    assert settings.database_url is None
+    assert resolved_url.drivername == "sqlite+pysqlite"
+    assert resolved_url.database == paths.database_file.as_posix()
+    assert ".runtime" not in resolved_url.database
     assert settings.database_echo is False
     assert settings.database_busy_timeout_ms == 5000
 
@@ -54,6 +63,20 @@ def test_database_environment_overrides_are_typed_and_cacheable(
 
     get_settings.cache_clear()
     assert get_settings().database_busy_timeout_ms == 3456
+
+
+def test_explicit_database_url_has_priority_over_storage_derivation(
+    tmp_path: Path,
+) -> None:
+    explicit_url = "sqlite+pysqlite:///:memory:"
+    settings = Settings(
+        data_root=tmp_path / "managed root",
+        database_url=explicit_url,
+    )
+
+    resolved = resolve_database_url(settings, StoragePaths.from_settings(settings))
+
+    assert str(resolved) == explicit_url
 
 
 @pytest.mark.parametrize("value", [0, -1, 600_001, "not-an-integer"])

@@ -27,9 +27,17 @@
 
 ## E2E 服务编排
 
-`run_e2e.ps1` 由前端 package scripts 以开发、生产集成或全部模式调用，也可用固定 `-Scenario` 编号独立运行单项。它为每个场景创建独立 `.runtime/e2e` 目录和 SQLite，在固定 loopback 专用端口启动服务，等待真实 URL，就地运行 Playwright，并在 `finally` 中只终止已保存 PID 与启动时间的自有进程树。`run_e2e_service.ps1` 是前台子进程入口，只为该子进程设置后端数据库、静态服务或 Vite 代理环境，并向父脚本登记实际 Node/Python 进程。`check_e2e_cleanup.ps1` 从仓库根目录复核端口、临时运行目录和成功运行产物均已释放；显式 `e2e:report` 命令通过 `show_e2e_report.ps1` 打开最近一次保留的失败报告。
+`run_e2e.ps1` 由前端 package scripts 以开发、生产集成或全部模式调用，也可用固定 `-Scenario` 编号独立运行单项。它为每个场景在 `.runtime/e2e` 下创建独立运行目录和唯一数据根，由应用把 SQLite 派生到该数据根的 `data/`，在固定 loopback 专用端口启动服务，等待真实 URL，就地运行 Playwright，并在 `finally` 中只终止已保存 PID 与启动时间的自有进程树。删除运行目录或成功产物前会拒绝整个目标树中的重解析点。`run_e2e_service.ps1` 是前台子进程入口，只为该子进程设置数据根、静态服务或 Vite 代理环境，并向父脚本登记实际 Node/Python 进程；登记失败时会终止刚启动的自有进程树。`check_e2e_cleanup.ps1` 从仓库根目录复核端口、临时运行目录和成功运行产物均已释放；显式 `e2e:report` 命令通过 `show_e2e_report.ps1` 打开最近一次保留的失败报告。
 
 完整命令、端口、网络隔离与诊断规则见 [浏览器端到端测试](../docs/E2E_TESTING.md)。
+
+## Windows 本地存储烟测
+
+```powershell
+.\scripts\check_windows_storage.ps1
+```
+
+该脚本只在 Windows 上运行。它在当前用户的 `LOCALAPPDATA` 下选择带固定 DEV-0.8 标识的唯一临时根，通过 `AIWEBNOVEL_DATA_ROOT` 启动真实后端，验证标准目录、访问探针、派生数据库及 ready 状态，然后只终止已核验身份的自有进程并清理该临时根。脚本对正式默认根只检查是否存在，不枚举、读取、修改或删除其内容，也不修改 ACL 或请求提权。
 
 ## 显式格式化
 

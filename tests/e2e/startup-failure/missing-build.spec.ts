@@ -37,7 +37,10 @@ test("E2E-STARTUP-001 exposes safe health failures when the real frontend build 
     expectApiResponseRequestId(ready);
     const readyBody: unknown = await ready.json();
     expect(asRecord(readyBody).status).toBe("not_ready");
-    expect(asRecord(asRecord(readyBody).checks).frontend).toBe("failed");
+    const readyChecks = asRecord(asRecord(readyBody).checks);
+    expect(readyChecks.storage).toBe("ok");
+    expect(readyChecks.database).toBe("ok");
+    expect(readyChecks.frontend).toBe("failed");
 
     const root = await client.get("/", {
       headers: { Accept: "text/html" },

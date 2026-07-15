@@ -69,6 +69,11 @@ runtime_data/
 sandboxes/
 task_sandboxes/
 
+# Accidental repository-local application and storage-test roots
+/AIWebNovel/
+/AIWebNovel-DEV-0.8-*/
+/AIWebNovel-E2E-DataRoot-*/
+
 # Local model files
 local_models/
 *.gguf

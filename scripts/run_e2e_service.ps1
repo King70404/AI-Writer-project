@@ -10,7 +10,7 @@ param(
     [int]$BackendPort = 0,
     [ValidateRange(0, 65535)]
     [int]$CorsPort = 0,
-    [string]$DatabasePath = "",
+    [string]$DataRoot = "",
     [switch]$ServeFrontend,
     [string]$FrontendDistPath = "",
     [Parameter(Mandatory = $true)]
@@ -30,6 +30,26 @@ function Stop-ServiceLauncher {
     exit 1
 }
 
+function Test-FullyQualifiedWindowsPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Value
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace($Value) -or
+        $Value.IndexOf([char]0) -ge 0 -or
+        $Value.StartsWith('\\?\') -or
+        $Value.StartsWith('\\.\')
+    ) {
+        return $false
+    }
+    return (
+        $Value -match '^[A-Za-z]:[\\/]' -or
+        $Value -match '^\\\\[^\\/]+[\\/][^\\/]+(?:[\\/]|$)'
+    )
+}
+
 function Get-ValidatedContainedPath {
     param(
         [Parameter(Mandatory = $true)]
@@ -42,6 +62,9 @@ function Get-ValidatedContainedPath {
 
     if ([string]::IsNullOrWhiteSpace($Candidate)) {
         Stop-ServiceLauncher -Message "$Description is required"
+    }
+    if (-not (Test-FullyQualifiedWindowsPath -Value $Candidate)) {
+        Stop-ServiceLauncher -Message "$Description must be an absolute path"
     }
 
     $fullCandidate = [System.IO.Path]::GetFullPath($Candidate)
@@ -57,7 +80,7 @@ function Get-ValidatedContainedPath {
             $containerPrefix,
             [System.StringComparison]::OrdinalIgnoreCase
         )) {
-        Stop-ServiceLauncher -Message "$Description must stay inside the repository"
+        Stop-ServiceLauncher -Message "$Description must stay inside its controlled root"
     }
 
     $relativePath = $fullCandidate.Substring($containerPrefix.Length)
@@ -115,16 +138,33 @@ function Invoke-ManagedServiceProcess {
         -WorkingDirectory $WorkingDirectory `
         -NoNewWindow `
         -PassThru
-    $manifest = [ordered]@{
-        process_id = $process.Id
-        started_at_utc_ticks = $process.StartTime.ToUniversalTime().Ticks
-        executable_name = [System.IO.Path]::GetFileName($FilePath)
-    } | ConvertTo-Json -Compress
-    [System.IO.File]::WriteAllText(
-        $ManifestPath,
-        $manifest + [Environment]::NewLine,
-        [System.Text.UTF8Encoding]::new($false)
-    )
+    $startedAtUtcTicks = $process.StartTime.ToUniversalTime().Ticks
+    try {
+        $manifest = [ordered]@{
+            process_id = $process.Id
+            started_at_utc_ticks = $startedAtUtcTicks
+            executable_name = [System.IO.Path]::GetFileName($FilePath)
+        } | ConvertTo-Json -Compress
+        [System.IO.File]::WriteAllText(
+            $ManifestPath,
+            $manifest + [Environment]::NewLine,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+    } catch {
+        $current = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
+        if ($null -ne $current) {
+            if ($current.StartTime.ToUniversalTime().Ticks -ne $startedAtUtcTicks) {
+                throw "service manifest failed and the process identifier was reused"
+            }
+            & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
+            $process.WaitForExit(10000)
+            $process.Refresh()
+            if (-not $process.HasExited) {
+                throw "service manifest failed and the owned process tree could not be stopped"
+            }
+        }
+        throw "service process registration failed; the owned process tree was stopped"
+    }
     $process.WaitForExit()
     exit $process.ExitCode
 }
@@ -141,22 +181,45 @@ $manifestParent = Split-Path -Parent $manifestFullPath
 if (-not (Test-Path -LiteralPath $manifestParent -PathType Container)) {
     Stop-ServiceLauncher -Message "service process manifest directory is missing"
 }
+$manifestParentParent = [System.IO.Path]::GetFullPath((Split-Path -Parent $manifestParent))
+if (-not $manifestParentParent.Equals(
+        [System.IO.Path]::GetFullPath($runtimeRoot),
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+    Stop-ServiceLauncher -Message "service process manifest must belong to one E2E run"
+}
+$runDirectoryName = Split-Path -Leaf $manifestParent
+if ($runDirectoryName -notmatch '^e2e-(?:dev|int|startup)-\d{3}-\d+-[0-9a-f]{32}$') {
+    Stop-ServiceLauncher -Message "service process manifest run lacks its ownership marker"
+}
+if ($Service -eq "Vite" -and -not [string]::IsNullOrWhiteSpace($DataRoot)) {
+    Stop-ServiceLauncher -Message "Vite must not receive an application data root"
+}
 
 if ($Service -eq "Backend") {
     if (-not (Test-Path -LiteralPath $pythonExecutable -PathType Leaf)) {
         Stop-ServiceLauncher -Message "root virtual environment is missing"
     }
 
-    $databaseFullPath = Get-ValidatedContainedPath `
-        -Candidate $DatabasePath `
-        -Container $runtimeRoot `
-        -Description "E2E database path"
-    $databaseParent = Split-Path -Parent $databaseFullPath
-    if (-not (Test-Path -LiteralPath $databaseParent -PathType Container)) {
-        Stop-ServiceLauncher -Message "E2E runtime directory is missing"
+    $dataRootFullPath = Get-ValidatedContainedPath `
+        -Candidate $DataRoot `
+        -Container $manifestParent `
+        -Description "E2E data root"
+    $dataRootParent = [System.IO.Path]::GetFullPath((Split-Path -Parent $dataRootFullPath))
+    if (-not $dataRootParent.Equals(
+            [System.IO.Path]::GetFullPath($manifestParent),
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) {
+        Stop-ServiceLauncher -Message "E2E data root must be a direct child of its run directory"
+    }
+    $dataRootName = Split-Path -Leaf $dataRootFullPath
+    if ($dataRootName -notmatch '^AIWebNovel-E2E-DataRoot-[0-9a-f]{32}$') {
+        Stop-ServiceLauncher -Message "E2E data root must carry its exact ownership marker"
+    }
+    if (Test-Path -LiteralPath $dataRootFullPath) {
+        Stop-ServiceLauncher -Message "E2E data root must be created by storage initialization"
     }
 
-    $databaseUriPath = $databaseFullPath.Replace("\", "/")
     $env:AIWEBNOVEL_APP_NAME = "AIWebNovel"
     $env:AIWEBNOVEL_APP_VERSION = "0.0.0"
     $env:AIWEBNOVEL_ENVIRONMENT = "e2e"
@@ -164,7 +227,12 @@ if ($Service -eq "Backend") {
     $env:AIWEBNOVEL_HOST = "127.0.0.1"
     $env:AIWEBNOVEL_PORT = $Port.ToString()
     $env:AIWEBNOVEL_LOG_LEVEL = "WARNING"
-    $env:AIWEBNOVEL_DATABASE_URL = "sqlite+pysqlite:///$databaseUriPath"
+    $env:AIWEBNOVEL_DATA_ROOT = $dataRootFullPath
+    [Environment]::SetEnvironmentVariable(
+        "AIWEBNOVEL_DATABASE_URL",
+        $null,
+        "Process"
+    )
     $env:AIWEBNOVEL_DATABASE_ECHO = "false"
     $env:AIWEBNOVEL_DATABASE_BUSY_TIMEOUT_MS = "5000"
     $env:AIWEBNOVEL_SERVE_FRONTEND = if ($ServeFrontend) { "true" } else { "false" }
@@ -215,6 +283,8 @@ if (-not (Test-Path -LiteralPath $viteCli -PathType Leaf)) {
     Stop-ServiceLauncher -Message "local Vite CLI is missing"
 }
 
+[Environment]::SetEnvironmentVariable("AIWEBNOVEL_DATA_ROOT", $null, "Process")
+[Environment]::SetEnvironmentVariable("AIWEBNOVEL_DATABASE_URL", $null, "Process")
 $env:AIWEBNOVEL_VITE_BACKEND_URL = "http://127.0.0.1:$BackendPort"
 $env:AIWEBNOVEL_E2E_DISABLE_HMR = "1"
 $env:VITE_API_BASE_URL = "/api/v1"

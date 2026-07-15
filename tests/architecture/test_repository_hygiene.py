@@ -128,6 +128,21 @@ def test_hygiene_check_rejects_tracked_artifacts_without_leaking_values(
         encoding="utf-8",
     )
     (repository / "data.sqlite3").write_bytes(b"SQLite fixture")
+    (repository / "data.sqlite3-wal").write_bytes(b"SQLite WAL fixture")
+    (repository / "data.sqlite3-shm").write_bytes(b"SQLite SHM fixture")
+    runtime_directory = repository / ".runtime"
+    runtime_directory.mkdir()
+    (runtime_directory / "state.json").write_text("{}\n", encoding="utf-8")
+    backups_directory = repository / "backups"
+    backups_directory.mkdir()
+    (backups_directory / "snapshot.zip").write_bytes(b"backup fixture")
+    exports_directory = repository / "exports"
+    exports_directory.mkdir()
+    (exports_directory / "export.txt").write_text("export\n", encoding="utf-8")
+    models_directory = repository / "local_models"
+    models_directory.mkdir()
+    (models_directory / "detector.bin").write_bytes(b"model fixture")
+    (repository / "service.log").write_text("diagnostic\n", encoding="utf-8")
     (repository / "local-path.txt").write_text(
         "C:" + "\\Users\\" + sensitive_user + "\\draft.txt\n",
         encoding="utf-8",
@@ -149,6 +164,13 @@ def test_hygiene_check_rejects_tracked_artifacts_without_leaking_values(
     assert result.returncode != 0
     assert "type=environment-file file=.env" in output
     assert "type=database-artifact file=data.sqlite3" in output
+    assert "type=database-artifact file=data.sqlite3-wal" in output
+    assert "type=database-artifact file=data.sqlite3-shm" in output
+    assert "type=runtime-or-sandbox file=.runtime/state.json" in output
+    assert "type=backup-or-export file=backups/snapshot.zip" in output
+    assert "type=backup-or-export file=exports/export.txt" in output
+    assert "type=local-model file=local_models/detector.bin" in output
+    assert "type=log-output file=service.log" in output
     assert "type=absolute-user-path file=local-path.txt" in output
     assert "type=private-key file=key-material.txt" in output
     assert sensitive_value not in output

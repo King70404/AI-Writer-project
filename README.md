@@ -4,21 +4,24 @@ AIWebNovel 是项目暂定名称，目标是开发一套面向中文男频网文
 
 ## 当前阶段与状态
 
-项目当前处于阶段 0——工程底座。DEV-0.3 已建立可测试的 SQLite、SQLAlchemy 与 Alembic 数据库基础，DEV-0.4 已建立 React、TypeScript 与 Vite 前端工程基础，DEV-0.5 已建立本地前后端健康检查集成与可选生产静态服务，DEV-0.6 已建立本地质量门禁，DEV-0.7 已建立真实本地服务的 Chromium 浏览器验收；仓库仍未实现任何小说业务功能。
+项目当前处于阶段 0——工程底座。DEV-0.3 已建立可测试的 SQLite、SQLAlchemy 与 Alembic 数据库基础，DEV-0.4 已建立 React、TypeScript 与 Vite 前端工程基础，DEV-0.5 已建立本地前后端健康检查集成与可选生产静态服务，DEV-0.6 已建立本地质量门禁，DEV-0.7 已建立真实本地服务的 Chromium 浏览器验收，DEV-0.8 已建立 Windows 本地数据目录、访问探针与运行时隔离；仓库仍未实现任何小说业务功能。
 
-当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI 与 SQLite 基础状态。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。项目仍没有小说业务表、Agent、Skill、Prompt、工作流或小说业务界面；健康检查通过只代表工程基础可用，不代表系统已经能够创作小说。后端环境、数据库迁移和测试说明见 [后端 README](backend/README.md)，前端环境与命令见 [前端 README](frontend/README.md)，已实现工程能力见 [功能真实性矩阵](docs/FEATURE_REALITY_MATRIX.md)。
+当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI、存储目录访问能力与 SQLite 基础状态。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。默认用户数据根是 `%LOCALAPPDATA%\AIWebNovel`，正式数据不存放在 Git 仓库；目录只在应用生命周期启动或显式初始化时按需创建。项目仍没有小说业务表、Agent、Skill、Prompt、工作流或小说业务界面；健康检查通过只代表工程基础可用，不代表系统已经能够创作小说。存储规则见 [本地存储](docs/LOCAL_STORAGE.md)，后端环境、数据库迁移和测试说明见 [后端 README](backend/README.md)，前端环境与命令见 [前端 README](frontend/README.md)，已实现工程能力见 [功能真实性矩阵](docs/FEATURE_REALITY_MATRIX.md)。
 
 ## 本地运行模式
 
 开发模式分别启动后端和前端，且都只绑定 `127.0.0.1`：
 
 ```powershell
+$env:AIWEBNOVEL_DATA_ROOT = Join-Path $env:LOCALAPPDATA "AIWebNovel-Development"
 .\.venv\Scripts\python.exe -m aiwebnovel
+Remove-Item Env:AIWEBNOVEL_DATA_ROOT
+
 Set-Location frontend
 npm run dev
 ```
 
-浏览器访问 `http://127.0.0.1:5173`。Vite 只把 `/api` 代理到 `http://127.0.0.1:8000`，不代理其他路径或 WebSocket。
+浏览器访问 `http://127.0.0.1:5173`。Vite 只把 `/api` 代理到 `http://127.0.0.1:8000`，不代理其他路径或 WebSocket。开发者必须使用独立的绝对 `AIWEBNOVEL_DATA_ROOT`，不得把开发运行指向正式默认根。
 
 生产集成模式先构建前端，再显式启用后端静态服务：
 
@@ -26,8 +29,10 @@ npm run dev
 Set-Location frontend
 npm run build
 Set-Location ..
+$env:AIWEBNOVEL_DATA_ROOT = Join-Path $env:LOCALAPPDATA "AIWebNovel-Development"
 $env:AIWEBNOVEL_SERVE_FRONTEND = "true"
 .\.venv\Scripts\python.exe -m aiwebnovel
+Remove-Item Env:AIWEBNOVEL_DATA_ROOT
 Remove-Item Env:AIWEBNOVEL_SERVE_FRONTEND
 ```
 
@@ -42,7 +47,7 @@ Remove-Item Env:AIWEBNOVEL_SERVE_FRONTEND
 - 数据治理：候选数据、正式数据与分支数据严格隔离；
 - Codex：通过统一的 CodexExecutor 适配器接入。
 
-以上包含当前基础设施和后续阶段计划，不表示业务模型、正式数据存储或完整系统已经完成，也不表示 M0 已完成。M0 后续仍有正式本地数据目录等任务。
+以上包含当前基础设施和后续阶段计划，不表示业务模型、业务数据持久化或完整系统已经完成，也不表示备份、导出、模型管理、文件日志或 M0 已经完成。
 
 ## 本地质量门禁
 
@@ -50,7 +55,7 @@ Remove-Item Env:AIWEBNOVEL_SERVE_FRONTEND
 
 ## 浏览器端到端测试
 
-在 `frontend` 目录运行 `npm run e2e:dev`、`npm run e2e:integrated` 或 `npm run e2e`，可用 Playwright 管理的无头 Chromium 验证开发与生产集成启动。浏览器只访问 E2E 专用的 `127.0.0.1` 端口，服务使用独立临时 SQLite，并在结束后清理自有进程、端口和临时数据。浏览器安装、失败诊断和 `-IncludeE2E` 可选门禁说明见 [浏览器端到端测试](docs/E2E_TESTING.md)。这些验收不代表已经存在小说业务功能。
+在 `frontend` 目录运行 `npm run e2e:dev`、`npm run e2e:integrated` 或 `npm run e2e`，可用 Playwright 管理的无头 Chromium 验证开发与生产集成启动。浏览器只访问 E2E 专用的 `127.0.0.1` 端口，每个场景使用独立临时数据根，其 SQLite 位于 `data/`、运行数据位于 `runtime/`，并在结束后清理自有进程、端口和整个临时根。浏览器安装、失败诊断和 `-IncludeE2E` 可选门禁说明见 [浏览器端到端测试](docs/E2E_TESTING.md)。这些验收不代表已经存在小说业务功能。
 
 ## 开发规范
 

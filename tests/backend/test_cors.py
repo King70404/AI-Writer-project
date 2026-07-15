@@ -18,6 +18,7 @@ ALLOWED_ORIGIN = "http://127.0.0.1:5173"
 def _settings(tmp_path: Path) -> Settings:
     return Settings(
         environment="test",
+        data_root=tmp_path / "storage",
         database_url=str(
             URL.create("sqlite+pysqlite", database=(tmp_path / "cors.sqlite3").as_posix())
         ),

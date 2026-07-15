@@ -29,6 +29,7 @@ def _test_settings(
 ) -> Settings:
     values: dict[str, object] = {
         "environment": "test",
+        "data_root": tmp_path / f"{filename}-storage",
         "database_url": str(
             URL.create("sqlite+pysqlite", database=(tmp_path / filename).as_posix())
         ),
@@ -77,6 +78,7 @@ def test_ready_health_reports_only_real_checks(tmp_path: Path) -> None:
         "checks": {
             "configuration": "ok",
             "application": "ok",
+            "storage": "ok",
             "database": "ok",
             "frontend": "not_required",
         },
