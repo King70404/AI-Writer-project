@@ -1,0 +1,352 @@
+{
+  "schema_version": "1.0",
+  "milestone": "M0",
+  "status": "accepted",
+  "accepted_at": "2026-07-18T17:58:55+08:00",
+  "timezone": "Asia/Shanghai",
+  "candidate_commit": "f8490124c3aff841e1c0263bfd193343fdc3782d",
+  "acceptance_record": "the commit containing this manifest",
+  "acceptance_tag": "m0-engineering-foundation",
+  "git_commit_count_before_acceptance": 11,
+  "tool_versions": {
+    "git": "2.55.0.windows.2",
+    "powershell": "5.1.26100.8875",
+    "python": "3.12.10",
+    "python_architecture_bits": 64,
+    "pip": "26.1.2",
+    "sqlite": "3.49.1",
+    "ruff": "0.15.21",
+    "mypy": "1.20.2",
+    "pytest": "9.1.1",
+    "node": "24.18.0",
+    "node_architecture": "x64",
+    "npm": "11.16.0",
+    "react": "19.2.7",
+    "typescript": "6.0.3",
+    "vite": "8.1.4",
+    "playwright": "1.61.1",
+    "chromium": "149.0.7827.55",
+    "chromium_playwright_revision": 1228
+  },
+  "test_results": {
+    "backend_and_architecture": {
+      "status": "pass",
+      "passed": 374
+    },
+    "frontend": {
+      "status": "pass",
+      "passed": 29
+    },
+    "e2e": {
+      "status": "pass",
+      "passed": 9
+    },
+    "environment_doctor": {
+      "development": "pass",
+      "integrated": "pass",
+      "m0": "pass"
+    },
+    "m0_preflight_checks": {
+      "status": "pass",
+      "passed": 9
+    }
+  },
+  "coverage": {
+    "backend": {
+      "statements_percent": 90.72,
+      "branches_percent": 82.12,
+      "statements_threshold_percent": 80,
+      "branches_threshold_percent": 75
+    },
+    "frontend": {
+      "statements_percent": 88.95,
+      "branches_percent": 82.11,
+      "functions_percent": 97.82,
+      "lines_percent": 88.82,
+      "statements_threshold_percent": 80,
+      "branches_threshold_percent": 75,
+      "functions_threshold_percent": 80,
+      "lines_threshold_percent": 80
+    }
+  },
+  "e2e": {
+    "status": "pass",
+    "scenario_ids": [
+      "E2E-DEV-001",
+      "E2E-DEV-002",
+      "E2E-DEV-003",
+      "E2E-INT-001",
+      "E2E-INT-002",
+      "E2E-INT-003",
+      "E2E-INT-004",
+      "E2E-INT-005",
+      "E2E-STARTUP-001"
+    ],
+    "browser": "Chromium",
+    "browser_version": "149.0.7827.55",
+    "scenarios_passed": 9,
+    "unexpected_external_network_attempts": 0,
+    "unexpected_console_errors": 0,
+    "controlled_local_http_failures_reviewed": true,
+    "page_errors": 0,
+    "residual_owned_processes": 0,
+    "residual_ports": 0,
+    "residual_databases_or_sidecars": 0
+  },
+  "database": {
+    "status": "pass",
+    "alembic_head": "0001_initialize_database",
+    "tables_after_upgrade": [
+      "alembic_version"
+    ],
+    "business_table_count": 0,
+    "business_model_metadata_table_count": 0,
+    "wal_enabled": true,
+    "foreign_keys_enabled": true,
+    "busy_timeout_ms": 5000,
+    "upgrade_downgrade_reupgrade": "pass",
+    "formal_user_database_accessed": false,
+    "temporary_database_cleanup": "pass"
+  },
+  "api_routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/health/live",
+      "classification": "engineering_foundation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health/ready",
+      "classification": "engineering_foundation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/session",
+      "classification": "local_security_foundation"
+    }
+  ],
+  "frontend_routes": [
+    {
+      "path": "/",
+      "component": "FoundationPage"
+    },
+    {
+      "path": "*",
+      "component": "NotFoundPage"
+    }
+  ],
+  "feature_ids": [
+    "FND-001",
+    "FND-002",
+    "FND-003",
+    "FND-004"
+  ],
+  "storage": {
+    "status": "pass",
+    "default_root_rule": "%LOCALAPPDATA%\\AIWebNovel",
+    "formal_root_created": false,
+    "formal_root_enumerated": false,
+    "formal_root_content_read": false,
+    "formal_root_modified": false,
+    "standard_directory_count": 12,
+    "reparse_point_checks": "pass",
+    "current_user_probe": "pass",
+    "temporary_artifact_cleanup": "pass",
+    "acl_modified": false,
+    "elevation_used": false,
+    "comprehensive_acl_audit_claimed": false
+  },
+  "security": {
+    "status": "pass",
+    "loopback_only": true,
+    "host_validation": "pass",
+    "proxy_headers_trusted": false,
+    "cors_wildcard": false,
+    "cors_credentials": false,
+    "request_body_limit": "pass",
+    "json_content_type_enforcement": "pass",
+    "in_memory_local_session": "pass",
+    "cookie_attributes": "pass",
+    "csrf_and_origin_protection": "pass",
+    "csrf_persisted_in_browser_storage": false,
+    "csp_unsafe_eval": false,
+    "csp_unsafe_inline": false,
+    "production_docs_enabled": false,
+    "log_redaction_canary": "pass",
+    "server_version_disclosed": false,
+    "ready_security_status": "ok",
+    "limitations": [
+      "local_http",
+      "no_user_login",
+      "no_enterprise_identity",
+      "in_memory_session",
+      "no_https_certificate_management",
+      "no_lan_access",
+      "no_comprehensive_acl_governance"
+    ]
+  },
+  "startup": {
+    "environment_doctor_development": "pass",
+    "environment_doctor_integrated": "pass",
+    "environment_doctor_m0": "pass",
+    "environment_doctor_json_parse": "pass",
+    "development_startup": "pass",
+    "integrated_startup": "pass",
+    "controlled_stop": "pass",
+    "port_release": "pass",
+    "owned_process_cleanup": "pass",
+    "automatic_installation": false,
+    "network_installation": false,
+    "m0_preflight": {
+      "status": "pass",
+      "checks_passed": 9,
+      "checks_total": 9,
+      "conclusion": "M0预验收检查通过，等待正式阶段验收。"
+    }
+  },
+  "git_integrity": {
+    "fsck": "pass",
+    "object_corruption": false,
+    "history_linear": true,
+    "merge_commit_count": 0,
+    "remote_configured": false,
+    "unauthorized_tag_count": 0,
+    "dangling_blob_count": 52,
+    "dangling_tree_count": 4,
+    "dangling_commit_count": 0,
+    "dangling_tag_count": 0,
+    "garbage_collection_performed": false
+  },
+  "quality_gates": {
+    "default": {
+      "status": "pass",
+      "started_at": "2026-07-18T17:36:19.6306129+08:00",
+      "ended_at": "2026-07-18T17:37:48.0997215+08:00",
+      "duration_ms": 88469,
+      "exit_code": 0
+    },
+    "include_e2e": {
+      "status": "pass",
+      "started_at": "2026-07-18T17:37:55.7770586+08:00",
+      "ended_at": "2026-07-18T17:41:08.5916569+08:00",
+      "duration_ms": 192815,
+      "exit_code": 0
+    },
+    "dependency_audit_and_e2e": {
+      "status": "pass",
+      "started_at": "2026-07-18T17:41:20.7263363+08:00",
+      "ended_at": "2026-07-18T17:44:24.0531652+08:00",
+      "duration_ms": 183327,
+      "exit_code": 0,
+      "npm_vulnerability_count": 0
+    },
+    "m0_environment_doctor": {
+      "status": "pass",
+      "started_at": "2026-07-18T17:36:03.7248695+08:00",
+      "ended_at": "2026-07-18T17:36:11.6423554+08:00",
+      "duration_ms": 7917,
+      "exit_code": 0
+    },
+    "m0_preflight": {
+      "status": "pass",
+      "started_at": "2026-07-18T17:44:57.9901425+08:00",
+      "ended_at": "2026-07-18T17:50:21.2031090+08:00",
+      "duration_ms": 323213,
+      "exit_code": 0,
+      "checks_passed": 9
+    },
+    "ruff_format": "pass",
+    "ruff_rules": "pass",
+    "mypy": "pass",
+    "pip_check": "pass",
+    "prettier": "pass",
+    "eslint": "pass",
+    "typescript": "pass",
+    "vite_build": "pass",
+    "npm_dependency_tree": "pass",
+    "repository_hygiene": "pass",
+    "security_static_baseline": "pass",
+    "architecture_boundaries": "pass"
+  },
+  "known_risks": [
+    {
+      "id": "M0-RISK-001",
+      "risk": "Local HTTP remains in use.",
+      "blocks_m0": false,
+      "mitigation": "Loopback-only binding with Host, CORS, CSRF, CSP, and proxy-header controls.",
+      "follow_up": "A dedicated security task before remote, LAN, or product distribution support."
+    },
+    {
+      "id": "M0-RISK-002",
+      "risk": "Sessions are stored in process memory and are lost on restart.",
+      "blocks_m0": false,
+      "mitigation": "The session is explicitly not a user login; cookie, CSRF, expiry, and capacity behavior are tested.",
+      "follow_up": "Identity and persistent-session stage."
+    },
+    {
+      "id": "M0-RISK-003",
+      "risk": "Reparse-point checks have a theoretical same-user concurrent replacement TOCTOU window.",
+      "blocks_m0": false,
+      "mitigation": "Operations stay in owned isolated roots, check before and after access, fail on reparse points, and do not elevate.",
+      "follow_up": "Further hardening with file, backup, or installer capabilities."
+    },
+    {
+      "id": "M0-RISK-004",
+      "risk": "A small race window exists between port probing and binding.",
+      "blocks_m0": false,
+      "mitigation": "Services bind only to loopback and fail safely if binding loses the race.",
+      "follow_up": "Single-instance and startup-coordination task."
+    },
+    {
+      "id": "M0-RISK-005",
+      "risk": "Static AST and regular-expression security gates cannot replace runtime testing.",
+      "blocks_m0": false,
+      "mitigation": "Layered unit, negative, smoke, and browser E2E tests are also required.",
+      "follow_up": "Continue runtime, fuzz, and static-analysis coverage in later tasks."
+    },
+    {
+      "id": "M0-RISK-006",
+      "risk": "FastAPI and Starlette TestClient emit a non-blocking upstream deprecation warning.",
+      "blocks_m0": false,
+      "mitigation": "Current locked dependencies are compatible and all 374 backend and architecture tests pass.",
+      "follow_up": "Dependency-maintenance task following the upstream migration path."
+    },
+    {
+      "id": "M0-RISK-007",
+      "risk": "Comprehensive Windows ACL governance is not implemented.",
+      "blocks_m0": false,
+      "mitigation": "Current-user probes, reparse-point defenses, and the no-elevation boundary are verified without an excessive security claim.",
+      "follow_up": "ACL threat model during file, backup, or installer work."
+    },
+    {
+      "id": "M0-RISK-008",
+      "risk": "Backup and restore are not implemented.",
+      "blocks_m0": false,
+      "mitigation": "M0 contains no business data and exposes no fake backup capability.",
+      "follow_up": "Dedicated backup-and-restore task."
+    },
+    {
+      "id": "M0-RISK-009",
+      "risk": "A single-instance lock is not implemented.",
+      "blocks_m0": false,
+      "mitigation": "Port conflicts fail safely; WAL, busy timeout, and strict owned-process cleanup are in place.",
+      "follow_up": "Resolve before formal product runtime or installer work."
+    },
+    {
+      "id": "M0-RISK-010",
+      "risk": "Business data and business functionality are not implemented.",
+      "blocks_m0": false,
+      "mitigation": "The reality matrix contains only FND-001 through FND-004 and explicitly states the limitation.",
+      "follow_up": "Stage 1 begins only through an independently authorized DEV-1.x task."
+    }
+  ],
+  "out_of_scope": [
+    "Stage 1 development",
+    "Novel projects and business models",
+    "Characters, chapters, planning, writing, review, and canon",
+    "Codex integration, agents, skills, prompts, and persistent workflows",
+    "Backup and restore",
+    "Windows installer, service, tray, and automatic updates",
+    "CI, Git remote, and product release"
+  ]
+}
