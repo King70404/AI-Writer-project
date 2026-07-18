@@ -3,14 +3,25 @@
 from __future__ import annotations
 
 import ast
+import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-Layer = Literal["core", "storage", "db", "security", "diagnostics", "web", "main"]
+Layer = Literal[
+    "domain",
+    "core",
+    "storage",
+    "db",
+    "security",
+    "diagnostics",
+    "web",
+    "main",
+]
 
 _LAYERS: tuple[Layer, ...] = (
+    "domain",
     "core",
     "storage",
     "db",
@@ -20,6 +31,14 @@ _LAYERS: tuple[Layer, ...] = (
     "main",
 )
 _FORBIDDEN_LAYER_IMPORTS: dict[tuple[Layer, Layer], str] = {
+    ("domain", "core"): "domain-must-not-import-core",
+    ("domain", "storage"): "domain-must-not-import-storage",
+    ("domain", "db"): "domain-must-not-import-db",
+    ("domain", "security"): "domain-must-not-import-security",
+    ("domain", "diagnostics"): "domain-must-not-import-diagnostics",
+    ("domain", "web"): "domain-must-not-import-web",
+    ("domain", "main"): "domain-must-not-import-main",
+    ("core", "domain"): "core-must-not-import-domain",
     ("core", "storage"): "core-must-not-import-storage",
     ("core", "db"): "core-must-not-import-db",
     ("core", "security"): "core-must-not-import-security",
@@ -75,6 +94,8 @@ _SESSION_PERSISTENCE_MODULES = {
     "sqlalchemy",
 }
 _LOCAL_APP_DATA_OWNER = "aiwebnovel.core.config"
+_DOMAIN_FRAMEWORK_ROOTS = frozenset({"fastapi", "pydantic", "sqlalchemy"})
+_STANDARD_LIBRARY_ROOTS = frozenset({"__future__", *sys.stdlib_module_names})
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -182,7 +203,7 @@ def _import_references(package_root: Path) -> tuple[_ImportReference, ...]:
 def _layer_for(module_name: str) -> Layer | None:
     if module_name == "aiwebnovel.main":
         return "main"
-    for layer in ("core", "storage", "db", "security", "diagnostics", "web"):
+    for layer in ("domain", "core", "storage", "db", "security", "diagnostics", "web"):
         prefix = f"aiwebnovel.{layer}"
         if module_name == prefix or module_name.startswith(f"{prefix}."):
             return layer
@@ -252,6 +273,43 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
     for reference in references:
         source_layer = _layer_for(reference.source_module)
         target_layer = _layer_for(reference.target_module)
+
+        if source_layer == "domain":
+            target_root = reference.target_module.partition(".")[0]
+            imports_own_package = (
+                reference.target_module == "aiwebnovel.domain"
+                or reference.target_module.startswith("aiwebnovel.domain.")
+            )
+            if target_root in _DOMAIN_FRAMEWORK_ROOTS:
+                violations.append(
+                    ArchitectureViolation(
+                        path=reference.path,
+                        line=reference.line,
+                        rule="domain-must-not-import-frameworks",
+                        message="domain must remain independent of web and persistence frameworks",
+                    )
+                )
+            elif target_root != "aiwebnovel" and target_root not in _STANDARD_LIBRARY_ROOTS:
+                violations.append(
+                    ArchitectureViolation(
+                        path=reference.path,
+                        line=reference.line,
+                        rule="domain-must-only-import-standard-library",
+                        message=(
+                            "domain may import only Python standard-library modules and its "
+                            "own package"
+                        ),
+                    )
+                )
+            elif target_root == "aiwebnovel" and not imports_own_package and target_layer is None:
+                violations.append(
+                    ArchitectureViolation(
+                        path=reference.path,
+                        line=reference.line,
+                        rule="domain-must-only-import-standard-library",
+                        message="domain may not import other aiwebnovel implementation packages",
+                    )
+                )
 
         if source_layer == "diagnostics" and target_layer in _PUBLIC_MODULES_FOR_DIAGNOSTICS:
             allowed_modules = _PUBLIC_MODULES_FOR_DIAGNOSTICS[target_layer]

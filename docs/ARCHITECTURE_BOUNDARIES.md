@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界，以及阶段 0 后端基础设施的依赖方向。边界说明不代表小说业务模块已经实现。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施和阶段 1 纯领域基础的依赖方向。边界说明不代表小说业务模块已经实现。
 
 ## 业务模块
 
@@ -66,6 +66,14 @@
 `StoragePaths` 是路径契约，不是新的业务数据所有者。`storage` 只管理本地目录边界和访问能力，`db` 仍负责 SQLite；两者都不得创建小说业务表或业务 Repository。
 
 Security 是请求边界而不是身份或业务权限所有者。本地会话只存在于进程内存，不能写入 SQLite 或文件；CSRF 只保护 HTTP 请求完整性，不等于用户登录，也不授予 Canon 或其他业务权限。生产代码不得导入测试安全路由。
+
+## 阶段 1 纯领域基础层
+
+`domain`保存不依赖框架的标识、UTC时间、修订号、并发版本和领域错误。它只允许导入Python标准库及自己的子模块，不得导入`core`、`storage`、`db`、`security`、`diagnostics`、`web`、`main`、FastAPI、Pydantic或SQLAlchemy。
+
+允许的方向是`db → domain`：`db/types.py`可以把领域值适配为SQL标量，但适配器不拥有领域规则，也不得创建正式表。`core`不得反向依赖领域类型；生产源码不得从测试目录取得前缀、时钟或随机源。绝对、相对和经`aiwebnovel`包间接导入都受同一AST架构门禁约束。
+
+DEV-1.1只建立内部原语，没有定义Project、Chapter或其他业务实体与业务前缀，没有修改空的正式`Base.metadata`或Alembic基线。详细契约见[领域基础原语](DOMAIN_FOUNDATION.md)。
 
 ## 所有权与跨模块规则
 

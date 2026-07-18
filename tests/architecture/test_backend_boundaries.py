@@ -21,7 +21,7 @@ def _write_module(package_root: Path, relative_path: str, source: str) -> None:
 def _fixture_package(tmp_path: Path) -> Path:
     package_root = tmp_path / "aiwebnovel"
     _write_module(package_root, "__init__.py", "")
-    for layer in ("core", "storage", "db", "security", "diagnostics", "web"):
+    for layer in ("domain", "core", "storage", "db", "security", "diagnostics", "web"):
         _write_module(package_root, f"{layer}/__init__.py", "")
     return package_root
 
@@ -37,6 +37,11 @@ def test_current_backend_respects_declared_layer_boundaries() -> None:
 @pytest.mark.parametrize(
     ("module_path", "source", "expected_rule"),
     [
+        (
+            "core/bad_domain.py",
+            "from aiwebnovel.domain import identifiers\n",
+            "core-must-not-import-domain",
+        ),
         (
             "core/bad_storage.py",
             "from aiwebnovel.storage import paths\n",
@@ -164,6 +169,7 @@ def test_current_backend_respects_declared_layer_boundaries() -> None:
         ),
     ],
     ids=(
+        "core-to-domain",
         "core-to-storage",
         "core-to-db",
         "core-to-web",
@@ -217,6 +223,88 @@ def test_checker_resolves_relative_imports_before_applying_boundaries(
     violations = check_backend_boundaries(package_root)
 
     assert "core-must-not-import-db" in {violation.rule for violation in violations}
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_rule"),
+    [
+        (
+            "from aiwebnovel.db import types\n",
+            "domain-must-not-import-db",
+        ),
+        (
+            "from ..db import types\n",
+            "domain-must-not-import-db",
+        ),
+        (
+            "from aiwebnovel import db\n",
+            "domain-must-not-import-db",
+        ),
+        (
+            "from aiwebnovel.core import config\n",
+            "domain-must-not-import-core",
+        ),
+        (
+            "import aiwebnovel\n",
+            "domain-must-only-import-standard-library",
+        ),
+    ],
+    ids=("absolute", "relative", "indirect-package", "core", "parent-package"),
+)
+def test_checker_keeps_domain_independent_from_application_layers(
+    tmp_path: Path,
+    source: str,
+    expected_rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "domain/bad.py", source)
+
+    violations = check_backend_boundaries(package_root)
+
+    assert expected_rule in {violation.rule for violation in violations}
+
+
+@pytest.mark.parametrize("framework", ["fastapi", "pydantic", "sqlalchemy"])
+def test_checker_rejects_framework_imports_from_domain(
+    tmp_path: Path,
+    framework: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "domain/bad_framework.py", f"import {framework}\n")
+
+    violations = check_backend_boundaries(package_root)
+
+    assert "domain-must-not-import-frameworks" in {violation.rule for violation in violations}
+
+
+def test_checker_rejects_other_third_party_packages_from_domain(tmp_path: Path) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "domain/bad_dependency.py", "import third_party_package\n")
+
+    violations = check_backend_boundaries(package_root)
+
+    assert "domain-must-only-import-standard-library" in {
+        violation.rule for violation in violations
+    }
+
+
+def test_checker_allows_domain_standard_library_and_db_adapter_dependency(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "domain/identifiers.py", "from dataclasses import dataclass\n")
+    _write_module(
+        package_root,
+        "domain/revisions.py",
+        "from .identifiers import Example\n",
+    )
+    _write_module(
+        package_root,
+        "db/types.py",
+        "from aiwebnovel.domain.identifiers import Example\n",
+    )
+
+    assert check_backend_boundaries(package_root) == ()
 
 
 def test_checker_accepts_composition_root_and_inward_dependencies(

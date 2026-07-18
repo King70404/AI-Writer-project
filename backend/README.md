@@ -1,8 +1,14 @@
 # AIWebNovel 后端
 
-本目录包含阶段 0 的 Python 后端基础设施。目前提供 FastAPI 应用工厂、类型化配置、环回绑定与 Host 验证、严格本地 CORS、请求体和 JSON 类型限制、进程内临时会话与 CSRF、安全响应头、集中脱敏日志、请求 ID、统一 API 错误格式、Windows 本地存储、SQLite 引擎、Alembic 迁移环境、存活与就绪健康检查、环境 Diagnostics，以及可选的 Vite 构建静态服务。
+本目录包含已冻结的阶段 0 Python 后端基础设施，以及DEV-1.1新增的纯Python领域基础。目前提供 FastAPI 应用工厂、类型化配置、环回绑定与 Host 验证、严格本地 CORS、请求体和 JSON 类型限制、进程内临时会话与 CSRF、安全响应头、集中脱敏日志、请求 ID、统一 API 错误格式、Windows 本地存储、SQLite 引擎、Alembic 迁移环境、存活与就绪健康检查、环境 Diagnostics、可选的 Vite 构建静态服务，以及不依赖框架的标识、UTC时间、修订和乐观并发原语。
 
 当前没有用户账号或登录、小说业务表、业务 Repository、业务写入 API、Codex 调用或工作流。安全 session 只是本机浏览器 CSRF 基础，不代表身份认证。健康检查成功仅表示基础后端、安全配置、存储能力、数据库连接和按配置要求的前端构建可用，不表示小说数据已经可以保存，也不表示备份、导出、上传、模型管理、文件日志或小说系统已经完成。
+
+## 领域基础
+
+`src/aiwebnovel/domain/`只依赖Python标准库，提供标准ULID、进程内单调生成、受验证的前缀ULID类型工厂、aware UTC时间、`RevisionNumber`、`ConcurrencyVersion`和安全领域错误。`src/aiwebnovel/db/types.py`使用现有SQLAlchemy把这些值适配为TEXT或INTEGER；它不创建正式表，不修改空的`Base.metadata`，也不改变Alembic head。
+
+当前没有定义Project、Chapter或其他业务ID和实体。所属业务模块只能在后续独立任务中声明自己的固定前缀类型。完整语义、单调性边界和依赖规则见[领域基础原语](../docs/DOMAIN_FOUNDATION.md)。
 
 ## 环境要求
 

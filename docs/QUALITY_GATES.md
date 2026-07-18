@@ -156,6 +156,12 @@ npm ls --depth=0
 
 也可以用 `npm run quality` 顺序运行本项目定义的全部前端质量检查。前端覆盖率门槛为：statements 80%、branches 75%、functions 80%、lines 80%。仅在任务明确要求联网审计时另外运行 `npm audit --omit=dev`。
 
+## 领域基础专项检查
+
+DEV-1.1的纯`aiwebnovel.domain`模块除全局门槛外，还要求语句覆盖率不低于95%、分支覆盖率不低于90%。从仓库根目录对五个领域专项测试采集独立覆盖率；报告写入系统临时目录，分别按`covered_lines / num_statements`和`covered_branches / num_branches`计算并在检查后删除。专项测试包括标识与单调生成、UTC时间、修订号、并发版本和SQLAlchemy适配器。
+
+该专项检查不替代默认质量门、E2E或依赖审计。领域层架构测试还会解析绝对、相对和间接导入，允许`db → domain`，拒绝`domain → db`、框架和其他第三方依赖。完整领域契约见[领域基础原语](DOMAIN_FOUNDATION.md)。
+
 ## 显式格式化
 
 格式化不是质量门禁的隐式步骤。需要改写格式时，在仓库根目录显式运行：
@@ -168,7 +174,7 @@ npm ls --depth=0
 
 ## 架构与仓库卫生
 
-后端架构测试保护阶段 0 的依赖方向：`storage` 只向 `core` 依赖，`db` 只能读取公开的存储路径契约，`security` 不访问存储、数据库或 Web，会话管理器保持纯内存，`diagnostics` 只使用 `core`、`storage`、`db` 和 `security` 的公开诊断契约且不能访问会话内部存储，`web` 只可使用公开安全 DTO/响应契约，低层不得导入 `main`，生产代码不得导入测试代码或在配置边界外重新解析 LocalAppData；`main` 是应用组合根且不依赖 Diagnostics。前端边界检查阻止 API、组件等低层代码反向依赖页面，并阻止生产源码导入测试代码。更高层业务模块边界仍以 [架构边界](ARCHITECTURE_BOUNDARIES.md) 为准。
+后端架构测试保护阶段 0 的依赖方向：`storage` 只向 `core` 依赖，`db` 只能读取公开的存储路径契约，`security` 不访问存储、数据库或 Web，会话管理器保持纯内存，`diagnostics` 只使用 `core`、`storage`、`db` 和 `security` 的公开诊断契约且不能访问会话内部存储，`web` 只可使用公开安全 DTO/响应契约，低层不得导入 `main`，生产代码不得导入测试代码或在配置边界外重新解析 LocalAppData；`main` 是应用组合根且不依赖 Diagnostics。阶段1另要求纯`domain`只依赖标准库，允许`db`适配`domain`，并禁止`core`反向依赖领域类型。前端边界检查阻止 API、组件等低层代码反向依赖页面，并阻止生产源码导入测试代码。更高层业务模块边界仍以 [架构边界](ARCHITECTURE_BOUNDARIES.md) 为准。
 
 仓库卫生脚本只使用 `git ls-files` 枚举并读取已跟踪文件，不读取未跟踪的用户文件。它发现疑似秘密时只输出仓库相对文件名和问题类型，不输出匹配值；不会自动删除文件，也不会改写 `.gitignore`。
 
