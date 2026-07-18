@@ -14,7 +14,7 @@ from sqlalchemy.engine import URL
 pytestmark = pytest.mark.integration
 
 
-_REVISION = "0001_initialize_database"
+_BASELINE_REVISION = "0001_initialize_database"
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _ALEMBIC_CONFIG = _REPOSITORY_ROOT / "backend" / "alembic.ini"
 
@@ -75,23 +75,23 @@ def test_migration_upgrade_downgrade_and_reupgrade_are_repeatable(
 ) -> None:
     database_path = tmp_path / "migration cycle" / "migration.sqlite3"
     try:
-        upgrade = _run_alembic(database_path, "upgrade", "head")
+        upgrade = _run_alembic(database_path, "upgrade", _BASELINE_REVISION)
         assert upgrade.returncode == 0, upgrade.stderr
         current = _run_alembic(database_path, "current")
         assert current.returncode == 0, current.stderr
-        assert _REVISION in current.stdout
-        assert _database_state(database_path) == (["alembic_version"], [_REVISION])
+        assert _BASELINE_REVISION in current.stdout
+        assert _database_state(database_path) == (["alembic_version"], [_BASELINE_REVISION])
 
         downgrade = _run_alembic(database_path, "downgrade", "base")
         assert downgrade.returncode == 0, downgrade.stderr
         base_current = _run_alembic(database_path, "current")
         assert base_current.returncode == 0, base_current.stderr
-        assert _REVISION not in base_current.stdout
+        assert _BASELINE_REVISION not in base_current.stdout
         assert _database_state(database_path) == (["alembic_version"], [])
 
-        reupgrade = _run_alembic(database_path, "upgrade", "head")
+        reupgrade = _run_alembic(database_path, "upgrade", _BASELINE_REVISION)
         assert reupgrade.returncode == 0, reupgrade.stderr
-        assert _database_state(database_path) == (["alembic_version"], [_REVISION])
+        assert _database_state(database_path) == (["alembic_version"], [_BASELINE_REVISION])
 
         combined_output = "\n".join(
             result.stdout + result.stderr
@@ -113,11 +113,11 @@ def test_offline_migration_generates_sql_without_creating_database(
     database_path = tmp_path / "offline migration" / "offline.sqlite3"
     data_root = _storage_root(database_path)
 
-    result = _run_alembic(database_path, "upgrade", "head", "--sql")
+    result = _run_alembic(database_path, "upgrade", _BASELINE_REVISION, "--sql")
 
     assert result.returncode == 0, result.stderr
     assert "alembic_version" in result.stdout
-    assert _REVISION in result.stdout
+    assert _BASELINE_REVISION in result.stdout
     assert "project" not in result.stdout.lower()
     assert "character" not in result.stdout.lower()
     assert "chapter" not in result.stdout.lower()

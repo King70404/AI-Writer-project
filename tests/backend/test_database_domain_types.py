@@ -3,6 +3,7 @@
 import warnings
 from collections.abc import Iterator
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ from aiwebnovel.db.types import (
     PrefixedUlidType,
     RevisionNumberType,
     UlidType,
+    UtcDateTimeType,
 )
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
 from aiwebnovel.domain.errors import (
@@ -54,6 +56,7 @@ def domain_type_database(tmp_path: Path) -> Iterator[_DatabaseHarness]:
         pool_pre_ping=True,
     )
     metadata = MetaData()
+    formal_tables_before = frozenset(Base.metadata.tables)
     table = Table(
         "domain_type_values",
         metadata,
@@ -63,9 +66,10 @@ def domain_type_database(tmp_path: Path) -> Iterator[_DatabaseHarness]:
         Column("base_prefixed_value", PrefixedUlidType(), nullable=True),
         Column("revision_value", RevisionNumberType(), nullable=True),
         Column("concurrency_value", ConcurrencyVersionType(), nullable=True),
+        Column("utc_value", UtcDateTimeType(), nullable=True),
     )
 
-    assert Base.metadata.tables == {}
+    assert "domain_type_values" not in Base.metadata.tables
     assert table.metadata is metadata
     assert metadata is not Base.metadata
     try:
@@ -74,7 +78,7 @@ def domain_type_database(tmp_path: Path) -> Iterator[_DatabaseHarness]:
     finally:
         engine.dispose()
         _remove_sqlite_artifacts(database_path)
-        assert Base.metadata.tables == {}
+        assert frozenset(Base.metadata.tables) == formal_tables_before
         assert not any(
             Path(f"{database_path}{suffix}").exists() for suffix in ("", "-wal", "-shm", "-journal")
         )
@@ -87,11 +91,13 @@ def test_adapters_declare_bounded_storage_and_cache_safety(
     assert PrefixedUlidType.cache_ok is True
     assert RevisionNumberType.cache_ok is True
     assert ConcurrencyVersionType.cache_ok is True
+    assert UtcDateTimeType.cache_ok is True
     assert UlidType().python_type is Ulid
     assert PrefixedUlidType(_TestIdentifier).python_type is _TestIdentifier
     assert PrefixedUlidType().python_type is PrefixedUlid
     assert RevisionNumberType().python_type is RevisionNumber
     assert ConcurrencyVersionType().python_type is ConcurrencyVersion
+    assert UtcDateTimeType().python_type is datetime
     with pytest.raises(TypeError):
         PrefixedUlidType(Ulid)
 
@@ -108,8 +114,9 @@ def test_adapters_declare_bounded_storage_and_cache_safety(
         "base_prefixed_value": "TEXT(39)",
         "revision_value": "INTEGER",
         "concurrency_value": "INTEGER",
+        "utc_value": "DATETIME",
     }
-    assert Base.metadata.tables == {}
+    assert "domain_type_values" not in Base.metadata.tables
 
 
 def test_all_domain_values_round_trip_and_use_primitive_storage(
@@ -121,6 +128,16 @@ def test_all_domain_values_round_trip_and_use_primitive_storage(
     base_prefixed = PrefixedUlid("tmp", ulid)
     revision = RevisionNumber(7)
     concurrency = ConcurrencyVersion(9)
+    source_time = datetime(
+        2026,
+        1,
+        2,
+        12,
+        34,
+        56,
+        123456,
+        tzinfo=timezone(timedelta(hours=8)),
+    )
 
     with domain_type_database.engine.begin() as connection:
         connection.execute(
@@ -131,6 +148,7 @@ def test_all_domain_values_round_trip_and_use_primitive_storage(
                 base_prefixed_value=base_prefixed,
                 revision_value=revision,
                 concurrency_value=concurrency,
+                utc_value=source_time,
             )
         )
 
@@ -141,6 +159,7 @@ def test_all_domain_values_round_trip_and_use_primitive_storage(
             "prefixed_value, typeof(prefixed_value), "
             "revision_value, typeof(revision_value), "
             "concurrency_value, typeof(concurrency_value) "
+            ", utc_value, typeof(utc_value) "
             "FROM domain_type_values WHERE record_key = 1"
         ).one()
 
@@ -154,6 +173,8 @@ def test_all_domain_values_round_trip_and_use_primitive_storage(
     assert type(row.revision_value) is RevisionNumber
     assert row.concurrency_value == concurrency
     assert type(row.concurrency_value) is ConcurrencyVersion
+    assert row.utc_value == datetime(2026, 1, 2, 4, 34, 56, 123456, tzinfo=UTC)
+    assert row.utc_value.tzinfo is UTC
     assert raw == (
         _KNOWN_ULID_TEXT,
         "text",
@@ -163,6 +184,8 @@ def test_all_domain_values_round_trip_and_use_primitive_storage(
         "integer",
         9,
         "integer",
+        "2026-01-02 04:34:56.123456",
+        "text",
     )
 
 
@@ -177,6 +200,7 @@ def test_null_values_remain_null(domain_type_database: _DatabaseHarness) -> None
                 base_prefixed_value=None,
                 revision_value=None,
                 concurrency_value=None,
+                utc_value=None,
             )
         )
 
@@ -187,10 +211,11 @@ def test_null_values_remain_null(domain_type_database: _DatabaseHarness) -> None
                 table.c.prefixed_value,
                 table.c.revision_value,
                 table.c.concurrency_value,
+                table.c.utc_value,
             ).where(table.c.record_key == 2)
         ).one()
 
-    assert tuple(row) == (None, None, None, None)
+    assert tuple(row) == (None, None, None, None, None)
 
 
 def test_binding_rejects_primitives_and_crossed_domain_types(
@@ -215,6 +240,15 @@ def test_binding_rejects_primitives_and_crossed_domain_types(
             with pytest.raises(StatementError) as caught:
                 connection.execute(table.insert().values(**values))
             assert type(caught.value.orig) is TypeError
+
+        with pytest.raises(StatementError) as caught:
+            connection.execute(
+                table.insert().values(
+                    record_key=17,
+                    utc_value=datetime(2026, 1, 2),
+                )
+            )
+        assert type(caught.value.orig) is ValueError
 
 
 def test_polluted_values_fail_with_the_matching_domain_error(
@@ -270,6 +304,18 @@ def test_polluted_sqlite_storage_classes_are_not_coerced(
             connection.execute(select(column).where(table.c.record_key == 101)).scalar_one()
 
 
+def test_polluted_datetime_text_is_rejected(domain_type_database: _DatabaseHarness) -> None:
+    table = domain_type_database.table
+    with domain_type_database.engine.begin() as connection:
+        connection.exec_driver_sql(
+            "INSERT INTO domain_type_values (record_key, utc_value) VALUES (?, ?)",
+            (102, "not-a-datetime"),
+        )
+
+    with domain_type_database.engine.connect() as connection, pytest.raises(ValueError):
+        connection.execute(select(table.c.utc_value).where(table.c.record_key == 102)).scalar_one()
+
+
 def test_repeated_cached_queries_keep_concrete_domain_types_without_warnings(
     domain_type_database: _DatabaseHarness,
 ) -> None:
@@ -283,6 +329,7 @@ def test_repeated_cached_queries_keep_concrete_domain_types_without_warnings(
                 prefixed_value=_TestIdentifier.from_ulid(ulid),
                 revision_value=RevisionNumber(3),
                 concurrency_value=ConcurrencyVersion(4),
+                utc_value=datetime(2026, 1, 2, tzinfo=UTC),
             )
         )
 
@@ -296,4 +343,5 @@ def test_repeated_cached_queries_keep_concrete_domain_types_without_warnings(
     assert all(type(row.prefixed_value) is _TestIdentifier for row in rows)
     assert all(type(row.revision_value) is RevisionNumber for row in rows)
     assert all(type(row.concurrency_value) is ConcurrencyVersion for row in rows)
+    assert all(row.utc_value.tzinfo is UTC for row in rows)
     assert not [warning for warning in caught_warnings if issubclass(warning.category, SAWarning)]

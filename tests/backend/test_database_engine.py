@@ -73,6 +73,7 @@ def test_create_app_has_no_engine_or_directory_before_lifespan(
     tmp_path: Path,
 ) -> None:
     database_path = tmp_path / "not-started" / "application.sqlite3"
+    metadata_tables_before = frozenset(Base.metadata.tables)
 
     app = create_app(_settings(database_path))
 
@@ -81,7 +82,7 @@ def test_create_app_has_no_engine_or_directory_before_lifespan(
     assert app.state.initialized is False
     assert not database_path.parent.exists()
     assert not database_path.exists()
-    assert Base.metadata.tables == {}
+    assert frozenset(Base.metadata.tables) == metadata_tables_before
 
 
 def test_file_engine_enforces_required_pragmas_and_releases_file(

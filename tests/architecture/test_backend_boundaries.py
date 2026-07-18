@@ -21,8 +21,18 @@ def _write_module(package_root: Path, relative_path: str, source: str) -> None:
 def _fixture_package(tmp_path: Path) -> Path:
     package_root = tmp_path / "aiwebnovel"
     _write_module(package_root, "__init__.py", "")
-    for layer in ("domain", "core", "storage", "db", "security", "diagnostics", "web"):
+    for layer in (
+        "domain",
+        "project",
+        "core",
+        "storage",
+        "db",
+        "security",
+        "diagnostics",
+        "web",
+    ):
         _write_module(package_root, f"{layer}/__init__.py", "")
+    _write_module(package_root, "project/persistence/__init__.py", "")
     return package_root
 
 
@@ -302,6 +312,212 @@ def test_checker_allows_domain_standard_library_and_db_adapter_dependency(
         package_root,
         "db/types.py",
         "from aiwebnovel.domain.identifiers import Example\n",
+    )
+
+    assert check_backend_boundaries(package_root) == ()
+
+
+def test_checker_accepts_declared_project_domain_persistence_and_registry_dependencies(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "project/identifiers.py",
+        "from aiwebnovel.domain import identifiers\n",
+    )
+    _write_module(
+        package_root,
+        "project/entities.py",
+        "from .identifiers import ProjectId\n",
+    )
+    _write_module(
+        package_root,
+        "project/persistence/models.py",
+        "from sqlalchemy.orm import Mapped\n"
+        "from aiwebnovel.db.base import Base\n"
+        "from aiwebnovel.db.types import UlidType\n"
+        "from aiwebnovel.project import Project, RevisionNumber\n",
+    )
+    _write_module(
+        package_root,
+        "project/persistence/mappers.py",
+        "from .models import ProjectRecord\nfrom aiwebnovel.project.entities import Project\n",
+    )
+    _write_module(
+        package_root,
+        "db/model_registry.py",
+        "from aiwebnovel.project.persistence.models import ProjectRecord\n",
+    )
+
+    assert check_backend_boundaries(package_root) == ()
+
+
+@pytest.mark.parametrize("framework", ["fastapi", "pydantic", "sqlalchemy"])
+def test_checker_rejects_framework_imports_from_project_domain(
+    tmp_path: Path,
+    framework: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "project/bad_framework.py", f"import {framework}\n")
+
+    violations = check_backend_boundaries(package_root)
+
+    assert "project-domain-must-not-import-frameworks" in {
+        violation.rule for violation in violations
+    }
+
+
+@pytest.mark.parametrize(
+    ("target", "expected_rule"),
+    [
+        ("core", "project-domain-must-not-import-core"),
+        ("db", "project-domain-must-not-import-db"),
+        ("storage", "project-domain-must-not-import-storage"),
+        ("security", "project-domain-must-not-import-security"),
+        ("web", "project-domain-must-not-import-web"),
+    ],
+)
+def test_checker_keeps_project_domain_independent_from_infrastructure(
+    tmp_path: Path,
+    target: str,
+    expected_rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "project/bad_layer.py", f"from aiwebnovel import {target}\n")
+
+    violations = check_backend_boundaries(package_root)
+
+    assert expected_rule in {violation.rule for violation in violations}
+
+
+@pytest.mark.parametrize(
+    ("module_path", "source", "expected_rule"),
+    [
+        (
+            "domain/bad_project.py",
+            "from aiwebnovel.project import identifiers\n",
+            "domain-must-not-import-project",
+        ),
+        (
+            "core/bad_project.py",
+            "from aiwebnovel.project import entities\n",
+            "core-must-not-import-project",
+        ),
+        (
+            "project/bad_persistence.py",
+            "from . import persistence\n",
+            "project-domain-must-not-import-persistence",
+        ),
+        (
+            "db/types.py",
+            "from aiwebnovel.project.identifiers import ProjectId\n",
+            "db-types-must-not-import-project",
+        ),
+        (
+            "db/session.py",
+            "from aiwebnovel.project.persistence import models\n",
+            "db-must-not-import-project-directly",
+        ),
+        (
+            "web/bad_project_records.py",
+            "from aiwebnovel.project.persistence import models\n",
+            "web-must-not-import-project-persistence",
+        ),
+        (
+            "market/bad_project_records.py",
+            "from aiwebnovel.project.persistence import models\n",
+            "project-persistence-must-remain-internal",
+        ),
+        (
+            "project/persistence/bad_tests.py",
+            "from tests.backend import helpers\n",
+            "production-must-not-import-tests",
+        ),
+        (
+            "project/persistence/bad_core.py",
+            "from aiwebnovel.core import config\n",
+            "project-persistence-must-use-declared-dependencies",
+        ),
+        (
+            "project/persistence/bad_web.py",
+            "from aiwebnovel.web import frontend\n",
+            "project-persistence-must-use-declared-dependencies",
+        ),
+        (
+            "project/persistence/bad_domain.py",
+            "from aiwebnovel.domain.revisions import RevisionNumber\n",
+            "project-persistence-must-use-declared-dependencies",
+        ),
+        (
+            "db/model_registry.py",
+            "from aiwebnovel.project.persistence.mappers import project_to_record\n",
+            "db-must-not-import-project-directly",
+        ),
+    ],
+    ids=(
+        "common-domain-to-project",
+        "core-to-project",
+        "project-domain-to-persistence",
+        "db-types-to-project",
+        "db-bypasses-model-registry",
+        "web-to-project-persistence",
+        "other-business-module-to-project-persistence",
+        "project-persistence-to-tests",
+        "project-persistence-to-core",
+        "project-persistence-to-web",
+        "project-persistence-bypasses-project-domain-contract",
+        "model-registry-imports-non-model-persistence",
+    ),
+)
+def test_checker_rejects_forbidden_project_dependency_directions(
+    tmp_path: Path,
+    module_path: str,
+    source: str,
+    expected_rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, module_path, source)
+
+    violations = check_backend_boundaries(package_root)
+
+    assert expected_rule in {violation.rule for violation in violations}
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE project_heads SET revision_id = :revision_id",
+        "UPDATE OR FAIL main.project_heads SET revision_id = :revision_id",
+        "INSERT OR IGNORE INTO projects (id) VALUES (:id)",
+        'REPLACE INTO "project_revisions" (id) VALUES (:id)',
+        "DELETE FROM [main].[project_heads] WHERE project_id = :project_id",
+    ],
+)
+def test_checker_rejects_direct_project_table_writes_outside_project_persistence(
+    tmp_path: Path,
+    statement: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "market/direct_write.py",
+        f"STATEMENT = {statement!r}\n",
+    )
+
+    violations = check_backend_boundaries(package_root)
+
+    assert "project-tables-written-only-by-project-persistence" in {
+        violation.rule for violation in violations
+    }
+
+
+def test_checker_allows_project_persistence_to_write_its_owned_tables(tmp_path: Path) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "project/persistence/statements.py",
+        'STATEMENT = "INSERT INTO project_revisions (id) VALUES (:id)"\n',
     )
 
     assert check_backend_boundaries(package_root) == ()

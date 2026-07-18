@@ -69,6 +69,8 @@ DEV-0.1 至 DEV-0.11 已完成，阶段 0 工程底座已通过正式验收并�
 
 后续DEV-1.x任务必须分别声明所属业务模块的前缀和数据所有权，不得把领域基础类型本身当作业务功能完成，也不得为了复用而让纯`domain`层依赖FastAPI、Pydantic、SQLAlchemy或其他基础设施。
 
+DEV-1.2授权Project模块拥有稳定对象、不可变修订、独立Head指针以及`projects`、`project_revisions`、`project_heads`三表结构。它仍不授权Repository、Service、API、DTO、前端项目列表、删除归档、三区隔离或其他小说模块；应用启动不得自动执行0002迁移或创建Project数据。下一任务只有在独立授权后才能建立事务保存边界。
+
 ## 统一执行报告
 
 任务报告至少包含：

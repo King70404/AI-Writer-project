@@ -64,7 +64,7 @@ identifier: PrefixedUlid = identifier_type.from_ulid(ulid)
 - `RevisionNumberType`：INTEGER；
 - `ConcurrencyVersionType`：INTEGER。
 
-适配器在绑定时要求正确领域类型，在读取时恢复领域对象，并对污染值明确失败。它们不创建表；测试使用独立`MetaData`和临时SQLite数据库，正式`Base.metadata`仍为空，Alembic head保持不变。
+适配器在绑定时要求正确领域类型，在读取时恢复领域对象，并对污染值明确失败。适配器本身不创建表。DEV-1.2在独立Project持久化模块中注册三个正式模型，并把Alembic head推进到Project结构迁移；这不改变通用`domain`对基础设施零依赖的边界。详见[Project持久化基础](PROJECT_FOUNDATION.md)。
 
 ## 依赖和序列化规则
 

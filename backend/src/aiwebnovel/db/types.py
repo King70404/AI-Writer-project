@@ -1,6 +1,9 @@
 """SQLAlchemy adapters for framework-independent domain value objects."""
 
+from datetime import UTC, datetime
+
 from sqlalchemy.engine import Dialect
+from sqlalchemy.types import DateTime as SqlDateTime
 from sqlalchemy.types import Integer, Text, TypeDecorator
 
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
@@ -11,6 +14,7 @@ from aiwebnovel.domain.errors import (
 )
 from aiwebnovel.domain.identifiers import PrefixedUlid, Ulid
 from aiwebnovel.domain.revisions import RevisionNumber
+from aiwebnovel.domain.time import ensure_utc
 
 ULID_TEXT_LENGTH = 26
 MAX_PREFIXED_ULID_TEXT_LENGTH = 39
@@ -160,3 +164,46 @@ class ConcurrencyVersionType(TypeDecorator[ConcurrencyVersion]):
         if type(value) is not int:
             raise InvalidConcurrencyVersion
         return ConcurrencyVersion(value)
+
+
+class UtcDateTimeType(TypeDecorator[datetime]):
+    """Persist aware instants as naive UTC and restore aware UTC values."""
+
+    impl = SqlDateTime
+    cache_ok = True
+
+    def __init__(self) -> None:
+        super().__init__(timezone=False)
+
+    @property
+    def python_type(self) -> type[datetime]:
+        """Expose the aware datetime domain boundary represented by this adapter."""
+        return datetime
+
+    def process_bind_param(
+        self,
+        value: datetime | None,
+        dialect: Dialect,
+    ) -> datetime | None:
+        """Reject naive values and store the same instant in canonical UTC."""
+        if value is None:
+            return None
+        if not isinstance(value, datetime):
+            raise TypeError("UtcDateTimeType only accepts datetime values")
+        return ensure_utc(value).replace(tzinfo=None)
+
+    def process_result_value(
+        self,
+        value: object | None,
+        dialect: Dialect,
+    ) -> datetime | None:
+        """Interpret SQLite's timezone-free value as canonical UTC."""
+        if value is None:
+            return None
+        if not isinstance(value, datetime):
+            raise ValueError("Stored UTC datetime is invalid")
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        if value.utcoffset() is None:
+            raise ValueError("Stored UTC datetime is invalid")
+        return value.astimezone(UTC)

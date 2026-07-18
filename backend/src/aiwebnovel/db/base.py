@@ -1,7 +1,7 @@
-"""Declarative metadata root for future authorized database models."""
+"""Declarative metadata root populated only by explicit model registration."""
 
 from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
-    """Empty SQLAlchemy declarative base referenced by Alembic."""
+    """Shared SQLAlchemy declarative base referenced by Alembic."""

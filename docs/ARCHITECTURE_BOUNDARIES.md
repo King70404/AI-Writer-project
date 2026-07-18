@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施和阶段 1 纯领域基础的依赖方向。边界说明不代表小说业务模块已经实现。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 通用领域与Project内部持久化基础的依赖方向。边界说明不代表用户已经可以管理或保存小说项目。
 
 ## 业务模块
 
@@ -73,7 +73,17 @@ Security 是请求边界而不是身份或业务权限所有者。本地会话�
 
 允许的方向是`db → domain`：`db/types.py`可以把领域值适配为SQL标量，但适配器不拥有领域规则，也不得创建正式表。`core`不得反向依赖领域类型；生产源码不得从测试目录取得前缀、时钟或随机源。绝对、相对和经`aiwebnovel`包间接导入都受同一AST架构门禁约束。
 
-DEV-1.1只建立内部原语，没有定义Project、Chapter或其他业务实体与业务前缀，没有修改空的正式`Base.metadata`或Alembic基线。详细契约见[领域基础原语](DOMAIN_FOUNDATION.md)。
+DEV-1.1建立的通用原语不拥有任何业务前缀或表，也不反向依赖Project。详细契约见[领域基础原语](DOMAIN_FOUNDATION.md)。
+
+## 阶段1 Project模块
+
+`project.identifiers`、`project.values`、`project.entities`、`project.transitions`和`project.errors`组成纯业务领域部分，只能依赖Python标准库、通用`domain`和Project自身领域模块。它们不得导入SQLAlchemy、FastAPI、Pydantic、`db`、`core`、`storage`、`security`、`diagnostics`、`web`、`main`或测试代码。
+
+`project.persistence`是Project拥有的外向数据库适配层，可以导入Project领域契约、SQLAlchemy以及公开的`db.base`和`db.types`，但不能导入Web、Security、Storage、Diagnostics、Main或测试代码。它只定义ORM记录与显式双向mapper，不提供Repository、Session生命周期、自动提交或查询服务。
+
+`db.model_registry`是模型组合入口，可以确定性导入`project.persistence.models`并返回正式`Base.metadata`；这是通用DB指向Project持久化实现的唯一受控例外。`db.types`、`db.base`和其他通用DB模块不得导入Project，`core`与通用`domain`也不得反向依赖Project。模型注册不连接数据库、不执行迁移，普通Project领域导入不加载SQLAlchemy。
+
+Project唯一拥有`projects`、`project_revisions`和`project_heads`。其他模块不得直接写这些表；后续跨模块访问必须经过Project公开应用服务。本任务没有建立该服务，也没有Project API、DTO或前端页面。完整结构与事务边界见[Project持久化基础](PROJECT_FOUNDATION.md)。
 
 ## 所有权与跨模块规则
 

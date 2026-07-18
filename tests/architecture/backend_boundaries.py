@@ -1,8 +1,9 @@
-"""AST-based dependency checks for the current backend infrastructure layers."""
+"""AST-based dependency checks for backend domain, persistence, and infrastructure layers."""
 
 from __future__ import annotations
 
 import ast
+import re
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
@@ -11,6 +12,8 @@ from typing import Literal
 
 Layer = Literal[
     "domain",
+    "project",
+    "project_persistence",
     "core",
     "storage",
     "db",
@@ -22,6 +25,8 @@ Layer = Literal[
 
 _LAYERS: tuple[Layer, ...] = (
     "domain",
+    "project",
+    "project_persistence",
     "core",
     "storage",
     "db",
@@ -38,6 +43,13 @@ _FORBIDDEN_LAYER_IMPORTS: dict[tuple[Layer, Layer], str] = {
     ("domain", "diagnostics"): "domain-must-not-import-diagnostics",
     ("domain", "web"): "domain-must-not-import-web",
     ("domain", "main"): "domain-must-not-import-main",
+    ("project", "core"): "project-domain-must-not-import-core",
+    ("project", "storage"): "project-domain-must-not-import-storage",
+    ("project", "db"): "project-domain-must-not-import-db",
+    ("project", "security"): "project-domain-must-not-import-security",
+    ("project", "diagnostics"): "project-domain-must-not-import-diagnostics",
+    ("project", "web"): "project-domain-must-not-import-web",
+    ("project", "main"): "project-domain-must-not-import-main",
     ("core", "domain"): "core-must-not-import-domain",
     ("core", "storage"): "core-must-not-import-storage",
     ("core", "db"): "core-must-not-import-db",
@@ -95,7 +107,27 @@ _SESSION_PERSISTENCE_MODULES = {
 }
 _LOCAL_APP_DATA_OWNER = "aiwebnovel.core.config"
 _DOMAIN_FRAMEWORK_ROOTS = frozenset({"fastapi", "pydantic", "sqlalchemy"})
+_PROJECT_MODEL_REGISTRY = "aiwebnovel.db.model_registry"
+_PROJECT_PERSISTENCE_MODELS = "aiwebnovel.project.persistence.models"
+_PROJECT_PERSISTENCE_DB_MODULES = frozenset(
+    {
+        "aiwebnovel.db.base",
+        "aiwebnovel.db.types",
+    }
+)
 _STANDARD_LIBRARY_ROOTS = frozenset({"__future__", *sys.stdlib_module_names})
+_PROJECT_TABLE_WRITE_PATTERN = re.compile(
+    r"\b(?:"
+    r"INSERT(?:\s+OR\s+(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?\s+INTO"
+    r"|UPDATE(?:\s+OR\s+(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?"
+    r"|DELETE\s+FROM"
+    r"|REPLACE\s+INTO"
+    r")\s+"
+    r"(?:(?:[\"`\[]?[A-Z_][A-Z0-9_]*[\"`\]]?)\s*\.\s*)?"
+    r"[\"`\[]?(?:projects|project_revisions|project_heads)[\"`\]]?"
+    r"(?![A-Z0-9_])",
+    flags=re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -157,6 +189,10 @@ def _resolve_from_import(
     targets = [base_module] if base_module else []
     if base_module in {"aiwebnovel", "tests"}:
         targets.extend(f"{base_module}.{alias.name}" for alias in node.names if alias.name != "*")
+    if base_module == "aiwebnovel.project":
+        targets.extend(
+            f"{base_module}.{alias.name}" for alias in node.names if alias.name == "persistence"
+        )
     return tuple(targets)
 
 
@@ -203,10 +239,103 @@ def _import_references(package_root: Path) -> tuple[_ImportReference, ...]:
 def _layer_for(module_name: str) -> Layer | None:
     if module_name == "aiwebnovel.main":
         return "main"
+    if module_name == "aiwebnovel.project.persistence" or module_name.startswith(
+        "aiwebnovel.project.persistence."
+    ):
+        return "project_persistence"
+    if module_name == "aiwebnovel.project" or module_name.startswith("aiwebnovel.project."):
+        return "project"
     for layer in ("domain", "core", "storage", "db", "security", "diagnostics", "web"):
         prefix = f"aiwebnovel.{layer}"
         if module_name == prefix or module_name.startswith(f"{prefix}."):
             return layer
+    return None
+
+
+def _is_module_or_child(module_name: str, parent_module: str) -> bool:
+    return module_name == parent_module or module_name.startswith(f"{parent_module}.")
+
+
+def _project_domain_import_is_allowed(target_module: str) -> bool:
+    return _is_module_or_child(target_module, "aiwebnovel.domain") or (
+        _is_module_or_child(target_module, "aiwebnovel.project")
+        and not _is_module_or_child(target_module, "aiwebnovel.project.persistence")
+    )
+
+
+def _project_persistence_import_is_allowed(target_module: str) -> bool:
+    target_root = target_module.partition(".")[0]
+    if target_root in _STANDARD_LIBRARY_ROOTS or target_root == "sqlalchemy":
+        return True
+    if target_module == "aiwebnovel" or _is_module_or_child(target_module, "aiwebnovel.project"):
+        return True
+    return any(
+        _is_module_or_child(target_module, allowed_module)
+        for allowed_module in _PROJECT_PERSISTENCE_DB_MODULES
+    )
+
+
+def _allowed_project_model_registry_import(
+    reference: _ImportReference,
+    target_layer: Layer | None,
+) -> bool:
+    return (
+        reference.source_module == _PROJECT_MODEL_REGISTRY
+        and reference.target_module == _PROJECT_PERSISTENCE_MODELS
+        and target_layer == "project_persistence"
+    )
+
+
+def _project_import_violation(
+    reference: _ImportReference,
+    *,
+    source_layer: Layer | None,
+    target_layer: Layer | None,
+) -> tuple[str, str] | None:
+    if target_layer not in {"project", "project_persistence"}:
+        return None
+    if _allowed_project_model_registry_import(reference, target_layer):
+        return None
+    if source_layer == "project_persistence":
+        return None
+    if source_layer == "project":
+        if target_layer == "project_persistence":
+            return (
+                "project-domain-must-not-import-persistence",
+                "Project domain code must not load its SQLAlchemy persistence adapter",
+            )
+        return None
+    if source_layer == "domain":
+        return (
+            "domain-must-not-import-project",
+            "the common domain package must not depend on the Project business module",
+        )
+    if source_layer == "core":
+        return (
+            "core-must-not-import-project",
+            "core must remain independent of the Project business module",
+        )
+    if _is_module_or_child(reference.source_module, "aiwebnovel.db.types"):
+        return (
+            "db-types-must-not-import-project",
+            "generic database types must not contain Project business dependencies",
+        )
+    if source_layer == "db":
+        return (
+            "db-must-not-import-project-directly",
+            "only aiwebnovel.db.model_registry may import Project persistence models",
+        )
+    if target_layer == "project_persistence":
+        if source_layer == "web":
+            return (
+                "web-must-not-import-project-persistence",
+                "web must not access Project persistence models directly",
+            )
+        return (
+            "project-persistence-must-remain-internal",
+            "Project persistence models may be imported only inside Project persistence "
+            "or by the explicit database model registry",
+        )
     return None
 
 
@@ -311,6 +440,77 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
                     )
                 )
 
+        if source_layer == "project":
+            target_root = reference.target_module.partition(".")[0]
+            if target_root in _DOMAIN_FRAMEWORK_ROOTS:
+                violations.append(
+                    ArchitectureViolation(
+                        path=reference.path,
+                        line=reference.line,
+                        rule="project-domain-must-not-import-frameworks",
+                        message=(
+                            "Project domain code must remain independent of web and persistence "
+                            "frameworks"
+                        ),
+                    )
+                )
+            elif target_root != "aiwebnovel" and target_root not in _STANDARD_LIBRARY_ROOTS:
+                violations.append(
+                    ArchitectureViolation(
+                        path=reference.path,
+                        line=reference.line,
+                        rule="project-domain-must-only-import-domain-code",
+                        message=(
+                            "Project domain code may import only the standard library, the common "
+                            "domain package, and its own domain modules"
+                        ),
+                    )
+                )
+            elif (
+                target_root == "aiwebnovel"
+                and not _project_domain_import_is_allowed(reference.target_module)
+                and target_layer is None
+            ):
+                violations.append(
+                    ArchitectureViolation(
+                        path=reference.path,
+                        line=reference.line,
+                        rule="project-domain-must-only-import-domain-code",
+                        message="Project domain code may not import unrelated aiwebnovel packages",
+                    )
+                )
+
+        if source_layer == "project_persistence" and not _project_persistence_import_is_allowed(
+            reference.target_module
+        ):
+            violations.append(
+                ArchitectureViolation(
+                    path=reference.path,
+                    line=reference.line,
+                    rule="project-persistence-must-use-declared-dependencies",
+                    message=(
+                        "Project persistence may import only Project domain contracts, db.base, "
+                        "db.types, SQLAlchemy, and the standard library"
+                    ),
+                )
+            )
+
+        project_violation = _project_import_violation(
+            reference,
+            source_layer=source_layer,
+            target_layer=target_layer,
+        )
+        if project_violation is not None:
+            rule, message = project_violation
+            violations.append(
+                ArchitectureViolation(
+                    path=reference.path,
+                    line=reference.line,
+                    rule=rule,
+                    message=message,
+                )
+            )
+
         if source_layer == "diagnostics" and target_layer in _PUBLIC_MODULES_FOR_DIAGNOSTICS:
             allowed_modules = _PUBLIC_MODULES_FOR_DIAGNOSTICS[target_layer]
             if reference.target_module not in allowed_modules:
@@ -379,7 +579,12 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
                 )
             )
 
-        if source_layer is None or target_layer is None or source_layer == target_layer:
+        if (
+            source_layer is None
+            or target_layer is None
+            or source_layer == target_layer
+            or _allowed_project_model_registry_import(reference, target_layer)
+        ):
             continue
 
         graph[source_layer].add(target_layer)
@@ -437,6 +642,27 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
         source_text = source_file.read_text(encoding="utf-8")
         tree = ast.parse(source_text, filename=str(source_file))
         for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and _PROJECT_TABLE_WRITE_PATTERN.search(node.value)
+                and not _is_module_or_child(
+                    module_name,
+                    "aiwebnovel.project.persistence",
+                )
+            ):
+                violations.append(
+                    ArchitectureViolation(
+                        path=source_file,
+                        line=node.lineno,
+                        rule="project-tables-written-only-by-project-persistence",
+                        message=(
+                            "only Project persistence may issue direct writes to Project-owned "
+                            "tables"
+                        ),
+                    )
+                )
+
             if (
                 isinstance(node, ast.Constant)
                 and isinstance(node.value, str)
