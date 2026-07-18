@@ -150,6 +150,14 @@ function Invoke-QualityGate {
             -RepositoryRoot $repositoryRoot
     }
 
+    Invoke-QualityGateStep -Name "Startup safety baseline" -Action {
+        & powershell.exe `
+            -NoProfile `
+            -ExecutionPolicy Bypass `
+            -File (Join-Path $PSScriptRoot "check_startup_safety.ps1") `
+            -RepositoryRoot $repositoryRoot
+    }
+
     Invoke-QualityGateStep -Name "Ruff format check" -Action {
         & $pythonExecutable -m ruff format --check `
             --config $backendConfig `

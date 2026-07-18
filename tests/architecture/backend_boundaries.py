@@ -8,29 +8,45 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-Layer = Literal["core", "storage", "db", "security", "web", "main"]
+Layer = Literal["core", "storage", "db", "security", "diagnostics", "web", "main"]
 
-_LAYERS: tuple[Layer, ...] = ("core", "storage", "db", "security", "web", "main")
+_LAYERS: tuple[Layer, ...] = (
+    "core",
+    "storage",
+    "db",
+    "security",
+    "diagnostics",
+    "web",
+    "main",
+)
 _FORBIDDEN_LAYER_IMPORTS: dict[tuple[Layer, Layer], str] = {
     ("core", "storage"): "core-must-not-import-storage",
     ("core", "db"): "core-must-not-import-db",
     ("core", "security"): "core-must-not-import-security",
     ("core", "web"): "core-must-not-import-web",
+    ("core", "diagnostics"): "core-must-not-import-diagnostics",
     ("core", "main"): "core-must-not-import-main",
     ("storage", "db"): "storage-must-not-import-db",
     ("storage", "security"): "storage-must-not-import-security",
     ("storage", "web"): "storage-must-not-import-web",
+    ("storage", "diagnostics"): "storage-must-not-import-diagnostics",
     ("storage", "main"): "storage-must-not-import-main",
     ("db", "security"): "db-must-not-import-security",
     ("db", "web"): "db-must-not-import-web",
+    ("db", "diagnostics"): "db-must-not-import-diagnostics",
     ("db", "main"): "db-must-not-import-main",
     ("security", "storage"): "security-must-not-import-storage",
     ("security", "db"): "security-must-not-import-db",
     ("security", "web"): "security-must-not-import-web",
+    ("security", "diagnostics"): "security-must-not-import-diagnostics",
     ("security", "main"): "security-must-not-import-main",
     ("web", "storage"): "web-must-not-import-storage",
     ("web", "db"): "web-must-not-import-db",
+    ("web", "diagnostics"): "web-must-not-import-diagnostics",
     ("web", "main"): "web-must-not-import-main",
+    ("diagnostics", "web"): "diagnostics-must-not-import-web",
+    ("diagnostics", "main"): "diagnostics-must-not-import-main",
+    ("main", "diagnostics"): "main-must-not-import-diagnostics",
 }
 _PUBLIC_STORAGE_MODULES_FOR_DB = {
     "aiwebnovel.storage.paths",
@@ -38,6 +54,18 @@ _PUBLIC_STORAGE_MODULES_FOR_DB = {
 _PUBLIC_SECURITY_MODULES_FOR_WEB = {
     "aiwebnovel.security.dto",
     "aiwebnovel.security.responses",
+}
+_PUBLIC_MODULES_FOR_DIAGNOSTICS: dict[Layer, frozenset[str]] = {
+    "core": frozenset({"aiwebnovel.core.config"}),
+    "storage": frozenset({"aiwebnovel.storage"}),
+    "db": frozenset({"aiwebnovel.db"}),
+    "security": frozenset({"aiwebnovel.security"}),
+}
+_DIAGNOSTICS_PUBLIC_CONTRACT_RULES: dict[Layer, str] = {
+    "core": "diagnostics-must-use-public-core-config-contract",
+    "storage": "diagnostics-must-use-public-storage-contract",
+    "db": "diagnostics-must-use-public-db-contract",
+    "security": "diagnostics-must-use-public-security-contract",
 }
 _SESSION_PERSISTENCE_MODULES = {
     "dbm",
@@ -154,7 +182,7 @@ def _import_references(package_root: Path) -> tuple[_ImportReference, ...]:
 def _layer_for(module_name: str) -> Layer | None:
     if module_name == "aiwebnovel.main":
         return "main"
-    for layer in ("core", "storage", "db", "security", "web"):
+    for layer in ("core", "storage", "db", "security", "diagnostics", "web"):
         prefix = f"aiwebnovel.{layer}"
         if module_name == prefix or module_name.startswith(f"{prefix}."):
             return layer
@@ -225,6 +253,35 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
         source_layer = _layer_for(reference.source_module)
         target_layer = _layer_for(reference.target_module)
 
+        if source_layer == "diagnostics" and target_layer in _PUBLIC_MODULES_FOR_DIAGNOSTICS:
+            allowed_modules = _PUBLIC_MODULES_FOR_DIAGNOSTICS[target_layer]
+            if reference.target_module not in allowed_modules:
+                violations.append(
+                    ArchitectureViolation(
+                        path=reference.path,
+                        line=reference.line,
+                        rule=_DIAGNOSTICS_PUBLIC_CONTRACT_RULES[target_layer],
+                        message=(
+                            "diagnostics may import only the public "
+                            f"{target_layer} diagnostic contract, not "
+                            f"{reference.target_module!r}"
+                        ),
+                    )
+                )
+
+        if source_layer == "diagnostics" and (
+            reference.target_module == "sqlalchemy"
+            or reference.target_module.startswith("sqlalchemy.")
+        ):
+            violations.append(
+                ArchitectureViolation(
+                    path=reference.path,
+                    line=reference.line,
+                    rule="diagnostics-must-not-import-sqlalchemy",
+                    message="diagnostics must use the public database diagnostic contract",
+                )
+            )
+
         if _imports_tests(reference.target_module):
             violations.append(
                 ArchitectureViolation(
@@ -248,6 +305,19 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
                     line=reference.line,
                     rule="session-manager-must-remain-in-memory",
                     message="session management must not import file or database persistence",
+                )
+            )
+
+        if reference.source_module.startswith("aiwebnovel.diagnostics") and (
+            reference.target_module == "aiwebnovel.security.sessions"
+            or reference.target_module.startswith("aiwebnovel.security.sessions.")
+        ):
+            violations.append(
+                ArchitectureViolation(
+                    path=reference.path,
+                    line=reference.line,
+                    rule="diagnostics-must-not-access-session-internals",
+                    message="diagnostics may use only public security diagnostic contracts",
                 )
             )
 
@@ -312,7 +382,7 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
             if (
                 isinstance(node, ast.Constant)
                 and isinstance(node.value, str)
-                and "LOCALAPPDATA" in node.value.upper()
+                and node.value.strip().upper() == "LOCALAPPDATA"
             ):
                 violations.append(
                     ArchitectureViolation(
@@ -323,6 +393,21 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
                             "only aiwebnovel.core.config may resolve the LocalAppData "
                             "environment boundary"
                         ),
+                    )
+                )
+
+            if (
+                isinstance(node, ast.BinOp)
+                and isinstance(node.op, ast.Div)
+                and isinstance(node.right, ast.Constant)
+                and node.right.value == "AIWebNovel"
+            ):
+                violations.append(
+                    ArchitectureViolation(
+                        path=source_file,
+                        line=node.lineno,
+                        rule="formal-data-root-owned-by-core-config",
+                        message=("only aiwebnovel.core.config may derive the formal data root"),
                     )
                 )
 

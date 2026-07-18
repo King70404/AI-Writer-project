@@ -16,7 +16,8 @@
 
 应用的正式默认数据根是 `%LOCALAPPDATA%\AIWebNovel`。开发诊断、自动测试和 E2E 不得使用这个正式根：
 
-- 开发启动必须通过 `AIWEBNOVEL_DATA_ROOT` 显式指定独立的绝对路径；
+- 统一开发和集成启动入口必须分别使用 `%LOCALAPPDATA%\AIWebNovel-Development` 与 `%LOCALAPPDATA%\AIWebNovel-Integrated-Development`，或由开发者显式指定安全的绝对隔离路径；
+- 环境诊断只判断正式默认根是否存在，不得枚举或读取其内容；诊断读写与数据库探针必须使用 LocalAppData 下唯一临时根并在结束后清理；
 - pytest 的应用工厂必须为每个测试使用独立临时数据根，没有显式临时根时测试辅助工厂必须拒绝启动；
 - E2E 必须为每个场景创建带 E2E 标识的唯一临时数据根，并只清理该场景拥有的路径；
 - 测试数据库必须位于该测试数据根的 `data/`，运行数据必须位于其 `runtime/`；
@@ -53,6 +54,8 @@ DEV-0.8 的真实 Windows 存储冒烟验收是唯一受控例外。它只在 Lo
 DEV-0.8 还要求单独执行 `.\scripts\check_windows_storage.ps1`。该冒烟验收不属于默认门禁，也不代替三种规定的质量门禁。
 
 DEV-0.9 还要求执行 `.\scripts\check_security_runtime.ps1` 的真实安全运行冒烟。它必须使用独立数据根和临时环回端口，验证安全失败路径、日志无秘密及进程、端口、数据库和临时文件清理；该冒烟同样不代替三种规定门禁。
+
+DEV-0.10 提供 `.\scripts\environment_doctor.ps1`、统一启动脚本和 `.\scripts\m0_preflight.ps1`。环境诊断不会安装或自动修复软件；Development、Integrated 与 M0 模式的严格程度不同。M0 预验收按固定顺序组合诊断、门禁、真实启动、存储、安全与清理证据，失败即停止。预验收报告只能证明已准备等待正式阶段验收，不等于 M0 正式通过，也不能替代下一编号任务中的正式验收结论。
 
 ## 统一执行报告
 

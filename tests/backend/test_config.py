@@ -6,7 +6,12 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from aiwebnovel.core.config import Settings, get_settings
+from aiwebnovel.core.config import (
+    Settings,
+    get_settings,
+    resolve_default_data_root,
+    resolve_local_app_data_root,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -79,6 +84,24 @@ def test_default_settings_are_local_and_versioned(
     assert settings.csrf_header_name == "X-CSRF-Token"
     assert settings.expose_api_docs is True
     assert not local_app_data.exists()
+
+
+def test_local_app_data_boundary_is_public_and_read_only(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    local_app_data = tmp_path / "Local App Data"
+    monkeypatch.setenv("LOCALAPPDATA", os.fspath(local_app_data))
+
+    resolved = resolve_local_app_data_root()
+
+    assert resolved == local_app_data
+    assert not local_app_data.exists()
+
+    formal_root = resolve_default_data_root()
+
+    assert formal_root == local_app_data / "AIWebNovel"
+    assert not formal_root.exists()
 
 
 def test_environment_overrides_and_cache_can_be_cleared(

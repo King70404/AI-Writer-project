@@ -30,6 +30,7 @@
 - `storage`：不可变 `StoragePaths`、标准目录初始化、重解析点检查、访问探针和存储健康结果；
 - `db`：SQLite 引擎、会话与数据库健康检查；
 - `security`：环回和 Host 策略、请求限制、本地临时会话、Origin/CSRF、安全响应头、脱敏及安全健康结果；
+- `diagnostics`：组合公开的配置、存储、数据库和安全诊断契约，产生稳定且脱敏的环境检查结果；
 - `web`：HTTP 与前端静态服务适配；
 - `main`：组合 `core`、`storage`、`db`、`security` 和 `web` 的应用组合根。
 
@@ -39,21 +40,27 @@
 - `db` 可以读取公开的 `StoragePaths` 契约或由组合根传入的配置；
 - `db` 不得导入 `storage` 的目录初始化、访问探针或健康检查实现；
 - `security` 可以导入 `core` 的公开配置和错误契约；
+- `diagnostics` 可以导入公开的 `core`、`storage`、`db` 和 `security` 诊断契约；
 - `web` 只能使用 Security 的公开 DTO 或响应工具，不得访问会话内部存储；
 - `main` 可以组合 `core`、`storage`、`db`、`security` 和 `web`；
+- PowerShell 环境与启动脚本可以调用 Diagnostics 命令入口；
 - 生产代码不得导入测试临时路径工具。
 
 阶段 0 后端的明确禁止：
 
-- `core` 不得导入 `storage`、`db`、`security`、`web` 或 `main`；
-- `storage` 不得导入 `db`、`security`、`web` 或 `main`；
+- `core` 不得导入 `storage`、`db`、`security`、`diagnostics`、`web` 或 `main`；
+- `storage` 不得导入 `db`、`security`、`diagnostics`、`web` 或 `main`；
+- `db`、`security` 和 `web` 不得导入 `diagnostics`；
 - `security` 不得导入 `storage`、`db`、`web` 或 `main`；
+- `diagnostics` 不得导入 `web` 或 `main`，不得访问 Security 会话内部存储；
+- `diagnostics` 不得修改业务数据、创建正式项目、枚举正式数据根或输出秘密；
 - `web` 不得直接导入 `storage` 或访问其内部文件操作；
 - `web` 不得导入 Security 的会话、CSRF 或中间件内部实现；
 - `db` 不得访问会话或 CSRF，Security 会话管理器不得写入数据库或文件；
 - `db` 不得自行读取或重新推导 LocalAppData 路径；
 - 除 `core` 的配置边界外，其他生产模块不得硬编码 LocalAppData 数据根；
-- `core`、`storage`、`db`、`security` 和 `web` 不得反向导入组合根；
+- `core`、`storage`、`db`、`security`、`diagnostics` 和 `web` 不得反向导入组合根；
+- 应用组合根 `main` 不依赖 Diagnostics；
 - 各层不得形成循环依赖。
 
 `StoragePaths` 是路径契约，不是新的业务数据所有者。`storage` 只管理本地目录边界和访问能力，`db` 仍负责 SQLite；两者都不得创建小说业务表或业务 Repository。

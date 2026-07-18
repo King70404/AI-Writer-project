@@ -1,6 +1,34 @@
 # 本地开发脚本
 
-本目录包含 AIWebNovel 阶段 0 的本地质量治理与 E2E 编排脚本。脚本不会创建 Git 提交或执行 `git add`；默认质量门禁不会启动开发服务器或浏览器，只有显式 E2E 命令会启动受控的本地测试进程。
+本目录包含 AIWebNovel 阶段 0 的环境诊断、统一启动、本地质量治理、预验收与 E2E 编排脚本。脚本不会创建 Git 提交或执行 `git add`；默认质量门禁不会启动开发服务器或浏览器，只有显式启动、烟测、E2E 或 M0 预验收命令会启动受控的本地进程。
+
+## 环境诊断
+
+```powershell
+.\scripts\environment_doctor.ps1 -Mode Development
+.\scripts\environment_doctor.ps1 -Mode Integrated
+.\scripts\environment_doctor.ps1 -Mode M0
+.\scripts\environment_doctor.ps1 -Json
+```
+
+诊断按稳定顺序输出 `ENV-001` 至 `ENV-012`，不会联网、安装或修复依赖，也不会修改代码、Git 配置或正式数据。退出码 `0`、`1`、`2`、`3` 分别表示 `ready`、`ready_with_warnings`、`not_ready` 和调用参数错误。正式数据根只检查是否存在；读写与数据库探针只在 LocalAppData 下唯一临时诊断根中运行并清理。完整模式差异和脱敏规则见 [环境诊断](../docs/ENVIRONMENT_DIAGNOSTICS.md)。
+
+## 统一本地启动
+
+```powershell
+.\scripts\start_development.ps1
+.\scripts\start_integrated.ps1
+```
+
+开发入口启动 FastAPI 和 Vite，集成入口默认只启动 FastAPI 并提供已有 `frontend/dist`。二者只绑定环回地址，使用不同的隔离开发数据根，不运行迁移、不安装依赖且不自动打开浏览器。公共进程管理辅助能力记录 PID 和启动时间，停止前再次核对，只清理本次拥有的进程树；禁止按名称终止 Python 或 Node。脚本保持前台运行，按 `Ctrl+C` 停止。详细参数和失败行为见 [本地统一启动](../docs/LOCAL_STARTUP.md)。
+
+## M0 预验收
+
+```powershell
+.\scripts\m0_preflight.ps1
+```
+
+预验收固定运行 M0 严格诊断、默认门禁、依赖审计与 E2E 门禁、两种启动烟测、存储与安全烟测以及清理和 Git 检查。任一步失败立即返回非零；成功证据写入被忽略的 `.runtime/m0-preflight/`。它只证明已准备等待正式阶段验收，不宣告 M0 正式通过，也不属于默认质量门禁。
 
 ## 统一质量门禁
 
@@ -8,7 +36,7 @@
 .\scripts\quality_gate.ps1
 ```
 
-默认顺序检查 Git 差异、仓库卫生、只面向 Git 跟踪生产代码的安全基线、Ruff 格式与规则、mypy、后端测试与覆盖率、Python 依赖完整性、前端质量脚本与 npm 依赖树。任一步失败都会立即返回非零退出码。默认模式不访问网络。
+默认顺序检查 Git 差异、仓库卫生、只面向 Git 跟踪生产代码的安全基线、启动脚本静态安全基线、Ruff 格式与规则、mypy、包含 Diagnostics 的后端测试与覆盖率、Python 依赖完整性、前端质量脚本与 npm 依赖树。任一步失败都会立即返回非零退出码。默认模式不访问网络，也不运行完整 M0 预验收或启动长期服务。
 
 需要额外审计 npm 生产依赖时：
 

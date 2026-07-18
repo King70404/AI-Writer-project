@@ -1,6 +1,6 @@
 # AIWebNovel 后端
 
-本目录包含阶段 0 的 Python 后端基础设施。目前提供 FastAPI 应用工厂、类型化配置、环回绑定与 Host 验证、严格本地 CORS、请求体和 JSON 类型限制、进程内临时会话与 CSRF、安全响应头、集中脱敏日志、请求 ID、统一 API 错误格式、Windows 本地存储、SQLite 引擎、Alembic 迁移环境、存活与就绪健康检查，以及可选的 Vite 构建静态服务。
+本目录包含阶段 0 的 Python 后端基础设施。目前提供 FastAPI 应用工厂、类型化配置、环回绑定与 Host 验证、严格本地 CORS、请求体和 JSON 类型限制、进程内临时会话与 CSRF、安全响应头、集中脱敏日志、请求 ID、统一 API 错误格式、Windows 本地存储、SQLite 引擎、Alembic 迁移环境、存活与就绪健康检查、环境 Diagnostics，以及可选的 Vite 构建静态服务。
 
 当前没有用户账号或登录、小说业务表、业务 Repository、业务写入 API、Codex 调用或工作流。安全 session 只是本机浏览器 CSRF 基础，不代表身份认证。健康检查成功仅表示基础后端、安全配置、存储能力、数据库连接和按配置要求的前端构建可用，不表示小说数据已经可以保存，也不表示备份、导出、上传、模型管理、文件日志或小说系统已经完成。
 
@@ -22,17 +22,16 @@ py -3.12 -m venv .venv
 
 ## 开发模式
 
-在仓库根目录启动后端：
+先在仓库根目录诊断环境，再通过统一前台脚本启动后端与 Vite：
 
 ```powershell
-$env:AIWEBNOVEL_DATA_ROOT = Join-Path $env:LOCALAPPDATA "AIWebNovel-Development"
-.\.venv\Scripts\python.exe -m aiwebnovel
-Remove-Item Env:AIWEBNOVEL_DATA_ROOT
+.\scripts\environment_doctor.ps1 -Mode Development
+.\scripts\start_development.ps1
 ```
 
-开发运行必须使用独立的绝对 `AIWEBNOVEL_DATA_ROOT`，不能使用正式 `%LOCALAPPDATA%\AIWebNovel`。上例的开发目录与正式默认根不同；测试和 E2E 还会使用各自唯一的临时根。
+统一脚本默认使用 `%LOCALAPPDATA%\AIWebNovel-Development`，并拒绝正式 `%LOCALAPPDATA%\AIWebNovel` 及与其重叠的路径。测试、启动烟测和 E2E 使用各自唯一的临时根。诊断和启动都不会安装或修复依赖、运行 Alembic 迁移或自动打开浏览器。
 
-另一个终端在 `frontend` 目录运行 `npm run dev`，浏览器只访问 `http://127.0.0.1:5173`。Vite 仅代理 `/api` 到本后端的 `127.0.0.1:8000`；后端仍默认只监听 `127.0.0.1`。
+浏览器只访问 `http://127.0.0.1:5173`。Vite 仅代理 `/api` 到本次指定的后端端口；后端仍只监听 `127.0.0.1`。脚本保持前台运行，按 `Ctrl+C` 会核验 PID 和启动时间并只清理本次拥有的进程树。
 
 默认健康检查地址：
 
@@ -43,20 +42,14 @@ Remove-Item Env:AIWEBNOVEL_DATA_ROOT
 
 ## 生产集成模式
 
-先在前端目录生成被 Git 忽略的本地构建，再显式启用静态服务：
+从仓库根目录运行统一集成入口。它默认复用已有且有效的 `frontend/dist`，只启动 FastAPI：
 
 ```powershell
-Set-Location frontend
-npm run build
-Set-Location ..
-$env:AIWEBNOVEL_DATA_ROOT = Join-Path $env:LOCALAPPDATA "AIWebNovel-Development"
-$env:AIWEBNOVEL_ENVIRONMENT = "production"
-$env:AIWEBNOVEL_SERVE_FRONTEND = "true"
-.\.venv\Scripts\python.exe -m aiwebnovel
-Remove-Item Env:AIWEBNOVEL_DATA_ROOT
-Remove-Item Env:AIWEBNOVEL_ENVIRONMENT
-Remove-Item Env:AIWEBNOVEL_SERVE_FRONTEND
+.\scripts\environment_doctor.ps1 -Mode Integrated
+.\scripts\start_integrated.ps1
 ```
+
+只有需要显式重建时才使用 `.\scripts\start_integrated.ps1 -BuildFrontend`；该选项只运行 `npm run build`，不会运行 `npm install`。集成入口固定为 production、启用静态服务、默认关闭 API 文档，并使用与正式数据根隔离的 `%LOCALAPPDATA%\AIWebNovel-Integrated-Development`。
 
 默认构建路径为仓库根目录下的相对路径 `frontend/dist`。构建有效时，FastAPI 提供 `/`、实际静态资源和仅面向 HTML 客户端路由的 SPA 回退；`/api` 始终保留给 JSON API。构建缺失时 API 仍可启动且 live 仍为 200，但 ready 和前端根路径会安全返回 503，不公开本机路径。
 

@@ -38,12 +38,17 @@ def normalize_data_root(value: str | os.PathLike[str]) -> Path:
     return normalized
 
 
-def _default_data_root() -> Path:
-    """Derive the Windows default without falling back to another location."""
+def resolve_local_app_data_root() -> Path:
+    """Resolve the Windows LocalAppData boundary without touching the filesystem."""
     local_app_data = os.environ.get("LOCALAPPDATA")
     if local_app_data is None or not local_app_data.strip():
-        raise ValueError("LOCALAPPDATA is required when data_root is not configured")
-    return normalize_data_root(Path(local_app_data) / "AIWebNovel")
+        raise ValueError("LOCALAPPDATA is required")
+    return normalize_data_root(local_app_data)
+
+
+def resolve_default_data_root() -> Path:
+    """Resolve the formal data root without touching or enumerating it."""
+    return normalize_data_root(resolve_local_app_data_root() / "AIWebNovel")
 
 
 class Settings(BaseSettings):
@@ -65,7 +70,7 @@ class Settings(BaseSettings):
     host: Literal["127.0.0.1", "::1"] = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)
     log_level: Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"] = "INFO"
-    data_root: Path = Field(default_factory=_default_data_root)
+    data_root: Path = Field(default_factory=resolve_default_data_root)
     database_url: str | None = None
     database_echo: bool = False
     database_busy_timeout_ms: int = Field(default=5000, ge=1, le=600_000)

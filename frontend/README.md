@@ -15,25 +15,22 @@
 
 ## 开发模式
 
-先在仓库根目录启动 FastAPI：
+从仓库根目录运行统一开发入口：
 
 ```powershell
-.\.venv\Scripts\python.exe -m aiwebnovel
+.\scripts\environment_doctor.ps1 -Mode Development
+.\scripts\start_development.ps1
 ```
 
-再在本目录启动 Vite：
+浏览器默认访问 `http://127.0.0.1:5173`。前端始终使用相对 `/api/v1`；Vite 仅代理 `/api` 到本次统一入口指定的本地后端端口（默认为 `http://127.0.0.1:8000`），不代理其他路径或 WebSocket。开发服务器只绑定 `127.0.0.1`。
 
-```powershell
-npm run dev
-```
-
-浏览器只访问 `http://127.0.0.1:5173`。前端始终使用相对 `/api/v1`；Vite 仅代理 `/api` 到固定的本地开发后端 `http://127.0.0.1:8000`，不代理其他路径或 WebSocket。开发服务器只绑定 `127.0.0.1`。
+统一入口会把 Vite 代理指向本次选择的后端端口，默认使用与正式用户数据隔离的 `%LOCALAPPDATA%\AIWebNovel-Development`。它不会运行 `npm install`、自动构建、执行迁移或自动打开浏览器；按 `Ctrl+C` 只清理本次脚本拥有的服务。
 
 原生 `fetch` 默认不携带外部凭据；同源安全 session 可接收 HttpOnly Cookie。未来不安全请求必须先建立本地 session，再从模块内存加入 CSRF 头，不得将 Cookie 或令牌输出到控制台。
 
 ## 生产集成模式
 
-在本目录执行 `npm run build` 后，回到仓库根目录显式设置 `AIWEBNOVEL_ENVIRONMENT=production` 和 `AIWEBNOVEL_SERVE_FRONTEND=true`，再启动 FastAPI。浏览器只访问后端端口，前端通过同源相对 API 工作；不需要 Vite 开发服务器。`dist/` 是本地构建产物并保持被 Git 忽略，production 默认关闭 API 文档。
+从仓库根目录运行 `.\scripts\environment_doctor.ps1 -Mode Integrated` 和 `.\scripts\start_integrated.ps1`。入口默认要求已有有效 `dist/`，只启动 FastAPI；仅显式传入 `-BuildFrontend` 时才执行 `npm run build`。浏览器只访问后端端口，前端通过同源相对 API 工作；不需要 Vite 开发服务器。`dist/` 是本地构建产物并保持被 Git 忽略，production 默认关闭 API 文档，默认数据根为隔离的 `%LOCALAPPDATA%\AIWebNovel-Integrated-Development`。
 
 ## 浏览器端到端验收
 
