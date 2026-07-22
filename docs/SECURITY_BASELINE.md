@@ -13,7 +13,7 @@
 - 默认可信 Host 只有 `127.0.0.1` 和 `localhost`；端口在解析后单独验证，空值、重复 Host、控制字符、凭据、非法端口、通配符和后缀欺骗均拒绝。
 - Host 拒绝返回 HTTP 400 与固定错误码 `INVALID_HOST`，保留安全的 request ID，但不回显恶意原值。
 - Uvicorn 显式使用 `proxy_headers=False`，不会使用 `Forwarded` 或 `X-Forwarded-*` 决定 Host、scheme、客户端来源或同源关系。
-- 开发 CORS 只允许配置中明确列出的本地 HTTP(S) origin，默认开发来源为 `http://127.0.0.1:5173`；禁止通配符且不启用跨域凭据。生产静态服务使用同源相对 API。
+- 开发 CORS 只允许配置中明确列出的本地 HTTP(S) origin，方法精确为GET、POST、PUT、OPTIONS；允许必要的Content-Type、CSRF、If-Match和request ID Header，并暴露request ID、ETag和Location。禁止PATCH、DELETE、通配符和跨域凭据。生产静态服务使用同源相对 API。
 - 安全 ready 会检查监听 Host、可信 Host、CORS、代理头策略及中间件注册；关键项失败时 live 仍可用于进程探测，但 ready 返回 503 且 `security=failed`。
 
 ## 请求限制与内容类型
@@ -38,7 +38,7 @@
 
 所有未来不安全 API 方法默认经过 CSRF 中间件。除创建会话的内部入口外，POST、PUT、PATCH、DELETE 必须同时具备：合法 Host、允许的 Origin、有效且未过期的会话 Cookie，以及与该会话匹配的配置头（默认 `X-CSRF-Token`）。令牌比较采用常量时间路径。
 
-外部、`null`、带凭据、非 HTTP(S) 或缺失的浏览器式 Origin 均拒绝；GET、HEAD、OPTIONS 不要求 CSRF，CORS 预检不会被会话校验阻断。失败只返回 `ORIGIN_NOT_ALLOWED`、`SESSION_REQUIRED`、`SESSION_EXPIRED`、`CSRF_TOKEN_REQUIRED` 或 `CSRF_TOKEN_INVALID` 等固定错误，不回显 Cookie、令牌或“正确值”。当前没有正式业务写入 API；后续写入路由必须默认继承这套保护，豁免必须逐路由审查。
+外部、`null`、带凭据、非 HTTP(S) 或缺失的浏览器式 Origin 均拒绝；GET、HEAD、OPTIONS 不要求 CSRF，CORS 预检不会被会话校验阻断。Project POST和PUT完整继承该保护，不存在路由豁免；失败不回显Cookie、令牌或“正确值”。Project验证、并发和持久化错误只返回固定安全摘要与request ID，不返回正文、SQL、数据库路径或异常原文。
 
 ## 响应头、CSP 与 API 文档
 
@@ -65,4 +65,4 @@ development/test 可通过配置开启 `/docs`、`/redoc` 和 `/openapi.json`；
 
 后者使用独立临时数据根和动态环回端口启动 production 服务，完成实际 Host、响应头、会话、限制、日志和清理验收；它不读取正式用户数据。
 
-任何安全配置、静态检查、运行测试、CSP 页面验收或清理检查失败，都不得绕过门禁或开始下一编号任务。当前仍没有上传、业务写入、用户登录、安全设置页面、Codex 沙箱或全面 ACL 治理。
+任何安全配置、静态检查、运行测试、CSP页面验收或清理检查失败，都不得绕过门禁或开始下一编号任务。当前只有受保护的Project创建与完整修订写接口；仍没有上传、用户登录、安全设置页面、Codex沙箱或全面ACL治理。

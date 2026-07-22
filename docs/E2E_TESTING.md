@@ -1,6 +1,6 @@
 # 浏览器端到端测试
 
-DEV-0.7 使用 Playwright Test 在干净、无认证状态的 Chromium 上验收真实本地服务；DEV-0.8 为每个场景加入独立本地数据根；DEV-0.9 在生产集成场景增加 Host、响应头、CSP、文档关闭和临时会话的浏览器安全验收；DEV-0.10 另以受控烟测验证统一开发与集成启动入口。浏览器测试覆盖开发模式下的 FastAPI、Vite 与 React 协作，以及生产集成模式下由 FastAPI 独立提供 API、静态资源和 SPA 回退。它只证明阶段 0 工程基础与安全请求边界可用，当前仍没有小说业务测试。
+Playwright在独立本地数据根上验收开发与生产集成服务。DEV-1.5新增`E2E-INT-006`，只对该场景的临时数据库显式运行Alembic到head，再通过真实进程完成Project创建、读取、完整修订与stale冲突；应用启动本身仍不迁移。
 
 ## 安装
 
@@ -26,7 +26,7 @@ npm run e2e
 ```
 
 - `e2e:dev` 验证 Vite 页面、真实健康检查、手动重新检查和客户端路由；
-- `e2e:integrated` 先构建前端，再验证 FastAPI 静态服务、API/资源/SPA 隔离、`E2E-INT-005` 生产安全基线，以及缺失构建的安全失败；
+- `e2e:integrated`先构建前端，再验证FastAPI静态服务、生产安全基线、`E2E-INT-006` Project API链路，以及缺失构建的安全失败；
 - `e2e` 按开发模式、生产集成模式的顺序运行全部浏览器验收，任一阶段失败即返回非零。
 
 每个场景都重新启动所需服务并使用独立 `AIWEBNOVEL_DATA_ROOT`，不依赖其他场景的执行顺序。需要独立复现单项时，在对应模式后传入固定场景编号，例如：
@@ -35,9 +35,10 @@ npm run e2e
 npm run e2e:dev -- -Scenario E2E-DEV-001
 npm run e2e:integrated -- -Scenario E2E-INT-003
 npm run e2e:integrated -- -Scenario E2E-INT-005
+npm run e2e:integrated -- -Scenario E2E-INT-006
 ```
 
-当前完整集共 9 个场景：3 个开发模式、5 个生产集成模式和 1 个缺失构建启动失败场景。
+当前完整集共10个场景：3个开发模式、6个生产集成模式和1个缺失构建启动失败场景。
 
 统一启动入口的最低浏览器验收由仓库根目录的受控脚本执行：
 
@@ -46,7 +47,7 @@ npm run e2e:integrated -- -Scenario E2E-INT-005
 .\scripts\check_startup_runtime.ps1 -Mode Integrated
 ```
 
-Development 烟测通过 `start_development.ps1` 启动两个服务，浏览器访问 Vite 页面并等待真实 ready；Integrated 烟测通过 `start_integrated.ps1` 只启动 FastAPI，验证页面 ready 和 production 文档关闭。两者都使用专用临时端口和唯一隔离数据根，受控停止后复核端口释放、数据库 sidecar、临时根和自有子进程均已清理。它们不会复制全部 9 个既有 E2E 场景，也不会自动打开用户浏览器。
+Development与Integrated烟测使用专用临时端口和唯一隔离数据根；它们不会复制全部10个E2E场景。`E2E-INT-006`还验证非法Host、production文档关闭、`/projects`仍为React 404、无外部请求以及正文canary不进入服务日志。
 
 默认使用无头 Chromium、`retries=0` 和单 worker，不自动打开报告或浏览器窗口。人工调试时可执行 `npm run e2e:headed`；失败后执行 `npm run e2e:report` 查看本地 HTML 报告。截图和 trace 只在失败时保留，视频关闭；成功运行会删除无用的模式报告和结果目录。
 

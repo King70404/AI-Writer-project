@@ -1,6 +1,6 @@
 # Project应用用例
 
-DEV-1.4在Project领域模型与事务Repository之上建立纯Python应用层。该层统一接收外部原始值、构造领域类型、调用一个Repository操作并返回脱离Session的读取模型；它不包含HTTP、Pydantic、SQLAlchemy、页面或应用组合根接线。
+DEV-1.4在Project领域模型与事务Repository之上建立纯Python应用层。DEV-1.5保持该层不含HTTP、Pydantic或SQLAlchemy，并由独立`project.web`适配器与`main`组合根调用。
 
 ## 命令、查询与读取模型
 
@@ -89,6 +89,4 @@ stale写入原样传播`ConcurrencyConflict`，保留`expected_version`与`actua
 
 当前命令与查询数量很少，直接服务契约更明确，因此不建立通用命令总线、查询总线、Mediator或通用CQRS框架。命令和查询职责分离不等于引入CQRS基础设施，也不改变Project对三张表的唯一所有权。
 
-当前没有Project HTTP API、Pydantic DTO或HTTP错误映射，也没有Project前端页面、项目列表、表单或保存按钮。应用服务未注册到FastAPI应用工厂或全局依赖注入容器，因而这些内部用例尚不是用户可见功能。
-
-DEV-1.5将在独立授权下建立Project HTTP API、边界DTO和安全错误映射；该后续计划不表示相关能力已在DEV-1.4实现。
+DEV-1.5已在应用层之外建立三个Project HTTP接口、边界DTO与安全错误映射，并在`main`生命周期中显式装配服务。应用层本身仍不知道HTTP状态、ETag、Pydantic、具体Repository或app state。当前仍没有Project前端页面、列表、历史、删除、归档、PATCH、表单或保存按钮；详细HTTP契约见[Project HTTP API](PROJECT_HTTP_API.md)。

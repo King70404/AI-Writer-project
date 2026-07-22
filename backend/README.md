@@ -1,8 +1,8 @@
 # AIWebNovel 后端
 
-本目录包含已冻结的阶段 0 Python 后端基础设施、DEV-1.1纯Python领域基础、DEV-1.2的Project稳定对象与不可变修订持久化结构、DEV-1.3的内部事务Repository，以及DEV-1.4的内部应用命令、查询服务和读取模型。目前提供 FastAPI 应用工厂、类型化配置、环回绑定与 Host 验证、严格本地 CORS、请求体和 JSON 类型限制、进程内临时会话与 CSRF、安全响应头、集中脱敏日志、请求 ID、统一 API 错误格式、Windows 本地存储、SQLite 引擎、Alembic迁移环境、健康与诊断、可选静态服务、通用领域原语，以及Project三表模型、事务Repository与纯Python应用用例。
+本目录包含已冻结的阶段 0 Python 后端基础设施，以及DEV-1.1至DEV-1.5的Project领域、持久化、应用与HTTP适配层。目前提供三个Project业务接口、严格Pydantic DTO、ETag/If-Match并发协议、安全错误映射和显式组合根装配。
 
-当前没有用户账号或登录、Project业务写入API、Pydantic业务DTO、Codex调用或工作流。Project应用服务可以在调用方显式注入Repository后执行原子创建、当前读取和完整修订，但尚未接入应用组合根或任何API；应用不会自动迁移，也不会自动创建Project。安全session只是本机浏览器CSRF基础，不代表身份认证。健康检查成功仅表示基础后端、安全配置、存储能力、数据库连接和按配置要求的前端构建可用，不表示Project或小说数据已经可以由用户保存。
+当前没有用户账号或登录、Project列表/历史/删除接口、前端Project页面、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
 
 ## 领域基础
 
@@ -14,11 +14,11 @@ Project模块已拥有`prj`和`prv`两种固定业务ID；Chapter及其他业务
 
 `src/aiwebnovel/project/`的领域部分不依赖数据库，定义稳定Project、不可变ProjectRevision、独立ProjectHead、纯转换规则和框架无关Repository契约。`project/persistence/`保存三个显式ORM记录、双向mapper、固定查询与SQLAlchemy Repository实现；`db/model_registry.py`只在Alembic或明确测试需要时确定性注册模型，不连接数据库或执行迁移。
 
-迁移`0002_create_project_foundation`建立`projects`、`project_revisions`和`project_heads`，使用复合外键防止跨Project Head指针，并以SQLite触发器拒绝Revision UPDATE和DELETE。内部Repository使用`BEGIN IMMEDIATE`、Project与Head双CAS以及每操作独立Session保证原子性；当前没有API、历史查询、删除或前端项目列表。完整边界见[Project持久化基础](../docs/PROJECT_FOUNDATION.md)和[Project Repository事务边界](../docs/PROJECT_REPOSITORY.md)。
+迁移`0002_create_project_foundation`建立`projects`、`project_revisions`和`project_heads`，使用复合外键防止跨Project Head指针，并以SQLite触发器拒绝Revision UPDATE和DELETE。内部Repository使用`BEGIN IMMEDIATE`、Project与Head双CAS以及每操作独立Session保证原子性；HTTP层只暴露创建、当前读取和完整修订。完整边界见[Project持久化基础](../docs/PROJECT_FOUNDATION.md)、[Project Repository事务边界](../docs/PROJECT_REPOSITORY.md)和[Project HTTP API](../docs/PROJECT_HTTP_API.md)。
 
 ## Project应用用例
 
-`src/aiwebnovel/project/application/`定义不可变的创建与修订命令、当前Project查询、脱离ORM的`ProjectSnapshot`、显式Aggregate映射，以及只依赖`ProjectRepository`契约的命令和查询服务。每个写命令只调用一个Repository事务；修订不会在应用层预先读取、重试或合并。该目录不导入SQLAlchemy、FastAPI、Pydantic或Project持久化实现，也尚未接入任何HTTP路由。完整输入顺序、错误传播和当前范围见[Project应用用例](../docs/PROJECT_APPLICATION.md)。
+`src/aiwebnovel/project/application/`保持纯Python；`project/web/`单独负责DTO、Snapshot映射、ETag、错误和Router。具体SQLAlchemy Repository只在`main`中用既有Session工厂装配，Router不访问Session或ORM。完整输入顺序见[Project应用用例](../docs/PROJECT_APPLICATION.md)。
 
 ## 环境要求
 
@@ -83,7 +83,7 @@ CORS 来源必须是明确的 HTTP(S) origin，不能包含通配符、凭据、
 $env:AIWEBNOVEL_CORS_ALLOWED_ORIGINS = '["http://127.0.0.1:5173"]'
 ```
 
-当前策略仅允许已实现读接口所需的 `GET`、`HEAD`、`OPTIONS`，以及 `Accept`、`Content-Type`、`X-Request-ID` 和配置的 CSRF 头；不允许跨域凭据，并只暴露 `X-Request-ID`。生产同源模式不依赖 CORS，后续业务写入还必须逐任务审查 CORS 方法范围。
+当前策略精确允许`GET`、`POST`、`PUT`、`OPTIONS`；允许`Accept`、`Content-Type`、`If-Match`、`X-Request-ID`和配置的CSRF头，暴露`X-Request-ID`、`ETag`和`Location`。不允许PATCH、DELETE、通配符或跨域凭据；生产同源模式不依赖CORS。
 
 ## 本地安全配置
 
@@ -140,7 +140,7 @@ Remove-Item Env:AIWEBNOVEL_DATABASE_URL
 Remove-Item Env:AIWEBNOVEL_DATA_ROOT
 ```
 
-当前初始迁移仅建立 Alembic 基线。除 Alembic 自身的版本表外，不包含任何业务表或业务数据。迁移在用于未来正式数据前必须经过对应任务的审查和验证。
+当前Alembic head为`0002_create_project_foundation`，包含Project拥有的三张表但不包含任何业务数据。迁移必须由操作者对明确目标显式执行；应用和API不会自动升级Schema。
 
 ## 后端质量检查
 

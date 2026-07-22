@@ -191,7 +191,10 @@ function Invoke-SecurityAstCheck {
         "backend/src/aiwebnovel/main.py",
         "backend/src/aiwebnovel/core/config.py",
         "backend/src/aiwebnovel/security/csrf.py",
-        "backend/src/aiwebnovel/__main__.py"
+        "backend/src/aiwebnovel/__main__.py",
+        "backend/src/aiwebnovel/project/web/router.py",
+        "backend/src/aiwebnovel/project/web/errors.py",
+        "backend/src/aiwebnovel/project/web/dto.py"
     )
     $allInputsReady = $true
     foreach ($requiredPath in $requiredAstInputs) {

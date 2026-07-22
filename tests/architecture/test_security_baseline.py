@@ -108,6 +108,14 @@ def _write_safe_security_wiring(repository: Path) -> None:
                 '        session_path=f"{api_prefix}/security/session",',
                 "    )",
                 "    application.add_middleware(SecurityHeadersMiddleware)",
+                "    application.add_middleware(",
+                "        CORSMiddleware,",
+                '        allow_methods=["GET", "POST", "PUT", "OPTIONS"],',
+                "        allow_headers=[",
+                '            "Content-Type", "If-Match", "X-Request-ID", csrf_header_name,',
+                "        ],",
+                '        expose_headers=["X-Request-ID", "ETag", "Location"],',
+                "    )",
                 "    application.include_router(create_security_router())",
                 "    application.state.proxy_headers_trusted = False",
                 "    return application",
@@ -118,7 +126,9 @@ def _write_safe_security_wiring(repository: Path) -> None:
     _write(
         repository,
         "backend/src/aiwebnovel/security/csrf.py",
-        'UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}\nclass CSRFMiddleware:\n    pass\n',
+        'SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}\n'
+        'UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}\n'
+        "class CSRFMiddleware:\n    pass\n",
     )
     _write(
         repository,
@@ -141,6 +151,22 @@ def _write_safe_security_wiring(repository: Path) -> None:
         repository,
         "backend/src/aiwebnovel/safe_logging.py",
         'logger.info("csrf validation rejected")\n',
+    )
+    _write(
+        repository,
+        "backend/src/aiwebnovel/project/web/router.py",
+        '@router.post("")\ndef create_project():\n    pass\n'
+        '@router.put("/{project_id}")\ndef revise_project():\n    pass\n',
+    )
+    _write(
+        repository,
+        "backend/src/aiwebnovel/project/web/errors.py",
+        'def safe_error(exc):\n    return {"message": "Project request failed"}\n',
+    )
+    _write(
+        repository,
+        "backend/src/aiwebnovel/project/web/dto.py",
+        "class CreateProjectRequest:\n    title: str\n    description: str\n",
     )
 
 
@@ -282,6 +308,50 @@ def test_security_baseline_rejects_missing_required_wiring(tmp_path: Path) -> No
     assert result.returncode != 0
     assert "type=required-security-file-not-tracked" in output
     assert "all requested local quality gates passed" not in output
+
+
+def test_security_baseline_rejects_project_api_security_regressions(tmp_path: Path) -> None:
+    repository = tmp_path / "unsafe-project-api-security-repository"
+    _initialize_repository(repository)
+    script = _install_script(repository)
+    _write_safe_security_wiring(repository)
+
+    csrf = repository / "backend/src/aiwebnovel/security/csrf.py"
+    csrf.write_text(
+        csrf.read_text(encoding="utf-8").replace(
+            'SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}',
+            'SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "POST"}',
+        ),
+        encoding="utf-8",
+    )
+    router = repository / "backend/src/aiwebnovel/project/web/router.py"
+    router.write_text("import sqlalchemy\nCSRF_EXEMPT = 'csrf_exempt'\n", encoding="utf-8")
+    _write(
+        repository,
+        "backend/src/aiwebnovel/project/web/errors.py",
+        'def unsafe_error(exc):\n    return {"message": str(exc)}\n',
+    )
+    main = repository / "backend/src/aiwebnovel/main.py"
+    main.write_text(
+        main.read_text(encoding="utf-8").replace(
+            'expose_headers=["X-Request-ID", "ETag", "Location"]',
+            'expose_headers=["X-Request-ID", "Location"]',
+        ),
+        encoding="utf-8",
+    )
+    _commit_all(repository)
+
+    result = _run_security_script(repository, script=script)
+    output = result.stdout + result.stderr
+
+    assert result.returncode != 0
+    for rule in (
+        "project-write-csrf-exemption-detected",
+        "project-router-direct-persistence-access",
+        "project-error-exception-text-exposed",
+        "project-cors-contract-missing",
+    ):
+        assert f"type={rule}" in output
 
 
 def test_security_baseline_requires_actual_middleware_registration(

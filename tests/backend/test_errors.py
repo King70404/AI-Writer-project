@@ -68,8 +68,15 @@ def test_validation_error_uses_controlled_details(tmp_path: Path) -> None:
     assert response.status_code == 422
     payload = response.json()
     assert_error_schema(payload)
-    assert payload["error"]["code"] == "VALIDATION_ERROR"
+    assert payload["error"]["code"] == "REQUEST_VALIDATION_ERROR"
     assert set(payload["error"]["details"]) == {"errors"}
+    assert payload["error"]["details"]["errors"] == [
+        {
+            "field": "query.value",
+            "type": "int_parsing",
+            "message": "Invalid request value.",
+        }
+    ]
     assert response.headers["X-Request-ID"] == payload["request_id"]
 
 

@@ -1,6 +1,7 @@
 """Unified API errors and FastAPI exception handlers."""
 
 import json
+import re
 import secrets
 from collections.abc import Mapping
 from typing import Any
@@ -18,6 +19,8 @@ from aiwebnovel.core.logging import (
 )
 
 logger = get_logger("errors")
+
+_SAFE_VALIDATION_TYPE = re.compile(r"\A[a-zA-Z0-9_.-]+\Z")
 
 
 class AppError(Exception):
@@ -101,17 +104,28 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
 
 async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Return a controlled subset of request validation diagnostics."""
-    errors = [
-        {
-            "location": list(error.get("loc", ())),
-            "message": str(error.get("msg", "Invalid value")),
-            "type": str(error.get("type", "validation_error")),
-        }
-        for error in exc.errors()
-    ]
+    errors: list[dict[str, str]] = []
+    for error in exc.errors():
+        location = error.get("loc", ())
+        field = ".".join(
+            str(part) if isinstance(part, (str, int)) else "field" for part in location
+        )
+        candidate_type = error.get("type")
+        error_type = (
+            candidate_type
+            if isinstance(candidate_type, str) and _SAFE_VALIDATION_TYPE.fullmatch(candidate_type)
+            else "validation_error"
+        )
+        errors.append(
+            {
+                "field": field or "request",
+                "type": error_type,
+                "message": "Invalid request value.",
+            }
+        )
     return _error_response(
         request,
-        code="VALIDATION_ERROR",
+        code="REQUEST_VALIDATION_ERROR",
         message="请求参数验证失败。",
         status_code=422,
         details={"errors": errors},

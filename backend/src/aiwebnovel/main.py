@@ -17,6 +17,8 @@ from aiwebnovel.core.middleware import RequestIdMiddleware
 from aiwebnovel.db.engine import create_database_engine, resolve_database_url
 from aiwebnovel.db.health import check_database_health
 from aiwebnovel.db.session import create_database_session_factory
+from aiwebnovel.project.application.services import ProjectCommandService, ProjectQueryService
+from aiwebnovel.project.web import create_project_router
 from aiwebnovel.security import (
     CSRFMiddleware,
     HostValidationMiddleware,
@@ -218,14 +220,27 @@ def create_app(
                         runtime_engine.dispose()
                         runtime_engine = None
                 else:
+                    from aiwebnovel.project.persistence.repository import (
+                        SqlAlchemyProjectRepository,
+                    )
+
                     application.state.database_engine = runtime_engine
                     application.state.database_session_factory = session_factory
+                    project_repository = SqlAlchemyProjectRepository(session_factory)
+                    application.state.project_command_service = ProjectCommandService(
+                        project_repository
+                    )
+                    application.state.project_query_service = ProjectQueryService(
+                        project_repository
+                    )
 
         application.state.initialized = True
         try:
             yield
         finally:
             application.state.initialized = False
+            application.state.project_command_service = None
+            application.state.project_query_service = None
             application.state.database_session_factory = None
             session_manager.clear()
             if runtime_engine is not None:
@@ -247,6 +262,8 @@ def create_app(
     application.state.storage_initialized = False
     application.state.database_engine = None
     application.state.database_session_factory = None
+    application.state.project_command_service = None
+    application.state.project_query_service = None
     application.state.local_session_manager = session_manager
     application.state.proxy_headers_trusted = False
     frontend_service = FrontendStaticService(frontend_dist_path, api_prefix)
@@ -256,9 +273,15 @@ def create_app(
         CORSMiddleware,
         allow_origins=list(cors_allowed_origins),
         allow_credentials=False,
-        allow_methods=["GET", "HEAD", "OPTIONS"],
-        allow_headers=["Accept", "Content-Type", "X-Request-ID", csrf_header_name],
-        expose_headers=["X-Request-ID"],
+        allow_methods=["GET", "POST", "PUT", "OPTIONS"],
+        allow_headers=[
+            "Accept",
+            "Content-Type",
+            "If-Match",
+            "X-Request-ID",
+            csrf_header_name,
+        ],
+        expose_headers=["X-Request-ID", "ETag", "Location"],
     )
     application.add_middleware(
         CSRFMiddleware,
@@ -295,6 +318,7 @@ def create_app(
             cookie_name=session_cookie_name,
         )
     )
+    application.include_router(create_project_router(api_prefix=api_prefix))
 
     @application.get(f"{api_prefix}/health/live")
     async def live() -> dict[str, str]:

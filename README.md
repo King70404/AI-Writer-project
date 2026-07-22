@@ -4,9 +4,9 @@ AIWebNovel 是项目暂定名称，目标是开发一套面向中文男频网文
 
 ## 当前阶段与状态
 
-阶段 0——工程底座已通过 DEV-0.11 正式验收并冻结为 M0。阶段 1 当前里程碑为 M1：DEV-1.1建立通用领域原语，DEV-1.2建立Project稳定对象、不可变修订、独立Head指针和三表迁移基础，DEV-1.3建立Project内部事务Repository，DEV-1.4建立内部应用命令、当前查询和脱离ORM的Snapshot。当前仍没有Project业务API、Pydantic DTO或前端项目管理功能，不能通过应用界面或API创建、读取或保存Project。M0正式结果与冻结范围见 [M0 正式验收报告](docs/M0_ACCEPTANCE_REPORT.md)，内部契约见 [领域基础原语](docs/DOMAIN_FOUNDATION.md)、[Project持久化基础](docs/PROJECT_FOUNDATION.md)、[Project Repository事务边界](docs/PROJECT_REPOSITORY.md)和[Project应用用例](docs/PROJECT_APPLICATION.md)。
+阶段 0——工程底座已通过 DEV-0.11 正式验收并冻结为 M0。阶段 1 当前里程碑为 M1：DEV-1.1至DEV-1.4建立通用领域原语、Project三表与Repository、应用命令和Snapshot；DEV-1.5新增严格的Project创建、当前读取和完整修订HTTP API。当前仍没有Project列表、历史、删除、归档或前端项目管理页面。M0正式结果与冻结范围见 [M0 正式验收报告](docs/M0_ACCEPTANCE_REPORT.md)，Project HTTP契约见 [Project HTTP API](docs/PROJECT_HTTP_API.md)。
 
-当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI、安全配置、存储目录访问能力与 SQLite 基础状态。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。默认用户数据根是 `%LOCALAPPDATA%\AIWebNovel`，正式数据不存放在 Git 仓库；目录只在应用生命周期启动或显式初始化时按需创建。迁移`0002_create_project_foundation`只定义Project、Revision和Head结构，应用启动不会自动执行迁移或创建Project数据。Project应用服务只在内部对齐Repository事务，尚未接入FastAPI应用工厂或任何HTTP接口。项目仍没有用户登录、小说业务写入API、Agent、Skill、Prompt、工作流或小说业务界面；健康检查通过只代表工程基础可用，不代表系统已经能够创作小说。安全边界见 [本地应用安全基线](docs/SECURITY_BASELINE.md)，存储规则见 [本地存储](docs/LOCAL_STORAGE.md)，后端环境、数据库迁移和测试说明见 [后端 README](backend/README.md)，前端环境与命令见 [前端 README](frontend/README.md)，已实现工程能力见 [功能真实性矩阵](docs/FEATURE_REALITY_MATRIX.md)。
+当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI、安全配置、存储目录访问能力与 SQLite 基础状态。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。默认用户数据根是 `%LOCALAPPDATA%\AIWebNovel`，正式数据不存放在 Git 仓库。迁移`0002_create_project_foundation`定义Project、Revision和Head结构，应用启动不会自动执行迁移；未迁移数据库上的Project API安全返回503。项目仍没有用户登录、小说创作业务、Agent、Skill、Prompt、工作流或Project前端界面；健康检查通过不代表系统已经能够创作小说。
 
 ## 本地运行模式
 

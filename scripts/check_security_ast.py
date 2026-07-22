@@ -11,9 +11,20 @@ _MAIN_PATH = "backend/src/aiwebnovel/main.py"
 _CONFIG_PATH = "backend/src/aiwebnovel/core/config.py"
 _CSRF_PATH = "backend/src/aiwebnovel/security/csrf.py"
 _ENTRYPOINT_PATH = "backend/src/aiwebnovel/__main__.py"
+_PROJECT_ROUTER_PATH = "backend/src/aiwebnovel/project/web/router.py"
+_PROJECT_ERRORS_PATH = "backend/src/aiwebnovel/project/web/errors.py"
+_PROJECT_DTO_PATH = "backend/src/aiwebnovel/project/web/dto.py"
 _CHECKER_PATH = "scripts/check_security_ast.py"
 
-_TARGET_PATHS = (_MAIN_PATH, _CONFIG_PATH, _CSRF_PATH, _ENTRYPOINT_PATH)
+_TARGET_PATHS = (
+    _MAIN_PATH,
+    _CONFIG_PATH,
+    _CSRF_PATH,
+    _ENTRYPOINT_PATH,
+    _PROJECT_ROUTER_PATH,
+    _PROJECT_ERRORS_PATH,
+    _PROJECT_DTO_PATH,
+)
 _SECURITY_FIELDS = (
     "trusted_hosts",
     "max_request_body_bytes",
@@ -195,6 +206,32 @@ def _check_main(tree: ast.Module) -> list[Violation]:
             break
     if not fastapi_docs_are_safe:
         violations.append(("main-fastapi-docs-policy-missing", _MAIN_PATH))
+
+    cors_calls = [
+        call
+        for call in runtime_nodes
+        if isinstance(call, ast.Call)
+        and _is_call(call, "application.add_middleware")
+        and call.args
+        and _is_name(call.args[0], "CORSMiddleware")
+    ]
+    cors_is_safe = False
+    for call in cors_calls:
+        methods = _string_constants(_keyword(call, "allow_methods") or ast.Tuple())
+        headers = _string_constants(_keyword(call, "allow_headers") or ast.Tuple())
+        exposed = _string_constants(_keyword(call, "expose_headers") or ast.Tuple())
+        csrf_header = _keyword(call, "allow_headers")
+        if (
+            methods == {"GET", "POST", "PUT", "OPTIONS"}
+            and {"Content-Type", "If-Match", "X-Request-ID"}.issubset(headers)
+            and csrf_header is not None
+            and _contains_name(csrf_header, "csrf_header_name")
+            and {"X-Request-ID", "ETag", "Location"}.issubset(exposed)
+        ):
+            cors_is_safe = True
+            break
+    if not cors_is_safe:
+        violations.append(("project-cors-contract-missing", _MAIN_PATH))
     return violations
 
 
@@ -276,7 +313,73 @@ def _check_csrf(tree: ast.Module) -> list[Violation]:
         violations.append(("csrf-unsafe-methods-missing", _CSRF_PATH))
     if _class_named(tree.body, "CSRFMiddleware") is None:
         violations.append(("csrf-middleware-class-missing", _CSRF_PATH))
+    safe_assignment = next(
+        (
+            _assignment_value(statement, "SAFE_METHODS")
+            for statement in tree.body
+            if _assignment_value(statement, "SAFE_METHODS") is not None
+        ),
+        None,
+    )
+    if safe_assignment is not None and {"POST", "PUT"}.intersection(
+        _string_constants(safe_assignment)
+    ):
+        violations.append(("project-write-csrf-exemption-detected", _CSRF_PATH))
     return violations
+
+
+def _check_project_router(tree: ast.Module) -> list[Violation]:
+    violations: list[Violation] = []
+    forbidden_import = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            forbidden_import = forbidden_import or any(
+                alias.name == "sqlalchemy" or alias.name.startswith("sqlalchemy.")
+                for alias in node.names
+            )
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            forbidden_import = forbidden_import or (
+                module == "sqlalchemy"
+                or module.startswith("sqlalchemy.")
+                or module == "aiwebnovel.db.session"
+                or module.startswith("aiwebnovel.project.persistence")
+            )
+    if forbidden_import:
+        violations.append(("project-router-direct-persistence-access", _PROJECT_ROUTER_PATH))
+
+    constants = {value.lower() for value in _string_constants(tree)}
+    if any("csrf_exempt" in value or "csrf-exempt" in value for value in constants):
+        violations.append(("project-write-csrf-exemption-detected", _PROJECT_ROUTER_PATH))
+    return violations
+
+
+def _check_project_errors(tree: ast.Module) -> list[Violation]:
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and _is_name(node.func, "str")
+            and any(_contains_name(argument, "exc") for argument in node.args)
+        ) or (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "exc"
+            and node.attr in {"args", "message"}
+        ):
+            return [("project-error-exception-text-exposed", _PROJECT_ERRORS_PATH)]
+    return []
+
+
+def _check_project_dto(tree: ast.Module) -> list[Violation]:
+    sensitive_fragments = ("cookie", "session", "token", "csrf")
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and any(fragment in node.target.id.lower() for fragment in sensitive_fragments)
+        ):
+            return [("project-dto-sensitive-field", _PROJECT_DTO_PATH)]
+    return []
 
 
 def _check_entrypoint(tree: ast.Module) -> list[Violation]:
@@ -324,6 +427,12 @@ def _run(repository_root: Path) -> int:
         violations.extend(_check_csrf(trees[_CSRF_PATH]))
     if _ENTRYPOINT_PATH in trees:
         violations.extend(_check_entrypoint(trees[_ENTRYPOINT_PATH]))
+    if _PROJECT_ROUTER_PATH in trees:
+        violations.extend(_check_project_router(trees[_PROJECT_ROUTER_PATH]))
+    if _PROJECT_ERRORS_PATH in trees:
+        violations.extend(_check_project_errors(trees[_PROJECT_ERRORS_PATH]))
+    if _PROJECT_DTO_PATH in trees:
+        violations.extend(_check_project_dto(trees[_PROJECT_DTO_PATH]))
 
     for rule, relative_path in sorted(set(violations)):
         print(f"{rule}\t{relative_path}")

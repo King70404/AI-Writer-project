@@ -59,7 +59,7 @@ DEV-0.10 提供 `.\scripts\environment_doctor.ps1`、统一启动脚本和 `.\sc
 
 ## M0冻结规则
 
-DEV-0.1 至 DEV-0.11 已完成，阶段 0 工程底座已通过正式验收并冻结为 M0 基线。阶段 1 尚未开始，必须从独立的 DEV-1.x 编号任务进入；M0 通过不代表小说业务、Codex、Agent、Skill、Prompt 或创作工作流已经实现。
+DEV-0.1 至 DEV-0.11 已完成，阶段 0 工程底座已通过正式验收并冻结为 M0 基线。阶段1已经按独立DEV-1.x任务推进；M0通过不代表小说业务、Codex、Agent、Skill、Prompt或创作工作流已经实现。
 
 冻结不表示基线永远不能修改。后续如需改变 M0 冻结边界，必须由明确的独立修复或演进任务授权，并同时说明修改原因与兼容性影响、重新运行所有相关门禁；不得重写或移动 M0 标签，也不得修改 M0 正式验收报告中的历史事实。
 
@@ -74,6 +74,8 @@ DEV-1.2授权Project模块拥有稳定对象、不可变修订、独立Head指�
 DEV-1.3授权Project所有者内部建立纯Python Repository契约与SQLAlchemy SQLite事务实现，只提供原子create、一致当前聚合get和带Project/Head双CAS的append_revision。它不授权应用Service、API、DTO、历史查询、删除、前端页面或Schema变化。关键事务测试必须使用迁移到head的独立临时数据库，证明`BEGIN IMMEDIATE`并发确定性、晚期失败完整回滚、损坏状态拒绝、Session关闭与sidecar清理；DEV-1.4只有在独立授权后才能建立应用命令和查询服务。
 
 DEV-1.4授权Project内部建立不可变创建/修订命令、当前查询、脱离ORM的Snapshot和只依赖Repository契约的应用服务。每个写命令必须对应一次Repository事务，修订不得预先get，原始输入必须在任何可观测副作用前按规定顺序转换；真实集成测试继续使用迁移到0002的独立临时数据库并清理全部sidecar。该任务不授权HTTP API、Pydantic DTO、应用组合根接线、前端功能、列表、历史、删除或Schema变化；DEV-1.5只有在独立授权后才能建立Project HTTP边界。
+
+DEV-1.5授权三个Project HTTP接口、严格Pydantic DTO、强ETag/If-Match、安全错误映射和组合根装配。写接口必须继承Origin、Session与CSRF，真实API与E2E只能显式迁移各自临时数据库；应用不得自动迁移。该任务不授权列表、历史、删除、归档、PATCH、前端Project页面或Schema变化；DEV-1.6仍需独立任务授权。
 
 ## 统一执行报告
 

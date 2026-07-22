@@ -1,6 +1,6 @@
 # Project Repository事务边界
 
-DEV-1.3在Project数据所有者内部建立纯Python Repository契约和SQLAlchemy SQLite适配器。它只提供内部原子创建、当前聚合读取和不可变修订追加；DEV-1.4在其上建立纯Python应用服务，但当前仍没有Project API、Pydantic DTO、历史查询、删除语义或前端项目管理功能。
+DEV-1.3在Project数据所有者内部建立纯Python Repository契约和SQLAlchemy SQLite适配器。它只提供内部原子创建、当前聚合读取和不可变修订追加；DEV-1.4在其上建立纯Python应用服务，DEV-1.5再由独立Web适配层暴露三个接口。Repository本身仍不知道HTTP或Pydantic，当前没有历史查询、删除语义或前端项目管理功能。
 
 ## 公开契约与所有权
 

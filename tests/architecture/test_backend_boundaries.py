@@ -402,6 +402,85 @@ def test_checker_accepts_declared_project_application_dependencies(tmp_path: Pat
     assert check_backend_boundaries(package_root) == ()
 
 
+def test_checker_accepts_declared_project_web_dependencies(tmp_path: Path) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "project/web/dto.py",
+        "from pydantic import BaseModel\nfrom aiwebnovel.project.values import ProjectTitle\n",
+    )
+    _write_module(
+        package_root,
+        "project/web/mappers.py",
+        "from aiwebnovel.project.application.models import ProjectSnapshot\n"
+        "from aiwebnovel.project.web.dto import ProjectResponse\n",
+    )
+    _write_module(
+        package_root,
+        "project/web/router.py",
+        "from fastapi import APIRouter\n"
+        "from aiwebnovel.core.errors import AppError\n"
+        "from aiwebnovel.project.application.services import ProjectCommandService\n"
+        "from aiwebnovel.project.web.dto import ProjectResponse\n",
+    )
+    _write_module(
+        package_root,
+        "main.py",
+        "from aiwebnovel.project.persistence.repository import SqlAlchemyProjectRepository\n"
+        "from aiwebnovel.project.application.services import ProjectCommandService\n"
+        "from aiwebnovel.project.web.router import create_project_router\n",
+    )
+
+    assert check_backend_boundaries(package_root) == ()
+
+
+@pytest.mark.parametrize(
+    ("module_path", "source", "expected_rule"),
+    [
+        (
+            "project/web/router.py",
+            "import sqlalchemy\n",
+            "project-web-must-not-import-persistence",
+        ),
+        (
+            "project/web/router.py",
+            "from aiwebnovel.project.persistence.repository import SqlAlchemyProjectRepository\n",
+            "project-web-must-not-import-persistence",
+        ),
+        (
+            "project/web/router.py",
+            "from aiwebnovel.db.session import get_database_session\n",
+            "project-web-must-use-declared-dependencies",
+        ),
+        (
+            "project/application/services.py",
+            "from aiwebnovel.project.web import dto\n",
+            "project-application-must-not-import-web",
+        ),
+        (
+            "project/entities.py",
+            "from aiwebnovel.project.web import dto\n",
+            "project-domain-must-not-import-web",
+        ),
+        (
+            "project/persistence/repository.py",
+            "from aiwebnovel.project.web import router\n",
+            "project-persistence-must-not-import-web",
+        ),
+    ],
+)
+def test_checker_enforces_project_web_boundaries(
+    tmp_path: Path,
+    module_path: str,
+    source: str,
+    expected_rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, module_path, source)
+
+    assert expected_rule in {violation.rule for violation in check_backend_boundaries(package_root)}
+
+
 @pytest.mark.parametrize(
     ("module_path", "source", "expected_rule"),
     [

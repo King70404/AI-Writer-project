@@ -15,6 +15,7 @@ Layer = Literal[
     "project",
     "project_application",
     "project_persistence",
+    "project_web",
     "core",
     "storage",
     "db",
@@ -29,6 +30,7 @@ _LAYERS: tuple[Layer, ...] = (
     "project",
     "project_application",
     "project_persistence",
+    "project_web",
     "core",
     "storage",
     "db",
@@ -243,6 +245,8 @@ def _import_references(package_root: Path) -> tuple[_ImportReference, ...]:
 def _layer_for(module_name: str) -> Layer | None:
     if module_name == "aiwebnovel.main":
         return "main"
+    if module_name == "aiwebnovel.project.web" or module_name.startswith("aiwebnovel.project.web."):
+        return "project_web"
     if module_name == "aiwebnovel.project.persistence" or module_name.startswith(
         "aiwebnovel.project.persistence."
     ):
@@ -269,6 +273,7 @@ def _project_domain_import_is_allowed(target_module: str) -> bool:
         _is_module_or_child(target_module, "aiwebnovel.project")
         and not _is_module_or_child(target_module, "aiwebnovel.project.persistence")
         and not _is_module_or_child(target_module, "aiwebnovel.project.application")
+        and not _is_module_or_child(target_module, "aiwebnovel.project.web")
     )
 
 
@@ -279,6 +284,7 @@ def _project_persistence_import_is_allowed(target_module: str) -> bool:
     if target_module == "aiwebnovel" or (
         _is_module_or_child(target_module, "aiwebnovel.project")
         and not _is_module_or_child(target_module, "aiwebnovel.project.application")
+        and not _is_module_or_child(target_module, "aiwebnovel.project.web")
     ):
         return True
     return any(
@@ -338,6 +344,36 @@ def _project_application_import_violation(
     )
 
 
+def _project_web_import_violation(reference: _ImportReference) -> tuple[str, str] | None:
+    target_module = reference.target_module
+    target_root = target_module.partition(".")[0]
+    if target_root in _STANDARD_LIBRARY_ROOTS or target_root in {"fastapi", "pydantic"}:
+        return None
+    if target_root == "sqlalchemy" or _is_module_or_child(
+        target_module, "aiwebnovel.project.persistence"
+    ):
+        return (
+            "project-web-must-not-import-persistence",
+            "Project Web code must use application services rather than persistence",
+        )
+    allowed_modules = (
+        "aiwebnovel.core.errors",
+        "aiwebnovel.domain.concurrency",
+        "aiwebnovel.domain.errors",
+        "aiwebnovel.project.application",
+        "aiwebnovel.project.errors",
+        "aiwebnovel.project.identifiers",
+        "aiwebnovel.project.values",
+        "aiwebnovel.project.web",
+    )
+    if any(_is_module_or_child(target_module, module) for module in allowed_modules):
+        return None
+    return (
+        "project-web-must-use-declared-dependencies",
+        "Project Web code may use only FastAPI, Pydantic, DTO mapping, and declared Project contracts",
+    )
+
+
 def _allowed_project_model_registry_import(
     reference: _ImportReference,
     target_layer: Layer | None,
@@ -355,11 +391,30 @@ def _project_import_violation(
     source_layer: Layer | None,
     target_layer: Layer | None,
 ) -> tuple[str, str] | None:
-    if target_layer not in {"project", "project_application", "project_persistence"}:
+    if target_layer not in {
+        "project",
+        "project_application",
+        "project_persistence",
+        "project_web",
+    }:
         return None
     if _allowed_project_model_registry_import(reference, target_layer):
         return None
+    if source_layer == "main":
+        return None
+    if source_layer == "project_web":
+        if target_layer == "project_persistence":
+            return (
+                "project-web-must-not-import-persistence",
+                "Project Web code must not import the Project persistence adapter",
+            )
+        return None
     if source_layer == "project_persistence":
+        if target_layer == "project_web":
+            return (
+                "project-persistence-must-not-import-web",
+                "Project persistence must not depend on the Project Web adapter",
+            )
         if target_layer == "project_application":
             return (
                 "project-persistence-must-not-import-application",
@@ -367,6 +422,11 @@ def _project_import_violation(
             )
         return None
     if source_layer == "project_application":
+        if target_layer == "project_web":
+            return (
+                "project-application-must-not-import-web",
+                "Project application code must not depend on the Project Web adapter",
+            )
         if target_layer == "project_persistence":
             return (
                 "project-application-must-not-import-persistence",
@@ -374,6 +434,11 @@ def _project_import_violation(
             )
         return None
     if source_layer == "project":
+        if target_layer == "project_web":
+            return (
+                "project-domain-must-not-import-web",
+                "Project domain code must not depend on the Project Web adapter",
+            )
         if target_layer == "project_application":
             return (
                 "project-domain-must-not-import-application",
@@ -574,6 +639,19 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
             application_violation = _project_application_import_violation(reference)
             if application_violation is not None:
                 rule, message = application_violation
+                violations.append(
+                    ArchitectureViolation(
+                        path=reference.path,
+                        line=reference.line,
+                        rule=rule,
+                        message=message,
+                    )
+                )
+
+        if source_layer == "project_web":
+            web_violation = _project_web_import_violation(reference)
+            if web_violation is not None:
+                rule, message = web_violation
                 violations.append(
                     ArchitectureViolation(
                         path=reference.path,

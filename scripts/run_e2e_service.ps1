@@ -12,6 +12,7 @@ param(
     [int]$CorsPort = 0,
     [string]$DataRoot = "",
     [switch]$ServeFrontend,
+    [switch]$MigrateDatabase,
     [string]$FrontendDistPath = "",
     [Parameter(Mandatory = $true)]
     [string]$ProcessManifestPath
@@ -260,6 +261,14 @@ if ($Service -eq "Backend") {
         $env:AIWEBNOVEL_FRONTEND_DIST_PATH = $frontendFullPath
     } else {
         $env:AIWEBNOVEL_FRONTEND_DIST_PATH = Join-Path $frontendRoot "dist"
+    }
+
+    if ($MigrateDatabase) {
+        Set-Location $repositoryRoot
+        & $pythonExecutable -m alembic -c backend/alembic.ini upgrade head
+        if ($LASTEXITCODE -ne 0) {
+            Stop-ServiceLauncher -Message "explicit E2E database migration failed"
+        }
     }
 
     Set-Location $repositoryRoot

@@ -46,7 +46,11 @@ def test_allowed_origin_receives_only_the_configured_cors_policy(
 
     assert response.status_code == 200
     assert response.headers["Access-Control-Allow-Origin"] == ALLOWED_ORIGIN
-    assert response.headers["Access-Control-Expose-Headers"] == "X-Request-ID"
+    exposed = {
+        value.strip().lower()
+        for value in response.headers["Access-Control-Expose-Headers"].split(",")
+    }
+    assert exposed == {"x-request-id", "etag", "location"}
     assert "Access-Control-Allow-Credentials" not in response.headers
     assert response.headers["X-Request-ID"]
 
@@ -74,7 +78,7 @@ def test_unlisted_origin_and_unneeded_preflight_permissions_are_rejected(
             "/api/v1/health/live",
             headers={
                 "Origin": ALLOWED_ORIGIN,
-                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Method": "DELETE",
             },
         )
         header_preflight = client.options(
@@ -89,7 +93,7 @@ def test_unlisted_origin_and_unneeded_preflight_permissions_are_rejected(
     assert unlisted.status_code == 200
     assert "Access-Control-Allow-Origin" not in unlisted.headers
     assert method_preflight.status_code == 400
-    assert "POST" not in method_preflight.headers["Access-Control-Allow-Methods"]
+    assert "DELETE" not in method_preflight.headers["Access-Control-Allow-Methods"]
     assert header_preflight.status_code == 400
     assert "authorization" not in header_preflight.headers["Access-Control-Allow-Headers"].lower()
 
