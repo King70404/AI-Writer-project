@@ -1,6 +1,6 @@
 # Project列表读取
 
-DEV-1.6在现有Project当前聚合能力之上增加只读列表链路：应用读取模型与端口、SQLAlchemy单查询适配器、稳定Keyset分页、严格HTTP游标以及`GET /api/v1/projects`。该能力只返回Head指向的当前Revision摘要，不改变数据库Schema，不提供前端页面、历史、搜索、筛选或自定义排序。
+DEV-1.6在现有Project当前聚合能力之上增加只读列表链路：应用读取模型与端口、SQLAlchemy单查询适配器、稳定Keyset分页、严格HTTP游标以及`GET /api/v1/projects`。DEV-1.7的`/projects`页面消费该摘要，不改变数据库Schema，也不提供历史、搜索、筛选或自定义排序。
 
 ## 应用读取模型与边界
 
@@ -80,4 +80,4 @@ Web游标是版本化、确定性、URL安全且无填充的Base64编码。UTF-8
 
 同一静态数据集完整遍历不会重复或遗漏。取得旧cursor后新创建的Project位于该position之前，不会进入旧cursor的后续页；重新请求第一页时，新Project位于前部。Project修订不改变不可变创建时间，所以分页位置不变，但尚未读取项在后续请求中会反映当时的当前Revision标题、版本和Revision ID。多个HTTP请求之间没有数据库快照隔离，cursor也不承诺把页面内容冻结在第一次请求时刻。
 
-当前接口不支持search、filter、sort、total、历史或前端Project列表。`/projects`仍只命中既有React 404页面。DEV-1.7的具体能力和允许范围必须由后续独立编号任务定义；DEV-1.6不预先实现或宣称任何DEV-1.7功能。
+当前接口不支持search、filter、sort、total或历史。`/projects`以前端固定`limit=20`读取第一页，并把`next_cursor`作为不透明值经`URLSearchParams`传回；前端不解析、不修改、不持久化cursor，加载失败保留现有items和cursor。列表仍不显示description。完整UI范围见[Project前端列表与创建流程](PROJECT_FRONTEND.md)。

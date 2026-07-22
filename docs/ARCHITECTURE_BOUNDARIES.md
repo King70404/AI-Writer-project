@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 通用领域、Project领域、应用、持久化与HTTP适配层的依赖方向。当前详情与列表HTTP能力不代表已经存在Project前端管理页面。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 Project后端与React列表/创建前端的依赖方向。当前前端能力不包含详情、编辑或其他管理页面。
 
 ## 业务模块
 
@@ -89,7 +89,13 @@ Project唯一拥有`projects`、`project_revisions`和`project_heads`。只有`p
 
 `project.web`是Project拥有的HTTP适配层：DTO只依赖Pydantic与公开业务常量，mapper只依赖应用Snapshot/Page和Web DTO，cursor只依赖标准库、应用Position与公开Project验证类型，Router只依赖FastAPI、Project应用命令/查询/服务与本层ETag、cursor和错误工具。Web层禁止导入SQLAlchemy、Project持久化模型、具体Repository/ListReader、数据库Session、SQL语句和测试Fake。Project领域、应用与持久化层均不得反向导入Web。
 
-`main`是唯一允许把既有Session工厂、`SqlAlchemyProjectRepository`、`SqlAlchemyProjectListReader`、三个Project应用服务和Project Router组合起来的位置；两个数据库适配器复用同一Engine/Session工厂但每次调用各自创建Session。应用构造与Router导入不连接数据库，生命周期关闭时清除服务引用。跨模块仍只能使用公开应用服务与版本化DTO。当前只存在四个Project HTTP接口，没有历史、删除、归档、PATCH、搜索或前端页面。完整边界见[Project HTTP API](PROJECT_HTTP_API.md)。
+`main`是唯一允许把既有Session工厂、`SqlAlchemyProjectRepository`、`SqlAlchemyProjectListReader`、三个Project应用服务和Project Router组合起来的位置；两个数据库适配器复用同一Engine/Session工厂但每次调用各自创建Session。应用构造与Router导入不连接数据库，生命周期关闭时清除服务引用。跨模块仍只能使用公开应用服务与版本化DTO。当前只存在四个Project HTTP接口，没有历史、删除、归档、PATCH或搜索。完整边界见[Project HTTP API](PROJECT_HTTP_API.md)。
+
+## Project前端边界
+
+通用`frontend/src/api`提供同源JSON传输，不得反向导入Project功能。Project `api`层可依赖通用传输，但不得依赖React、hooks、组件或页面；hooks依赖Project API与契约；组件依赖hooks和前端契约；页面只组合组件；Router可以导入公开`ProjectsPage`。
+
+UI组件不得直接调用裸`fetch`、读取Cookie、获取或硬编码CSRF、持久化token/cursor或访问数据库。Project API客户端不得记录请求正文、自动重试POST、导入React或使用外部主机。列表Hook不得导入创建表单。前端不能导入Python、SQLAlchemy或测试Fake。详细语义见[Project前端列表与创建流程](PROJECT_FRONTEND.md)。
 
 ## 所有权与跨模块规则
 

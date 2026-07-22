@@ -4,9 +4,9 @@
 
 ## 当前范围
 
-当前只有阶段 0 工程基础页、最小路由、全局错误边界、类型化原生 `fetch` 客户端和真实 `SystemStatus`。状态区会依次请求后端 live 与 ready 接口，区分检查中、已就绪、后端未就绪和当前无法连接，并提供会取消旧请求的“重新检查”按钮；不会后台轮询。客户端还提供内部本地安全 session 类型与模块内存 CSRF 基础，但当前健康检查不会创建会话。
+当前包含阶段 0 工程基础页、全局错误边界、真实 `SystemStatus`，以及 DEV-1.7 的 `/projects` 列表与创建页面。Project前端使用类型化 API客户端、精确运行时响应校验、内存 Security Session、稳定 Keyset 加载更多和创建后第一页刷新；列表不显示description或total，创建POST不自动重试。
 
-前端没有用户登录、安全设置页、业务写入操作、小说项目、规划、写作、评审、Codex 或其他业务功能。本地 session 不是身份认证；CSRF 令牌只保存在当前 JavaScript 模块内存，不写入 `localStorage` 或 `sessionStorage`，页面不显示它。状态显示正常只代表本地工程与安全基线检查通过。
+前端没有用户登录、安全设置页、Project详情/编辑/历史/删除、规划、写作、评审、Codex 或其他创作功能。本地 session 不是身份认证；CSRF 令牌只保存在当前 JavaScript 模块内存，不写入 `localStorage` 或 `sessionStorage`，页面不显示它。Project列表与创建可用不代表小说创作功能已经实现。
 
 ## 环境要求
 
@@ -48,7 +48,7 @@ npm run e2e:report
 
 每个场景使用独立服务和数据库。可用 `npm run e2e:dev -- -Scenario E2E-DEV-001` 或 `npm run e2e:integrated -- -Scenario E2E-INT-003` 独立运行固定场景编号。
 
-当前 E2E 验收阶段 0 基础页、真实 ready、客户端路由、API/静态资源/SPA 隔离，以及生产页安全头、CSP、文档关闭、本地 session Cookie 和浏览器无 CSRF 持久数据；仍没有小说业务 E2E。
+当前12个 E2E 场景验收阶段0基础、Project API，以及`E2E-INT-008`真实Project前端创建、持久刷新和21项加载更多；同时验证生产安全头、CSP、本地Session Cookie、浏览器无CSRF持久数据和专用数据根清理。它不覆盖小说创作功能。
 
 ## 本地命令
 

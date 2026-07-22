@@ -321,6 +321,41 @@ function Invoke-SecurityBaselineCheck {
             Pattern = '(?is)(?:localStorage|sessionStorage)\s*(?:\.\s*setItem\s*\([^)]{0,1024}(?:csrf|token)|\.\s*[A-Za-z_$][\w$]*(?:csrf|token)[\w$]*\s*=|\[\s*["''][^"'']{0,256}(?:csrf|token)[^"'']{0,256}["'']\s*\]\s*=)'
         },
         [pscustomobject]@{
+            Name = "project-cursor-browser-persistence"
+            Pattern = '(?is)(?:localStorage|sessionStorage)\s*(?:\.\s*setItem\s*\([^)]{0,1024}\bcursor\b|\.\s*[A-Za-z_$][\w$]*cursor[\w$]*\s*=|\[\s*["''][^"'']{0,256}cursor[^"'']{0,256}["'']\s*\]\s*=)'
+            PathPattern = '^frontend/src/'
+        },
+        [pscustomobject]@{
+            Name = "project-request-body-log"
+            Pattern = '(?is)\bconsole\s*\.\s*(?:log|debug|info|warn|error)\s*\([^)]{0,1024}\b(?:requestBody|payload|description)\b'
+            PathPattern = '^frontend/src/features/projects/api/'
+        },
+        [pscustomobject]@{
+            Name = "project-post-auto-retry"
+            Pattern = '(?is)\bretry\w*\s*\([\s\S]{0,2048}\b(?:postJson|fetch)\s*\('
+            PathPattern = '^frontend/src/features/projects/api/'
+        },
+        [pscustomobject]@{
+            Name = "external-frontend-api-address"
+            Pattern = '(?i)["'']https?://[^"'']+["'']'
+            PathPattern = '^frontend/src/features/projects/'
+        },
+        [pscustomobject]@{
+            Name = "unsafe-project-html"
+            Pattern = '(?i)dangerouslySetInnerHTML\s*='
+            PathPattern = '^frontend/src/features/projects/'
+        },
+        [pscustomobject]@{
+            Name = "project-component-cookie-access"
+            Pattern = '(?i)\bdocument\s*\.\s*cookie\b'
+            PathPattern = '^frontend/src/features/projects/components/'
+        },
+        [pscustomobject]@{
+            Name = "project-component-hardcoded-csrf"
+            Pattern = '(?i)["'']X-CSRF-Token["'']'
+            PathPattern = '^frontend/src/features/projects/components/'
+        },
+        [pscustomobject]@{
             Name = "sensitive-security-log"
             Pattern = '(?is)(?:(?:\b(?:logger|logging|console)\s*\.\s*\w+|\bprint)\s*\([^)]{0,1024}(?<!["''])\b(?:csrf_token|session_id|session_cookie|cookie_value|csrfToken|sessionId|sessionCookie|cookieValue)\b(?!["''])|\bWrite-(?:Host|Output|Verbose|Debug|Information)\b(?:\s*\(|\s+)[^\r\n)]{0,1024}\$(?:csrfToken|csrf_token|sessionId|session_id|sessionCookie|session_cookie|cookieValue|cookie_value)\b)'
         },
@@ -345,6 +380,12 @@ function Invoke-SecurityBaselineCheck {
             continue
         }
         foreach ($rule in $rules) {
+            if (
+                $rule.PSObject.Properties.Name -contains "PathPattern" -and
+                $relativePath -notmatch $rule.PathPattern
+            ) {
+                continue
+            }
             if ([System.Text.RegularExpressions.Regex]::IsMatch($text, $rule.Pattern)) {
                 Add-SecurityViolation `
                     -Violations $violations `

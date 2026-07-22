@@ -95,4 +95,4 @@ stale写入原样传播`ConcurrencyConflict`，保留`expected_version`与`actua
 
 当前命令与查询数量很少，直接服务契约更明确，因此不建立通用命令总线、查询总线、Mediator或通用CQRS框架。命令和查询职责分离不等于引入CQRS基础设施，也不改变Project对三张表的唯一所有权。
 
-DEV-1.5已在应用层之外建立创建、详情和完整修订接口；DEV-1.6新增列表接口、严格cursor与独立列表Reader装配。应用层本身仍不知道HTTP状态、ETag、cursor文本、Pydantic、具体SQLAlchemy实现或app state。当前仍没有Project前端页面、历史、删除、归档、PATCH、搜索、筛选、表单或保存按钮；详细HTTP契约见[Project HTTP API](PROJECT_HTTP_API.md)。
+DEV-1.5已在应用层之外建立创建、详情和完整修订接口；DEV-1.6新增列表接口、严格cursor与独立列表Reader装配；DEV-1.7的React层只通过公开HTTP边界提供列表与创建。应用层本身仍不知道HTTP状态、ETag、cursor文本、Pydantic、具体SQLAlchemy实现、app state或前端。当前仍没有Project详情前端、修订编辑、历史、删除、归档、PATCH、搜索或筛选；详细前端边界见[Project前端列表与创建流程](PROJECT_FRONTEND.md)。

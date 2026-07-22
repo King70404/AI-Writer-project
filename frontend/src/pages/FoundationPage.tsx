@@ -10,7 +10,7 @@ export function FoundationPage() {
       <p className="section-kicker">工程基础页</p>
       <h2 id="foundation-title">AIWebNovel 前端基础已启动</h2>
       <p className="foundation-page__lead">
-        当前处于阶段 0，页面仅展示可验证的本地工程基础状态。
+        阶段 0 工程基础已冻结；当前页面继续展示可验证的本地系统状态。
       </p>
 
       <SystemStatus />
@@ -22,7 +22,7 @@ export function FoundationPage() {
         </div>
         <div>
           <dt>业务范围</dt>
-          <dd>小说项目、规划、写作与评审等业务功能尚未实现。</dd>
+          <dd>Project列表与创建已提供独立页面；规划、写作与评审尚未实现。</dd>
         </div>
         <div>
           <dt>集成范围</dt>

@@ -90,7 +90,7 @@ test("E2E-INT-006 exercises the complete Project API chain without a Project UI"
   expect((await context.request.get("/openapi.json")).status()).toBe(404);
   expect((await context.request.get("/docs")).status()).toBe(404);
 
-  const pageResponse = await page.goto("/projects");
+  const pageResponse = await page.goto("/not-a-real-route");
   expect(pageResponse?.status()).toBe(200);
   await expect(page.getByRole("heading", { name: "页面不存在" })).toBeVisible();
   expectCleanBrowserAudit(browserAudit);

@@ -46,7 +46,7 @@ test.describe("development foundation status", () => {
     await expect(
       page.getByRole("heading", { name: "AIWebNovel", exact: true }),
     ).toBeVisible();
-    await expect(page.getByLabel("当前阶段：阶段 0")).toBeVisible();
+    await expect(page.getByLabel("当前阶段：阶段 1")).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "AIWebNovel 前端基础已启动" }),
     ).toBeVisible();

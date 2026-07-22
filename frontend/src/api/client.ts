@@ -5,6 +5,7 @@ import type {
   GetJsonOptions,
   JsonDecoder,
   JsonObject,
+  PostJsonOptions,
 } from "./types";
 
 const DEFAULT_API_BASE_URL = "/api/v1";
@@ -116,21 +117,33 @@ function toApiError(response: Response, parsed: JsonReadResult): ApiError {
   });
 }
 
-export async function getJson<T>(
+interface JsonRequestOptions {
+  readonly acceptedStatuses?: readonly number[];
+  readonly body?: unknown;
+  readonly headers?: HeadersInit;
+  readonly signal?: AbortSignal;
+}
+
+async function requestJson<T>(
+  method: "GET" | "POST",
   path: string,
   decode: JsonDecoder<T>,
-  options: GetJsonOptions = {},
+  options: JsonRequestOptions,
 ): Promise<ApiResponse<T>> {
   const headers = new Headers(options.headers);
   if (!headers.has("Accept")) {
     headers.set("Accept", "application/json");
   }
+  if (method === "POST" && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
 
   const response = await fetch(joinApiPath(API_BASE_URL, path), {
-    method: "GET",
+    method,
     credentials: "same-origin",
     headers,
     signal: options.signal,
+    ...(method === "POST" ? { body: JSON.stringify(options.body) } : {}),
   });
 
   const parsed = await readJson(response);
@@ -172,4 +185,21 @@ export async function getJson<T>(
       requestId,
     });
   }
+}
+
+export function getJson<T>(
+  path: string,
+  decode: JsonDecoder<T>,
+  options: GetJsonOptions = {},
+): Promise<ApiResponse<T>> {
+  return requestJson("GET", path, decode, options);
+}
+
+export function postJson<T>(
+  path: string,
+  body: unknown,
+  decode: JsonDecoder<T>,
+  options: PostJsonOptions = {},
+): Promise<ApiResponse<T>> {
+  return requestJson("POST", path, decode, { ...options, body });
 }

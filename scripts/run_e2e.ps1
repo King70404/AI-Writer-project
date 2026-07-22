@@ -198,6 +198,47 @@ function Assert-E2EStorageLayout {
     }
 }
 
+function Assert-ProjectFrontendDatabaseCounts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DataRoot
+    )
+
+    $databasePath = Join-Path $DataRoot "data/aiwebnovel.sqlite3"
+    Assert-SafeContainedPath `
+        -Candidate $databasePath `
+        -Container $DataRoot `
+        -Description "Project frontend E2E database"
+    $pythonExecutable = Join-Path $script:RepositoryRoot ".venv/Scripts/python.exe"
+    $query = @'
+import json
+import sqlite3
+import sys
+
+connection = sqlite3.connect(sys.argv[1])
+try:
+    names = ('projects', 'project_heads', 'project_revisions')
+    counts = {name: connection.execute('SELECT COUNT(*) FROM ' + name).fetchone()[0] for name in names}
+    print(json.dumps(counts))
+finally:
+    connection.close()
+'@
+    $output = & $pythonExecutable -c $query $databasePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Project frontend E2E database count verification failed"
+    }
+    try {
+        $counts = $output | ConvertFrom-Json
+    } catch {
+        throw "Project frontend E2E database count output was invalid"
+    }
+    foreach ($name in @("projects", "project_heads", "project_revisions")) {
+        if ([int]$counts.$name -ne 21) {
+            throw "Project frontend E2E expected 21 rows in $name"
+        }
+    }
+}
+
 function Test-LoopbackPortAvailable {
     param(
         [Parameter(Mandatory = $true)]
@@ -880,6 +921,7 @@ function Invoke-E2EScenario {
             "E2E-INT-005",
             "E2E-INT-006",
             "E2E-INT-007",
+            "E2E-INT-008",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -892,7 +934,11 @@ function Invoke-E2EScenario {
         [System.StringComparison]::Ordinal
     )
     $isMissingBuild = $SelectedScenario -eq "E2E-STARTUP-001"
-    $isProjectApi = $SelectedScenario -in @("E2E-INT-006", "E2E-INT-007")
+    $isProjectApi = $SelectedScenario -in @(
+        "E2E-INT-006",
+        "E2E-INT-007",
+        "E2E-INT-008"
+    )
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
     $runToken = [guid]::NewGuid().ToString("N")
@@ -1072,13 +1118,17 @@ function Invoke-E2EScenario {
         if ($playwrightExitCode -ne 0) {
             throw "Playwright $modeName tests failed with exit code $playwrightExitCode"
         }
+        if ($SelectedScenario -eq "E2E-INT-008") {
+            Assert-ProjectFrontendDatabaseCounts -DataRoot $dataRoot
+        }
         if ($isProjectApi) {
             foreach ($logPath in Get-ChildItem -LiteralPath $runDirectory -Filter "*.log") {
                 $logText = Get-Content -LiteralPath $logPath.FullName -Raw -Encoding UTF8
                 if (
                     $logText -match "E2E-PROJECT-(?:TITLE|DESCRIPTION)-CANARY-006" -or
                     $logText -match "E2E-PROJECT-LIST-BODY-CANARY-007" -or
-                    $logText -match "E2E_PROJECT_LIST_CURSOR_CANARY_007"
+                    $logText -match "E2E_PROJECT_LIST_CURSOR_CANARY_007" -or
+                    $logText -match "E2E-PROJECT-FRONTEND-DESCRIPTION-CANARY-008"
                 ) {
                     throw "Project API private request content appeared in service logs"
                 }
@@ -1169,6 +1219,7 @@ try {
         "E2E-INT-005" = "Integrated"
         "E2E-INT-006" = "Integrated"
         "E2E-INT-007" = "Integrated"
+        "E2E-INT-008" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -1180,6 +1231,7 @@ try {
         "E2E-INT-005",
         "E2E-INT-006",
         "E2E-INT-007",
+        "E2E-INT-008",
         "E2E-STARTUP-001"
     )
 

@@ -23,3 +23,8 @@ export interface GetJsonOptions {
   readonly signal?: AbortSignal;
   readonly acceptedStatuses?: readonly number[];
 }
+
+export interface PostJsonOptions {
+  readonly headers?: HeadersInit;
+  readonly signal?: AbortSignal;
+}

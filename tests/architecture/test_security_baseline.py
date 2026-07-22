@@ -272,6 +272,31 @@ def test_security_baseline_rejects_controlled_tracked_violations_without_leak(
     )
     _write(
         repository,
+        "frontend/src/features/projects/api/unsafe-project-client.ts",
+        "\n".join(
+            (
+                "console.log(requestBody);",
+                "retry(() => postJson('projects', requestBody));",
+                'const endpoint = "https://api.example.invalid/projects";',
+                "",
+            )
+        ),
+    )
+    _write(
+        repository,
+        "frontend/src/features/projects/components/UnsafeProject.tsx",
+        "\n".join(
+            (
+                "localStorage.setItem('project_cursor', cursor);",
+                "const cookie = document.cookie;",
+                "const header = 'X-CSRF-Token';",
+                "const view = <div dangerouslySetInnerHTML={{__html: body}} />;",
+                "",
+            )
+        ),
+    )
+    _write(
+        repository,
         "scripts/unsafe-security.ps1",
         'Write-Output "Cookie=$sessionCookie"\n',
     )
@@ -288,6 +313,13 @@ def test_security_baseline_rejects_controlled_tracked_violations_without_leak(
         "non-loopback-default-bind",
         "plaintext-secret",
         "csrf-browser-persistence",
+        "project-cursor-browser-persistence",
+        "project-request-body-log",
+        "project-post-auto-retry",
+        "external-frontend-api-address",
+        "unsafe-project-html",
+        "project-component-cookie-access",
+        "project-component-hardcoded-csrf",
         "sensitive-security-log",
         "host-validation-disabled",
     ):

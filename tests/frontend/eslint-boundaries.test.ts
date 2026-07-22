@@ -11,6 +11,7 @@ interface BoundaryFixture {
   readonly relativePath: string;
   readonly source: string;
   readonly expectedMessage: string;
+  readonly expectedRule?: string;
 }
 
 const boundaryFixtures: readonly BoundaryFixture[] = [
@@ -28,6 +29,29 @@ const boundaryFixtures: readonly BoundaryFixture[] = [
     relativePath: "src/app/__boundary_fixture__.ts",
     source: 'import "../test/setup";\n',
     expectedMessage: "Production source must not import test code.",
+  },
+  {
+    relativePath: "src/api/__project_boundary_fixture__.ts",
+    source: 'import "../features/projects/components/ProjectList";\n',
+    expectedMessage: "The shared API layer must not depend on Project UI code.",
+  },
+  {
+    relativePath: "src/features/projects/api/__boundary_fixture__.ts",
+    source: 'import React from "react";\nexport { React };\n',
+    expectedMessage:
+      "The Project API layer must stay independent from React and UI layers.",
+  },
+  {
+    relativePath: "src/features/projects/hooks/__boundary_fixture__.ts",
+    source: 'import "../components/CreateProjectForm";\n',
+    expectedMessage: "Project hooks must not depend on components or pages.",
+  },
+  {
+    relativePath: "src/features/projects/components/__boundary_fixture__.ts",
+    source: 'void fetch("/api/v1/projects");\n',
+    expectedMessage:
+      "Project components must use hooks and the typed Project API client.",
+    expectedRule: "no-restricted-globals",
   },
 ];
 
@@ -58,7 +82,9 @@ describe("frontend import boundaries", () => {
         expect(result.errorCount).toBeGreaterThan(0);
         const boundaryViolation = result.messages.find(
           (message) =>
-            message.ruleId === "no-restricted-imports" &&
+            message.ruleId ===
+              (boundaryFixtures[index].expectedRule ??
+                "no-restricted-imports") &&
             message.message.includes(boundaryFixtures[index].expectedMessage),
         );
         expect(boundaryViolation).toBeDefined();
@@ -80,6 +106,39 @@ describe("frontend import boundaries", () => {
           }
         }),
       );
+    }
+  }, 15_000);
+
+  it("accepts the controlled legal Project dependency direction", async () => {
+    const fixturePath = path.join(
+      frontendRoot,
+      "src/features/projects/hooks/__legal_boundary_fixture__.ts",
+    );
+    try {
+      await writeFile(
+        fixturePath,
+        'import type { ProjectApiClient } from "../api/client";\nexport type LegalClient = ProjectApiClient;\n',
+        { encoding: "utf8", flag: "wx" },
+      );
+      const eslint = new ESLint({
+        cwd: repositoryRoot,
+        overrideConfigFile: "frontend/eslint.config.js",
+      });
+      const [result] = await eslint.lintFiles([fixturePath]);
+      expect(result?.errorCount).toBe(0);
+    } finally {
+      try {
+        await unlink(fixturePath);
+      } catch (error) {
+        if (
+          typeof error !== "object" ||
+          error === null ||
+          !("code" in error) ||
+          error.code !== "ENOENT"
+        ) {
+          throw error;
+        }
+      }
     }
   }, 15_000);
 });

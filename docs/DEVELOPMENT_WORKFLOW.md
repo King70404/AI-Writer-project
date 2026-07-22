@@ -79,6 +79,8 @@ DEV-1.5授权三个Project HTTP接口、严格Pydantic DTO、强ETag/If-Match、
 
 DEV-1.6授权独立Project列表读取模型与端口、SQLAlchemy单查询LEFT JOIN、按不可变`created_at + project_id`降序的Keyset分页、严格版本化cursor及列表GET。列表不返回description或total，不接受OFFSET/search/filter/sort；未迁移数据库必须安全503，损坏Project使整页失败。该任务不改变Schema或0002，不授权前端Project页面、历史、删除、归档、分支、审批或Codex能力；DEV-1.7仍需独立任务授权。
 
+DEV-1.7授权React侧的类型化Project列表/创建客户端、精确运行时解析、仅内存Security Session、`/projects`页面、20项Keyset加载更多和创建后第一页刷新。列表GET不得获取Session，cursor保持不透明且不持久化，创建POST只发送一次；创建成功但刷新失败必须报告部分成功。该任务不改变后端、Schema或0002，也不授权详情、编辑、历史、删除、search/filter/sort/total或创作功能；DEV-1.8仍需独立任务授权。
+
 ## 统一执行报告
 
 任务报告至少包含：

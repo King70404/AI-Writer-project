@@ -150,7 +150,7 @@ test("E2E-INT-007 keeps Project keyset pagination stable", async ({
   expect(invalidBody.error.code).toBe("INVALID_CURSOR");
   expect(JSON.stringify(invalidBody)).not.toContain(cursorCanary);
 
-  const routeResponse = await page.goto("/projects");
+  const routeResponse = await page.goto("/not-a-real-route");
   expect(routeResponse?.status()).toBe(200);
   await expect(page.getByRole("heading", { name: "页面不存在" })).toBeVisible();
   expectCleanBrowserAudit(browserAudit);

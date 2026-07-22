@@ -168,6 +168,12 @@ DEV-1.2及后续Project生产代码要求`aiwebnovel.project`语句覆盖率不�
 
 迁移、约束与Repository事务测试只能使用各测试拥有的临时SQLite数据库和隔离数据根，必须清理数据库、WAL、SHM、journal、受控测试触发器及Alembic运行产物。并发测试必须使用同一临时文件、两个独立Repository实例和Barrier同步，不得用sleep或全局Python锁决定顺序。专项结果不能替代默认门禁、两种E2E门禁或依赖审计；完整模型和事务边界见[Project持久化基础](PROJECT_FOUNDATION.md)与[Project Repository事务边界](PROJECT_REPOSITORY.md)。
 
+## Project前端专项检查
+
+DEV-1.7指定七组Vitest文件，覆盖Project API客户端、运行时契约、内存Security Session、列表、创建表单、页面组合与路由。新增`frontend/src/features/projects`生产代码要求statements/functions/lines均不低于95%，branches不低于90%；该专项门槛不能替代全量前端门槛。
+
+ESLint受控正负样例保护`shared api → Project api → hooks → components → page → router`方向。安全静态门禁还拒绝CSRF/cursor浏览器持久化、Project POST自动重试、请求正文日志、外部API地址、不安全HTML、组件Cookie访问和组件硬编码CSRF。完整浏览器证据由`E2E-INT-008`提供。
+
 ## 显式格式化
 
 格式化不是质量门禁的隐式步骤。需要改写格式时，在仓库根目录显式运行：
@@ -198,4 +204,4 @@ DEV-1.2及后续Project生产代码要求`aiwebnovel.project`语句覆盖率不�
 
 任何适用门禁失败，都不得声称当前任务完成，也不得开始下一编号任务。应先修复真实原因并完整重跑；不得降低阈值、跳过检查或把失败输出为成功。
 
-安全静态门禁还检查Project写路由无CSRF豁免、Router不导入SQLAlchemy/Session、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。当前已有四个Project API，其中列表GET不要求Session/CSRF且不记录cursor或完整query；仍没有用户登录、Project历史/删除/前端功能、搜索或筛选，也没有写作、评审、Agent、Skill、Prompt、备份、导出或安装器。
+安全静态门禁还检查Project写路由无CSRF豁免、Router不导入SQLAlchemy/Session、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。当前已有四个Project API和仅列表/创建的`/projects`页面；列表GET不要求Session/CSRF，前端不记录正文或持久化cursor。仍没有用户登录、Project详情/编辑/历史/删除、搜索或筛选，也没有写作、评审、Agent、Skill、Prompt、备份、导出或安装器。

@@ -95,10 +95,64 @@ export default [
   {
     files: ["frontend/src/api/**/*.{ts,tsx}"],
     rules: {
+      "no-restricted-imports": restrictedImports(
+        {
+          group: ["**/components/**", "**/pages/**", "**/app/**"],
+          message: "The API layer must not depend on UI or app layers.",
+        },
+        {
+          group: ["**/features/projects/**"],
+          message: "The shared API layer must not depend on Project UI code.",
+        },
+      ),
+    },
+  },
+  {
+    files: ["frontend/src/features/projects/api/**/*.{ts,tsx}"],
+    rules: {
       "no-restricted-imports": restrictedImports({
-        group: ["**/components/**", "**/pages/**", "**/app/**"],
-        message: "The API layer must not depend on UI or app layers.",
+        group: [
+          "react",
+          "react/**",
+          "**/components/**",
+          "**/hooks/**",
+          "**/pages/**",
+        ],
+        message:
+          "The Project API layer must stay independent from React and UI layers.",
       }),
+    },
+  },
+  {
+    files: ["frontend/src/features/projects/hooks/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": restrictedImports({
+        group: ["**/components/**", "**/pages/**"],
+        message: "Project hooks must not depend on components or pages.",
+      }),
+    },
+  },
+  {
+    files: ["frontend/src/features/projects/components/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "fetch",
+          message:
+            "Project components must use hooks and the typed Project API client.",
+        },
+        {
+          name: "localStorage",
+          message:
+            "Project components must not persist security or cursor state.",
+        },
+        {
+          name: "sessionStorage",
+          message:
+            "Project components must not persist security or cursor state.",
+        },
+      ],
     },
   },
   {
