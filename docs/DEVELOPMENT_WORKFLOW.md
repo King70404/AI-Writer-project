@@ -81,6 +81,8 @@ DEV-1.6授权独立Project列表读取模型与端口、SQLAlchemy单查询LEFT 
 
 DEV-1.7授权React侧的类型化Project列表/创建客户端、精确运行时解析、仅内存Security Session、`/projects`页面、20项Keyset加载更多和创建后第一页刷新。列表GET不得获取Session，cursor保持不透明且不持久化，创建POST只发送一次；创建成功但刷新失败必须报告部分成功。该任务不改变后端、Schema或0002，也不授权详情、编辑、历史、删除、search/filter/sort/total或创作功能；DEV-1.8仍需独立任务授权。
 
+DEV-1.8授权React侧的`/projects/:projectId`当前详情、强ETag绑定的编辑基线、完整替换PUT和显式412冲突恢复。详情GET不得获取Session；PUT只发送一次且不得预读、自动重试、自动重放或自动合并；冲突和保存结果未知都必须保留草稿并等待用户显式动作。该任务不改变后端、Schema或0002，也不授权历史、删除、归档、自动保存、Character、Chapter、三区、审批、Codex或其他创作功能；DEV-1.9仍需独立任务授权。
+
 ## 统一执行报告
 
 任务报告至少包含：

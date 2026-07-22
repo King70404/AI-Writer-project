@@ -14,6 +14,7 @@ export interface BackendErrorEnvelope {
 export interface ApiResponse<T> {
   readonly data: T;
   readonly requestId: string | null;
+  readonly etag?: string;
 }
 
 export type JsonDecoder<T> = (value: unknown) => T;
@@ -25,6 +26,11 @@ export interface GetJsonOptions {
 }
 
 export interface PostJsonOptions {
+  readonly headers?: HeadersInit;
+  readonly signal?: AbortSignal;
+}
+
+export interface PutJsonOptions {
   readonly headers?: HeadersInit;
   readonly signal?: AbortSignal;
 }

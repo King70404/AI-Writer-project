@@ -326,6 +326,16 @@ function Invoke-SecurityBaselineCheck {
             PathPattern = '^frontend/src/'
         },
         [pscustomobject]@{
+            Name = "project-etag-browser-persistence"
+            Pattern = '(?is)(?:localStorage|sessionStorage)\s*(?:\.\s*setItem\s*\([^)]{0,1024}\betag\b|\.\s*[A-Za-z_$][\w$]*etag[\w$]*\s*=|\[\s*["''][^"'']{0,256}etag[^"'']{0,256}["'']\s*\]\s*=)'
+            PathPattern = '^frontend/src/features/projects/'
+        },
+        [pscustomobject]@{
+            Name = "project-draft-browser-persistence"
+            Pattern = '(?is)(?:localStorage|sessionStorage)\s*(?:\.\s*setItem\s*\([^)]{0,1024}\b(?:draft|description|title)\b|\.\s*[A-Za-z_$][\w$]*(?:draft|description)[\w$]*\s*=|\[\s*["''][^"'']{0,256}(?:draft|description)[^"'']{0,256}["'']\s*\]\s*=)'
+            PathPattern = '^frontend/src/features/projects/'
+        },
+        [pscustomobject]@{
             Name = "project-request-body-log"
             Pattern = '(?is)\bconsole\s*\.\s*(?:log|debug|info|warn|error)\s*\([^)]{0,1024}\b(?:requestBody|payload|description)\b'
             PathPattern = '^frontend/src/features/projects/api/'
@@ -333,6 +343,26 @@ function Invoke-SecurityBaselineCheck {
         [pscustomobject]@{
             Name = "project-post-auto-retry"
             Pattern = '(?is)\bretry\w*\s*\([\s\S]{0,2048}\b(?:postJson|fetch)\s*\('
+            PathPattern = '^frontend/src/features/projects/api/'
+        },
+        [pscustomobject]@{
+            Name = "project-put-auto-retry"
+            Pattern = '(?is)\bretry\w*\s*\([\s\S]{0,2048}\b(?:putJson|reviseProject|fetch)\s*\('
+            PathPattern = '^frontend/src/features/projects/'
+        },
+        [pscustomobject]@{
+            Name = "project-412-auto-replay"
+            Pattern = '(?is)(?:status|statusCode)\s*={2,3}\s*412[\s\S]{0,2048}\b(?:putJson|reviseProject)\s*\('
+            PathPattern = '^frontend/src/features/projects/'
+        },
+        [pscustomobject]@{
+            Name = "project-if-match-log"
+            Pattern = '(?is)\bconsole\s*\.\s*(?:log|debug|info|warn|error)\s*\([^)]{0,1024}(?:If-Match|\betag\b)'
+            PathPattern = '^frontend/src/features/projects/'
+        },
+        [pscustomobject]@{
+            Name = "project-id-path-not-encoded"
+            Pattern = '(?is)`[^`]{0,512}projects/\$\{(?!\s*encodeURIComponent\s*\()[^}]{0,256}\bprojectId\b[^}]*\}'
             PathPattern = '^frontend/src/features/projects/api/'
         },
         [pscustomobject]@{

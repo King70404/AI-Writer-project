@@ -1,6 +1,6 @@
 # Project HTTP API
 
-DEV-1.5在Project应用用例之上提供创建、单个当前状态读取和完整修订；DEV-1.6另增加当前Revision摘要列表。当前共四个Project HTTP接口，不提供历史、删除、归档或PATCH；DEV-1.7的`/projects`前端仅调用列表GET和创建POST。
+DEV-1.5在Project应用用例之上提供创建、单个当前状态读取和完整修订；DEV-1.6另增加当前Revision摘要列表。当前共四个Project HTTP接口，不提供历史、删除、归档或PATCH；DEV-1.7的`/projects`前端调用列表GET和创建POST，DEV-1.8的`/projects/:projectId`前端调用当前详情GET与完整修订PUT。
 
 ## 接口与DTO
 
@@ -74,4 +74,4 @@ session_factory
 
 `project.web`不导入SQLAlchemy、ORM模型、具体Repository或Session。应用构造与Router导入不连接数据库；关闭时清除服务引用。应用绝不自动运行Alembic，Project Schema必须由操作者对目标数据库显式升级到`0002_create_project_foundation`。未迁移数据库调用Project接口会安全返回503，不会自动建表或伪装成404，live仍可响应。
 
-当前没有修订历史、删除、归档、恢复、PATCH、自动保存、搜索、筛选或自定义排序。`/projects`仅提供列表、加载更多和创建；没有单Project详情或PUT前端流程。前端边界见[Project前端列表与创建流程](PROJECT_FRONTEND.md)。
+当前没有修订历史、删除、归档、恢复、PATCH、自动保存、搜索、筛选或自定义排序。`/projects`提供列表、加载更多和创建；`/projects/:projectId`提供当前详情、完整替换编辑与显式412恢复。前端严格验证强ETag与正文版本一致，PUT不自动重试或合并。列表边界见[Project前端流程](PROJECT_FRONTEND.md)，详情并发语义见[Project详情与修订前端流程](PROJECT_DETAIL_FRONTEND.md)。

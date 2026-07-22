@@ -133,7 +133,7 @@ export default [
     },
   },
   {
-    files: ["frontend/src/features/projects/components/**/*.{ts,tsx}"],
+    files: ["frontend/src/features/projects/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-globals": [
         "error",
@@ -145,12 +145,20 @@ export default [
         {
           name: "localStorage",
           message:
-            "Project components must not persist security or cursor state.",
+            "Project code must not persist security, cursor, ETag, or draft state.",
         },
         {
           name: "sessionStorage",
           message:
-            "Project components must not persist security or cursor state.",
+            "Project code must not persist security, cursor, ETag, or draft state.",
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "MemberExpression[object.name='document'][property.name='cookie']",
+          message: "Project code must not read browser cookies.",
         },
       ],
     },

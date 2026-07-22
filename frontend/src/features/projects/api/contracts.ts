@@ -33,6 +33,17 @@ export interface CreateProjectRequest {
   readonly description: string;
 }
 
+export interface ReviseProjectRequest {
+  readonly title: string;
+  readonly description: string;
+}
+
+export interface VersionedProjectResource {
+  readonly project: ProjectResponse;
+  readonly etag: string;
+  readonly version: number;
+}
+
 export interface SecuritySessionResponse {
   readonly csrf_token: string;
   readonly expires_in_seconds: number;

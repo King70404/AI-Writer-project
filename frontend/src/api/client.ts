@@ -6,6 +6,7 @@ import type {
   JsonDecoder,
   JsonObject,
   PostJsonOptions,
+  PutJsonOptions,
 } from "./types";
 
 const DEFAULT_API_BASE_URL = "/api/v1";
@@ -125,7 +126,7 @@ interface JsonRequestOptions {
 }
 
 async function requestJson<T>(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PUT",
   path: string,
   decode: JsonDecoder<T>,
   options: JsonRequestOptions,
@@ -134,7 +135,7 @@ async function requestJson<T>(
   if (!headers.has("Accept")) {
     headers.set("Accept", "application/json");
   }
-  if (method === "POST" && !headers.has("Content-Type")) {
+  if (method !== "GET" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -143,7 +144,7 @@ async function requestJson<T>(
     credentials: "same-origin",
     headers,
     signal: options.signal,
-    ...(method === "POST" ? { body: JSON.stringify(options.body) } : {}),
+    ...(method === "GET" ? {} : { body: JSON.stringify(options.body) }),
   });
 
   const parsed = await readJson(response);
@@ -170,9 +171,11 @@ async function requestJson<T>(
 
   const requestId = responseRequestId(response);
   try {
+    const etag = response.headers.get("ETag");
     return {
       data: decode(parsed.value),
       requestId,
+      ...(etag === null ? {} : { etag }),
     };
   } catch {
     throw new ApiError({
@@ -202,4 +205,13 @@ export function postJson<T>(
   options: PostJsonOptions = {},
 ): Promise<ApiResponse<T>> {
   return requestJson("POST", path, decode, { ...options, body });
+}
+
+export function putJson<T>(
+  path: string,
+  body: unknown,
+  decode: JsonDecoder<T>,
+  options: PutJsonOptions = {},
+): Promise<ApiResponse<T>> {
+  return requestJson("PUT", path, decode, { ...options, body });
 }

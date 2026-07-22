@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 Project后端与React列表/创建前端的依赖方向。当前前端能力不包含详情、编辑或其他管理页面。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 Project后端与React列表、创建、当前详情及完整修订前端的依赖方向。当前前端能力不包含修订历史、删除、归档或其他创作页面。
 
 ## 业务模块
 
@@ -93,9 +93,9 @@ Project唯一拥有`projects`、`project_revisions`和`project_heads`。只有`p
 
 ## Project前端边界
 
-通用`frontend/src/api`提供同源JSON传输，不得反向导入Project功能。Project `api`层可依赖通用传输，但不得依赖React、hooks、组件或页面；hooks依赖Project API与契约；组件依赖hooks和前端契约；页面只组合组件；Router可以导入公开`ProjectsPage`。
+通用`frontend/src/api`提供同源JSON传输和受控响应ETag读取，不得反向导入Project功能。Project `api`层可依赖通用传输，但不得依赖React、hooks、组件或页面；详情读取客户端与修订写客户端保持可分离接口。hooks依赖Project API与契约；组件依赖hooks和前端契约；页面只组合组件；Router可以导入公开`ProjectsPage`与`ProjectDetailsPage`。
 
-UI组件不得直接调用裸`fetch`、读取Cookie、获取或硬编码CSRF、持久化token/cursor或访问数据库。Project API客户端不得记录请求正文、自动重试POST、导入React或使用外部主机。列表Hook不得导入创建表单。前端不能导入Python、SQLAlchemy或测试Fake。详细语义见[Project前端列表与创建流程](PROJECT_FRONTEND.md)。
+UI组件不得直接调用裸`fetch`、读取Cookie、获取或硬编码CSRF、持久化token/cursor/ETag/草稿或访问数据库。Project API客户端不得记录请求正文或`If-Match`、自动重试POST/PUT、导入React或使用外部主机。详情GET不得获取Session；修订PUT只能使用已验证详情资源的强ETag并只发送一次。列表Hook不得导入创建表单，详情组件不得重新实现服务端CAS。前端不能导入Python、SQLAlchemy或测试Fake。列表语义见[Project前端流程](PROJECT_FRONTEND.md)，详情与冲突语义见[Project详情与修订前端流程](PROJECT_DETAIL_FRONTEND.md)。
 
 ## 所有权与跨模块规则
 

@@ -239,6 +239,99 @@ finally:
     }
 }
 
+function Assert-ProjectDetailDatabaseState {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DataRoot
+    )
+
+    $databasePath = Join-Path $DataRoot "data/aiwebnovel.sqlite3"
+    Assert-SafeContainedPath `
+        -Candidate $databasePath `
+        -Container $DataRoot `
+        -Description "Project detail E2E database"
+    $pythonExecutable = Join-Path $script:RepositoryRoot ".venv/Scripts/python.exe"
+    $query = @'
+import sqlite3
+import sys
+
+connection = sqlite3.connect(sys.argv[1])
+try:
+    counts = {
+        name: connection.execute('SELECT COUNT(*) FROM ' + name).fetchone()[0]
+        for name in ('projects', 'project_heads', 'project_revisions')
+    }
+    assert counts == {'projects': 2, 'project_heads': 2, 'project_revisions': 5}
+
+    projects = connection.execute(
+        '''
+        SELECT p.id, p.concurrency_version, h.revision_id,
+               current_revision.revision_number, current_revision.title
+        FROM projects AS p
+        JOIN project_heads AS h ON h.project_id = p.id
+        JOIN project_revisions AS current_revision
+          ON current_revision.project_id = h.project_id
+         AND current_revision.id = h.revision_id
+        ORDER BY current_revision.title
+        '''
+    ).fetchall()
+    by_title = {row[4]: row for row in projects}
+    direct = by_title['E2E Project Detail Direct Revised 009']
+    conflict = by_title['E2E Project Conflict Local Draft 009']
+    assert direct[1] == 2 and direct[3] == 2
+    assert conflict[1] == 3 and conflict[3] == 3
+
+    direct_revisions = connection.execute(
+        '''
+        SELECT revision_number, id, title, description
+        FROM project_revisions
+        WHERE project_id = ?
+        ORDER BY revision_number
+        ''',
+        (direct[0],),
+    ).fetchall()
+    assert direct_revisions == [
+        (1, direct_revisions[0][1], 'E2E Project Detail Direct Initial 009',
+         'E2E-PROJECT-DETAIL-DIRECT-INITIAL-DESCRIPTION-CANARY-009'),
+        (2, direct_revisions[1][1], 'E2E Project Detail Direct Revised 009',
+         'E2E-PROJECT-DETAIL-DIRECT-REVISED-DESCRIPTION-CANARY-009'),
+    ]
+    assert len({row[1] for row in direct_revisions}) == 2
+    assert direct[2] == direct_revisions[-1][1]
+
+    conflict_revisions = connection.execute(
+        '''
+        SELECT revision_number, id, title, description
+        FROM project_revisions
+        WHERE project_id = ?
+        ORDER BY revision_number
+        ''',
+        (conflict[0],),
+    ).fetchall()
+    assert len(conflict_revisions) == 3
+    assert [row[0] for row in conflict_revisions] == [1, 2, 3]
+    assert [row[2] for row in conflict_revisions] == [
+        'E2E Project Conflict Initial 009',
+        'E2E Project Conflict External 009',
+        'E2E Project Conflict Local Draft 009',
+    ]
+    assert conflict_revisions[0][3] == 'E2E-PROJECT-CONFLICT-INITIAL-DESCRIPTION-CANARY-009'
+    assert conflict_revisions[1][3] == 'E2E-PROJECT-CONFLICT-EXTERNAL-DESCRIPTION-CANARY-009'
+    assert conflict_revisions[2][3] == (
+        'E2E-PROJECT-CONFLICT-LOCAL-DESCRIPTION-CANARY-009\n'
+        '\u4fdd\u7559\u6362\u884c'
+    )
+    assert len({row[1] for row in conflict_revisions}) == 3
+    assert conflict[2] == conflict_revisions[-1][1]
+finally:
+    connection.close()
+'@
+    & $pythonExecutable -c $query $databasePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Project detail E2E database state verification failed"
+    }
+}
+
 function Test-LoopbackPortAvailable {
     param(
         [Parameter(Mandatory = $true)]
@@ -922,6 +1015,7 @@ function Invoke-E2EScenario {
             "E2E-INT-006",
             "E2E-INT-007",
             "E2E-INT-008",
+            "E2E-INT-009",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -937,7 +1031,8 @@ function Invoke-E2EScenario {
     $isProjectApi = $SelectedScenario -in @(
         "E2E-INT-006",
         "E2E-INT-007",
-        "E2E-INT-008"
+        "E2E-INT-008",
+        "E2E-INT-009"
     )
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
@@ -1121,6 +1216,9 @@ function Invoke-E2EScenario {
         if ($SelectedScenario -eq "E2E-INT-008") {
             Assert-ProjectFrontendDatabaseCounts -DataRoot $dataRoot
         }
+        if ($SelectedScenario -eq "E2E-INT-009") {
+            Assert-ProjectDetailDatabaseState -DataRoot $dataRoot
+        }
         if ($isProjectApi) {
             foreach ($logPath in Get-ChildItem -LiteralPath $runDirectory -Filter "*.log") {
                 $logText = Get-Content -LiteralPath $logPath.FullName -Raw -Encoding UTF8
@@ -1128,7 +1226,9 @@ function Invoke-E2EScenario {
                     $logText -match "E2E-PROJECT-(?:TITLE|DESCRIPTION)-CANARY-006" -or
                     $logText -match "E2E-PROJECT-LIST-BODY-CANARY-007" -or
                     $logText -match "E2E_PROJECT_LIST_CURSOR_CANARY_007" -or
-                    $logText -match "E2E-PROJECT-FRONTEND-DESCRIPTION-CANARY-008"
+                    $logText -match "E2E-PROJECT-FRONTEND-DESCRIPTION-CANARY-008" -or
+                    $logText -match "E2E-PROJECT-(?:DETAIL|CONFLICT)-.+-CANARY-009" -or
+                    $logText -match "If-Match"
                 ) {
                     throw "Project API private request content appeared in service logs"
                 }
@@ -1220,6 +1320,7 @@ try {
         "E2E-INT-006" = "Integrated"
         "E2E-INT-007" = "Integrated"
         "E2E-INT-008" = "Integrated"
+        "E2E-INT-009" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -1232,6 +1333,7 @@ try {
         "E2E-INT-006",
         "E2E-INT-007",
         "E2E-INT-008",
+        "E2E-INT-009",
         "E2E-STARTUP-001"
     )
 

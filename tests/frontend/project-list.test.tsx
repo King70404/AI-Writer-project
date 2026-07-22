@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProjectApiClient } from "../../frontend/src/features/projects/api/client";
@@ -47,7 +48,11 @@ function client(listProjects: ReturnType<typeof vi.fn>): ProjectApiClient {
 
 function Harness({ apiClient }: { readonly apiClient: ProjectApiClient }) {
   const controller = useProjectList(apiClient);
-  return <ProjectList controller={controller} />;
+  return (
+    <MemoryRouter>
+      <ProjectList controller={controller} />
+    </MemoryRouter>
+  );
 }
 
 function deferred<T>() {

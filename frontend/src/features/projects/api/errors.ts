@@ -5,6 +5,7 @@ import { ProjectContractError } from "./parsers";
 export type ProjectApiErrorKind =
   | "network"
   | "aborted"
+  | "outcome_unknown"
   | "validation"
   | "security"
   | "not_found"
@@ -20,12 +21,18 @@ export interface ProjectFieldError {
   readonly message: string;
 }
 
+export interface ProjectConflictDetails {
+  readonly expectedVersion: number;
+  readonly actualVersion: number;
+}
+
 interface ProjectApiErrorInit {
   readonly kind: ProjectApiErrorKind;
   readonly code: string;
   readonly message: string;
   readonly requestId?: string | null;
   readonly fieldErrors?: readonly ProjectFieldError[];
+  readonly conflict?: ProjectConflictDetails | null;
 }
 
 export class ProjectApiError extends Error {
@@ -33,6 +40,7 @@ export class ProjectApiError extends Error {
   public readonly code: string;
   public readonly requestId: string | null;
   public readonly fieldErrors: readonly ProjectFieldError[];
+  public readonly conflict: ProjectConflictDetails | null;
 
   public constructor(init: ProjectApiErrorInit) {
     super(init.message);
@@ -41,6 +49,7 @@ export class ProjectApiError extends Error {
     this.code = init.code;
     this.requestId = init.requestId ?? null;
     this.fieldErrors = init.fieldErrors ?? [];
+    this.conflict = init.conflict ?? null;
   }
 }
 
@@ -126,6 +135,50 @@ function apiErrorKind(error: ApiError): ProjectApiErrorKind {
   return "unknown";
 }
 
+function isSafePositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
+function contractError(requestId: string | null = null): ProjectApiError {
+  return new ProjectApiError({
+    kind: "contract",
+    code: "PROJECT_API_CONTRACT_ERROR",
+    message: "项目服务返回了无法安全读取的数据。",
+    requestId,
+  });
+}
+
+function normalizeVersionConflict(
+  error: ApiError,
+  submittedVersion: number | undefined,
+): ProjectApiError {
+  const details = error.details;
+  const keys = Object.keys(details);
+  if (
+    error.code !== "PROJECT_VERSION_CONFLICT" ||
+    submittedVersion === undefined ||
+    keys.length !== 2 ||
+    !Object.hasOwn(details, "expected_version") ||
+    !Object.hasOwn(details, "actual_version") ||
+    !isSafePositiveInteger(details.expected_version) ||
+    !isSafePositiveInteger(details.actual_version) ||
+    details.expected_version !== submittedVersion ||
+    details.actual_version === submittedVersion
+  ) {
+    return contractError(safeRequestId(error.requestId));
+  }
+  return new ProjectApiError({
+    kind: "conflict",
+    code: error.code,
+    message: "项目已被其他操作修订。草稿已保留，请读取最新版本后选择处理方式。",
+    requestId: safeRequestId(error.requestId),
+    conflict: {
+      expectedVersion: details.expected_version,
+      actualVersion: details.actual_version,
+    },
+  });
+}
+
 function safeMessage(kind: ProjectApiErrorKind, code: string): string {
   if (kind === "security") {
     return code === "ORIGIN_NOT_ALLOWED"
@@ -154,7 +207,10 @@ function safeMessage(kind: ProjectApiErrorKind, code: string): string {
   return "项目请求未能完成，请稍后手动重试。";
 }
 
-export function normalizeProjectApiError(error: unknown): ProjectApiError {
+export function normalizeProjectApiError(
+  error: unknown,
+  submittedVersion?: number,
+): ProjectApiError {
   if (error instanceof ProjectApiError) {
     return error;
   }
@@ -166,13 +222,12 @@ export function normalizeProjectApiError(error: unknown): ProjectApiError {
     });
   }
   if (error instanceof ProjectContractError) {
-    return new ProjectApiError({
-      kind: "contract",
-      code: "PROJECT_API_CONTRACT_ERROR",
-      message: "项目服务返回了无法安全读取的数据。",
-    });
+    return contractError();
   }
   if (error instanceof ApiError) {
+    if (error.status === 412) {
+      return normalizeVersionConflict(error, submittedVersion);
+    }
     const kind = apiErrorKind(error);
     return new ProjectApiError({
       kind,
@@ -194,6 +249,21 @@ export function normalizeProjectApiError(error: unknown): ProjectApiError {
     code: "UNKNOWN_PROJECT_ERROR",
     message: "项目请求未能完成，请稍后手动重试。",
   });
+}
+
+export function projectOutcomeUnknownError(error: unknown): ProjectApiError {
+  return new ProjectApiError({
+    kind: "outcome_unknown",
+    code:
+      error instanceof DOMException && error.name === "AbortError"
+        ? "PROJECT_REVISION_ABORTED"
+        : "PROJECT_REVISION_NETWORK_INTERRUPTED",
+    message: "保存结果未确认，请重新加载项目核实。",
+  });
+}
+
+export function projectRevisionContractError(): ProjectApiError {
+  return contractError();
 }
 
 export function shouldClearProjectSecuritySession(error: unknown): boolean {

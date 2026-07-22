@@ -53,6 +53,20 @@ const boundaryFixtures: readonly BoundaryFixture[] = [
       "Project components must use hooks and the typed Project API client.",
     expectedRule: "no-restricted-globals",
   },
+  {
+    relativePath: "src/features/projects/hooks/__storage_boundary_fixture__.ts",
+    source: 'localStorage.setItem("project_etag", etag);\n',
+    expectedMessage:
+      "Project code must not persist security, cursor, ETag, or draft state.",
+    expectedRule: "no-restricted-globals",
+  },
+  {
+    relativePath:
+      "src/features/projects/components/__cookie_boundary_fixture__.ts",
+    source: "const session = document.cookie;\nexport { session };\n",
+    expectedMessage: "Project code must not read browser cookies.",
+    expectedRule: "no-restricted-syntax",
+  },
 ];
 
 describe("frontend import boundaries", () => {
@@ -117,7 +131,7 @@ describe("frontend import boundaries", () => {
     try {
       await writeFile(
         fixturePath,
-        'import type { ProjectApiClient } from "../api/client";\nexport type LegalClient = ProjectApiClient;\n',
+        'import type { ProjectDetailApiClient } from "../api/client";\nexport type LegalClient = ProjectDetailApiClient;\n',
         { encoding: "utf8", flag: "wx" },
       );
       const eslint = new ESLint({

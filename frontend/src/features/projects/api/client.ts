@@ -1,17 +1,26 @@
-import { getJson, postJson } from "../../../api/client";
+import { getJson, postJson, putJson } from "../../../api/client";
 import { PROJECT_LIST_PAGE_SIZE } from "../constants";
+import { validateProjectInput } from "../validation";
 
 import type {
   CreateProjectRequest,
   ProjectListResponse,
   ProjectResponse,
+  ReviseProjectRequest,
+  VersionedProjectResource,
 } from "./contracts";
+import { createVersionedProjectResource, parseProjectEtag } from "./etags";
 import {
   normalizeProjectApiError,
   ProjectApiError,
+  projectOutcomeUnknownError,
   shouldClearProjectSecuritySession,
 } from "./errors";
-import { parseProjectListResponse, parseProjectResponse } from "./parsers";
+import {
+  isCanonicalProjectId,
+  parseProjectListResponse,
+  parseProjectResponse,
+} from "./parsers";
 import {
   projectSecuritySession,
   type ProjectSecuritySessionManager,
@@ -27,6 +36,19 @@ export interface CreateProjectOptions {
   readonly signal?: AbortSignal;
 }
 
+export interface GetProjectOptions {
+  readonly signal?: AbortSignal;
+}
+
+export interface ReviseProjectInput extends ReviseProjectRequest {
+  readonly projectId: string;
+  readonly etag: string;
+}
+
+export interface ReviseProjectOptions {
+  readonly signal?: AbortSignal;
+}
+
 export interface ProjectApiClient {
   readonly listProjects: (
     options?: ListProjectsOptions,
@@ -37,9 +59,61 @@ export interface ProjectApiClient {
   ) => Promise<ProjectResponse>;
 }
 
+export interface ProjectDetailApiClient {
+  readonly getProject: (
+    projectId: string,
+    options?: GetProjectOptions,
+  ) => Promise<VersionedProjectResource>;
+}
+
+export interface ProjectRevisionApiClient {
+  readonly reviseProject: (
+    input: ReviseProjectInput,
+    options?: ReviseProjectOptions,
+  ) => Promise<VersionedProjectResource>;
+}
+
+export type CompleteProjectApiClient = ProjectApiClient &
+  ProjectDetailApiClient &
+  ProjectRevisionApiClient;
+
+function invalidProjectIdError(): ProjectApiError {
+  return new ProjectApiError({
+    kind: "validation",
+    code: "INVALID_PROJECT_ID",
+    message: "项目地址中的编号无效。",
+  });
+}
+
+function validateRevisionInput(input: ReviseProjectInput): {
+  readonly etag: string;
+  readonly version: number;
+} {
+  if (
+    typeof input.title !== "string" ||
+    typeof input.description !== "string"
+  ) {
+    throw new ProjectApiError({
+      kind: "validation",
+      code: "INVALID_REVISE_PROJECT_INPUT",
+      message: "项目标题和简介必须是文本。",
+    });
+  }
+  const fieldErrors = validateProjectInput(input.title, input.description);
+  if (fieldErrors.length > 0) {
+    throw new ProjectApiError({
+      kind: "validation",
+      code: "INVALID_REVISE_PROJECT_INPUT",
+      message: "项目标题或简介未通过验证。",
+      fieldErrors,
+    });
+  }
+  return parseProjectEtag(input.etag);
+}
+
 export function createProjectApiClient(
   securitySession: ProjectSecuritySessionManager = projectSecuritySession,
-): ProjectApiClient {
+): CompleteProjectApiClient {
   const listProjects = async (
     options: ListProjectsOptions = {},
   ): Promise<ProjectListResponse> => {
@@ -103,7 +177,95 @@ export function createProjectApiClient(
     }
   };
 
-  return { listProjects, createProject };
+  const getProject = async (
+    projectId: string,
+    options: GetProjectOptions = {},
+  ): Promise<VersionedProjectResource> => {
+    if (!isCanonicalProjectId(projectId)) {
+      throw invalidProjectIdError();
+    }
+    try {
+      const response = await getJson(
+        `projects/${encodeURIComponent(projectId)}`,
+        parseProjectResponse,
+        { signal: options.signal },
+      );
+      if (response.data.project_id !== projectId) {
+        throw new ProjectApiError({
+          kind: "contract",
+          code: "PROJECT_API_CONTRACT_ERROR",
+          message: "项目服务返回了无法安全读取的数据。",
+        });
+      }
+      return createVersionedProjectResource(
+        response.data,
+        response.etag ?? null,
+      );
+    } catch (error) {
+      throw normalizeProjectApiError(error);
+    }
+  };
+
+  const reviseProject = async (
+    input: ReviseProjectInput,
+    options: ReviseProjectOptions = {},
+  ): Promise<VersionedProjectResource> => {
+    if (!isCanonicalProjectId(input.projectId)) {
+      throw invalidProjectIdError();
+    }
+    let submitted: { readonly etag: string; readonly version: number };
+    try {
+      submitted = validateRevisionInput(input);
+    } catch (error) {
+      throw normalizeProjectApiError(error);
+    }
+    let putStarted = false;
+    try {
+      const session = await securitySession.getValidSession(options.signal);
+      putStarted = true;
+      const response = await putJson(
+        `projects/${encodeURIComponent(input.projectId)}`,
+        { title: input.title, description: input.description },
+        parseProjectResponse,
+        {
+          signal: options.signal,
+          headers: {
+            "X-CSRF-Token": session.csrfToken,
+            "If-Match": submitted.etag,
+          },
+        },
+      );
+      const resource = createVersionedProjectResource(
+        response.data,
+        response.etag ?? null,
+      );
+      if (
+        resource.project.project_id !== input.projectId ||
+        resource.version <= submitted.version
+      ) {
+        throw new ProjectApiError({
+          kind: "contract",
+          code: "PROJECT_API_CONTRACT_ERROR",
+          message: "项目服务返回了无法安全读取的数据。",
+        });
+      }
+      return resource;
+    } catch (error) {
+      if (shouldClearProjectSecuritySession(error)) {
+        securitySession.clear();
+      }
+      if (
+        putStarted &&
+        ((error instanceof DOMException && error.name === "AbortError") ||
+          error instanceof TypeError)
+      ) {
+        throw projectOutcomeUnknownError(error);
+      }
+      throw normalizeProjectApiError(error, submitted.version);
+    }
+  };
+
+  return { listProjects, createProject, getProject, reviseProject };
 }
 
 export const projectApiClient = createProjectApiClient();

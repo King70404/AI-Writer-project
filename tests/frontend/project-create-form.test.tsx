@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi, type Mock } from "vitest";
 
 import type { ProjectApiClient } from "../../frontend/src/features/projects/api/client";
@@ -40,7 +41,11 @@ function renderForm(
     .mockResolvedValue(true),
 ) {
   const client = apiClient(createProject);
-  render(<CreateProjectForm client={client} reloadProjects={reloadProjects} />);
+  render(
+    <MemoryRouter>
+      <CreateProjectForm client={client} reloadProjects={reloadProjects} />
+    </MemoryRouter>,
+  );
   return { createProject, reloadProjects };
 }
 

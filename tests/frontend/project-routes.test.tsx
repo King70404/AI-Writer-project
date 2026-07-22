@@ -44,7 +44,6 @@ describe("Project routes", () => {
 
   it.each([
     "/not-a-real-route",
-    "/projects/prj_01ARZ3NDEKTSV4RRFFQ69G5FAV",
     "/projects/prj_01ARZ3NDEKTSV4RRFFQ69G5FAV/edit",
   ])("keeps unsupported route %s on the React 404", (path) => {
     renderAt(path);

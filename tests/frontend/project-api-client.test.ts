@@ -302,13 +302,16 @@ describe("Project API client", () => {
     ).toMatchObject({
       kind: "not_found",
     });
-    for (const status of [409, 412, 428]) {
+    for (const status of [409, 428]) {
       expect(
         normalizeProjectApiError(makeError(status, "CONFLICT")),
       ).toMatchObject({
         kind: "conflict",
       });
     }
+    expect(normalizeProjectApiError(makeError(412, "CONFLICT"))).toMatchObject({
+      kind: "contract",
+    });
     expect(
       normalizeProjectApiError(makeError(400, "INVALID_PROJECT_ID")),
     ).toMatchObject({

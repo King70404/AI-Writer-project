@@ -1,5 +1,8 @@
+import { Link } from "react-router-dom";
+
 import type { ProjectListItemResponse } from "../api/contracts";
 import { formatProjectTimestamp } from "../formatting";
+import { projectDetailsPath } from "../routing";
 
 interface ProjectListItemProps {
   readonly project: ProjectListItemResponse;
@@ -36,6 +39,12 @@ export function ProjectListItem({ project }: ProjectListItemProps) {
           </dd>
         </div>
       </dl>
+      <Link
+        className="project-card__details-link"
+        to={projectDetailsPath(project.project_id)}
+      >
+        查看详情
+      </Link>
     </li>
   );
 }

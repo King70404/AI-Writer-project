@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 import type { ProjectApiClient } from "../api/client";
 import type { ProjectFieldError, ProjectFieldName } from "../api/errors";
@@ -8,38 +9,12 @@ import {
 } from "../constants";
 import { countUnicodeCodePoints } from "../formatting";
 import { useCreateProject } from "../hooks/useCreateProject";
+import { projectDetailsPath } from "../routing";
+import { errorForProjectField, validateProjectInput } from "../validation";
 
 interface CreateProjectFormProps {
   readonly client: ProjectApiClient;
   readonly reloadProjects: () => Promise<boolean>;
-}
-
-function validateProjectInput(
-  title: string,
-  description: string,
-): ProjectFieldError[] {
-  const errors: ProjectFieldError[] = [];
-  if (title.trim().length === 0) {
-    errors.push({ field: "title", message: "请输入项目标题。" });
-  } else if (countUnicodeCodePoints(title) > PROJECT_TITLE_MAX_CODE_POINTS) {
-    errors.push({ field: "title", message: "项目标题不能超过120个字符。" });
-  }
-  if (
-    countUnicodeCodePoints(description) > PROJECT_DESCRIPTION_MAX_CODE_POINTS
-  ) {
-    errors.push({
-      field: "description",
-      message: "项目简介不能超过2000个字符。",
-    });
-  }
-  return errors;
-}
-
-function errorFor(
-  errors: readonly ProjectFieldError[],
-  field: ProjectFieldName,
-): string | null {
-  return errors.find((error) => error.field === field)?.message ?? null;
 }
 
 export function CreateProjectForm({
@@ -55,8 +30,8 @@ export function CreateProjectForm({
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
   const create = useCreateProject(reloadProjects, client);
-  const titleError = errorFor(fieldErrors, "title");
-  const descriptionError = errorFor(fieldErrors, "description");
+  const titleError = errorForProjectField(fieldErrors, "title");
+  const descriptionError = errorForProjectField(fieldErrors, "description");
 
   useEffect(() => {
     if (
@@ -195,6 +170,12 @@ export function CreateProjectForm({
           tabIndex={-1}
         >
           <p>{feedback}</p>
+          {create.state.kind === "success" ||
+          create.state.kind === "partial_success" ? (
+            <Link to={projectDetailsPath(create.state.project.project_id)}>
+              查看新项目
+            </Link>
+          ) : null}
           {create.state.kind === "error" &&
           create.state.error.requestId !== null ? (
             <p className="request-id">

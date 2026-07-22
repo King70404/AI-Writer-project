@@ -1,10 +1,10 @@
-# Project 前端列表与创建流程
+# Project 前端流程
 
-DEV-1.7 在不改变后端 API、数据库 Schema 或 `0002_create_project_foundation` 迁移的前提下，提供真实的 React Project 列表与创建流程。页面入口是 `/projects`；当前只支持读取第一页、使用不透明 Keyset cursor 加载更多、手动重新加载和创建 Project。
+DEV-1.7 在不改变后端 API、数据库 Schema 或 `0002_create_project_foundation` 迁移的前提下，提供真实的 React Project 列表与创建流程。DEV-1.8在同一冻结后端契约上增加当前详情、完整修订和显式冲突处理。页面入口是 `/projects` 与 `/projects/:projectId`。
 
 ## 模块与网络边界
 
-`frontend/src/features/projects/` 按 `api`、`hooks`、`components` 和 `pages` 分层。Project API 客户端复用通用同源 `fetch` 传输能力，并提供 `listProjects` 与 `createProject`；组件不直接调用 `fetch`、读取 Cookie 或获取 CSRF。请求始终使用相对 `/api/v1`，前端不包含外部 API 主机。
+`frontend/src/features/projects/` 按 `api`、`hooks`、`components` 和 `pages` 分层。Project API 客户端复用通用同源 `fetch` 传输能力，并提供列表/创建、详情读取与修订写入的可分离接口；组件不直接调用 `fetch`、读取 Cookie 或获取 CSRF。请求始终使用相对 `/api/v1`，前端不包含外部 API 主机。
 
 所有 Project、列表、错误和 Security Session 响应都经过精确的运行时结构校验。未知字段、缺失字段、非法 ID、非正整数版本、naive 时间、重复 Project ID 或 `has_more`/cursor 不一致都会使整个响应失败，非法数据不会进入 UI。错误 UI只使用安全分类、固定说明和经过字符约束的 request ID，不显示后端正文、CSRF、Cookie 或异常文本。
 
@@ -26,12 +26,18 @@ DEV-1.7 在不改变后端 API、数据库 Schema 或 `0002_create_project_found
 
 如果 POST 已成功但第一页刷新失败，UI显示“已创建但列表刷新失败”的部分成功状态、规范 Project ID和手动重新加载入口；它不会误报创建失败，也不会再次 POST。
 
+## 详情与完整修订
+
+列表项和创建成功状态提供React Router真实链接。`/projects/:projectId`先验证规范ID，再通过不获取Session的详情GET读取严格正文和同响应强ETag；两者组成编辑基线。保存时本地验证先行，随后获取内存Security Session，并仅发送一次带CSRF和`If-Match`的完整替换PUT。
+
+412不会覆盖草稿、自动读取、重试、重放或合并。用户必须显式读取最新版本，再选择放弃草稿采用最新版本，或保留完整草稿并把最新ETag设为新基线；后一种选择仍需再次手动保存。PUT开始后的网络中断属于结果未知，保存保持禁用，直到用户重新加载核实。完整契约见[Project详情与修订前端流程](PROJECT_DETAIL_FRONTEND.md)。
+
 ## 可访问性与当前限制
 
 页面使用关联 label、语义化 `ul`/`li`、`time`、明确的 loading/status/alert、提交禁用和成功或错误后的焦点管理。窄屏布局保持表单、列表和操作可读，页面不依赖颜色单独表达状态。
 
-当前没有 Project 详情路由、修订编辑、PUT 前端调用、历史、删除、归档、恢复、搜索、筛选、自动保存或创作工作台。DEV-1.8 的范围必须由独立任务明确授权；本文件不预先声明其能力。
+当前没有 Project 修订历史、回滚、删除、归档、恢复、搜索、筛选、自动保存或创作工作台。详情页只处理Head指向的当前快照和完整修订，不提供Character、Chapter或其他小说业务入口。DEV-1.9 的范围必须由独立任务明确授权。
 
 ## 验证证据
 
-七组 Project 前端 Vitest 专项覆盖 API、运行时契约、内存 Session、列表、创建表单、页面组合和路由。受控 ESLint 与安全静态测试验证依赖方向、无浏览器令牌/cursor持久化、无 POST 自动重试、无请求正文日志、无外部 API 和无不安全 HTML。`E2E-INT-008`在真实 production 集成服务与显式迁移的临时 SQLite 上验证创建、刷新持久性、21项加载更多、三表行数、CSP、浏览器存储和清理。
+DEV-1.7七组 Project 前端 Vitest 专项覆盖列表与创建；DEV-1.8另有七个详情专项文件、79项测试，覆盖强ETag、详情协议、修订协议、页面状态、表单、冲突恢复和路由。受控 ESLint 与安全静态测试验证依赖方向、无浏览器令牌/cursor/ETag/草稿持久化、无 POST/PUT 自动重试、无请求正文或`If-Match`日志、无外部 API 和无不安全 HTML。`E2E-INT-008`验证创建与分页，`E2E-INT-009`在真实 production 集成服务与显式迁移的临时 SQLite 上验证正常修订、412恢复、不可变Revision链、浏览器存储和清理。

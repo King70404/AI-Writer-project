@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProjectApiClient } from "../../frontend/src/features/projects/api/client";
@@ -56,13 +57,21 @@ async function fillAndCreate(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "创建项目" }));
 }
 
+function renderProjectsPage(clientValue: ProjectApiClient) {
+  return render(
+    <MemoryRouter>
+      <ProjectsPage client={clientValue} />
+    </MemoryRouter>,
+  );
+}
+
 describe("Projects page composition", () => {
   it("loads the initial list and exposes only current list/create actions", async () => {
     const user = userEvent.setup();
     const listProjects = vi
       .fn()
       .mockResolvedValue(page([item("已有项目", "V")]));
-    render(<ProjectsPage client={client(listProjects)} />);
+    renderProjectsPage(client(listProjects));
 
     expect(
       screen.getByRole("heading", { level: 2, name: "项目" }),
@@ -90,7 +99,7 @@ describe("Projects page composition", () => {
         page([item("新项目", "W"), item("已有项目", "V")]),
       );
     const createProject = vi.fn().mockResolvedValue(project());
-    render(<ProjectsPage client={client(listProjects, createProject)} />);
+    renderProjectsPage(client(listProjects, createProject));
     await screen.findByRole("heading", { name: "已有项目" });
 
     await fillAndCreate(user);
@@ -113,7 +122,7 @@ describe("Projects page composition", () => {
       .mockRejectedValueOnce(new TypeError("refresh offline"))
       .mockResolvedValueOnce(page([item("新项目", "W")]));
     const createProject = vi.fn().mockResolvedValue(project());
-    render(<ProjectsPage client={client(listProjects, createProject)} />);
+    renderProjectsPage(client(listProjects, createProject));
     await screen.findByText("还没有项目");
 
     await fillAndCreate(user);
@@ -142,7 +151,7 @@ describe("Projects page composition", () => {
         message: "项目服务暂时不可用，请稍后手动重试。",
       }),
     );
-    render(<ProjectsPage client={client(listProjects, createProject)} />);
+    renderProjectsPage(client(listProjects, createProject));
     await screen.findByText("还没有项目");
 
     await fillAndCreate(user);

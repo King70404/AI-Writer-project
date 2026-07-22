@@ -55,6 +55,14 @@ function requiredIdentifier(value: unknown, pattern: RegExp): string {
   return identifier;
 }
 
+export function isCanonicalProjectId(value: unknown): value is string {
+  return typeof value === "string" && PROJECT_ID.test(value);
+}
+
+export function parseProjectId(value: unknown): string {
+  return requiredIdentifier(value, PROJECT_ID);
+}
+
 function requiredPositiveInteger(value: unknown): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) {
     throw new ProjectContractError();
@@ -91,7 +99,7 @@ export function parseProjectListItemResponse(
     throw new ProjectContractError();
   }
   return {
-    project_id: requiredIdentifier(value.project_id, PROJECT_ID),
+    project_id: parseProjectId(value.project_id),
     current_revision_id: requiredIdentifier(
       value.current_revision_id,
       REVISION_ID,

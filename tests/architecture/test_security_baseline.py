@@ -277,6 +277,10 @@ def test_security_baseline_rejects_controlled_tracked_violations_without_leak(
             (
                 "console.log(requestBody);",
                 "retry(() => postJson('projects', requestBody));",
+                "retryPut(() => putJson('projects/id', requestBody));",
+                "if (status === 412) putJson('projects/id', requestBody);",
+                "console.log('If-Match', etag);",
+                "const unsafePath = `projects/${projectId}`;",
                 'const endpoint = "https://api.example.invalid/projects";',
                 "",
             )
@@ -288,6 +292,8 @@ def test_security_baseline_rejects_controlled_tracked_violations_without_leak(
         "\n".join(
             (
                 "localStorage.setItem('project_cursor', cursor);",
+                "localStorage.setItem('project_etag', etag);",
+                "sessionStorage.setItem('project_draft', draft);",
                 "const cookie = document.cookie;",
                 "const header = 'X-CSRF-Token';",
                 "const view = <div dangerouslySetInnerHTML={{__html: body}} />;",
@@ -314,8 +320,14 @@ def test_security_baseline_rejects_controlled_tracked_violations_without_leak(
         "plaintext-secret",
         "csrf-browser-persistence",
         "project-cursor-browser-persistence",
+        "project-etag-browser-persistence",
+        "project-draft-browser-persistence",
         "project-request-body-log",
         "project-post-auto-retry",
+        "project-put-auto-retry",
+        "project-412-auto-replay",
+        "project-if-match-log",
+        "project-id-path-not-encoded",
         "external-frontend-api-address",
         "unsafe-project-html",
         "project-component-cookie-access",
