@@ -1,6 +1,7 @@
 """Safe framework-independent failures owned by the Project domain."""
 
-from aiwebnovel.domain.errors import DomainError
+from aiwebnovel.domain.errors import DomainError as DomainError
+from aiwebnovel.project.identifiers import ProjectId
 
 
 class ProjectDomainError(DomainError):
@@ -48,3 +49,50 @@ class ProjectRevisionConflict(ProjectDomainError):
         self.expected_revision_number = expected_revision_number
         self.actual_revision_number = actual_revision_number
         super().__init__()
+
+
+class ProjectRepositoryError(ProjectDomainError):
+    """Base class for safe Project persistence-boundary failures."""
+
+    code = "project_repository_error"
+    message = "The Project persistence operation could not be completed."
+
+
+class ProjectAlreadyExists(ProjectRepositoryError):
+    """Raised when create would reuse an existing stable Project identity."""
+
+    code = "project_already_exists"
+    message = "The Project already exists."
+
+    def __init__(self, project_id: ProjectId) -> None:
+        if type(project_id) is not ProjectId:
+            raise InvalidProjectState
+        self.project_id = project_id
+        super().__init__()
+
+
+class ProjectNotFound(ProjectRepositoryError):
+    """Raised when a requested Project cannot be found for a write."""
+
+    code = "project_not_found"
+    message = "The Project was not found."
+
+    def __init__(self, project_id: ProjectId) -> None:
+        if type(project_id) is not ProjectId:
+            raise InvalidProjectState
+        self.project_id = project_id
+        super().__init__()
+
+
+class ProjectPersistenceConflict(ProjectRepositoryError):
+    """Raised for a known persistence conflict that is not a stale version."""
+
+    code = "project_persistence_conflict"
+    message = "The Project persistence state conflicts with the requested operation."
+
+
+class ProjectDataCorruption(ProjectRepositoryError):
+    """Raised when stored rows cannot form one valid current Project aggregate."""
+
+    code = "project_data_corruption"
+    message = "The stored Project state is inconsistent."

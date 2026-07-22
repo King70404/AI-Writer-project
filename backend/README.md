@@ -1,8 +1,8 @@
 # AIWebNovel 后端
 
-本目录包含已冻结的阶段 0 Python 后端基础设施、DEV-1.1纯Python领域基础，以及DEV-1.2的Project稳定对象与不可变修订持久化结构。目前提供 FastAPI 应用工厂、类型化配置、环回绑定与 Host 验证、严格本地 CORS、请求体和 JSON 类型限制、进程内临时会话与 CSRF、安全响应头、集中脱敏日志、请求 ID、统一 API 错误格式、Windows 本地存储、SQLite 引擎、Alembic迁移环境、健康与诊断、可选静态服务、通用领域原语，以及内部Project三表模型。
+本目录包含已冻结的阶段 0 Python 后端基础设施、DEV-1.1纯Python领域基础、DEV-1.2的Project稳定对象与不可变修订持久化结构，以及DEV-1.3的内部事务Repository。目前提供 FastAPI 应用工厂、类型化配置、环回绑定与 Host 验证、严格本地 CORS、请求体和 JSON 类型限制、进程内临时会话与 CSRF、安全响应头、集中脱敏日志、请求 ID、统一 API 错误格式、Windows 本地存储、SQLite 引擎、Alembic迁移环境、健康与诊断、可选静态服务、通用领域原语，以及Project三表模型和内部Repository适配器。
 
-当前没有用户账号或登录、业务Repository、业务Service、业务写入API、Codex调用或工作流。Project表和0002迁移只是内部持久化结构；应用不会自动迁移，也没有保存事务或读取查询。安全session只是本机浏览器CSRF基础，不代表身份认证。健康检查成功仅表示基础后端、安全配置、存储能力、数据库连接和按配置要求的前端构建可用，不表示Project或小说数据已经可以由用户保存。
+当前没有用户账号或登录、Project应用Service、业务写入API、Codex调用或工作流。Project Repository可以在隔离数据库中原子创建、读取当前聚合和追加修订，但尚未接入应用组合根或任何API；应用不会自动迁移，也不会自动创建Project。安全session只是本机浏览器CSRF基础，不代表身份认证。健康检查成功仅表示基础后端、安全配置、存储能力、数据库连接和按配置要求的前端构建可用，不表示Project或小说数据已经可以由用户保存。
 
 ## 领域基础
 
@@ -12,9 +12,9 @@ Project模块已拥有`prj`和`prv`两种固定业务ID；Chapter及其他业务
 
 ## Project持久化基础
 
-`src/aiwebnovel/project/`的领域部分不依赖数据库，定义稳定Project、不可变ProjectRevision、独立ProjectHead和纯转换规则。`project/persistence/`保存三个显式ORM记录及双向mapper；`db/model_registry.py`只在Alembic或明确测试需要时确定性注册模型，不连接数据库或执行迁移。
+`src/aiwebnovel/project/`的领域部分不依赖数据库，定义稳定Project、不可变ProjectRevision、独立ProjectHead、纯转换规则和框架无关Repository契约。`project/persistence/`保存三个显式ORM记录、双向mapper、固定查询与SQLAlchemy Repository实现；`db/model_registry.py`只在Alembic或明确测试需要时确定性注册模型，不连接数据库或执行迁移。
 
-迁移`0002_create_project_foundation`建立`projects`、`project_revisions`和`project_heads`，使用复合外键防止跨Project Head指针，并以SQLite触发器拒绝Revision UPDATE和DELETE。当前没有Repository、保存事务、API或前端项目列表；完整边界见[Project持久化基础](../docs/PROJECT_FOUNDATION.md)。
+迁移`0002_create_project_foundation`建立`projects`、`project_revisions`和`project_heads`，使用复合外键防止跨Project Head指针，并以SQLite触发器拒绝Revision UPDATE和DELETE。内部Repository使用`BEGIN IMMEDIATE`、Project与Head双CAS以及每操作独立Session保证原子性；当前没有应用Service、API、历史查询、删除或前端项目列表。完整边界见[Project持久化基础](../docs/PROJECT_FOUNDATION.md)和[Project Repository事务边界](../docs/PROJECT_REPOSITORY.md)。
 
 ## 环境要求
 

@@ -4,9 +4,9 @@ AIWebNovel 是项目暂定名称，目标是开发一套面向中文男频网文
 
 ## 当前阶段与状态
 
-阶段 0——工程底座已通过 DEV-0.11 正式验收并冻结为 M0。阶段 1 当前里程碑为 M1：DEV-1.1建立通用领域原语，DEV-1.2进一步建立Project稳定对象、不可变修订、独立Head指针和三表迁移基础。当前仍没有Repository、业务API、DTO或前端项目管理功能，不能通过应用创建、读取或保存Project。M0正式结果与冻结范围见 [M0 正式验收报告](docs/M0_ACCEPTANCE_REPORT.md)，内部契约见 [领域基础原语](docs/DOMAIN_FOUNDATION.md)和[Project持久化基础](docs/PROJECT_FOUNDATION.md)。
+阶段 0——工程底座已通过 DEV-0.11 正式验收并冻结为 M0。阶段 1 当前里程碑为 M1：DEV-1.1建立通用领域原语，DEV-1.2建立Project稳定对象、不可变修订、独立Head指针和三表迁移基础，DEV-1.3建立Project内部事务Repository。当前仍没有Project应用Service、业务API、DTO或前端项目管理功能，不能通过应用界面或API创建、读取或保存Project。M0正式结果与冻结范围见 [M0 正式验收报告](docs/M0_ACCEPTANCE_REPORT.md)，内部契约见 [领域基础原语](docs/DOMAIN_FOUNDATION.md)、[Project持久化基础](docs/PROJECT_FOUNDATION.md)和[Project Repository事务边界](docs/PROJECT_REPOSITORY.md)。
 
-当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI、安全配置、存储目录访问能力与 SQLite 基础状态。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。默认用户数据根是 `%LOCALAPPDATA%\AIWebNovel`，正式数据不存放在 Git 仓库；目录只在应用生命周期启动或显式初始化时按需创建。迁移`0002_create_project_foundation`只定义Project、Revision和Head结构，应用启动不会自动执行迁移或创建Project数据。项目仍没有用户登录、小说业务写入API、Agent、Skill、Prompt、工作流或小说业务界面；健康检查通过只代表工程基础可用，不代表系统已经能够创作小说。安全边界见 [本地应用安全基线](docs/SECURITY_BASELINE.md)，存储规则见 [本地存储](docs/LOCAL_STORAGE.md)，后端环境、数据库迁移和测试说明见 [后端 README](backend/README.md)，前端环境与命令见 [前端 README](frontend/README.md)，已实现工程能力见 [功能真实性矩阵](docs/FEATURE_REALITY_MATRIX.md)。
+当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI、安全配置、存储目录访问能力与 SQLite 基础状态。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。默认用户数据根是 `%LOCALAPPDATA%\AIWebNovel`，正式数据不存放在 Git 仓库；目录只在应用生命周期启动或显式初始化时按需创建。迁移`0002_create_project_foundation`只定义Project、Revision和Head结构，应用启动不会自动执行迁移或创建Project数据。Project Repository是尚未接入应用服务的内部持久化能力。项目仍没有用户登录、小说业务写入API、Agent、Skill、Prompt、工作流或小说业务界面；健康检查通过只代表工程基础可用，不代表系统已经能够创作小说。安全边界见 [本地应用安全基线](docs/SECURITY_BASELINE.md)，存储规则见 [本地存储](docs/LOCAL_STORAGE.md)，后端环境、数据库迁移和测试说明见 [后端 README](backend/README.md)，前端环境与命令见 [前端 README](frontend/README.md)，已实现工程能力见 [功能真实性矩阵](docs/FEATURE_REALITY_MATRIX.md)。
 
 ## 本地运行模式
 
@@ -41,7 +41,7 @@ AIWebNovel 是项目暂定名称，目标是开发一套面向中文男频网文
 - 数据治理：候选数据、正式数据与分支数据严格隔离；
 - Codex：通过统一的 CodexExecutor 适配器接入。
 
-以上包含已冻结的 M0 工程基础、Project内部持久化结构和后续阶段计划，不表示Project保存事务、用户可见业务功能或完整系统已经完成，也不表示备份、导出、模型管理、文件日志、小说创作或 Codex 能力已经实现。
+以上包含已冻结的 M0 工程基础、Project内部持久化结构与事务Repository，以及后续阶段计划，不表示用户可见Project功能或完整系统已经完成，也不表示备份、导出、模型管理、文件日志、小说创作或 Codex 能力已经实现。
 
 ## 本地质量门禁
 

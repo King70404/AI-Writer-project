@@ -315,6 +315,16 @@ def _project_import_violation(
             "core-must-not-import-project",
             "core must remain independent of the Project business module",
         )
+    if source_layer == "storage":
+        return (
+            "storage-must-not-import-project",
+            "storage must remain independent of the Project business module",
+        )
+    if source_layer == "security":
+        return (
+            "security-must-not-import-project",
+            "security must remain independent of the Project business module",
+        )
     if _is_module_or_child(reference.source_module, "aiwebnovel.db.types"):
         return (
             "db-types-must-not-import-project",

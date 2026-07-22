@@ -164,9 +164,9 @@ DEV-1.1的纯`aiwebnovel.domain`模块除全局门槛外，还要求语句覆盖
 
 ## Project基础专项检查
 
-DEV-1.2的`aiwebnovel.project`新增生产代码要求语句覆盖率不低于95%、分支覆盖率不低于90%。专项测试覆盖具体业务ID、标题和简介值对象、稳定对象与聚合、纯领域修订转换、显式Record映射、SQLite约束、Revision不可变触发器以及`0001 → 0002 → 0001 → 0002`隔离迁移循环。
+DEV-1.2及后续Project内部生产代码要求`aiwebnovel.project`语句覆盖率不低于95%、分支覆盖率不低于90%。专项测试覆盖具体业务ID、标题和简介值对象、稳定对象与聚合、纯领域修订转换、显式Record映射、SQLite约束、Revision不可变触发器以及`0001 → 0002 → 0001 → 0002`隔离迁移循环。DEV-1.3另覆盖Repository纯Python契约、三表原子创建、单查询读取、数据损坏拒绝、stale快速拒绝、Project与Head双CAS、真实双线程并发、晚期失败回滚、错误脱敏和Session生命周期。
 
-迁移与约束测试只能使用各测试拥有的临时SQLite数据库和隔离数据根，必须清理数据库、WAL、SHM、journal及Alembic运行产物。专项结果不能替代默认门禁、两种E2E门禁或依赖审计；完整模型边界见[Project持久化基础](PROJECT_FOUNDATION.md)。
+迁移、约束与Repository事务测试只能使用各测试拥有的临时SQLite数据库和隔离数据根，必须清理数据库、WAL、SHM、journal、受控测试触发器及Alembic运行产物。并发测试必须使用同一临时文件、两个独立Repository实例和Barrier同步，不得用sleep或全局Python锁决定顺序。专项结果不能替代默认门禁、两种E2E门禁或依赖审计；完整模型和事务边界见[Project持久化基础](PROJECT_FOUNDATION.md)与[Project Repository事务边界](PROJECT_REPOSITORY.md)。
 
 ## 显式格式化
 
@@ -198,4 +198,4 @@ DEV-1.2的`aiwebnovel.project`新增生产代码要求语句覆盖率不低于95
 
 任何适用门禁失败，都不得声称当前任务完成，也不得开始下一编号任务。应先修复真实原因并完整重跑；不得降低阈值、跳过检查或把失败输出为成功。
 
-DEV-0.10 已把 Diagnostics 单元测试、架构边界和启动脚本静态安全检查纳入默认门禁，并保持 Chromium E2E、真实启动烟测与 M0 预验收为显式验收项。本阶段仍没有用户登录、业务写入 API、Project、写作、评审、Agent、Skill、Prompt、备份、导出、安装器或其他小说业务功能。
+DEV-0.10 已把 Diagnostics 单元测试、架构边界和启动脚本静态安全检查纳入默认门禁，并保持 Chromium E2E、真实启动烟测与 M0 预验收为显式验收项。当前虽有Project内部领域与Repository基础，仍没有用户登录、Project应用Service或业务写入 API，也没有写作、评审、Agent、Skill、Prompt、备份、导出、安装器或其他用户可见小说业务功能。

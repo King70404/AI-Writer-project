@@ -346,11 +346,64 @@ def test_checker_accepts_declared_project_domain_persistence_and_registry_depend
     )
     _write_module(
         package_root,
+        "project/repository.py",
+        "from typing import Protocol\nfrom aiwebnovel.project.entities import Project\n",
+    )
+    _write_module(
+        package_root,
+        "project/persistence/repository.py",
+        "from sqlalchemy.orm import Session\n"
+        "from aiwebnovel.project.repository import ProjectRepository\n"
+        "from .mappers import project_from_record\n",
+    )
+    _write_module(
+        package_root,
         "db/model_registry.py",
         "from aiwebnovel.project.persistence.models import ProjectRecord\n",
     )
 
     assert check_backend_boundaries(package_root) == ()
+
+
+@pytest.mark.parametrize("framework", ["fastapi", "pydantic", "sqlalchemy"])
+def test_checker_keeps_project_repository_contract_framework_independent(
+    tmp_path: Path,
+    framework: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "project/repository.py", f"import {framework}\n")
+
+    violations = check_backend_boundaries(package_root)
+
+    assert "project-domain-must-not-import-frameworks" in {
+        violation.rule for violation in violations
+    }
+
+
+@pytest.mark.parametrize(
+    ("module_path", "expected_rule"),
+    [
+        ("storage/bad_project.py", "storage-must-not-import-project"),
+        ("security/bad_project.py", "security-must-not-import-project"),
+        ("web/bad_project_repository.py", "web-must-not-import-project-persistence"),
+    ],
+)
+def test_checker_keeps_project_repository_ownership_internal(
+    tmp_path: Path,
+    module_path: str,
+    expected_rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    target = (
+        "aiwebnovel.project.persistence.repository"
+        if module_path.startswith("web/")
+        else "aiwebnovel.project.repository"
+    )
+    _write_module(package_root, module_path, f"import {target}\n")
+
+    violations = check_backend_boundaries(package_root)
+
+    assert expected_rule in {violation.rule for violation in violations}
 
 
 @pytest.mark.parametrize("framework", ["fastapi", "pydantic", "sqlalchemy"])

@@ -71,6 +71,8 @@ DEV-0.1 至 DEV-0.11 已完成，阶段 0 工程底座已通过正式验收并�
 
 DEV-1.2授权Project模块拥有稳定对象、不可变修订、独立Head指针以及`projects`、`project_revisions`、`project_heads`三表结构。它仍不授权Repository、Service、API、DTO、前端项目列表、删除归档、三区隔离或其他小说模块；应用启动不得自动执行0002迁移或创建Project数据。下一任务只有在独立授权后才能建立事务保存边界。
 
+DEV-1.3授权Project所有者内部建立纯Python Repository契约与SQLAlchemy SQLite事务实现，只提供原子create、一致当前聚合get和带Project/Head双CAS的append_revision。它不授权应用Service、API、DTO、历史查询、删除、前端页面或Schema变化。关键事务测试必须使用迁移到head的独立临时数据库，证明`BEGIN IMMEDIATE`并发确定性、晚期失败完整回滚、损坏状态拒绝、Session关闭与sidecar清理；DEV-1.4只有在独立授权后才能建立应用命令和查询服务。
+
 ## 统一执行报告
 
 任务报告至少包含：

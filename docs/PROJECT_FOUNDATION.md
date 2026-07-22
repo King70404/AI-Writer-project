@@ -1,6 +1,6 @@
 # Project持久化基础
 
-DEV-1.2建立Project模块的内部领域与持久化基础，但不提供Repository、Service、API、DTO或前端项目管理功能。应用启动不会自动执行迁移，也不会创建默认Project或示例数据。
+DEV-1.2建立Project模块的内部领域与持久化基础；DEV-1.3在不改变Schema的前提下增加内部事务Repository。当前仍不提供应用Service、API、DTO或前端项目管理功能。应用启动不会自动执行迁移，也不会创建默认Project或示例数据。
 
 ## 所有权与对象关系
 
@@ -44,13 +44,13 @@ Project模块唯一拥有`projects`、`project_revisions`和`project_heads`。�
 
 通用`UtcDateTimeType`只接受aware datetime，绑定前规范为UTC；SQLite读取的UTC值恢复为aware UTC，不依赖系统本地时区。它不包含Project业务规则。
 
-## 明确边界与后续事务
+## Repository事务边界
 
-SQLite约束可以保证正数版本、修订号唯一、Head唯一、Head与Revision同属一个Project以及Revision不可更新或删除，但数据库无法单独保证每个已提交Project始终存在Head。DEV-1.3的Repository必须在同一事务中原子完成Project/Revision/Head初始插入，或执行：
+SQLite约束可以保证正数版本、修订号唯一、Head唯一、Head与Revision同属一个Project以及Revision不可更新或删除，但数据库无法单独保证每个已提交Project始终存在Head。DEV-1.3的Repository已在同一`BEGIN IMMEDIATE`事务中原子完成Project/Revision/Head初始插入；追加修订执行：
 
 1. 插入新Revision；
 2. 以`WHERE id = :project_id AND concurrency_version = :expected_version`比较并更新Project；
-3. 更新Head；
-4. 受影响Project行数不是1时转换为`ConcurrencyConflict`并回滚。
+3. 以旧Revision ID为条件更新Head；
+4. 任一CAS影响行数不是1时回滚，并通过事后安全读取转换为缺失、stale或持久化冲突。
 
-DEV-1.2只持久化并发版本列和纯领域递增规则，不提供并发安全保存操作。当前没有Repository、Service、API、DTO、前端项目列表，也没有删除、归档、恢复、正式区、候选区、分支、审批、Character、Chapter、Codex、Agent或工作流。
+Repository的公开契约保持纯Python，SQLAlchemy实现位于Project持久化层；每次操作使用独立Session。`get()`以单条业务SELECT恢复一致当前聚合并拒绝损坏状态，完整事务、CAS、错误与并发规则见[Project Repository事务边界](PROJECT_REPOSITORY.md)。当前没有应用Service、API、DTO、前端项目列表，也没有历史查询、删除、归档、恢复、正式区、候选区、分支、审批、Character、Chapter、Codex、Agent或工作流。

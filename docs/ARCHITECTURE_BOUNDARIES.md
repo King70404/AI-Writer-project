@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 通用领域与Project内部持久化基础的依赖方向。边界说明不代表用户已经可以管理或保存小说项目。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 通用领域、Project内部持久化基础与Repository的依赖方向。边界说明不代表用户已经可以管理或保存小说项目。
 
 ## 业务模块
 
@@ -77,13 +77,13 @@ DEV-1.1建立的通用原语不拥有任何业务前缀或表，也不反向依�
 
 ## 阶段1 Project模块
 
-`project.identifiers`、`project.values`、`project.entities`、`project.transitions`和`project.errors`组成纯业务领域部分，只能依赖Python标准库、通用`domain`和Project自身领域模块。它们不得导入SQLAlchemy、FastAPI、Pydantic、`db`、`core`、`storage`、`security`、`diagnostics`、`web`、`main`或测试代码。
+`project.identifiers`、`project.values`、`project.entities`、`project.transitions`、`project.errors`和`project.repository`组成纯业务领域契约，只能依赖Python标准库、通用`domain`和Project自身领域模块。Repository契约不得导入SQLAlchemy、FastAPI或Pydantic；整个领域部分不得导入`db`、`core`、`storage`、`security`、`diagnostics`、`web`、`main`或测试代码。
 
-`project.persistence`是Project拥有的外向数据库适配层，可以导入Project领域契约、SQLAlchemy以及公开的`db.base`和`db.types`，但不能导入Web、Security、Storage、Diagnostics、Main或测试代码。它只定义ORM记录与显式双向mapper，不提供Repository、Session生命周期、自动提交或查询服务。
+`project.persistence`是Project拥有的外向数据库适配层，可以导入Project Repository契约、Project领域、自己的模型与mapper、SQLAlchemy以及允许的通用DB类型，但不能导入Web、Security、Storage、Diagnostics、Main或测试代码。它定义ORM记录、显式双向mapper、固定查询和具体事务Repository；每次操作独立管理Session，不建立全局Session、通用Unit of Work或任意SQL入口。
 
 `db.model_registry`是模型组合入口，可以确定性导入`project.persistence.models`并返回正式`Base.metadata`；这是通用DB指向Project持久化实现的唯一受控例外。`db.types`、`db.base`和其他通用DB模块不得导入Project，`core`与通用`domain`也不得反向依赖Project。模型注册不连接数据库、不执行迁移，普通Project领域导入不加载SQLAlchemy。
 
-Project唯一拥有`projects`、`project_revisions`和`project_heads`。其他模块不得直接写这些表；后续跨模块访问必须经过Project公开应用服务。本任务没有建立该服务，也没有Project API、DTO或前端页面。完整结构与事务边界见[Project持久化基础](PROJECT_FOUNDATION.md)。
+Project唯一拥有`projects`、`project_revisions`和`project_heads`。只有`project.persistence`可以直接写这些表；`storage`与`security`不得导入Project，`web`不得导入Project持久化实现，通用`db`只有模型注册入口可以导入Project模型。后续跨模块访问必须经过Project公开应用服务；当前尚未建立该服务，也没有Project API、DTO或前端页面。完整结构与事务边界见[Project持久化基础](PROJECT_FOUNDATION.md)和[Project Repository事务边界](PROJECT_REPOSITORY.md)。
 
 ## 所有权与跨模块规则
 
