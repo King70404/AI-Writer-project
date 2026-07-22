@@ -381,7 +381,15 @@ def test_checker_accepts_declared_project_application_dependencies(tmp_path: Pat
     _write_module(
         package_root,
         "project/application/models.py",
-        "from dataclasses import dataclass\nfrom datetime import datetime\n",
+        "from dataclasses import dataclass\nfrom datetime import datetime\n"
+        "from aiwebnovel.domain.time import ensure_utc\n"
+        "from aiwebnovel.project.identifiers import ProjectId\n",
+    )
+    _write_module(
+        package_root,
+        "project/application/listing.py",
+        "from typing import Protocol\n"
+        "from aiwebnovel.project.application.models import ProjectListPage\n",
     )
     _write_module(
         package_root,
@@ -397,6 +405,23 @@ def test_checker_accepts_declared_project_application_dependencies(tmp_path: Pat
         "from aiwebnovel.project.application.commands import Command\n"
         "from aiwebnovel.project.repository import ProjectRepository\n"
         "from aiwebnovel.project.values import ProjectTitle\n",
+    )
+
+    assert check_backend_boundaries(package_root) == ()
+
+
+def test_checker_accepts_dedicated_listing_adapter_application_contracts(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "project/persistence/listing.py",
+        "from sqlalchemy import select\n"
+        "from aiwebnovel.project.application.listing import ProjectListReader\n"
+        "from aiwebnovel.project.application.models import ProjectListPage\n"
+        "from aiwebnovel.project.application.queries import validate_project_list_limit\n"
+        "from aiwebnovel.project.identifiers import ProjectId\n",
     )
 
     assert check_backend_boundaries(package_root) == ()
@@ -467,6 +492,11 @@ def test_checker_accepts_declared_project_web_dependencies(tmp_path: Path) -> No
             "from aiwebnovel.project.web import router\n",
             "project-persistence-must-not-import-web",
         ),
+        (
+            "project/web/router.py",
+            "from aiwebnovel.project.persistence.listing import SqlAlchemyProjectListReader\n",
+            "project-web-must-not-import-persistence",
+        ),
     ],
 )
 def test_checker_enforces_project_web_boundaries(
@@ -515,6 +545,11 @@ def test_checker_enforces_project_web_boundaries(
             "project-persistence-must-not-import-application",
         ),
         (
+            "project/persistence/repository.py",
+            "from aiwebnovel.project.application.listing import ProjectListReader\n",
+            "project-persistence-must-not-import-application",
+        ),
+        (
             "domain/bad_application.py",
             "from aiwebnovel.project.application import services\n",
             "domain-must-not-import-project",
@@ -532,6 +567,7 @@ def test_checker_enforces_project_web_boundaries(
         "application-to-web",
         "repository-to-application",
         "persistence-to-application",
+        "non-listing-persistence-to-list-port",
         "common-domain-to-application",
         "core-to-application",
     ),

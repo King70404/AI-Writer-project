@@ -8,9 +8,14 @@ from aiwebnovel.project.application.commands import (
     CreateProjectCommand,
     ReviseProjectCommand,
 )
+from aiwebnovel.project.application.listing import ProjectListReader
 from aiwebnovel.project.application.mappers import project_snapshot_from_aggregate
-from aiwebnovel.project.application.models import ProjectSnapshot
-from aiwebnovel.project.application.queries import GetProjectQuery
+from aiwebnovel.project.application.models import ProjectListPage, ProjectSnapshot
+from aiwebnovel.project.application.queries import (
+    GetProjectQuery,
+    ListProjectsQuery,
+    validate_project_list_limit,
+)
 from aiwebnovel.project.identifiers import ProjectId, ProjectRevisionId
 from aiwebnovel.project.repository import ProjectRepository
 from aiwebnovel.project.transitions import create_initial_project
@@ -86,4 +91,18 @@ class ProjectQueryService:
         return project_snapshot_from_aggregate(aggregate)
 
 
-__all__ = ["ProjectCommandService", "ProjectQueryService"]
+class ProjectListQueryService:
+    """Read one detached Project page through the dedicated list port."""
+
+    def __init__(self, reader: ProjectListReader) -> None:
+        self._reader = reader
+
+    def list_projects(self, query: ListProjectsQuery) -> ProjectListPage:
+        """Validate one query and delegate to the list reader exactly once."""
+        if type(query) is not ListProjectsQuery:
+            raise TypeError("query must be a ListProjectsQuery")
+        limit = validate_project_list_limit(query.limit)
+        return self._reader.list_page(limit=limit, after=query.after)
+
+
+__all__ = ["ProjectCommandService", "ProjectListQueryService", "ProjectQueryService"]

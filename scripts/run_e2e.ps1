@@ -879,6 +879,7 @@ function Invoke-E2EScenario {
             "E2E-INT-004",
             "E2E-INT-005",
             "E2E-INT-006",
+            "E2E-INT-007",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -891,7 +892,7 @@ function Invoke-E2EScenario {
         [System.StringComparison]::Ordinal
     )
     $isMissingBuild = $SelectedScenario -eq "E2E-STARTUP-001"
-    $isProjectApi = $SelectedScenario -eq "E2E-INT-006"
+    $isProjectApi = $SelectedScenario -in @("E2E-INT-006", "E2E-INT-007")
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
     $runToken = [guid]::NewGuid().ToString("N")
@@ -1074,8 +1075,12 @@ function Invoke-E2EScenario {
         if ($isProjectApi) {
             foreach ($logPath in Get-ChildItem -LiteralPath $runDirectory -Filter "*.log") {
                 $logText = Get-Content -LiteralPath $logPath.FullName -Raw -Encoding UTF8
-                if ($logText -match "E2E-PROJECT-(?:TITLE|DESCRIPTION)-CANARY-006") {
-                    throw "Project API request body appeared in service logs"
+                if (
+                    $logText -match "E2E-PROJECT-(?:TITLE|DESCRIPTION)-CANARY-006" -or
+                    $logText -match "E2E-PROJECT-LIST-BODY-CANARY-007" -or
+                    $logText -match "E2E_PROJECT_LIST_CURSOR_CANARY_007"
+                ) {
+                    throw "Project API private request content appeared in service logs"
                 }
             }
         }
@@ -1163,6 +1168,7 @@ try {
         "E2E-INT-004" = "Integrated"
         "E2E-INT-005" = "Integrated"
         "E2E-INT-006" = "Integrated"
+        "E2E-INT-007" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -1173,6 +1179,7 @@ try {
         "E2E-INT-004",
         "E2E-INT-005",
         "E2E-INT-006",
+        "E2E-INT-007",
         "E2E-STARTUP-001"
     )
 

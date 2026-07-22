@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 通用领域、Project领域、应用、持久化与HTTP适配层的依赖方向。当前HTTP能力不代表已经存在Project前端管理页面。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 通用领域、Project领域、应用、持久化与HTTP适配层的依赖方向。当前详情与列表HTTP能力不代表已经存在Project前端管理页面。
 
 ## 业务模块
 
@@ -79,17 +79,17 @@ DEV-1.1建立的通用原语不拥有任何业务前缀或表，也不反向依�
 
 `project.identifiers`、`project.values`、`project.entities`、`project.transitions`、`project.errors`和`project.repository`组成纯业务领域契约，只能依赖Python标准库、通用`domain`和Project自身领域模块。Repository契约不得导入SQLAlchemy、FastAPI或Pydantic；整个领域部分不得导入`db`、`core`、`storage`、`security`、`diagnostics`、`web`、`main`或测试代码。
 
-`project.application`是Project拥有的纯Python应用层。`commands`、`queries`和`models`只依赖标准库；`mappers`只显式依赖Project领域Aggregate和应用Snapshot；`services`可以依赖应用模块、Project领域、Repository契约及通用`domain`。应用层把一个创建或修订命令映射到一个Repository写事务，把一个查询映射到一次Repository读取；它不得打开Session、执行SQL、导入SQLAlchemy、Project持久化实现、FastAPI、Pydantic、Web、Security、Storage或Diagnostics。Project领域、Repository契约和持久化实现均不得反向导入应用层。
+`project.application`是Project拥有的纯Python应用层。命令保持标准库输入；列表Position、Item和Page可以依赖公开Project ID、版本、时间和标题验证类型，但不依赖框架。`mappers`只显式依赖Project领域Aggregate和应用Snapshot；`services`可以依赖应用模块、Project领域、Repository契约及通用`domain`。应用层把一个创建或修订命令映射到一个Repository写事务，把单Project查询映射到一次Repository读取，把列表查询映射到一次专用`ProjectListReader`调用；它不得打开Session、执行SQL、导入SQLAlchemy、Project持久化实现、FastAPI、Pydantic、Web、Security、Storage或Diagnostics。Project领域与写Repository契约不得反向导入应用层。
 
-`project.persistence`是Project拥有的外向数据库适配层，可以导入Project Repository契约、Project领域、自己的模型与mapper、SQLAlchemy以及允许的通用DB类型，但不能导入Web、Security、Storage、Diagnostics、Main或测试代码。它定义ORM记录、显式双向mapper、固定查询和具体事务Repository；每次操作独立管理Session，不建立全局Session、通用Unit of Work或任意SQL入口。
+`project.persistence`是Project拥有的外向数据库适配层，可以导入Project Repository契约、Project领域、自己的模型与mapper、SQLAlchemy以及允许的通用DB类型，但不能导入Web、Security、Storage、Diagnostics、Main或测试代码。唯一受控的应用依赖是`project.persistence.listing`指向Project专用列表端口、读取模型和limit规则；其他持久化模块不得导入应用层。它定义ORM记录、显式双向mapper、固定写Repository与单查询列表Reader；每次操作独立管理Session，不建立全局Session、通用Unit of Work、Pagination框架或任意SQL入口。
 
 `db.model_registry`是模型组合入口，可以确定性导入`project.persistence.models`并返回正式`Base.metadata`；这是通用DB指向Project持久化实现的唯一受控例外。`db.types`、`db.base`和其他通用DB模块不得导入Project，`core`与通用`domain`也不得反向依赖Project。模型注册不连接数据库、不执行迁移，普通Project领域导入不加载SQLAlchemy。
 
 Project唯一拥有`projects`、`project_revisions`和`project_heads`。只有`project.persistence`可以直接写这些表；`storage`与`security`不得导入Project，通用`db`只有模型注册入口可以导入Project模型。
 
-`project.web`是Project拥有的HTTP适配层：DTO只依赖Pydantic与公开业务常量，mapper只依赖应用Snapshot和Web DTO，Router只依赖FastAPI、Project应用命令/查询/服务与本层ETag和错误工具。Web层禁止导入SQLAlchemy、Project持久化模型或具体Repository、数据库Session、SQL语句和测试Fake。Project领域、应用与持久化层均不得反向导入Web。
+`project.web`是Project拥有的HTTP适配层：DTO只依赖Pydantic与公开业务常量，mapper只依赖应用Snapshot/Page和Web DTO，cursor只依赖标准库、应用Position与公开Project验证类型，Router只依赖FastAPI、Project应用命令/查询/服务与本层ETag、cursor和错误工具。Web层禁止导入SQLAlchemy、Project持久化模型、具体Repository/ListReader、数据库Session、SQL语句和测试Fake。Project领域、应用与持久化层均不得反向导入Web。
 
-`main`是唯一允许把既有Session工厂、`SqlAlchemyProjectRepository`、`ProjectCommandService`、`ProjectQueryService`和Project Router组合起来的位置；应用构造与Router导入不连接数据库，生命周期关闭时清除服务引用。跨模块仍只能使用公开应用服务与版本化DTO。当前只存在三个Project HTTP接口，没有列表、历史、删除、归档、PATCH或前端页面。完整边界见[Project HTTP API](PROJECT_HTTP_API.md)。
+`main`是唯一允许把既有Session工厂、`SqlAlchemyProjectRepository`、`SqlAlchemyProjectListReader`、三个Project应用服务和Project Router组合起来的位置；两个数据库适配器复用同一Engine/Session工厂但每次调用各自创建Session。应用构造与Router导入不连接数据库，生命周期关闭时清除服务引用。跨模块仍只能使用公开应用服务与版本化DTO。当前只存在四个Project HTTP接口，没有历史、删除、归档、PATCH、搜索或前端页面。完整边界见[Project HTTP API](PROJECT_HTTP_API.md)。
 
 ## 所有权与跨模块规则
 

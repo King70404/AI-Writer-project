@@ -2,7 +2,7 @@
 
 本矩阵只登记已经实现并可由自动测试或集成验收证明的稳定工程能力，不是功能路线图。健康与就绪检查通过仅证明本地工程基础可用，不证明小说业务、Codex 或创作能力已经实现。
 
-以下四项工程能力已随DEV-0.11冻结为M0；DEV-1.5另登记三个已由真实数据库和HTTP/E2E证明的Project API能力。登记API不表示已经存在前端Project页面。
+以下四项工程能力已随DEV-0.11冻结为M0；DEV-1.5和DEV-1.6另登记四个已由真实数据库和HTTP/E2E证明的Project API能力。登记API不表示已经存在前端Project页面。
 
 | feature_id | 用户可见名称 | 页面或入口 | 前端组件 | API | 后端服务 | 数据来源 | 状态变化 | 错误反馈 | 自动测试 | 当前状态 | 明确限制 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -13,3 +13,4 @@
 | PRJ-001 | Project创建API | `POST /api/v1/projects`；无前端页面 | 无 | 201、相对Location、强ETag `"1"` | Origin/Session/CSRF → 严格DTO → Create命令 → 真实SQLAlchemy Repository单事务 | 显式迁移到0002的SQLite三表 | 创建Project、初始Revision和Head | 安全422/409/503统一错误，不回显正文 | Project API专项、真实迁移数据库集成、`E2E-INT-006` | 已实现：HTTP API | 无前端页面、列表、历史、删除或归档；应用不自动迁移 |
 | PRJ-002 | 当前Project读取API | `GET /api/v1/projects/{project_id}`；无前端页面 | 无 | 200与当前强ETag | Host/安全头 → Get查询服务 → Repository单次当前聚合读取 | Head指向的当前Revision | 无写入，不更新时间或版本 | 422非法ID、404不存在、503持久化不可用 | Project API GET、真实数据库流程、`E2E-INT-006` | 已实现：HTTP API | 无列表、历史、删除、归档或前端页面 |
 | PRJ-003 | Project完整修订API | `PUT /api/v1/projects/{project_id}`；无前端页面 | 无 | 必需`If-Match: "N"`；成功ETag递增 | Origin/Session/CSRF → 严格DTO → Revise命令 → Repository事务内CAS | 新增不可变Revision并移动Head | RevisionNumber与ConcurrencyVersion各递增1 | 428缺失、400格式非法、412 stale；冲突不写入正文 | PUT协议、真实数据库、双会话HTTP并发、`E2E-INT-006` | 已实现：HTTP API | 仅完整替换；无PATCH、自动合并、历史查询、删除、归档或前端页面 |
+| PRJ-004 | Project列表API | `GET /api/v1/projects`；无前端页面 | 无 | 200；`items`、`next_cursor`、`has_more`；Keyset cursor | Host/安全头 → List查询服务一次 → SQLAlchemy Reader单条LEFT JOIN SELECT | Head指向的当前Revision摘要；`created_at DESC, project_id DESC` | 无写入；修订不改变分页位置，页间新建不进入旧cursor后续页 | 422 limit、400非法cursor、500数据损坏、503持久化/服务不可用；未迁移库安全失败 | 列表模型/Reader/分页/损坏/cursor/API/OpenAPI专项、真实迁移库流程、`E2E-INT-007` | 已实现：HTTP API | 不返回description或total；无搜索、筛选、自定义排序、分页UI、历史、删除或前端页面 |

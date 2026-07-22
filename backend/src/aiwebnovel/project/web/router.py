@@ -1,4 +1,4 @@
-"""The three intentionally minimal Project HTTP endpoints."""
+"""The intentionally bounded Project HTTP endpoints."""
 
 from typing import Annotated, Any
 
@@ -10,16 +10,28 @@ from aiwebnovel.project.application.commands import (
     CreateProjectCommand,
     ReviseProjectCommand,
 )
-from aiwebnovel.project.application.queries import GetProjectQuery
-from aiwebnovel.project.application.services import ProjectCommandService, ProjectQueryService
+from aiwebnovel.project.application.queries import (
+    DEFAULT_PROJECT_LIST_LIMIT,
+    MAX_PROJECT_LIST_LIMIT,
+    GetProjectQuery,
+    ListProjectsQuery,
+)
+from aiwebnovel.project.application.services import (
+    ProjectCommandService,
+    ProjectListQueryService,
+    ProjectQueryService,
+)
 from aiwebnovel.project.web.dependencies import (
     get_project_command_service,
     get_project_id,
+    get_project_list_query,
+    get_project_list_query_service,
     get_project_query_service,
     get_required_project_version,
 )
 from aiwebnovel.project.web.dto import (
     CreateProjectRequest,
+    ProjectListResponse,
     ProjectResponse,
     ReviseProjectRequest,
 )
@@ -28,7 +40,10 @@ from aiwebnovel.project.web.errors import (
     raise_project_http_error,
 )
 from aiwebnovel.project.web.etags import format_project_etag
-from aiwebnovel.project.web.mappers import project_response_from_snapshot
+from aiwebnovel.project.web.mappers import (
+    project_list_response_from_page,
+    project_response_from_snapshot,
+)
 
 _ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     400: {"description": "Malformed If-Match header."},
@@ -36,6 +51,13 @@ _ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     412: {"description": "The supplied version is stale."},
     422: {"description": "The request or a Project value is invalid."},
     428: {"description": "If-Match is required."},
+    503: {"description": "Project persistence or service is unavailable."},
+}
+
+_LIST_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {"description": "The opaque keyset cursor is invalid."},
+    422: {"description": "The list query parameters are invalid."},
+    500: {"description": "Stored Project list data is inconsistent."},
     503: {"description": "Project persistence or service is unavailable."},
 }
 
@@ -49,6 +71,57 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
     """Create the versioned Project router without touching persistence."""
     router = APIRouter(prefix=f"{api_prefix}/projects", tags=["Projects"])
 
+    @router.get(
+        "",
+        response_model=ProjectListResponse,
+        responses=_LIST_ERROR_RESPONSES,
+        summary="List current Projects",
+        description=(
+            "Returns current-revision summaries ordered by immutable created_at DESC and "
+            "project_id DESC using keyset pagination. The opaque cursor is a transport token, "
+            "not a security credential. Description and total count are intentionally omitted; "
+            "search, filtering, and custom sorting are not supported."
+        ),
+        openapi_extra={
+            "parameters": [
+                {
+                    "name": "limit",
+                    "in": "query",
+                    "required": False,
+                    "description": "Page size from 1 through 100; defaults to 20.",
+                    "schema": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": MAX_PROJECT_LIST_LIMIT,
+                        "default": DEFAULT_PROJECT_LIST_LIMIT,
+                    },
+                },
+                {
+                    "name": "cursor",
+                    "in": "query",
+                    "required": False,
+                    "description": "Opaque untrusted keyset cursor returned by the prior page.",
+                    "schema": {"type": "string", "nullable": True},
+                },
+            ]
+        },
+    )
+    def list_projects(
+        response: Response,
+        query: Annotated[ListProjectsQuery, Depends(get_project_list_query)],
+        service: Annotated[
+            ProjectListQueryService,
+            Depends(get_project_list_query_service),
+        ],
+    ) -> ProjectListResponse:
+        try:
+            page = service.list_projects(query)
+        except DomainError as exc:
+            raise_project_http_error(exc)
+        result = project_list_response_from_page(page)
+        response.headers["Cache-Control"] = "no-store"
+        return result
+
     @router.post(
         "",
         response_model=ProjectResponse,
@@ -57,7 +130,7 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
         summary="Create a Project",
         description=(
             "Creates a Project and its initial revision. The strong ETag represents "
-            "ConcurrencyVersion. No list or revision-history endpoint is provided."
+            "ConcurrencyVersion. No revision-history endpoint is provided."
         ),
     )
     def create_project(

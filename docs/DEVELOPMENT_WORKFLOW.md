@@ -77,6 +77,8 @@ DEV-1.4授权Project内部建立不可变创建/修订命令、当前查询、�
 
 DEV-1.5授权三个Project HTTP接口、严格Pydantic DTO、强ETag/If-Match、安全错误映射和组合根装配。写接口必须继承Origin、Session与CSRF，真实API与E2E只能显式迁移各自临时数据库；应用不得自动迁移。该任务不授权列表、历史、删除、归档、PATCH、前端Project页面或Schema变化；DEV-1.6仍需独立任务授权。
 
+DEV-1.6授权独立Project列表读取模型与端口、SQLAlchemy单查询LEFT JOIN、按不可变`created_at + project_id`降序的Keyset分页、严格版本化cursor及列表GET。列表不返回description或total，不接受OFFSET/search/filter/sort；未迁移数据库必须安全503，损坏Project使整页失败。该任务不改变Schema或0002，不授权前端Project页面、历史、删除、归档、分支、审批或Codex能力；DEV-1.7仍需独立任务授权。
+
 ## 统一执行报告
 
 任务报告至少包含：

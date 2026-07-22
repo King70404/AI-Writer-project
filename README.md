@@ -4,7 +4,7 @@ AIWebNovel 是项目暂定名称，目标是开发一套面向中文男频网文
 
 ## 当前阶段与状态
 
-阶段 0——工程底座已通过 DEV-0.11 正式验收并冻结为 M0。阶段 1 当前里程碑为 M1：DEV-1.1至DEV-1.4建立通用领域原语、Project三表与Repository、应用命令和Snapshot；DEV-1.5新增严格的Project创建、当前读取和完整修订HTTP API。当前仍没有Project列表、历史、删除、归档或前端项目管理页面。M0正式结果与冻结范围见 [M0 正式验收报告](docs/M0_ACCEPTANCE_REPORT.md)，Project HTTP契约见 [Project HTTP API](docs/PROJECT_HTTP_API.md)。
+阶段 0——工程底座已通过 DEV-0.11 正式验收并冻结为 M0。阶段 1 当前里程碑为 M1：DEV-1.1至DEV-1.4建立通用领域原语、Project三表与Repository、应用命令和Snapshot；DEV-1.5新增严格的Project创建、当前读取和完整修订HTTP API；DEV-1.6新增只返回当前Revision摘要的稳定Keyset列表API。当前仍没有Project前端页面、历史、删除、归档、搜索或筛选。M0正式结果与冻结范围见 [M0 正式验收报告](docs/M0_ACCEPTANCE_REPORT.md)，Project HTTP与列表契约见 [Project HTTP API](docs/PROJECT_HTTP_API.md)和[Project列表读取](docs/PROJECT_LISTING.md)。
 
 当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI、安全配置、存储目录访问能力与 SQLite 基础状态。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。默认用户数据根是 `%LOCALAPPDATA%\AIWebNovel`，正式数据不存放在 Git 仓库。迁移`0002_create_project_foundation`定义Project、Revision和Head结构，应用启动不会自动执行迁移；未迁移数据库上的Project API安全返回503。项目仍没有用户登录、小说创作业务、Agent、Skill、Prompt、工作流或Project前端界面；健康检查通过不代表系统已经能够创作小说。
 

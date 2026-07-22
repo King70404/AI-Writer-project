@@ -42,6 +42,33 @@ def invalid_if_match() -> AppError:
     )
 
 
+def invalid_project_list_cursor() -> AppError:
+    """Build the stable malformed cursor error without echoing its value."""
+    return AppError(
+        code="INVALID_CURSOR",
+        message="The Project list cursor is invalid.",
+        status_code=400,
+    )
+
+
+def invalid_project_list_request() -> AppError:
+    """Build a safe validation error for invalid list query parameters."""
+    return AppError(
+        code="REQUEST_VALIDATION_ERROR",
+        message="请求参数验证失败。",
+        status_code=422,
+        details={
+            "errors": [
+                {
+                    "field": "query.limit",
+                    "type": "validation_error",
+                    "message": "Invalid request value.",
+                }
+            ]
+        },
+    )
+
+
 def project_not_found() -> AppError:
     """Build a resource-absence error without exposing the supplied identifier."""
     return AppError(
@@ -109,6 +136,8 @@ def raise_project_http_error(exc: Exception) -> Never:
 
 __all__ = [
     "invalid_if_match",
+    "invalid_project_list_cursor",
+    "invalid_project_list_request",
     "precondition_required",
     "project_not_found",
     "project_service_unavailable",

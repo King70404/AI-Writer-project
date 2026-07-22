@@ -1,6 +1,6 @@
 # Project应用用例
 
-DEV-1.4在Project领域模型与事务Repository之上建立纯Python应用层。DEV-1.5保持该层不含HTTP、Pydantic或SQLAlchemy，并由独立`project.web`适配器与`main`组合根调用。
+DEV-1.4在Project领域模型与事务Repository之上建立纯Python应用层。DEV-1.5保持该层不含HTTP、Pydantic或SQLAlchemy，并由独立`project.web`适配器与`main`组合根调用。DEV-1.6在同一纯Python边界增加列表读取模型、专用Reader端口和查询服务，不把列表塞入聚合写Repository。
 
 ## 命令、查询与读取模型
 
@@ -85,8 +85,14 @@ stale写入原样传播`ConcurrencyConflict`，保留`expected_version`与`actua
 
 `ProjectQueryService.get_project()`先验证查询精确类型并解析`ProjectId`，然后只调用一次`repository.get()`。存在时显式映射当前Snapshot，不存在时返回`None`；它不创建Project、不写入、不调用时钟或ID工厂、不更新访问时间、不加载历史，也不缓存结果。
 
+## 列表查询用例
+
+`ProjectListPosition`只保存aware UTC `created_at`和规范Project ID文本。`ListProjectsQuery`只包含limit与可选after，默认20、最小1、最大100，并拒绝bool、浮点和其他隐式整数。`ProjectListItem`精确保存当前Revision摘要，不包含description、ORM、领域值或Session；`ProjectListPage`使用tuple items，只在确有下一页时保存最后一个实际item的位置。
+
+专用`ProjectListReader`是应用端口，只提供`list_page(limit, after)`，不改变现有写Repository契约，也不提供total、任意排序或过滤。`ProjectListQueryService.list_projects()`验证查询精确类型与limit后只调用Reader一次；它不调用`ProjectRepository.get()`、不执行N次聚合读取、不预取、不缓存、不生成ID或时间，也不吞掉安全持久化与损坏错误。SQLAlchemy实现属于Project持久化层，HTTP cursor属于Web传输层。完整排序、Keyset与页间变化语义见[Project列表读取](PROJECT_LISTING.md)。
+
 ## 架构取舍与当前边界
 
 当前命令与查询数量很少，直接服务契约更明确，因此不建立通用命令总线、查询总线、Mediator或通用CQRS框架。命令和查询职责分离不等于引入CQRS基础设施，也不改变Project对三张表的唯一所有权。
 
-DEV-1.5已在应用层之外建立三个Project HTTP接口、边界DTO与安全错误映射，并在`main`生命周期中显式装配服务。应用层本身仍不知道HTTP状态、ETag、Pydantic、具体Repository或app state。当前仍没有Project前端页面、列表、历史、删除、归档、PATCH、表单或保存按钮；详细HTTP契约见[Project HTTP API](PROJECT_HTTP_API.md)。
+DEV-1.5已在应用层之外建立创建、详情和完整修订接口；DEV-1.6新增列表接口、严格cursor与独立列表Reader装配。应用层本身仍不知道HTTP状态、ETag、cursor文本、Pydantic、具体SQLAlchemy实现或app state。当前仍没有Project前端页面、历史、删除、归档、PATCH、搜索、筛选、表单或保存按钮；详细HTTP契约见[Project HTTP API](PROJECT_HTTP_API.md)。

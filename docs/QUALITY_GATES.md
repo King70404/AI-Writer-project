@@ -164,7 +164,7 @@ DEV-1.1的纯`aiwebnovel.domain`模块除全局门槛外，还要求语句覆盖
 
 ## Project基础专项检查
 
-DEV-1.2及后续Project生产代码要求`aiwebnovel.project`语句覆盖率不低于95%、分支覆盖率不低于90%。DEV-1.5的十个Web专项文件覆盖严格DTO、ETag/If-Match、错误隐私、三个Router、安全/CORS、OpenAPI、真实迁移数据库流程、未迁移安全失败和双会话HTTP并发；`project.web`同样必须达到95%语句与90%分支覆盖率。
+DEV-1.2及后续Project生产代码要求`aiwebnovel.project`语句覆盖率不低于95%、分支覆盖率不低于90%。DEV-1.5的Web专项覆盖严格DTO、ETag/If-Match、错误隐私、三个单Project接口、安全/CORS、OpenAPI、真实迁移数据库流程、未迁移安全失败和双会话HTTP并发。DEV-1.6的列表专项另覆盖应用Page不变量、专用Reader端口、单SELECT/无COUNT/无OFFSET、Keyset跨页稳定性、十类损坏、严格cursor、列表HTTP/OpenAPI、真实迁移库流程及`E2E-INT-007`；新增Project列表生产代码必须达到95%语句与90%分支覆盖率。
 
 迁移、约束与Repository事务测试只能使用各测试拥有的临时SQLite数据库和隔离数据根，必须清理数据库、WAL、SHM、journal、受控测试触发器及Alembic运行产物。并发测试必须使用同一临时文件、两个独立Repository实例和Barrier同步，不得用sleep或全局Python锁决定顺序。专项结果不能替代默认门禁、两种E2E门禁或依赖审计；完整模型和事务边界见[Project持久化基础](PROJECT_FOUNDATION.md)与[Project Repository事务边界](PROJECT_REPOSITORY.md)。
 
@@ -180,7 +180,7 @@ DEV-1.2及后续Project生产代码要求`aiwebnovel.project`语句覆盖率不�
 
 ## 架构与仓库卫生
 
-后端架构测试保护阶段0与阶段1依赖方向。Project Web只可使用FastAPI、Pydantic、应用命令/查询/Snapshot/服务契约和明确的Web工具；禁止SQLAlchemy、持久化模型、具体Repository与Session。`main`作为组合根可以显式装配具体Repository和应用服务。受控正负样例同时证明领域、应用、持久化不得反向导入Web。
+后端架构测试保护阶段0与阶段1依赖方向。Project Web只可使用FastAPI、Pydantic、应用命令/查询/Snapshot/Page/服务契约和明确的Web工具；禁止SQLAlchemy、持久化模型、具体Repository/ListReader与Session。只有专用`project.persistence.listing`可向内依赖Project列表端口、模型与limit规则，其他持久化代码仍不得导入应用层。`main`作为组合根可以显式装配具体Repository、ListReader和应用服务。受控正负样例同时证明领域、应用、持久化不得反向导入Web。
 
 仓库卫生脚本只使用 `git ls-files` 枚举并读取已跟踪文件，不读取未跟踪的用户文件。它发现疑似秘密时只输出仓库相对文件名和问题类型，不输出匹配值；不会自动删除文件，也不会改写 `.gitignore`。
 
@@ -198,4 +198,4 @@ DEV-1.2及后续Project生产代码要求`aiwebnovel.project`语句覆盖率不�
 
 任何适用门禁失败，都不得声称当前任务完成，也不得开始下一编号任务。应先修复真实原因并完整重跑；不得降低阈值、跳过检查或把失败输出为成功。
 
-安全静态门禁还检查Project写路由无CSRF豁免、Router不导入SQLAlchemy/Session、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。当前已有三个Project API，但仍没有用户登录、Project列表/历史/删除或前端Project功能，也没有写作、评审、Agent、Skill、Prompt、备份、导出或安装器。
+安全静态门禁还检查Project写路由无CSRF豁免、Router不导入SQLAlchemy/Session、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。当前已有四个Project API，其中列表GET不要求Session/CSRF且不记录cursor或完整query；仍没有用户登录、Project历史/删除/前端功能、搜索或筛选，也没有写作、评审、Agent、Skill、Prompt、备份、导出或安装器。

@@ -17,7 +17,11 @@ from aiwebnovel.core.middleware import RequestIdMiddleware
 from aiwebnovel.db.engine import create_database_engine, resolve_database_url
 from aiwebnovel.db.health import check_database_health
 from aiwebnovel.db.session import create_database_session_factory
-from aiwebnovel.project.application.services import ProjectCommandService, ProjectQueryService
+from aiwebnovel.project.application.services import (
+    ProjectCommandService,
+    ProjectListQueryService,
+    ProjectQueryService,
+)
 from aiwebnovel.project.web import create_project_router
 from aiwebnovel.security import (
     CSRFMiddleware,
@@ -220,6 +224,9 @@ def create_app(
                         runtime_engine.dispose()
                         runtime_engine = None
                 else:
+                    from aiwebnovel.project.persistence.listing import (
+                        SqlAlchemyProjectListReader,
+                    )
                     from aiwebnovel.project.persistence.repository import (
                         SqlAlchemyProjectRepository,
                     )
@@ -233,6 +240,10 @@ def create_app(
                     application.state.project_query_service = ProjectQueryService(
                         project_repository
                     )
+                    project_list_reader = SqlAlchemyProjectListReader(session_factory)
+                    application.state.project_list_query_service = ProjectListQueryService(
+                        project_list_reader
+                    )
 
         application.state.initialized = True
         try:
@@ -240,6 +251,7 @@ def create_app(
         finally:
             application.state.initialized = False
             application.state.project_command_service = None
+            application.state.project_list_query_service = None
             application.state.project_query_service = None
             application.state.database_session_factory = None
             session_manager.clear()
@@ -263,6 +275,7 @@ def create_app(
     application.state.database_engine = None
     application.state.database_session_factory = None
     application.state.project_command_service = None
+    application.state.project_list_query_service = None
     application.state.project_query_service = None
     application.state.local_session_manager = session_manager
     application.state.proxy_headers_trusted = False

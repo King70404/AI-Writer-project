@@ -1,8 +1,8 @@
 # AIWebNovel 后端
 
-本目录包含已冻结的阶段 0 Python 后端基础设施，以及DEV-1.1至DEV-1.5的Project领域、持久化、应用与HTTP适配层。目前提供三个Project业务接口、严格Pydantic DTO、ETag/If-Match并发协议、安全错误映射和显式组合根装配。
+本目录包含已冻结的阶段 0 Python 后端基础设施，以及DEV-1.1至DEV-1.6的Project领域、持久化、应用与HTTP适配层。目前提供四个Project业务接口、稳定Keyset列表读取、严格Pydantic DTO、ETag/If-Match并发协议、安全错误映射和显式组合根装配。
 
-当前没有用户账号或登录、Project列表/历史/删除接口、前端Project页面、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
+当前没有用户账号或登录、Project历史/删除接口、前端Project页面、搜索、筛选、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；详情与列表GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
 
 ## 领域基础
 
@@ -14,11 +14,11 @@ Project模块已拥有`prj`和`prv`两种固定业务ID；Chapter及其他业务
 
 `src/aiwebnovel/project/`的领域部分不依赖数据库，定义稳定Project、不可变ProjectRevision、独立ProjectHead、纯转换规则和框架无关Repository契约。`project/persistence/`保存三个显式ORM记录、双向mapper、固定查询与SQLAlchemy Repository实现；`db/model_registry.py`只在Alembic或明确测试需要时确定性注册模型，不连接数据库或执行迁移。
 
-迁移`0002_create_project_foundation`建立`projects`、`project_revisions`和`project_heads`，使用复合外键防止跨Project Head指针，并以SQLite触发器拒绝Revision UPDATE和DELETE。内部Repository使用`BEGIN IMMEDIATE`、Project与Head双CAS以及每操作独立Session保证原子性；HTTP层只暴露创建、当前读取和完整修订。完整边界见[Project持久化基础](../docs/PROJECT_FOUNDATION.md)、[Project Repository事务边界](../docs/PROJECT_REPOSITORY.md)和[Project HTTP API](../docs/PROJECT_HTTP_API.md)。
+迁移`0002_create_project_foundation`建立`projects`、`project_revisions`和`project_heads`，使用复合外键防止跨Project Head指针，并以SQLite触发器拒绝Revision UPDATE和DELETE。内部Repository使用`BEGIN IMMEDIATE`、Project与Head双CAS以及每操作独立Session保证原子性；独立列表Reader以一条LEFT JOIN SELECT、不可变创建时间和Project ID降序执行Keyset分页。完整边界见[Project持久化基础](../docs/PROJECT_FOUNDATION.md)、[Project Repository事务边界](../docs/PROJECT_REPOSITORY.md)、[Project HTTP API](../docs/PROJECT_HTTP_API.md)和[Project列表读取](../docs/PROJECT_LISTING.md)。
 
 ## Project应用用例
 
-`src/aiwebnovel/project/application/`保持纯Python；`project/web/`单独负责DTO、Snapshot映射、ETag、错误和Router。具体SQLAlchemy Repository只在`main`中用既有Session工厂装配，Router不访问Session或ORM。完整输入顺序见[Project应用用例](../docs/PROJECT_APPLICATION.md)。
+`src/aiwebnovel/project/application/`保持纯Python；列表端口与写Repository分离。`project/web/`单独负责DTO、Snapshot/Page映射、ETag、严格cursor、错误和Router。具体SQLAlchemy Repository与列表Reader只在`main`中用既有Session工厂装配，Router不访问Session或ORM。完整输入顺序见[Project应用用例](../docs/PROJECT_APPLICATION.md)。
 
 ## 环境要求
 
