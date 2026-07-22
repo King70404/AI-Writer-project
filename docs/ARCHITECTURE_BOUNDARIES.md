@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 通用领域、Project内部持久化基础与Repository的依赖方向。边界说明不代表用户已经可以管理或保存小说项目。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 通用领域、Project内部领域、应用与持久化的依赖方向。边界说明不代表用户已经可以管理或保存小说项目。
 
 ## 业务模块
 
@@ -79,11 +79,13 @@ DEV-1.1建立的通用原语不拥有任何业务前缀或表，也不反向依�
 
 `project.identifiers`、`project.values`、`project.entities`、`project.transitions`、`project.errors`和`project.repository`组成纯业务领域契约，只能依赖Python标准库、通用`domain`和Project自身领域模块。Repository契约不得导入SQLAlchemy、FastAPI或Pydantic；整个领域部分不得导入`db`、`core`、`storage`、`security`、`diagnostics`、`web`、`main`或测试代码。
 
+`project.application`是Project拥有的纯Python应用层。`commands`、`queries`和`models`只依赖标准库；`mappers`只显式依赖Project领域Aggregate和应用Snapshot；`services`可以依赖应用模块、Project领域、Repository契约及通用`domain`。应用层把一个创建或修订命令映射到一个Repository写事务，把一个查询映射到一次Repository读取；它不得打开Session、执行SQL、导入SQLAlchemy、Project持久化实现、FastAPI、Pydantic、Web、Security、Storage或Diagnostics。Project领域、Repository契约和持久化实现均不得反向导入应用层。
+
 `project.persistence`是Project拥有的外向数据库适配层，可以导入Project Repository契约、Project领域、自己的模型与mapper、SQLAlchemy以及允许的通用DB类型，但不能导入Web、Security、Storage、Diagnostics、Main或测试代码。它定义ORM记录、显式双向mapper、固定查询和具体事务Repository；每次操作独立管理Session，不建立全局Session、通用Unit of Work或任意SQL入口。
 
 `db.model_registry`是模型组合入口，可以确定性导入`project.persistence.models`并返回正式`Base.metadata`；这是通用DB指向Project持久化实现的唯一受控例外。`db.types`、`db.base`和其他通用DB模块不得导入Project，`core`与通用`domain`也不得反向依赖Project。模型注册不连接数据库、不执行迁移，普通Project领域导入不加载SQLAlchemy。
 
-Project唯一拥有`projects`、`project_revisions`和`project_heads`。只有`project.persistence`可以直接写这些表；`storage`与`security`不得导入Project，`web`不得导入Project持久化实现，通用`db`只有模型注册入口可以导入Project模型。后续跨模块访问必须经过Project公开应用服务；当前尚未建立该服务，也没有Project API、DTO或前端页面。完整结构与事务边界见[Project持久化基础](PROJECT_FOUNDATION.md)和[Project Repository事务边界](PROJECT_REPOSITORY.md)。
+Project唯一拥有`projects`、`project_revisions`和`project_heads`。只有`project.persistence`可以直接写这些表；`storage`与`security`不得导入Project，`web`不得导入Project持久化实现，通用`db`只有模型注册入口可以导入Project模型。Project应用服务已经建立内部用例边界，但尚未接入Web或跨模块版本化DTO；未来跨模块访问必须经过公开应用服务与版本化DTO，不能直接使用Repository。当前没有Project API、Pydantic DTO或前端页面。完整结构与事务边界见[Project持久化基础](PROJECT_FOUNDATION.md)、[Project Repository事务边界](PROJECT_REPOSITORY.md)和[Project应用用例](PROJECT_APPLICATION.md)。
 
 ## 所有权与跨模块规则
 

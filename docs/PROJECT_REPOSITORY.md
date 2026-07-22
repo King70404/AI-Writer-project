@@ -1,6 +1,6 @@
 # Project Repository事务边界
 
-DEV-1.3在Project数据所有者内部建立纯Python Repository契约和SQLAlchemy SQLite适配器。它只提供内部原子创建、当前聚合读取和不可变修订追加；当前仍没有Project应用Service、API、DTO、历史查询、删除语义或前端项目管理功能。
+DEV-1.3在Project数据所有者内部建立纯Python Repository契约和SQLAlchemy SQLite适配器。它只提供内部原子创建、当前聚合读取和不可变修订追加；DEV-1.4在其上建立纯Python应用服务，但当前仍没有Project API、Pydantic DTO、历史查询、删除语义或前端项目管理功能。
 
 ## 公开契约与所有权
 
@@ -68,4 +68,4 @@ Project错误层提供`ProjectRepositoryError`、`ProjectAlreadyExists`、`Proje
 
 ## 当前明确不提供
 
-当前Repository不提供修订历史列表、列表、分页、搜索、删除、硬删除、归档、恢复、purge或任意SQL入口。DEV-1.3没有创建通用Unit of Work、应用Service、命令/查询DTO、API或前端页面，也没有改变Schema或新增迁移。DEV-1.4将在独立授权下建立Project应用命令和查询服务；该后续计划不表示相关能力已经实现。
+当前Repository不提供修订历史列表、列表、分页、搜索、删除、硬删除、归档、恢复、purge或任意SQL入口。DEV-1.4的应用命令严格将一次创建映射到一次`create()`事务、将一次完整修订映射到一次`append_revision()`事务，并让查询只调用一次`get()`；应用层不预读、不打开Session，也不复制事务逻辑。应用契约见[Project应用用例](PROJECT_APPLICATION.md)。当前仍没有通用Unit of Work、API、Pydantic DTO或前端页面，也没有Schema或新迁移。

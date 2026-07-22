@@ -13,6 +13,7 @@ from typing import Literal
 Layer = Literal[
     "domain",
     "project",
+    "project_application",
     "project_persistence",
     "core",
     "storage",
@@ -26,6 +27,7 @@ Layer = Literal[
 _LAYERS: tuple[Layer, ...] = (
     "domain",
     "project",
+    "project_application",
     "project_persistence",
     "core",
     "storage",
@@ -191,7 +193,9 @@ def _resolve_from_import(
         targets.extend(f"{base_module}.{alias.name}" for alias in node.names if alias.name != "*")
     if base_module == "aiwebnovel.project":
         targets.extend(
-            f"{base_module}.{alias.name}" for alias in node.names if alias.name == "persistence"
+            f"{base_module}.{alias.name}"
+            for alias in node.names
+            if alias.name in {"application", "persistence"}
         )
     return tuple(targets)
 
@@ -243,6 +247,10 @@ def _layer_for(module_name: str) -> Layer | None:
         "aiwebnovel.project.persistence."
     ):
         return "project_persistence"
+    if module_name == "aiwebnovel.project.application" or module_name.startswith(
+        "aiwebnovel.project.application."
+    ):
+        return "project_application"
     if module_name == "aiwebnovel.project" or module_name.startswith("aiwebnovel.project."):
         return "project"
     for layer in ("domain", "core", "storage", "db", "security", "diagnostics", "web"):
@@ -260,6 +268,7 @@ def _project_domain_import_is_allowed(target_module: str) -> bool:
     return _is_module_or_child(target_module, "aiwebnovel.domain") or (
         _is_module_or_child(target_module, "aiwebnovel.project")
         and not _is_module_or_child(target_module, "aiwebnovel.project.persistence")
+        and not _is_module_or_child(target_module, "aiwebnovel.project.application")
     )
 
 
@@ -267,11 +276,65 @@ def _project_persistence_import_is_allowed(target_module: str) -> bool:
     target_root = target_module.partition(".")[0]
     if target_root in _STANDARD_LIBRARY_ROOTS or target_root == "sqlalchemy":
         return True
-    if target_module == "aiwebnovel" or _is_module_or_child(target_module, "aiwebnovel.project"):
+    if target_module == "aiwebnovel" or (
+        _is_module_or_child(target_module, "aiwebnovel.project")
+        and not _is_module_or_child(target_module, "aiwebnovel.project.application")
+    ):
         return True
     return any(
         _is_module_or_child(target_module, allowed_module)
         for allowed_module in _PROJECT_PERSISTENCE_DB_MODULES
+    )
+
+
+def _project_application_import_violation(
+    reference: _ImportReference,
+) -> tuple[str, str] | None:
+    source_module = reference.source_module
+    target_module = reference.target_module
+    target_root = target_module.partition(".")[0]
+    if target_root in _DOMAIN_FRAMEWORK_ROOTS:
+        return (
+            "project-application-must-not-import-frameworks",
+            "Project application code must remain independent of web and persistence frameworks",
+        )
+    if target_root in _STANDARD_LIBRARY_ROOTS:
+        return None
+
+    pure_modules = {
+        "aiwebnovel.project.application.commands",
+        "aiwebnovel.project.application.queries",
+        "aiwebnovel.project.application.models",
+    }
+    if source_module in pure_modules:
+        return (
+            "project-application-input-models-must-only-import-standard-library",
+            "Project commands, queries, and read models may import only the standard library",
+        )
+
+    if _is_module_or_child(target_module, "aiwebnovel.project.persistence"):
+        return (
+            "project-application-must-not-import-persistence",
+            "Project application code must depend on the repository contract, not its adapter",
+        )
+    if source_module == "aiwebnovel.project.application":
+        if _is_module_or_child(target_module, "aiwebnovel.project.application"):
+            return None
+    elif source_module == "aiwebnovel.project.application.mappers":
+        if target_module == "aiwebnovel.project.entities" or target_module == (
+            "aiwebnovel.project.application.models"
+        ):
+            return None
+    elif source_module == "aiwebnovel.project.application.services" and (
+        _is_module_or_child(target_module, "aiwebnovel.domain")
+        or _is_module_or_child(target_module, "aiwebnovel.project.application")
+        or _project_domain_import_is_allowed(target_module)
+    ):
+        return None
+
+    return (
+        "project-application-must-use-declared-dependencies",
+        "Project application code may import only its declared domain and application contracts",
     )
 
 
@@ -292,13 +355,30 @@ def _project_import_violation(
     source_layer: Layer | None,
     target_layer: Layer | None,
 ) -> tuple[str, str] | None:
-    if target_layer not in {"project", "project_persistence"}:
+    if target_layer not in {"project", "project_application", "project_persistence"}:
         return None
     if _allowed_project_model_registry_import(reference, target_layer):
         return None
     if source_layer == "project_persistence":
+        if target_layer == "project_application":
+            return (
+                "project-persistence-must-not-import-application",
+                "Project persistence must not depend on application services or read models",
+            )
+        return None
+    if source_layer == "project_application":
+        if target_layer == "project_persistence":
+            return (
+                "project-application-must-not-import-persistence",
+                "Project application code must depend on the repository contract, not its adapter",
+            )
         return None
     if source_layer == "project":
+        if target_layer == "project_application":
+            return (
+                "project-domain-must-not-import-application",
+                "Project domain contracts must not depend on application use cases",
+            )
         if target_layer == "project_persistence":
             return (
                 "project-domain-must-not-import-persistence",
@@ -487,6 +567,19 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
                         line=reference.line,
                         rule="project-domain-must-only-import-domain-code",
                         message="Project domain code may not import unrelated aiwebnovel packages",
+                    )
+                )
+
+        if source_layer == "project_application":
+            application_violation = _project_application_import_violation(reference)
+            if application_violation is not None:
+                rule, message = application_violation
+                violations.append(
+                    ArchitectureViolation(
+                        path=reference.path,
+                        line=reference.line,
+                        rule=rule,
+                        message=message,
                     )
                 )
 

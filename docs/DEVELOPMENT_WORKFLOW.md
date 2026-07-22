@@ -73,6 +73,8 @@ DEV-1.2授权Project模块拥有稳定对象、不可变修订、独立Head指�
 
 DEV-1.3授权Project所有者内部建立纯Python Repository契约与SQLAlchemy SQLite事务实现，只提供原子create、一致当前聚合get和带Project/Head双CAS的append_revision。它不授权应用Service、API、DTO、历史查询、删除、前端页面或Schema变化。关键事务测试必须使用迁移到head的独立临时数据库，证明`BEGIN IMMEDIATE`并发确定性、晚期失败完整回滚、损坏状态拒绝、Session关闭与sidecar清理；DEV-1.4只有在独立授权后才能建立应用命令和查询服务。
 
+DEV-1.4授权Project内部建立不可变创建/修订命令、当前查询、脱离ORM的Snapshot和只依赖Repository契约的应用服务。每个写命令必须对应一次Repository事务，修订不得预先get，原始输入必须在任何可观测副作用前按规定顺序转换；真实集成测试继续使用迁移到0002的独立临时数据库并清理全部sidecar。该任务不授权HTTP API、Pydantic DTO、应用组合根接线、前端功能、列表、历史、删除或Schema变化；DEV-1.5只有在独立授权后才能建立Project HTTP边界。
+
 ## 统一执行报告
 
 任务报告至少包含：

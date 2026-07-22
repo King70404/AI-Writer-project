@@ -32,6 +32,7 @@ def _fixture_package(tmp_path: Path) -> Path:
         "web",
     ):
         _write_module(package_root, f"{layer}/__init__.py", "")
+    _write_module(package_root, "project/application/__init__.py", "")
     _write_module(package_root, "project/persistence/__init__.py", "")
     return package_root
 
@@ -363,6 +364,111 @@ def test_checker_accepts_declared_project_domain_persistence_and_registry_depend
     )
 
     assert check_backend_boundaries(package_root) == ()
+
+
+def test_checker_accepts_declared_project_application_dependencies(tmp_path: Path) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "project/application/commands.py",
+        "from dataclasses import dataclass\n",
+    )
+    _write_module(
+        package_root,
+        "project/application/queries.py",
+        "from dataclasses import dataclass\n",
+    )
+    _write_module(
+        package_root,
+        "project/application/models.py",
+        "from dataclasses import dataclass\nfrom datetime import datetime\n",
+    )
+    _write_module(
+        package_root,
+        "project/application/mappers.py",
+        "from aiwebnovel.project.application.models import Snapshot\n"
+        "from aiwebnovel.project.entities import ProjectAggregate\n",
+    )
+    _write_module(
+        package_root,
+        "project/application/services.py",
+        "from collections.abc import Callable\n"
+        "from aiwebnovel.domain.time import Clock\n"
+        "from aiwebnovel.project.application.commands import Command\n"
+        "from aiwebnovel.project.repository import ProjectRepository\n"
+        "from aiwebnovel.project.values import ProjectTitle\n",
+    )
+
+    assert check_backend_boundaries(package_root) == ()
+
+
+@pytest.mark.parametrize(
+    ("module_path", "source", "expected_rule"),
+    [
+        (
+            "project/application/commands.py",
+            "from aiwebnovel.domain.time import utc_now\n",
+            "project-application-input-models-must-only-import-standard-library",
+        ),
+        (
+            "project/application/services.py",
+            "import sqlalchemy\n",
+            "project-application-must-not-import-frameworks",
+        ),
+        (
+            "project/application/services.py",
+            "from aiwebnovel.project.persistence import repository\n",
+            "project-application-must-not-import-persistence",
+        ),
+        (
+            "project/application/services.py",
+            "from aiwebnovel.web import frontend\n",
+            "project-application-must-use-declared-dependencies",
+        ),
+        (
+            "project/repository.py",
+            "from aiwebnovel.project.application import services\n",
+            "project-domain-must-not-import-application",
+        ),
+        (
+            "project/persistence/models.py",
+            "from aiwebnovel.project.application.models import ProjectSnapshot\n",
+            "project-persistence-must-not-import-application",
+        ),
+        (
+            "domain/bad_application.py",
+            "from aiwebnovel.project.application import services\n",
+            "domain-must-not-import-project",
+        ),
+        (
+            "core/bad_application.py",
+            "from aiwebnovel.project.application import models\n",
+            "core-must-not-import-project",
+        ),
+    ],
+    ids=(
+        "raw-command-to-domain",
+        "application-to-framework",
+        "application-to-persistence",
+        "application-to-web",
+        "repository-to-application",
+        "persistence-to-application",
+        "common-domain-to-application",
+        "core-to-application",
+    ),
+)
+def test_checker_rejects_forbidden_project_application_dependencies(
+    tmp_path: Path,
+    module_path: str,
+    source: str,
+    expected_rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, module_path, source)
+
+    violations = check_backend_boundaries(package_root)
+
+    assert expected_rule in {violation.rule for violation in violations}
 
 
 @pytest.mark.parametrize("framework", ["fastapi", "pydantic", "sqlalchemy"])

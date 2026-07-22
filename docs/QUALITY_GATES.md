@@ -164,7 +164,7 @@ DEV-1.1的纯`aiwebnovel.domain`模块除全局门槛外，还要求语句覆盖
 
 ## Project基础专项检查
 
-DEV-1.2及后续Project内部生产代码要求`aiwebnovel.project`语句覆盖率不低于95%、分支覆盖率不低于90%。专项测试覆盖具体业务ID、标题和简介值对象、稳定对象与聚合、纯领域修订转换、显式Record映射、SQLite约束、Revision不可变触发器以及`0001 → 0002 → 0001 → 0002`隔离迁移循环。DEV-1.3另覆盖Repository纯Python契约、三表原子创建、单查询读取、数据损坏拒绝、stale快速拒绝、Project与Head双CAS、真实双线程并发、晚期失败回滚、错误脱敏和Session生命周期。
+DEV-1.2及后续Project内部生产代码要求`aiwebnovel.project`语句覆盖率不低于95%、分支覆盖率不低于90%。专项测试覆盖具体业务ID、标题和简介值对象、稳定对象与聚合、纯领域修订转换、显式Record映射、SQLite约束、Revision不可变触发器以及`0001 → 0002 → 0001 → 0002`隔离迁移循环。DEV-1.3另覆盖Repository纯Python契约、三表原子创建、单查询读取、数据损坏拒绝、stale快速拒绝、Project与Head双CAS、真实双线程并发、晚期失败回滚、错误脱敏和Session生命周期。DEV-1.4的六个应用专项文件另验证命令、查询和Snapshot不可变性，原始输入转换与副作用顺序，每命令一次Repository调用，错误与canary隐私，真实创建/查询/修订及两个独立应用服务并发；新增`project.application`生产代码同样要求语句覆盖率不低于95%、分支覆盖率不低于90%。
 
 迁移、约束与Repository事务测试只能使用各测试拥有的临时SQLite数据库和隔离数据根，必须清理数据库、WAL、SHM、journal、受控测试触发器及Alembic运行产物。并发测试必须使用同一临时文件、两个独立Repository实例和Barrier同步，不得用sleep或全局Python锁决定顺序。专项结果不能替代默认门禁、两种E2E门禁或依赖审计；完整模型和事务边界见[Project持久化基础](PROJECT_FOUNDATION.md)与[Project Repository事务边界](PROJECT_REPOSITORY.md)。
 
@@ -180,7 +180,7 @@ DEV-1.2及后续Project内部生产代码要求`aiwebnovel.project`语句覆盖�
 
 ## 架构与仓库卫生
 
-后端架构测试保护阶段 0 的依赖方向：`storage` 只向 `core` 依赖，`db` 只能读取公开的存储路径契约，`security` 不访问存储、数据库或 Web，会话管理器保持纯内存，`diagnostics` 只使用 `core`、`storage`、`db` 和 `security` 的公开诊断契约且不能访问会话内部存储，`web` 只可使用公开安全 DTO/响应契约，低层不得导入 `main`，生产代码不得导入测试代码或在配置边界外重新解析 LocalAppData；`main` 是应用组合根且不依赖 Diagnostics。阶段1另要求纯`domain`只依赖标准库，允许`db`适配`domain`，并禁止`core`反向依赖领域类型。前端边界检查阻止 API、组件等低层代码反向依赖页面，并阻止生产源码导入测试代码。更高层业务模块边界仍以 [架构边界](ARCHITECTURE_BOUNDARIES.md) 为准。
+后端架构测试保护阶段 0 的依赖方向：`storage` 只向 `core` 依赖，`db` 只能读取公开的存储路径契约，`security` 不访问存储、数据库或 Web，会话管理器保持纯内存，`diagnostics` 只使用 `core`、`storage`、`db` 和 `security` 的公开诊断契约且不能访问会话内部存储，`web` 只可使用公开安全 DTO/响应契约，低层不得导入 `main`，生产代码不得导入测试代码或在配置边界外重新解析 LocalAppData；`main` 是应用组合根且不依赖 Diagnostics。阶段1另要求纯`domain`只依赖标准库，允许`db`适配`domain`，并禁止`core`反向依赖领域类型；Project应用输入/读取模型只依赖标准库，应用服务只依赖应用模块、Project领域、Repository契约和通用domain，且领域与持久化层不得反向导入应用层。前端边界检查阻止 API、组件等低层代码反向依赖页面，并阻止生产源码导入测试代码。更高层业务模块边界仍以 [架构边界](ARCHITECTURE_BOUNDARIES.md) 为准。
 
 仓库卫生脚本只使用 `git ls-files` 枚举并读取已跟踪文件，不读取未跟踪的用户文件。它发现疑似秘密时只输出仓库相对文件名和问题类型，不输出匹配值；不会自动删除文件，也不会改写 `.gitignore`。
 
@@ -198,4 +198,4 @@ DEV-1.2及后续Project内部生产代码要求`aiwebnovel.project`语句覆盖�
 
 任何适用门禁失败，都不得声称当前任务完成，也不得开始下一编号任务。应先修复真实原因并完整重跑；不得降低阈值、跳过检查或把失败输出为成功。
 
-DEV-0.10 已把 Diagnostics 单元测试、架构边界和启动脚本静态安全检查纳入默认门禁，并保持 Chromium E2E、真实启动烟测与 M0 预验收为显式验收项。当前虽有Project内部领域与Repository基础，仍没有用户登录、Project应用Service或业务写入 API，也没有写作、评审、Agent、Skill、Prompt、备份、导出、安装器或其他用户可见小说业务功能。
+DEV-0.10 已把 Diagnostics 单元测试、架构边界和启动脚本静态安全检查纳入默认门禁，并保持 Chromium E2E、真实启动烟测与 M0 预验收为显式验收项。当前已有Project内部领域、Repository与纯Python应用服务，但仍没有用户登录、Project业务写入 API、Pydantic业务DTO或前端Project功能，也没有写作、评审、Agent、Skill、Prompt、备份、导出、安装器或其他用户可见小说业务功能。
