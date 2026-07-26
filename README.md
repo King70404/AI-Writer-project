@@ -4,7 +4,7 @@ AIWebNovel 是项目暂定名称，目标是开发一套面向中文男频网文
 
 ## 当前阶段与状态
 
-阶段 0——工程底座已通过 DEV-0.11 正式验收并冻结为 M0。阶段 1 当前里程碑为 M1：DEV-1.1至DEV-1.6建立通用领域原语、Project三表、Repository、应用服务及创建/读取/修订/稳定Keyset列表 API；DEV-1.7新增真实的 `/projects` 列表、加载更多和创建流程；DEV-1.8新增 `/projects/:projectId` 当前详情、强ETag完整修订和显式412冲突处理；DEV-1.9新增只读不可变修订历史 API、Keyset 分页和 `/projects/:projectId/history` 页面。当前仍没有历史回滚、恢复、Diff、编辑或删除，也没有Project删除、归档、自动保存、搜索或筛选。M0正式结果与冻结范围见 [M0 正式验收报告](docs/M0_ACCEPTANCE_REPORT.md)，列表与创建边界见[Project前端流程](docs/PROJECT_FRONTEND.md)，详情并发语义见[Project详情与修订前端流程](docs/PROJECT_DETAIL_FRONTEND.md)，历史读取边界见[Project不可变修订历史](docs/PROJECT_REVISION_HISTORY.md)。
+阶段 0——工程底座已通过 DEV-0.11 正式验收并冻结为 M0。阶段 1 的 DEV-1.1至DEV-1.9已经建立并验证通用领域原语、Project三表、事务Repository、应用服务、六个Project API，以及真实的列表/创建、当前详情/完整修订、显式412冲突和只读不可变Revision历史前端；DEV-1.10已完成M1正式验收并以`m1-project-foundation`冻结。当前仍没有历史回滚、恢复、Diff、编辑或删除，也没有Project删除、归档、自动保存、搜索、筛选或小说正文创作。M0正式结果见[M0正式验收报告](docs/M0_ACCEPTANCE_REPORT.md)；M1正式范围、证据与限制见[M1正式验收报告](docs/M1_ACCEPTANCE_REPORT.md)、[M1验收清单](docs/M1_ACCEPTANCE_CHECKLIST.md)和[M1基线Manifest](docs/M1_BASELINE_MANIFEST.json)。
 
 当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI、安全配置、存储目录访问能力与 SQLite 基础状态；`/projects`使用真实列表与创建 API，`/projects/:projectId`使用真实详情 GET 与完整替换 PUT，`/projects/:projectId/history`使用只读历史 GET。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。默认用户数据根是 `%LOCALAPPDATA%\AIWebNovel`，正式数据不存放在 Git 仓库。迁移`0002_create_project_foundation`定义Project、Revision和Head结构，应用启动不会自动执行迁移；未迁移数据库上的Project API安全返回503。项目仍没有用户登录、小说创作业务、Agent、Skill、Prompt或工作流；Project管理基础不代表系统已经能够创作小说。
 
