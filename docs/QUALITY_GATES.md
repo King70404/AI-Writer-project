@@ -180,6 +180,12 @@ DEV-1.9固定六个前端历史专项文件：`project-revision-history-contract
 
 ESLint受控正负样例保护`shared api → Project api → hooks → components → page → router`方向。安全静态门禁还拒绝CSRF/cursor/ETag/草稿/历史正文浏览器持久化、历史写请求或Security Session、Project POST/PUT自动重试或412自动重放、请求正文/cursor/Revision正文与`If-Match`日志、未编码Project ID路径、Revision写路由、外部API地址、不安全HTML、组件Cookie访问和组件硬编码CSRF。完整浏览器证据由`E2E-INT-008`至`E2E-INT-010`提供。
 
+## Story Bible纯领域专项检查
+
+DEV-2.1的五组领域专项测试固定覆盖`sbl`/`sbr`规范标识、标题与50000代码点纯文本规则、Stable/Revision/Head/Aggregate不变量、初始创建、完整替换追加、stale优先级、时钟回退、强不可变性、100个Revision确定性序列和导入无副作用。新增`aiwebnovel.story_bible`生产代码要求statements为100%、branches不低于95%；专项覆盖率只采集该包，不能以全局覆盖率替代。
+
+独立AST门禁扫描真实生产包，并以受控合法与非法模块证明：Story Bible只可依赖标准库、通用`domain`和`project.identifiers.ProjectId`；SQLAlchemy、Alembic、FastAPI、Pydantic、基础设施及其他Project层均被拒绝，Project和通用`domain`反向导入Story Bible同样被拒绝。专项测试不访问数据库、网络、正式数据根或真实系统时间，也不新增依赖；它不能替代默认、IncludeE2E及依赖审计加E2E三种完整门禁。
+
 ## 显式格式化
 
 格式化不是质量门禁的隐式步骤。需要改写格式时，在仓库根目录显式运行：
@@ -192,7 +198,7 @@ ESLint受控正负样例保护`shared api → Project api → hooks → componen
 
 ## 架构与仓库卫生
 
-后端架构测试保护阶段0与阶段1依赖方向。Project Web只可使用FastAPI、Pydantic、应用命令/查询/Snapshot/Page/服务契约和明确的Web工具；禁止SQLAlchemy、持久化模型、具体Repository/ListReader与Session。只有专用`project.persistence.listing`可向内依赖Project列表端口、模型与limit规则，其他持久化代码仍不得导入应用层。`main`作为组合根可以显式装配具体Repository、ListReader和应用服务。受控正负样例同时证明领域、应用、持久化不得反向导入Web。
+后端架构测试保护阶段0、M1 Project和DEV-2.1 Story Bible依赖方向。Project Web只可使用FastAPI、Pydantic、应用命令/查询/Snapshot/Page/服务契约和明确的Web工具；禁止SQLAlchemy、持久化模型、具体Repository/ListReader与Session。只有专用`project.persistence.listing`可向内依赖Project列表端口、模型与limit规则，其他持久化代码仍不得导入应用层。`main`作为组合根可以显式装配具体Repository、ListReader和应用服务。Story Bible保持纯领域且只能单向引用ProjectId；受控正负样例证明Project和通用`domain`不能反向依赖Story Bible。
 
 仓库卫生脚本只使用 `git ls-files` 枚举并读取已跟踪文件，不读取未跟踪的用户文件。它发现疑似秘密时只输出仓库相对文件名和问题类型，不输出匹配值；不会自动删除文件，也不会改写 `.gitignore`。
 

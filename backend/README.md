@@ -1,6 +1,6 @@
 # AIWebNovel 后端
 
-本目录包含已冻结的阶段 0 Python 后端基础设施，以及阶段1的Project领域、持久化、应用与HTTP适配层。目前提供六个Project业务接口、当前列表与不可变Revision历史的稳定Keyset读取、严格Pydantic DTO、ETag/If-Match并发协议、安全错误映射和显式组合根装配。
+本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层，以及DEV-2.1新增的纯Story Bible领域契约。目前提供六个Project业务接口、当前列表与不可变Revision历史的稳定Keyset读取、严格Pydantic DTO、ETag/If-Match并发协议、安全错误映射和显式组合根装配；Story Bible尚无持久化、应用服务或HTTP接口。
 
 当前没有用户账号或登录、Project历史写入/回滚/恢复/删除接口、搜索、筛选、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；详情、列表与历史GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
 
@@ -8,7 +8,13 @@
 
 `src/aiwebnovel/domain/`只依赖Python标准库，提供标准ULID、进程内单调生成、受验证的前缀ULID类型工厂、aware UTC时间、`RevisionNumber`、`ConcurrencyVersion`和安全领域错误。`src/aiwebnovel/db/types.py`使用现有SQLAlchemy把这些值适配为TEXT、INTEGER或UTC时间；通用适配器本身不拥有Project业务规则。
 
-Project模块已拥有`prj`和`prv`两种固定业务ID；Chapter及其他业务ID仍未定义。完整通用语义见[领域基础原语](../docs/DOMAIN_FOUNDATION.md)。
+Project模块已拥有`prj`和`prv`两种固定业务ID；Story Bible纯领域模块拥有`sbl`和`sbr`，单向引用ProjectId。Chapter及其他业务ID仍未定义。完整通用语义见[领域基础原语](../docs/DOMAIN_FOUNDATION.md)。
+
+## Story Bible纯领域契约
+
+`src/aiwebnovel/story_bible/`只依赖标准库、通用`domain`和`project.identifiers.ProjectId`，定义稳定StoryBible、不可变StoryBibleRevision、权威StoryBibleHead、一致Aggregate、标题/纯文本正文值以及无副作用的初始创建和Revision追加转换。stale版本复用通用`ConcurrencyConflict`，检查优先于时钟回退和Revision ID重复；新Revision采用完整替换，旧Aggregate和旧Revision保持不变。
+
+该目录当前没有SQLAlchemy、Alembic、Repository、Session、应用服务、DTO、FastAPI Router或前端接线，不会改变正式Metadata和`0002_create_project_foundation`。完整边界见[Story Bible纯领域模型](../docs/STORY_BIBLE_DOMAIN.md)。
 
 ## Project持久化基础
 

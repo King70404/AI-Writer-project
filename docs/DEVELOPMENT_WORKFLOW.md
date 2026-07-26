@@ -85,6 +85,12 @@ DEV-1.8授权React侧的`/projects/:projectId`当前详情、强ETag绑定的编
 
 DEV-1.9授权Project不可变Revision历史的独立读取模型、Reader端口与SQLAlchemy适配器、两个只读GET、Project绑定的RevisionNumber Keyset cursor，以及`/projects/:projectId/history`页面和按需单Revision正文查看。历史GET不得获取Session或CSRF，列表不含description/total，cursor与正文不得进入浏览器存储或日志；Schema与0002保持冻结，不提供Revision写入、回滚、恢复、Diff、历史编辑或删除。DEV-1.10只有在独立授权后才能执行M1验收。
 
+## M1冻结与阶段2任务边界
+
+DEV-1.10已完成M1 Project基础能力正式验收，`m1-project-foundation`标签和三份M1验收文件与既有M0基线一同冻结。后续任务不得移动、覆盖或改写两个标签及其历史事实；发现缺陷必须使用新的编号任务和提交。
+
+DEV-2.1只授权`aiwebnovel.story_bible`纯领域层：`sbl`/`sbr`标识、ProjectId归属引用、标题与纯文本正文值、稳定对象、不可变Revision、显式Head、一致Aggregate及无副作用创建/追加转换。它不授权Story Bible表、迁移、ORM、Repository、应用服务、DTO、API、前端、Character、World、PowerSystem、规划、三区、审批、Codex或Agent。DEV-2.2只有在独立任务明确授权后才能建立持久化能力；DEV-2.1的目录和对象不能被当作用户功能完成证据。
+
 ## 统一执行报告
 
 任务报告至少包含：

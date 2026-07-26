@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施，以及阶段 1 Project后端与React列表、创建、当前详情、完整修订和只读不可变Revision历史前端的依赖方向。M1已通过正式验收；当前仍不包含Revision回滚/恢复/Diff/编辑/删除、Project删除/归档或其他创作页面。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施、已由M1冻结的Project闭环，以及DEV-2.1建立的Story Bible纯领域依赖方向。当前Story Bible没有持久化、API或前端；系统仍不包含Revision回滚/恢复/Diff/编辑/删除、Project删除/归档或其他创作页面。
 
 ## 业务模块
 
@@ -96,6 +96,14 @@ Project唯一拥有`projects`、`project_revisions`和`project_heads`。只有`p
 通用`frontend/src/api`提供同源JSON传输和受控响应ETag读取，不得反向导入Project功能。Project `api`层可依赖通用传输，但不得依赖React、hooks、组件或页面；详情读取、修订写入与历史只读客户端保持可分离接口。hooks依赖Project API与契约；组件依赖hooks和前端契约；页面只组合组件；Router可以导入公开Project页面。
 
 UI组件不得直接调用裸`fetch`、读取Cookie、获取或硬编码CSRF、持久化token/cursor/ETag/草稿/历史正文或访问数据库。Project API客户端不得记录请求正文、Revision正文、cursor或`If-Match`，不得自动重试POST/PUT、导入React或使用外部主机。详情和历史GET不得获取Session；修订PUT只能使用已验证详情资源的强ETag并只发送一次。历史前端只发送GET、不解析cursor、不自动加载全部正文；Router不得直接访问Session或SQL，Web层不得导入具体HistoryReader。前端不能导入Python、SQLAlchemy或测试Fake。历史语义见[Project不可变修订历史](PROJECT_REVISION_HISTORY.md)。
+
+## 阶段2 Story Bible纯领域模块
+
+`story_bible.identifiers`、`story_bible.values`、`story_bible.entities`、`story_bible.errors`和`story_bible.transitions`组成DEV-2.1的纯领域边界。允许依赖Python标准库、通用`domain`和`project.identifiers.ProjectId`；依赖方向固定为`StoryBible Domain → ProjectId`。ProjectId只表达归属，Story Bible不得读取或修改Project状态、验证Project存在性或调用Project Repository。
+
+Story Bible不得导入SQLAlchemy、Alembic、FastAPI、Pydantic、`db`、`core`、`security`、`storage`、Project实体/Repository/Application/Persistence/Web或前端。Project与通用`domain`不得反向导入Story Bible。AST架构门禁同时以真实生产包和受控正负样例验证这些方向。
+
+当前Story Bible只拥有`sbl`/`sbr`标识、标题/纯文本正文值、稳定对象、不可变Revision、显式Head、当前Aggregate及无副作用纯转换。它没有表、迁移、ORM、Repository、应用服务、DTO、API、前端、Character/World/PowerSystem结构或Codex能力；正式Metadata和M1路由保持冻结。详细契约见[Story Bible纯领域模型](STORY_BIBLE_DOMAIN.md)。
 
 ## 所有权与跨模块规则
 
