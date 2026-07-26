@@ -166,6 +166,8 @@ DEV-1.1的纯`aiwebnovel.domain`模块除全局门槛外，还要求语句覆盖
 
 DEV-1.2及后续Project生产代码要求`aiwebnovel.project`语句覆盖率不低于95%、分支覆盖率不低于90%。DEV-1.5的Web专项覆盖严格DTO、ETag/If-Match、错误隐私、三个单Project接口、安全/CORS、OpenAPI、真实迁移数据库流程、未迁移安全失败和双会话HTTP并发。DEV-1.6的列表专项另覆盖应用Page不变量、专用Reader端口、单SELECT/无COUNT/无OFFSET、Keyset跨页稳定性、十类损坏、严格cursor、列表HTTP/OpenAPI、真实迁移库流程及`E2E-INT-007`；新增Project列表生产代码必须达到95%语句与90%分支覆盖率。
 
+DEV-1.9的后端历史专项固定覆盖不可变读取模型与服务、专用HistoryReader、RevisionNumber降序Keyset分页、损坏数据、Project绑定cursor、两个只读HTTP接口、OpenAPI和真实迁移数据库链路。新增后端历史生产代码的statements/lines/functions均不低于95%，branches不低于90%；正式Project模块总覆盖率仍不得下降到95%语句或90%分支以下。
+
 迁移、约束与Repository事务测试只能使用各测试拥有的临时SQLite数据库和隔离数据根，必须清理数据库、WAL、SHM、journal、受控测试触发器及Alembic运行产物。并发测试必须使用同一临时文件、两个独立Repository实例和Barrier同步，不得用sleep或全局Python锁决定顺序。专项结果不能替代默认门禁、两种E2E门禁或依赖审计；完整模型和事务边界见[Project持久化基础](PROJECT_FOUNDATION.md)与[Project Repository事务边界](PROJECT_REPOSITORY.md)。
 
 ## Project前端专项检查
@@ -174,7 +176,9 @@ DEV-1.7指定七组Vitest文件，覆盖Project API客户端、运行时契约�
 
 DEV-1.8另固定七个详情专项文件：`project-etags`、`project-details-api`、`project-revise-api`、`project-details-page`、`project-edit-form`、`project-conflict-flow`和`project-detail-routes`。它们覆盖严格强ETag、GET无Session、PUT完整替换与单次发送、保存结果未知、412结构校验、显式读取/采用/重建基线及路由导航；新增详情生产代码要求statements/functions/lines均不低于95%，branches不低于90%。
 
-ESLint受控正负样例保护`shared api → Project api → hooks → components → page → router`方向。安全静态门禁还拒绝CSRF/cursor/ETag/草稿浏览器持久化、Project POST/PUT自动重试或412自动重放、请求正文与`If-Match`日志、未编码Project ID路径、外部API地址、不安全HTML、组件Cookie访问和组件硬编码CSRF。完整浏览器证据由`E2E-INT-008`和`E2E-INT-009`提供。
+DEV-1.9固定六个前端历史专项文件：`project-revision-history-contracts`、`project-revision-history-api`、`project-revision-history-list`、`project-revision-viewer`、`project-revision-history-page`和`project-revision-history-routes`。它们覆盖严格响应、GET无Session/CSRF、摘要分页、失败保留、按需正文、取消迟到请求、可访问性与路由；新增前端历史生产代码的statements/functions/lines均不低于95%，branches不低于90%。
+
+ESLint受控正负样例保护`shared api → Project api → hooks → components → page → router`方向。安全静态门禁还拒绝CSRF/cursor/ETag/草稿/历史正文浏览器持久化、历史写请求或Security Session、Project POST/PUT自动重试或412自动重放、请求正文/cursor/Revision正文与`If-Match`日志、未编码Project ID路径、Revision写路由、外部API地址、不安全HTML、组件Cookie访问和组件硬编码CSRF。完整浏览器证据由`E2E-INT-008`至`E2E-INT-010`提供。
 
 ## 显式格式化
 
@@ -206,4 +210,4 @@ ESLint受控正负样例保护`shared api → Project api → hooks → componen
 
 任何适用门禁失败，都不得声称当前任务完成，也不得开始下一编号任务。应先修复真实原因并完整重跑；不得降低阈值、跳过检查或把失败输出为成功。
 
-安全静态门禁还检查Project写路由无CSRF豁免、Router不导入SQLAlchemy/Session、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。当前已有四个Project API，以及`/projects`列表/创建和`/projects/:projectId`详情/完整修订页面；列表与详情GET不要求Session/CSRF，前端不记录正文/`If-Match`或持久化cursor/ETag/草稿。仍没有用户登录、Project历史/删除/归档、搜索或筛选，也没有写作、评审、Agent、Skill、Prompt、备份、导出或安装器。
+安全静态门禁还检查Project写路由无CSRF豁免、Router不导入SQLAlchemy/Session、历史路由无写方法、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。当前已有六个Project API，以及列表/创建、当前详情/完整修订和只读历史页面；所有GET不要求Session/CSRF，前端不记录正文/cursor/`If-Match`或持久化cursor/ETag/草稿/历史正文。仍没有用户登录、历史回滚/恢复/Diff/编辑/删除、Project归档、搜索或筛选，也没有写作、评审、Agent、Skill、Prompt、备份、导出或安装器。

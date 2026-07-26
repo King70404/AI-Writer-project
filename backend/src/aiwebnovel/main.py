@@ -21,6 +21,7 @@ from aiwebnovel.project.application.services import (
     ProjectCommandService,
     ProjectListQueryService,
     ProjectQueryService,
+    ProjectRevisionHistoryQueryService,
 )
 from aiwebnovel.project.web import create_project_router
 from aiwebnovel.security import (
@@ -224,6 +225,9 @@ def create_app(
                         runtime_engine.dispose()
                         runtime_engine = None
                 else:
+                    from aiwebnovel.project.persistence.history import (
+                        SqlAlchemyProjectRevisionHistoryReader,
+                    )
                     from aiwebnovel.project.persistence.listing import (
                         SqlAlchemyProjectListReader,
                     )
@@ -244,6 +248,12 @@ def create_app(
                     application.state.project_list_query_service = ProjectListQueryService(
                         project_list_reader
                     )
+                    project_revision_history_reader = SqlAlchemyProjectRevisionHistoryReader(
+                        session_factory
+                    )
+                    application.state.project_revision_history_query_service = (
+                        ProjectRevisionHistoryQueryService(project_revision_history_reader)
+                    )
 
         application.state.initialized = True
         try:
@@ -253,6 +263,7 @@ def create_app(
             application.state.project_command_service = None
             application.state.project_list_query_service = None
             application.state.project_query_service = None
+            application.state.project_revision_history_query_service = None
             application.state.database_session_factory = None
             session_manager.clear()
             if runtime_engine is not None:
@@ -277,6 +288,7 @@ def create_app(
     application.state.project_command_service = None
     application.state.project_list_query_service = None
     application.state.project_query_service = None
+    application.state.project_revision_history_query_service = None
     application.state.local_session_manager = session_manager
     application.state.proxy_headers_trusted = False
     frontend_service = FrontendStaticService(frontend_dist_path, api_prefix)

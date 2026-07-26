@@ -24,6 +24,8 @@ def test_route_inventory_adds_only_the_project_list_get(tmp_path: Path) -> None:
         ("POST", "/api/v1/projects"),
         ("GET", "/api/v1/projects/{project_id}"),
         ("PUT", "/api/v1/projects/{project_id}"),
+        ("GET", "/api/v1/projects/{project_id}/revisions"),
+        ("GET", "/api/v1/projects/{project_id}/revisions/{revision_number}"),
     }
 
 

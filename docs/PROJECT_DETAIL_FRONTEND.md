@@ -1,6 +1,6 @@
 # Project 详情与修订前端流程
 
-DEV-1.8 在不改变后端 API、数据库 Schema 或 `0002_create_project_foundation` 的前提下，为既有 Project 当前快照 API 提供 React 详情、完整修订与显式并发冲突处理。它只处理当前版本，不提供修订历史、删除、归档或创作功能。
+DEV-1.8 在不改变数据库 Schema 或 `0002_create_project_foundation` 的前提下，为既有 Project 当前快照 API 提供 React 详情、完整修订与显式并发冲突处理。DEV-1.9仅在详情页增加通往独立只读历史页的链接；本页仍只编辑当前版本，不编辑任何历史Revision。
 
 ## 路由、读取与版本资源
 
@@ -33,9 +33,9 @@ DEV-1.8 在不改变后端 API、数据库 Schema 或 `0002_create_project_found
 ## 安全边界与当前限制
 
 20. ETag、草稿、CSRF 与冲突状态都不得写入 `localStorage`、`sessionStorage`、IndexedDB、Cookie、URL、日志或诊断文件；刷新意味着重新 GET。
-21. 当前没有修订历史页面，也没有历史 API 的前端入口、回滚或 Revision 浏览。
-22. 当前没有删除、归档、恢复或自动保存；详情页也不提供 Character、Chapter、三区、审批或 Codex 功能。
-23. DEV-1.9 的具体范围必须由独立编号任务授权。DEV-1.8 不预先实现或声明任何 DEV-1.9 能力。
+21. 详情页提供真实“查看修订历史”链接，进入`/projects/:projectId/history`；历史页面与本页编辑状态分离，详情表单不会加载或修改历史正文。
+22. 当前没有历史回滚、恢复、Diff、编辑或删除，也没有Project删除、归档或自动保存；详情页不提供 Character、Chapter、三区、审批或 Codex 功能。
+23. 历史读取的Keyset、按需正文和安全边界见[Project不可变修订历史](PROJECT_REVISION_HISTORY.md)；它不改变本文件的PUT并发与显式冲突语义。
 
 ## 验证证据
 

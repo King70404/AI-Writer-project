@@ -288,6 +288,15 @@ def test_security_baseline_rejects_controlled_tracked_violations_without_leak(
     )
     _write(
         repository,
+        "frontend/src/features/projects/api/unsafe-history-client.ts",
+        "const listProjectRevisions = async () => {\n"
+        "  const session = await getValidSession();\n"
+        "  console.log(cursor);\n"
+        "  return putJson('projects/id/revisions', body);\n"
+        "};\n",
+    )
+    _write(
+        repository,
         "frontend/src/features/projects/components/UnsafeProject.tsx",
         "\n".join(
             (
@@ -306,6 +315,18 @@ def test_security_baseline_rejects_controlled_tracked_violations_without_leak(
         "scripts/unsafe-security.ps1",
         'Write-Output "Cookie=$sessionCookie"\n',
     )
+    _write(
+        repository,
+        "backend/src/aiwebnovel/unsafe_history_logging.py",
+        "logger.info(cursor)\nlogger.info(revision_description)\n",
+    )
+    router = repository / "backend/src/aiwebnovel/project/web/router.py"
+    router.write_text(
+        router.read_text(encoding="utf-8")
+        + '@router.put("/{project_id}/revisions/{revision_number}")\n'
+        + "def mutate_revision():\n    pass\n",
+        encoding="utf-8",
+    )
     _commit_all(repository)
 
     result = _run_security_script(repository, script=script)
@@ -323,6 +344,10 @@ def test_security_baseline_rejects_controlled_tracked_violations_without_leak(
         "project-etag-browser-persistence",
         "project-draft-browser-persistence",
         "project-request-body-log",
+        "project-history-cursor-log",
+        "project-revision-body-log",
+        "project-history-write-request",
+        "project-history-security-session",
         "project-post-auto-retry",
         "project-put-auto-retry",
         "project-412-auto-replay",
@@ -334,6 +359,7 @@ def test_security_baseline_rejects_controlled_tracked_violations_without_leak(
         "project-component-hardcoded-csrf",
         "sensitive-security-log",
         "host-validation-disabled",
+        "project-history-write-endpoint",
     ):
         assert f"type={rule}" in output
     assert canary not in output

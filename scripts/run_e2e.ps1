@@ -332,6 +332,100 @@ finally:
     }
 }
 
+function Assert-ProjectRevisionHistoryDatabaseState {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DataRoot
+    )
+
+    $databasePath = Join-Path $DataRoot "data/aiwebnovel.sqlite3"
+    Assert-SafeContainedPath `
+        -Candidate $databasePath `
+        -Container $DataRoot `
+        -Description "Project revision history E2E database"
+    $pythonExecutable = Join-Path $script:RepositoryRoot ".venv/Scripts/python.exe"
+    $query = @'
+import sqlite3
+import sys
+
+connection = sqlite3.connect(sys.argv[1])
+try:
+    counts = {
+        name: connection.execute('SELECT COUNT(*) FROM ' + name).fetchone()[0]
+        for name in ('projects', 'project_heads', 'project_revisions')
+    }
+    assert counts == {'projects': 1, 'project_heads': 1, 'project_revisions': 21}
+    project_id, concurrency_version = connection.execute(
+        'SELECT id, concurrency_version FROM projects'
+    ).fetchone()
+    assert concurrency_version == 21
+    head_revision_id = connection.execute(
+        'SELECT revision_id FROM project_heads WHERE project_id = ?',
+        (project_id,),
+    ).fetchone()[0]
+    revisions = connection.execute(
+        '''
+        SELECT revision_number, id, title, description, created_at
+        FROM project_revisions
+        WHERE project_id = ?
+        ORDER BY revision_number
+        ''',
+        (project_id,),
+    ).fetchall()
+    assert [row[0] for row in revisions] == list(range(1, 22))
+    assert len({row[1] for row in revisions}) == 21
+    assert head_revision_id == revisions[-1][1]
+    assert revisions[0][2:4] == (
+        'E2E Project History Revision 01 010',
+        'E2E-PROJECT-HISTORY-DESCRIPTION-CANARY-010-REVISION-01',
+    )
+    assert revisions[1][2:4] == (
+        'E2E Project History Revision 02 010',
+        'E2E-PROJECT-HISTORY-DESCRIPTION-CANARY-010-REVISION-02\n\u7b2c\u4e8c\u884c',
+    )
+    assert revisions[2][2:4] == (
+        'E2E Project History Revision 03 010',
+        'E2E-PROJECT-HISTORY-DESCRIPTION-CANARY-010-REVISION-03',
+    )
+    trigger_names = {
+        row[0]
+        for row in connection.execute(
+            '''SELECT name FROM sqlite_master WHERE type = 'trigger' '''
+        )
+    }
+    assert {
+        'trg_project_revisions_no_update',
+        'trg_project_revisions_no_delete',
+    }.issubset(trigger_names)
+    for statement in (
+        'UPDATE project_revisions SET title = title WHERE revision_number = 1',
+        'DELETE FROM project_revisions WHERE revision_number = 1',
+    ):
+        try:
+            connection.execute(statement)
+        except sqlite3.IntegrityError as error:
+            assert 'immutable' in str(error).lower()
+            connection.rollback()
+        else:
+            raise AssertionError('immutable Project revision trigger did not reject a write')
+    unchanged = connection.execute(
+        '''
+        SELECT title, description, created_at
+        FROM project_revisions
+        WHERE project_id = ? AND revision_number = 1
+        ''',
+        (project_id,),
+    ).fetchone()
+    assert unchanged == (revisions[0][2], revisions[0][3], revisions[0][4])
+finally:
+    connection.close()
+'@
+    & $pythonExecutable -c $query $databasePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Project revision history E2E database state verification failed"
+    }
+}
+
 function Test-LoopbackPortAvailable {
     param(
         [Parameter(Mandatory = $true)]
@@ -1016,6 +1110,7 @@ function Invoke-E2EScenario {
             "E2E-INT-007",
             "E2E-INT-008",
             "E2E-INT-009",
+            "E2E-INT-010",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -1032,7 +1127,8 @@ function Invoke-E2EScenario {
         "E2E-INT-006",
         "E2E-INT-007",
         "E2E-INT-008",
-        "E2E-INT-009"
+        "E2E-INT-009",
+        "E2E-INT-010"
     )
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
@@ -1219,6 +1315,9 @@ function Invoke-E2EScenario {
         if ($SelectedScenario -eq "E2E-INT-009") {
             Assert-ProjectDetailDatabaseState -DataRoot $dataRoot
         }
+        if ($SelectedScenario -eq "E2E-INT-010") {
+            Assert-ProjectRevisionHistoryDatabaseState -DataRoot $dataRoot
+        }
         if ($isProjectApi) {
             foreach ($logPath in Get-ChildItem -LiteralPath $runDirectory -Filter "*.log") {
                 $logText = Get-Content -LiteralPath $logPath.FullName -Raw -Encoding UTF8
@@ -1228,6 +1327,8 @@ function Invoke-E2EScenario {
                     $logText -match "E2E_PROJECT_LIST_CURSOR_CANARY_007" -or
                     $logText -match "E2E-PROJECT-FRONTEND-DESCRIPTION-CANARY-008" -or
                     $logText -match "E2E-PROJECT-(?:DETAIL|CONFLICT)-.+-CANARY-009" -or
+                    $logText -match "E2E-PROJECT-HISTORY-DESCRIPTION-CANARY-010" -or
+                    $logText -match "(?i)\bcursor=" -or
                     $logText -match "If-Match"
                 ) {
                     throw "Project API private request content appeared in service logs"
@@ -1321,6 +1422,7 @@ try {
         "E2E-INT-007" = "Integrated"
         "E2E-INT-008" = "Integrated"
         "E2E-INT-009" = "Integrated"
+        "E2E-INT-010" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -1334,6 +1436,7 @@ try {
         "E2E-INT-007",
         "E2E-INT-008",
         "E2E-INT-009",
+        "E2E-INT-010",
         "E2E-STARTUP-001"
     )
 

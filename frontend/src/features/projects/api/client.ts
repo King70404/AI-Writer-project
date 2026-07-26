@@ -1,11 +1,16 @@
 import { getJson, postJson, putJson } from "../../../api/client";
-import { PROJECT_LIST_PAGE_SIZE } from "../constants";
+import {
+  PROJECT_LIST_PAGE_SIZE,
+  PROJECT_REVISION_HISTORY_PAGE_SIZE,
+} from "../constants";
 import { validateProjectInput } from "../validation";
 
 import type {
   CreateProjectRequest,
   ProjectListResponse,
   ProjectResponse,
+  ProjectRevisionHistoryResponse,
+  ProjectRevisionResponse,
   ReviseProjectRequest,
   VersionedProjectResource,
 } from "./contracts";
@@ -20,6 +25,8 @@ import {
   isCanonicalProjectId,
   parseProjectListResponse,
   parseProjectResponse,
+  parseProjectRevisionHistoryResponse,
+  parseProjectRevisionResponse,
 } from "./parsers";
 import {
   projectSecuritySession,
@@ -49,6 +56,19 @@ export interface ReviseProjectOptions {
   readonly signal?: AbortSignal;
 }
 
+export interface ListProjectRevisionsOptions {
+  readonly projectId: string;
+  readonly limit?: number;
+  readonly cursor?: string;
+  readonly signal?: AbortSignal;
+}
+
+export interface GetProjectRevisionOptions {
+  readonly projectId: string;
+  readonly revisionNumber: number;
+  readonly signal?: AbortSignal;
+}
+
 export interface ProjectApiClient {
   readonly listProjects: (
     options?: ListProjectsOptions,
@@ -73,9 +93,19 @@ export interface ProjectRevisionApiClient {
   ) => Promise<VersionedProjectResource>;
 }
 
+export interface ProjectRevisionHistoryApiClient {
+  readonly listProjectRevisions: (
+    options: ListProjectRevisionsOptions,
+  ) => Promise<ProjectRevisionHistoryResponse>;
+  readonly getProjectRevision: (
+    options: GetProjectRevisionOptions,
+  ) => Promise<ProjectRevisionResponse>;
+}
+
 export type CompleteProjectApiClient = ProjectApiClient &
   ProjectDetailApiClient &
-  ProjectRevisionApiClient;
+  ProjectRevisionApiClient &
+  ProjectRevisionHistoryApiClient;
 
 function invalidProjectIdError(): ProjectApiError {
   return new ProjectApiError({
@@ -265,7 +295,85 @@ export function createProjectApiClient(
     }
   };
 
-  return { listProjects, createProject, getProject, reviseProject };
+  const listProjectRevisions = async (
+    options: ListProjectRevisionsOptions,
+  ): Promise<ProjectRevisionHistoryResponse> => {
+    if (!isCanonicalProjectId(options.projectId)) {
+      throw invalidProjectIdError();
+    }
+    try {
+      const limit = options.limit ?? PROJECT_REVISION_HISTORY_PAGE_SIZE;
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+        throw new ProjectApiError({
+          kind: "validation",
+          code: "INVALID_PROJECT_REVISION_HISTORY_LIMIT",
+          message: "修订历史页大小必须是1至100的整数。",
+        });
+      }
+      const parameters = new URLSearchParams({ limit: String(limit) });
+      if (options.cursor !== undefined) {
+        if (typeof options.cursor !== "string" || options.cursor.length === 0) {
+          throw new ProjectApiError({
+            kind: "validation",
+            code: "INVALID_PROJECT_REVISION_CURSOR",
+            message: "修订历史分页位置无效，请重新加载。",
+          });
+        }
+        parameters.set("cursor", options.cursor);
+      }
+      const response = await getJson(
+        `projects/${encodeURIComponent(options.projectId)}/revisions?${parameters.toString()}`,
+        (value) =>
+          parseProjectRevisionHistoryResponse(value, options.projectId),
+        { signal: options.signal },
+      );
+      return response.data;
+    } catch (error) {
+      throw normalizeProjectApiError(error);
+    }
+  };
+
+  const getProjectRevision = async (
+    options: GetProjectRevisionOptions,
+  ): Promise<ProjectRevisionResponse> => {
+    if (!isCanonicalProjectId(options.projectId)) {
+      throw invalidProjectIdError();
+    }
+    if (
+      !Number.isSafeInteger(options.revisionNumber) ||
+      options.revisionNumber < 1
+    ) {
+      throw new ProjectApiError({
+        kind: "validation",
+        code: "INVALID_REVISION_NUMBER",
+        message: "修订号必须是正整数。",
+      });
+    }
+    try {
+      const response = await getJson(
+        `projects/${encodeURIComponent(options.projectId)}/revisions/${String(options.revisionNumber)}`,
+        (value) =>
+          parseProjectRevisionResponse(
+            value,
+            options.projectId,
+            options.revisionNumber,
+          ),
+        { signal: options.signal },
+      );
+      return response.data;
+    } catch (error) {
+      throw normalizeProjectApiError(error);
+    }
+  };
+
+  return {
+    listProjects,
+    createProject,
+    getProject,
+    reviseProject,
+    listProjectRevisions,
+    getProjectRevision,
+  };
 }
 
 export const projectApiClient = createProjectApiClient();

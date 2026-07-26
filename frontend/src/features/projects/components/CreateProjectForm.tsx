@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import type { ProjectApiClient } from "../api/client";
 import type { ProjectFieldError, ProjectFieldName } from "../api/errors";

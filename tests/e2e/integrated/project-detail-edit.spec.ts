@@ -294,7 +294,7 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
   expect(stored).not.toMatch(/csrf|token|etag|draft/iu);
   await expect(page.getByRole("link", { name: "返回项目列表" })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /历史|删除|归档|Character|Chapter/u }),
+    page.getByRole("link", { name: /删除|归档|Character|Chapter/u }),
   ).toHaveCount(0);
   expectCleanBrowserAudit(browserAudit);
 });

@@ -341,6 +341,24 @@ function Invoke-SecurityBaselineCheck {
             PathPattern = '^frontend/src/features/projects/api/'
         },
         [pscustomobject]@{
+            Name = "project-history-cursor-log"
+            Pattern = '(?is)\b(?:logger|logging|console)\s*\.\s*(?:log|debug|info|warn|warning|error)\s*\([^)]{0,1024}\bcursor\b|\bprint\s*\([^)]{0,1024}\bcursor\b|\bWrite-(?:Host|Output|Verbose|Debug|Information)\b(?:\s*\(|\s+)[^\r\n)]{0,1024}\$cursor\b'
+        },
+        [pscustomobject]@{
+            Name = "project-revision-body-log"
+            Pattern = '(?is)\b(?:logger|logging|console)\s*\.\s*(?:log|debug|info|warn|warning|error)\s*\([^)]{0,1024}\b(?:revisionBody|revision_body|revisionDescription|revision_description)\b|\bprint\s*\([^)]{0,1024}\b(?:revision_body|revision_description)\b'
+        },
+        [pscustomobject]@{
+            Name = "project-history-write-request"
+            Pattern = '(?is)\b(?:postJson|putJson|patchJson|deleteJson)\s*\([^)]{0,1024}(?:revisions|history)'
+            PathPattern = '^frontend/src/features/projects/api/'
+        },
+        [pscustomobject]@{
+            Name = "project-history-security-session"
+            Pattern = '(?is)\bconst\s+(?:listProjectRevisions|getProjectRevision)\s*=\s*async\b[\s\S]{0,3072}\b(?:getValidSession|X-CSRF-Token)\b'
+            PathPattern = '^frontend/src/features/projects/api/'
+        },
+        [pscustomobject]@{
             Name = "project-post-auto-retry"
             Pattern = '(?is)\bretry\w*\s*\([\s\S]{0,2048}\b(?:postJson|fetch)\s*\('
             PathPattern = '^frontend/src/features/projects/api/'

@@ -1,6 +1,6 @@
 # 浏览器端到端测试
 
-Playwright在独立本地数据根上验收开发与生产集成服务。`E2E-INT-006`覆盖单Project API链路，`E2E-INT-007`覆盖稳定Keyset列表API，`E2E-INT-008`通过真实production React页面完成Project创建、刷新持久性和21项加载更多，`E2E-INT-009`覆盖当前详情、正常修订和显式412冲突恢复。四个Project场景只对自己的临时数据库显式迁移；应用启动本身仍不迁移。
+Playwright在独立本地数据根上验收开发与生产集成服务。`E2E-INT-006`覆盖单Project API链路，`E2E-INT-007`覆盖稳定Keyset列表API，`E2E-INT-008`完成Project创建与列表分页，`E2E-INT-009`覆盖当前详情、修订和显式412冲突恢复，`E2E-INT-010`覆盖不可变Revision历史查看与20+1分页。五个Project场景只对自己的临时数据库显式迁移；应用启动本身仍不迁移。
 
 ## 安装
 
@@ -26,7 +26,7 @@ npm run e2e
 ```
 
 - `e2e:dev` 验证 Vite 页面、真实健康检查、手动重新检查和客户端路由；
-- `e2e:integrated`先构建前端，再验证FastAPI静态服务、生产安全基线、`E2E-INT-006`单Project API链路、`E2E-INT-007`稳定列表分页、`E2E-INT-008`Project列表/创建、`E2E-INT-009`Project详情/修订，以及缺失构建的安全失败；
+- `e2e:integrated`先构建前端，再验证FastAPI静态服务、生产安全基线、`E2E-INT-006`单Project API链路、`E2E-INT-007`稳定列表分页、`E2E-INT-008`Project列表/创建、`E2E-INT-009`Project详情/修订、`E2E-INT-010`Project不可变历史，以及缺失构建的安全失败；
 - `e2e` 按开发模式、生产集成模式的顺序运行全部浏览器验收，任一阶段失败即返回非零。
 
 每个场景都重新启动所需服务并使用独立 `AIWEBNOVEL_DATA_ROOT`，不依赖其他场景的执行顺序。需要独立复现单项时，在对应模式后传入固定场景编号，例如：
@@ -39,9 +39,10 @@ npm run e2e:integrated -- -Scenario E2E-INT-006
 npm run e2e:integrated -- -Scenario E2E-INT-007
 npm run e2e:integrated -- -Scenario E2E-INT-008
 npm run e2e:integrated -- -Scenario E2E-INT-009
+npm run e2e:integrated -- -Scenario E2E-INT-010
 ```
 
-当前完整集共13个场景：3个开发模式、9个生产集成模式和1个缺失构建启动失败场景。
+当前完整集共14个场景：3个开发模式、10个生产集成模式和1个缺失构建启动失败场景。
 
 统一启动入口的最低浏览器验收由仓库根目录的受控脚本执行：
 
@@ -50,7 +51,7 @@ npm run e2e:integrated -- -Scenario E2E-INT-009
 .\scripts\check_startup_runtime.ps1 -Mode Integrated
 ```
 
-Development与Integrated烟测使用专用临时端口和唯一隔离数据根；它们不会复制全部13个E2E场景。`E2E-INT-006`保留完整单Project API链路，并改用`/not-a-real-route`验证React 404。`E2E-INT-007`保留三页稳定列表API与同一未知路由404。`E2E-INT-008`验证`/projects`直接访问、导航、空列表、UI创建、Session/CSRF、创建后第一页刷新、页面刷新持久性、21项无重复加载更多、列表无description/total/OFFSET、三表各21行、浏览器无CSRF持久化、CSP、无外部网络、日志canary和清理。`E2E-INT-009`使用两个独立Project：一个经UI完成详情GET与v1→v2保存并刷新确认，另一个从浏览器v1基线经独立客户端写入v2触发412，显式读取最新版本、保留草稿并重建基线，再由用户手动保存v3；数据库断言两条Head与五条不可变Revision，且验证`If-Match`顺序、无持久化ETag/草稿、无外部网络和清理。
+Development与Integrated烟测使用专用临时端口和唯一隔离数据根；它们不会复制全部14个E2E场景。`E2E-INT-006`保留完整单Project API链路，`E2E-INT-007`保留稳定列表API，`E2E-INT-008`验证Project列表/创建，`E2E-INT-009`验证详情修订与冲突恢复。`E2E-INT-010`经UI形成Revision 1至3并逐项读取原始正文，再经独立API扩展到21，验证20+1降序Keyset分页、current标记、cursor不进入URL/存储/日志、历史GET不获取Session、production直接刷新、未知路由404、双不可变触发器、无外部网络及完整清理。
 
 默认使用无头 Chromium、`retries=0` 和单 worker，不自动打开报告或浏览器窗口。人工调试时可执行 `npm run e2e:headed`；失败后执行 `npm run e2e:report` 查看本地 HTML 报告。截图和 trace 只在失败时保留，视频关闭；成功运行会删除无用的模式报告和结果目录。
 

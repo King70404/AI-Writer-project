@@ -348,6 +348,31 @@ def _check_project_router(tree: ast.Module) -> list[Violation]:
     if forbidden_import:
         violations.append(("project-router-direct-persistence-access", _PROJECT_ROUTER_PATH))
 
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call):
+                continue
+            method = _dotted_name(decorator.func)
+            if method is None or method.rpartition(".")[2].lower() not in {
+                "post",
+                "put",
+                "patch",
+                "delete",
+            }:
+                continue
+            route_path = decorator.args[0] if decorator.args else None
+            if (
+                isinstance(route_path, ast.Constant)
+                and isinstance(route_path.value, str)
+                and (
+                    "revisions" in route_path.value.lower() or "history" in route_path.value.lower()
+                )
+            ):
+                violations.append(("project-history-write-endpoint", _PROJECT_ROUTER_PATH))
+                break
+
     constants = {value.lower() for value in _string_constants(tree)}
     if any("csrf_exempt" in value or "csrf-exempt" in value for value in constants):
         violations.append(("project-write-csrf-exemption-detected", _PROJECT_ROUTER_PATH))

@@ -282,3 +282,11 @@ export function duplicateProjectContractError(): ProjectApiError {
     message: "项目列表分页响应包含重复项目，已保留当前列表。",
   });
 }
+
+export function duplicateProjectRevisionContractError(): ProjectApiError {
+  return new ProjectApiError({
+    kind: "contract",
+    code: "DUPLICATE_PROJECT_REVISION",
+    message: "修订历史分页响应包含重复修订，已保留当前列表。",
+  });
+}

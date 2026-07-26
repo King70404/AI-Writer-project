@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { LoadingState } from "../../../components/LoadingState";
 import type { ProjectApiError } from "../api/errors";

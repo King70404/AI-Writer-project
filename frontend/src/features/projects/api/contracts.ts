@@ -28,6 +28,33 @@ export interface ProjectListResponse {
   readonly has_more: boolean;
 }
 
+export interface ProjectRevisionHistoryItemResponse {
+  readonly revision_id: string;
+  readonly revision_number: number;
+  readonly title: string;
+  readonly created_at: string;
+  readonly is_current: boolean;
+}
+
+export interface ProjectRevisionHistoryResponse {
+  readonly project_id: string;
+  readonly current_revision_number: number;
+  readonly items: readonly ProjectRevisionHistoryItemResponse[];
+  readonly next_cursor: string | null;
+  readonly has_more: boolean;
+}
+
+export interface ProjectRevisionResponse {
+  readonly project_id: string;
+  readonly revision_id: string;
+  readonly revision_number: number;
+  readonly title: string;
+  readonly description: string;
+  readonly created_at: string;
+  readonly is_current: boolean;
+  readonly current_revision_number: number;
+}
+
 export interface CreateProjectRequest {
   readonly title: string;
   readonly description: string;

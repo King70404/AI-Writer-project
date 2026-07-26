@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import type { ProjectListItemResponse } from "../api/contracts";
 import { formatProjectTimestamp } from "../formatting";

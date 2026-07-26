@@ -83,10 +83,68 @@ class ProjectListResponse(BaseModel):
     has_more: bool
 
 
+class ProjectRevisionHistoryItemResponse(BaseModel):
+    """Read-only summary for one immutable Project revision."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    revision_id: str
+    revision_number: int
+    title: str
+    created_at: datetime
+    is_current: bool
+
+    @field_validator("created_at")
+    @classmethod
+    def require_utc_datetime(cls, value: datetime) -> datetime:
+        """Reject naive or non-UTC history timestamps."""
+        if value.tzinfo is None or value.utcoffset() != timedelta(0):
+            raise ValueError("Project revision timestamps must be aware UTC datetimes")
+        return value
+
+
+class ProjectRevisionHistoryResponse(BaseModel):
+    """One immutable revision-history keyset page without a total count."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    project_id: str
+    current_revision_number: int
+    items: tuple[ProjectRevisionHistoryItemResponse, ...]
+    next_cursor: str | None
+    has_more: bool
+
+
+class ProjectRevisionResponse(BaseModel):
+    """Complete read-only content for one immutable Project revision."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    project_id: str
+    revision_id: str
+    revision_number: int
+    title: str
+    description: str
+    created_at: datetime
+    is_current: bool
+    current_revision_number: int
+
+    @field_validator("created_at")
+    @classmethod
+    def require_utc_datetime(cls, value: datetime) -> datetime:
+        """Reject naive or non-UTC revision timestamps."""
+        if value.tzinfo is None or value.utcoffset() != timedelta(0):
+            raise ValueError("Project revision timestamps must be aware UTC datetimes")
+        return value
+
+
 __all__ = [
     "CreateProjectRequest",
     "ProjectListItemResponse",
     "ProjectListResponse",
     "ProjectResponse",
+    "ProjectRevisionHistoryItemResponse",
+    "ProjectRevisionHistoryResponse",
+    "ProjectRevisionResponse",
     "ReviseProjectRequest",
 ]

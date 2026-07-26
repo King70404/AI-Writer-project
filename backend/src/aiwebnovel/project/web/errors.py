@@ -11,6 +11,7 @@ from aiwebnovel.project.errors import (
     ProjectDataCorruption,
     ProjectNotFound,
     ProjectRepositoryError,
+    ProjectRevisionNotFound,
 )
 
 
@@ -69,11 +70,38 @@ def invalid_project_list_request() -> AppError:
     )
 
 
+def invalid_project_revision_cursor() -> AppError:
+    """Build the stable malformed history cursor error without echoing it."""
+    return AppError(
+        code="INVALID_REVISION_CURSOR",
+        message="The Project revision cursor is invalid.",
+        status_code=400,
+    )
+
+
+def invalid_revision_number() -> AppError:
+    """Build a safe error for a non-canonical revision path number."""
+    return AppError(
+        code="INVALID_REVISION_NUMBER",
+        message="The Project revision number is invalid.",
+        status_code=422,
+    )
+
+
 def project_not_found() -> AppError:
     """Build a resource-absence error without exposing the supplied identifier."""
     return AppError(
         code="PROJECT_NOT_FOUND",
         message="The Project was not found.",
+        status_code=404,
+    )
+
+
+def project_revision_not_found() -> AppError:
+    """Build a distinct absence error for one immutable revision."""
+    return AppError(
+        code="PROJECT_REVISION_NOT_FOUND",
+        message="The Project revision was not found.",
         status_code=404,
     )
 
@@ -100,6 +128,8 @@ def raise_project_http_error(exc: Exception) -> Never:
         )
     elif isinstance(exc, ProjectNotFound):
         mapped = project_not_found()
+    elif isinstance(exc, ProjectRevisionNotFound):
+        mapped = project_revision_not_found()
     elif isinstance(exc, ProjectAlreadyExists):
         mapped = AppError(
             code="PROJECT_ALREADY_EXISTS",
@@ -138,8 +168,11 @@ __all__ = [
     "invalid_if_match",
     "invalid_project_list_cursor",
     "invalid_project_list_request",
+    "invalid_project_revision_cursor",
+    "invalid_revision_number",
     "precondition_required",
     "project_not_found",
+    "project_revision_not_found",
     "project_service_unavailable",
     "raise_project_http_error",
 ]

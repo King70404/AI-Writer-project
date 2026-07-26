@@ -1,6 +1,7 @@
 """Safe framework-independent failures owned by the Project domain."""
 
 from aiwebnovel.domain.errors import DomainError as DomainError
+from aiwebnovel.domain.revisions import RevisionNumber
 from aiwebnovel.project.identifiers import ProjectId
 
 
@@ -81,6 +82,24 @@ class ProjectNotFound(ProjectRepositoryError):
         if type(project_id) is not ProjectId:
             raise InvalidProjectState
         self.project_id = project_id
+        super().__init__()
+
+
+class ProjectRevisionNotFound(ProjectDomainError):
+    """Raised when a Project exists but one requested revision does not."""
+
+    code = "project_revision_not_found"
+    message = "The Project revision was not found."
+
+    def __init__(
+        self,
+        project_id: ProjectId,
+        revision_number: RevisionNumber,
+    ) -> None:
+        if type(project_id) is not ProjectId or type(revision_number) is not RevisionNumber:
+            raise InvalidProjectState
+        self.project_id = project_id
+        self.revision_number = revision_number
         super().__init__()
 
 

@@ -427,6 +427,23 @@ def test_checker_accepts_dedicated_listing_adapter_application_contracts(
     assert check_backend_boundaries(package_root) == ()
 
 
+def test_checker_accepts_dedicated_history_adapter_application_contracts(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "project/persistence/history.py",
+        "from sqlalchemy import select\n"
+        "from aiwebnovel.project.application.history import ProjectRevisionHistoryReader\n"
+        "from aiwebnovel.project.application.models import ProjectRevisionHistoryPage\n"
+        "from aiwebnovel.project.application.queries import ListProjectRevisionsQuery\n"
+        "from aiwebnovel.project.identifiers import ProjectId\n",
+    )
+
+    assert check_backend_boundaries(package_root) == ()
+
+
 def test_checker_accepts_declared_project_web_dependencies(tmp_path: Path) -> None:
     package_root = _fixture_package(tmp_path)
     _write_module(
@@ -495,6 +512,11 @@ def test_checker_accepts_declared_project_web_dependencies(tmp_path: Path) -> No
         (
             "project/web/router.py",
             "from aiwebnovel.project.persistence.listing import SqlAlchemyProjectListReader\n",
+            "project-web-must-not-import-persistence",
+        ),
+        (
+            "project/web/router.py",
+            "from aiwebnovel.project.persistence.history import SqlAlchemyProjectRevisionHistoryReader\n",
             "project-web-must-not-import-persistence",
         ),
     ],

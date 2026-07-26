@@ -1,6 +1,6 @@
 # Project应用用例
 
-DEV-1.4在Project领域模型与事务Repository之上建立纯Python应用层。DEV-1.5保持该层不含HTTP、Pydantic或SQLAlchemy，并由独立`project.web`适配器与`main`组合根调用。DEV-1.6在同一纯Python边界增加列表读取模型、专用Reader端口和查询服务，不把列表塞入聚合写Repository。
+DEV-1.4在Project领域模型与事务Repository之上建立纯Python应用层。DEV-1.5保持该层不含HTTP、Pydantic或SQLAlchemy，并由独立`project.web`适配器与`main`组合根调用。DEV-1.6在同一纯Python边界增加当前Project列表读取模型、专用Reader端口和查询服务；DEV-1.9再增加不可变Revision历史读取模型、独立Reader端口和查询服务。两类读取均不塞入聚合写Repository。
 
 ## 命令、查询与读取模型
 
@@ -91,8 +91,14 @@ stale写入原样传播`ConcurrencyConflict`，保留`expected_version`与`actua
 
 专用`ProjectListReader`是应用端口，只提供`list_page(limit, after)`，不改变现有写Repository契约，也不提供total、任意排序或过滤。`ProjectListQueryService.list_projects()`验证查询精确类型与limit后只调用Reader一次；它不调用`ProjectRepository.get()`、不执行N次聚合读取、不预取、不缓存、不生成ID或时间，也不吞掉安全持久化与损坏错误。SQLAlchemy实现属于Project持久化层，HTTP cursor属于Web传输层。完整排序、Keyset与页间变化语义见[Project列表读取](PROJECT_LISTING.md)。
 
+## Revision历史查询用例
+
+`ProjectRevisionHistoryPosition`保存规范Project ID和最后一个RevisionNumber。`ListProjectRevisionsQuery`包含Project ID、默认20且范围1至100的limit，以及可选after；`GetProjectRevisionQuery`只包含Project ID和正整数RevisionNumber。历史Item不含description，历史Page固定要求RevisionNumber降序、ID与编号不重复、current关系和next position一致；单Revision Snapshot才包含完整description。
+
+专用`ProjectRevisionHistoryReader`只提供`list_page(project_id, limit, after)`与`get_revision(project_id, revision_number)`。`ProjectRevisionHistoryQueryService`在所有输入验证后每次只调用Reader一次，不调用写Repository、不打开Session、不执行SQL、不缓存或自动重试。当前标记由Reader基于Head权威状态给出，应用层不使用最大编号猜测。完整分页、损坏与跨请求语义见[Project不可变修订历史](PROJECT_REVISION_HISTORY.md)。
+
 ## 架构取舍与当前边界
 
 当前命令与查询数量很少，直接服务契约更明确，因此不建立通用命令总线、查询总线、Mediator或通用CQRS框架。命令和查询职责分离不等于引入CQRS基础设施，也不改变Project对三张表的唯一所有权。
 
-DEV-1.5已在应用层之外建立创建、详情和完整修订接口；DEV-1.6新增列表接口、严格cursor与独立列表Reader装配；DEV-1.7的React层通过公开HTTP边界提供列表与创建，DEV-1.8继续只通过同一公开边界提供当前详情、完整修订与显式冲突恢复。应用层本身仍不知道HTTP状态、ETag、cursor文本、Pydantic、具体SQLAlchemy实现、app state或前端。当前仍没有Project修订历史、删除、归档、PATCH、搜索或筛选；列表前端边界见[Project前端流程](PROJECT_FRONTEND.md)，详情并发边界见[Project详情与修订前端流程](PROJECT_DETAIL_FRONTEND.md)。
+DEV-1.5已在应用层之外建立创建、详情和完整修订接口；DEV-1.6新增当前列表接口、严格cursor与独立列表Reader装配；DEV-1.7和DEV-1.8分别提供列表/创建与当前详情/修订前端；DEV-1.9提供只读历史接口、独立历史Reader和按需正文前端。应用层本身仍不知道HTTP状态、ETag、cursor文本、Pydantic、具体SQLAlchemy实现、app state或前端。当前仍没有历史写入、回滚、恢复、Diff、删除、归档、PATCH、搜索或筛选。

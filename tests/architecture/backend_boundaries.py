@@ -127,6 +127,14 @@ _PROJECT_LISTING_APPLICATION_MODULES = frozenset(
         "aiwebnovel.project.application.queries",
     }
 )
+_PROJECT_HISTORY_PERSISTENCE = "aiwebnovel.project.persistence.history"
+_PROJECT_HISTORY_APPLICATION_MODULES = frozenset(
+    {
+        "aiwebnovel.project.application.history",
+        "aiwebnovel.project.application.models",
+        "aiwebnovel.project.application.queries",
+    }
+)
 _STANDARD_LIBRARY_ROOTS = frozenset({"__future__", *sys.stdlib_module_names})
 _PROJECT_TABLE_WRITE_PATTERN = re.compile(
     r"\b(?:"
@@ -292,6 +300,10 @@ def _project_persistence_import_is_allowed(
     target_root = target_module.partition(".")[0]
     if target_root in _STANDARD_LIBRARY_ROOTS or target_root == "sqlalchemy":
         return True
+    if source_module == _PROJECT_HISTORY_PERSISTENCE and _is_module_or_child(
+        target_module, "aiwebnovel.domain"
+    ):
+        return True
     if target_module == "aiwebnovel" or (
         _is_module_or_child(target_module, "aiwebnovel.project")
         and not _is_module_or_child(target_module, "aiwebnovel.project.application")
@@ -301,6 +313,11 @@ def _project_persistence_import_is_allowed(
     if source_module == _PROJECT_LISTING_PERSISTENCE and any(
         _is_module_or_child(target_module, allowed_module)
         for allowed_module in _PROJECT_LISTING_APPLICATION_MODULES
+    ):
+        return True
+    if source_module == _PROJECT_HISTORY_PERSISTENCE and any(
+        _is_module_or_child(target_module, allowed_module)
+        for allowed_module in _PROJECT_HISTORY_APPLICATION_MODULES
     ):
         return True
     return any(
@@ -343,6 +360,15 @@ def _project_application_import_violation(
         return None
     if source_module == "aiwebnovel.project.application.listing" and (
         target_module == "aiwebnovel.project.application.models"
+    ):
+        return None
+    if source_module == "aiwebnovel.project.application.history" and (
+        _is_module_or_child(target_module, "aiwebnovel.domain")
+        or target_module
+        in {
+            "aiwebnovel.project.application.models",
+            "aiwebnovel.project.identifiers",
+        }
     ):
         return None
 
@@ -388,6 +414,7 @@ def _project_web_import_violation(reference: _ImportReference) -> tuple[str, str
         "aiwebnovel.core.errors",
         "aiwebnovel.domain.concurrency",
         "aiwebnovel.domain.errors",
+        "aiwebnovel.domain.revisions",
         "aiwebnovel.project.application",
         "aiwebnovel.project.errors",
         "aiwebnovel.project.identifiers",
@@ -444,10 +471,20 @@ def _project_import_violation(
                 "Project persistence must not depend on the Project Web adapter",
             )
         if target_layer == "project_application":
-            if reference.source_module == _PROJECT_LISTING_PERSISTENCE and any(
-                _is_module_or_child(reference.target_module, allowed_module)
-                for allowed_module in _PROJECT_LISTING_APPLICATION_MODULES
-            ):
+            allowed_read_adapter_import = (
+                reference.source_module == _PROJECT_LISTING_PERSISTENCE
+                and any(
+                    _is_module_or_child(reference.target_module, allowed_module)
+                    for allowed_module in _PROJECT_LISTING_APPLICATION_MODULES
+                )
+            ) or (
+                reference.source_module == _PROJECT_HISTORY_PERSISTENCE
+                and any(
+                    _is_module_or_child(reference.target_module, allowed_module)
+                    for allowed_module in _PROJECT_HISTORY_APPLICATION_MODULES
+                )
+            )
+            if allowed_read_adapter_import:
                 return None
             return (
                 "project-persistence-must-not-import-application",
@@ -705,7 +742,7 @@ def check_backend_boundaries(package_root: Path) -> tuple[ArchitectureViolation,
                     rule="project-persistence-must-use-declared-dependencies",
                     message=(
                         "Project persistence may import only Project domain contracts, the "
-                        "dedicated listing application contracts, db.base, db.types, SQLAlchemy, "
+                        "dedicated listing/history application contracts, db.base, db.types, SQLAlchemy, "
                         "and the standard library"
                     ),
                 )

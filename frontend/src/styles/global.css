@@ -368,6 +368,7 @@ textarea:focus-visible {
 }
 
 .project-details-page__header,
+.project-revision-history__header,
 .project-edit__heading {
   display: flex;
   align-items: flex-start;
@@ -377,9 +378,171 @@ textarea:focus-visible {
 
 .project-details-page__header h2,
 .project-details-page__header p,
+.project-revision-history__header h2,
+.project-revision-history__header p,
 .project-edit__heading h3,
 .project-edit__heading p {
   margin: 0;
+}
+
+.project-details-page__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.project-revision-history {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.project-revision-history__id {
+  margin-top: 0.6rem !important;
+  color: #52606c;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.project-revision-history__content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1.5rem;
+}
+
+.project-revision-history__list,
+.project-revision-viewer,
+.project-revision-state {
+  padding: 1.25rem;
+  border: 1px solid #c8d2d9;
+  border-radius: 0.55rem;
+  background: #ffffff;
+}
+
+.project-revision-history__list > h2,
+.project-revision-viewer > h2,
+.project-revision-state > h2 {
+  margin-top: 0;
+}
+
+.project-revision-list {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-revision-card {
+  padding: 1rem;
+  border: 1px solid #d3dbe0;
+  border-radius: 0.45rem;
+  background: #f7f9fa;
+}
+
+.project-revision-card__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.project-revision-card__heading h3,
+.project-revision-card p {
+  margin: 0;
+}
+
+.project-revision-card p + p,
+.project-revision-card p + button {
+  margin-top: 0.7rem;
+}
+
+.project-revision-card__title {
+  margin-top: 0.65rem !important;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.project-revision-card__current,
+.project-revision-card__historical {
+  flex: 0 0 auto;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.project-revision-card__current {
+  color: #1d5b3e;
+  background: #dff2e7;
+}
+
+.project-revision-card__historical {
+  color: #4b5963;
+  background: #e8edf0;
+}
+
+.project-revision-history button,
+.project-revision-viewer button,
+.project-revision-state button {
+  min-height: 2.65rem;
+  padding: 0.6rem 0.9rem;
+  border: 0;
+  border-radius: 0.4rem;
+  color: #ffffff;
+  background: #17324d;
+  cursor: pointer;
+}
+
+.project-revision-history button:disabled {
+  color: #56636c;
+  background: #d4dce1;
+  cursor: not-allowed;
+}
+
+.project-revision-list__more {
+  margin-top: 1rem;
+}
+
+.project-revision-list__end {
+  margin-bottom: 0;
+  color: #52606c;
+}
+
+.project-revision-state {
+  line-height: 1.65;
+}
+
+.project-revision-state--error {
+  border-left: 4px solid #9b3826;
+  background: #fff1ee;
+}
+
+.project-revision-viewer__content dl {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.project-revision-viewer__content dl div {
+  padding: 0.75rem;
+  background: #f4f6f7;
+}
+
+.project-revision-viewer__content dt {
+  color: #52606c;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.project-revision-viewer__content dd {
+  margin: 0.3rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.project-revision-viewer__description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
 }
 
 .project-details,
@@ -706,8 +869,13 @@ textarea:focus-visible {
   }
 
   .project-details-page__header,
+  .project-revision-history__header,
   .project-edit__heading {
     flex-direction: column;
+  }
+
+  .project-revision-history__content {
+    grid-template-columns: 1fr;
   }
 
   .project-details__facts,

@@ -4,9 +4,9 @@
 
 ## 当前范围
 
-当前包含阶段 0 工程基础页、全局错误边界、真实 `SystemStatus`、DEV-1.7 的 `/projects` 列表与创建页面，以及 DEV-1.8 的 `/projects/:projectId` 当前详情、完整修订和显式并发冲突流程。Project前端使用类型化 API客户端、精确运行时响应校验、内存 Security Session、稳定 Keyset 加载更多、创建后第一页刷新和强ETag编辑基线；创建POST与修订PUT均不自动重试。
+当前包含阶段 0 工程基础页、全局错误边界、真实 `SystemStatus`、DEV-1.7 的 `/projects` 列表与创建页面、DEV-1.8 的 `/projects/:projectId` 当前详情、完整修订和显式并发冲突流程，以及 DEV-1.9 的 `/projects/:projectId/history` 只读不可变修订历史页面。Project前端使用类型化 API客户端、精确运行时响应校验、内存 Security Session、稳定 Keyset 加载更多、创建后第一页刷新和强ETag编辑基线；创建POST与修订PUT均不自动重试。
 
-前端没有用户登录、安全设置页、Project修订历史/删除/归档/自动保存、规划、写作、评审、Codex 或其他创作功能。本地 session 不是身份认证；CSRF、ETag和编辑草稿只保存在当前 JavaScript/React 内存，不写入 `localStorage` 或 `sessionStorage`，页面不显示安全令牌。Project详情与修订可用不代表小说创作功能已经实现。
+前端没有用户登录、安全设置页、Project历史回滚/恢复/Diff/编辑/删除、Project归档/自动保存、规划、写作、评审、Codex 或其他创作功能。历史摘要不含 description，正文只在显式选择单个 Revision 后按需读取；cursor 和正文不进入浏览器存储。本地 session 不是身份认证；CSRF、ETag和编辑草稿只保存在当前 JavaScript/React 内存，不写入 `localStorage` 或 `sessionStorage`，页面不显示安全令牌。Project详情、修订与历史读取可用不代表小说创作功能已经实现。
 
 ## 环境要求
 
@@ -48,7 +48,7 @@ npm run e2e:report
 
 每个场景使用独立服务和数据库。可用 `npm run e2e:dev -- -Scenario E2E-DEV-001` 或 `npm run e2e:integrated -- -Scenario E2E-INT-003` 独立运行固定场景编号。
 
-当前13个 E2E 场景验收阶段0基础、Project API、`E2E-INT-008`真实Project前端创建/持久刷新/21项加载更多，以及`E2E-INT-009`详情读取、v1→v2修订和显式412冲突恢复；同时验证生产安全头、CSP、本地Session Cookie、浏览器无CSRF/ETag/草稿持久数据和专用数据根清理。它不覆盖小说创作功能。
+当前14个 E2E 场景验收阶段0基础、Project API、`E2E-INT-008`真实Project前端创建/持久刷新/21项加载更多、`E2E-INT-009`详情读取与显式412冲突恢复，以及`E2E-INT-010`不可变历史逐项读取与20+1分页；同时验证生产安全头、CSP、本地Session Cookie、浏览器无CSRF/cursor/ETag/草稿/历史正文持久数据和专用数据根清理。它不覆盖小说创作功能。
 
 ## 本地命令
 

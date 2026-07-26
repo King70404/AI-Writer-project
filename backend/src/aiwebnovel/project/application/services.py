@@ -3,18 +3,28 @@
 from collections.abc import Callable
 
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
+from aiwebnovel.domain.revisions import RevisionNumber
 from aiwebnovel.domain.time import Clock, utc_now
 from aiwebnovel.project.application.commands import (
     CreateProjectCommand,
     ReviseProjectCommand,
 )
+from aiwebnovel.project.application.history import ProjectRevisionHistoryReader
 from aiwebnovel.project.application.listing import ProjectListReader
 from aiwebnovel.project.application.mappers import project_snapshot_from_aggregate
-from aiwebnovel.project.application.models import ProjectListPage, ProjectSnapshot
+from aiwebnovel.project.application.models import (
+    ProjectListPage,
+    ProjectRevisionHistoryPage,
+    ProjectRevisionHistorySnapshot,
+    ProjectSnapshot,
+)
 from aiwebnovel.project.application.queries import (
     GetProjectQuery,
+    GetProjectRevisionQuery,
+    ListProjectRevisionsQuery,
     ListProjectsQuery,
     validate_project_list_limit,
+    validate_project_revision_history_limit,
 )
 from aiwebnovel.project.identifiers import ProjectId, ProjectRevisionId
 from aiwebnovel.project.repository import ProjectRepository
@@ -105,4 +115,51 @@ class ProjectListQueryService:
         return self._reader.list_page(limit=limit, after=query.after)
 
 
-__all__ = ["ProjectCommandService", "ProjectListQueryService", "ProjectQueryService"]
+class ProjectRevisionHistoryQueryService:
+    """Read immutable Project revisions through the dedicated history port."""
+
+    def __init__(self, reader: ProjectRevisionHistoryReader) -> None:
+        self._reader = reader
+
+    def list_revisions(
+        self,
+        query: ListProjectRevisionsQuery,
+    ) -> ProjectRevisionHistoryPage:
+        """Validate one history query and call the reader exactly once."""
+        if type(query) is not ListProjectRevisionsQuery:
+            raise TypeError("query must be a ListProjectRevisionsQuery")
+        project_id = ProjectId.parse(query.project_id)
+        limit = validate_project_revision_history_limit(query.limit)
+        after: RevisionNumber | None = None
+        if query.after is not None:
+            after_project_id = ProjectId.parse(query.after.project_id)
+            if after_project_id != project_id:
+                raise ValueError("after position must belong to the requested Project")
+            after = RevisionNumber(query.after.revision_number)
+        return self._reader.list_page(
+            project_id=project_id,
+            limit=limit,
+            after=after,
+        )
+
+    def get_revision(
+        self,
+        query: GetProjectRevisionQuery,
+    ) -> ProjectRevisionHistorySnapshot | None:
+        """Validate one exact revision query and call the reader exactly once."""
+        if type(query) is not GetProjectRevisionQuery:
+            raise TypeError("query must be a GetProjectRevisionQuery")
+        project_id = ProjectId.parse(query.project_id)
+        revision_number = RevisionNumber(query.revision_number)
+        return self._reader.get_revision(
+            project_id=project_id,
+            revision_number=revision_number,
+        )
+
+
+__all__ = [
+    "ProjectCommandService",
+    "ProjectListQueryService",
+    "ProjectQueryService",
+    "ProjectRevisionHistoryQueryService",
+]

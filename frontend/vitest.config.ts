@@ -26,8 +26,8 @@ export default defineConfig({
         replacement: resolveFromFrontend("react"),
       },
       {
-        find: "react-router-dom",
-        replacement: resolveFromFrontend("react-router-dom"),
+        find: "react-router",
+        replacement: resolveFromFrontend("react-router"),
       },
       {
         find: "@testing-library/react",

@@ -83,6 +83,8 @@ DEV-1.7授权React侧的类型化Project列表/创建客户端、精确运行时
 
 DEV-1.8授权React侧的`/projects/:projectId`当前详情、强ETag绑定的编辑基线、完整替换PUT和显式412冲突恢复。详情GET不得获取Session；PUT只发送一次且不得预读、自动重试、自动重放或自动合并；冲突和保存结果未知都必须保留草稿并等待用户显式动作。该任务不改变后端、Schema或0002，也不授权历史、删除、归档、自动保存、Character、Chapter、三区、审批、Codex或其他创作功能；DEV-1.9仍需独立任务授权。
 
+DEV-1.9授权Project不可变Revision历史的独立读取模型、Reader端口与SQLAlchemy适配器、两个只读GET、Project绑定的RevisionNumber Keyset cursor，以及`/projects/:projectId/history`页面和按需单Revision正文查看。历史GET不得获取Session或CSRF，列表不含description/total，cursor与正文不得进入浏览器存储或日志；Schema与0002保持冻结，不提供Revision写入、回滚、恢复、Diff、历史编辑或删除。DEV-1.10只有在独立授权后才能执行M1验收。
+
 ## 统一执行报告
 
 任务报告至少包含：

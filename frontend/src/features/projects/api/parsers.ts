@@ -3,6 +3,9 @@ import type {
   ProjectListItemResponse,
   ProjectListResponse,
   ProjectResponse,
+  ProjectRevisionHistoryItemResponse,
+  ProjectRevisionHistoryResponse,
+  ProjectRevisionResponse,
   SecuritySessionResponse,
 } from "./contracts";
 
@@ -160,6 +163,150 @@ export function parseProjectListResponse(value: unknown): ProjectListResponse {
     items,
     next_cursor: value.next_cursor,
     has_more: value.has_more,
+  };
+}
+
+const REVISION_HISTORY_ITEM_KEYS = [
+  "revision_id",
+  "revision_number",
+  "title",
+  "created_at",
+  "is_current",
+] as const;
+
+export function parseProjectRevisionHistoryItemResponse(
+  value: unknown,
+): ProjectRevisionHistoryItemResponse {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, REVISION_HISTORY_ITEM_KEYS) ||
+    typeof value.is_current !== "boolean"
+  ) {
+    throw new ProjectContractError();
+  }
+  return {
+    revision_id: requiredIdentifier(value.revision_id, REVISION_ID),
+    revision_number: requiredPositiveInteger(value.revision_number),
+    title: requiredString(value.title, { maximum: 120 }),
+    created_at: requiredTimestamp(value.created_at),
+    is_current: value.is_current,
+  };
+}
+
+export function parseProjectRevisionHistoryResponse(
+  value: unknown,
+  expectedProjectId: string,
+): ProjectRevisionHistoryResponse {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, [
+      "project_id",
+      "current_revision_number",
+      "items",
+      "next_cursor",
+      "has_more",
+    ]) ||
+    !Array.isArray(value.items) ||
+    typeof value.has_more !== "boolean" ||
+    (value.next_cursor !== null && typeof value.next_cursor !== "string")
+  ) {
+    throw new ProjectContractError();
+  }
+  const projectId = parseProjectId(value.project_id);
+  if (projectId !== expectedProjectId) {
+    throw new ProjectContractError();
+  }
+  const currentRevisionNumber = requiredPositiveInteger(
+    value.current_revision_number,
+  );
+  const items = value.items.map((item) =>
+    parseProjectRevisionHistoryItemResponse(item),
+  );
+  const revisionNumbers = new Set<number>();
+  const revisionIds = new Set<string>();
+  let previousRevisionNumber: number | null = null;
+  let currentCount = 0;
+  for (const item of items) {
+    if (
+      revisionNumbers.has(item.revision_number) ||
+      revisionIds.has(item.revision_id) ||
+      (previousRevisionNumber !== null &&
+        item.revision_number >= previousRevisionNumber) ||
+      item.is_current !== (item.revision_number === currentRevisionNumber)
+    ) {
+      throw new ProjectContractError();
+    }
+    revisionNumbers.add(item.revision_number);
+    revisionIds.add(item.revision_id);
+    previousRevisionNumber = item.revision_number;
+    if (item.is_current) {
+      currentCount += 1;
+    }
+  }
+  if (
+    currentCount > 1 ||
+    (value.has_more &&
+      (items.length === 0 ||
+        typeof value.next_cursor !== "string" ||
+        value.next_cursor.length === 0)) ||
+    (!value.has_more && value.next_cursor !== null)
+  ) {
+    throw new ProjectContractError();
+  }
+  return {
+    project_id: projectId,
+    current_revision_number: currentRevisionNumber,
+    items,
+    next_cursor: value.next_cursor,
+    has_more: value.has_more,
+  };
+}
+
+export function parseProjectRevisionResponse(
+  value: unknown,
+  expectedProjectId: string,
+  expectedRevisionNumber: number,
+): ProjectRevisionResponse {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, [
+      "project_id",
+      "revision_id",
+      "revision_number",
+      "title",
+      "description",
+      "created_at",
+      "is_current",
+      "current_revision_number",
+    ]) ||
+    typeof value.is_current !== "boolean"
+  ) {
+    throw new ProjectContractError();
+  }
+  const projectId = parseProjectId(value.project_id);
+  const revisionNumber = requiredPositiveInteger(value.revision_number);
+  const currentRevisionNumber = requiredPositiveInteger(
+    value.current_revision_number,
+  );
+  if (
+    projectId !== expectedProjectId ||
+    revisionNumber !== expectedRevisionNumber ||
+    value.is_current !== (revisionNumber === currentRevisionNumber)
+  ) {
+    throw new ProjectContractError();
+  }
+  return {
+    project_id: projectId,
+    revision_id: requiredIdentifier(value.revision_id, REVISION_ID),
+    revision_number: revisionNumber,
+    title: requiredString(value.title, { maximum: 120 }),
+    description: requiredString(value.description, {
+      allowEmpty: true,
+      maximum: 2_000,
+    }),
+    created_at: requiredTimestamp(value.created_at),
+    is_current: value.is_current,
+    current_revision_number: currentRevisionNumber,
   };
 }
 

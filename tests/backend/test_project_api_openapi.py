@@ -8,7 +8,7 @@ from tests.backend.factories import create_test_app
 pytestmark = pytest.mark.unit
 
 
-def test_project_route_inventory_contains_only_four_business_routes(tmp_path: Path) -> None:
+def test_project_route_inventory_contains_only_six_business_routes(tmp_path: Path) -> None:
     app = create_test_app(
         data_root=(tmp_path / "routes").resolve(),
         expose_api_docs=True,
@@ -26,6 +26,8 @@ def test_project_route_inventory_contains_only_four_business_routes(tmp_path: Pa
         ("POST", "/api/v1/projects"),
         ("GET", "/api/v1/projects/{project_id}"),
         ("PUT", "/api/v1/projects/{project_id}"),
+        ("GET", "/api/v1/projects/{project_id}/revisions"),
+        ("GET", "/api/v1/projects/{project_id}/revisions/{revision_number}"),
     }
 
 

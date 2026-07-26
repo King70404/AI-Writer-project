@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppRouter } from "../../frontend/src/app/AppRouter";
@@ -104,7 +104,6 @@ describe("Project detail routes and navigation", () => {
 
   it.each([
     `/projects/${projectId}/edit`,
-    `/projects/${projectId}/history`,
     `/projects/${projectId}/revisions`,
     `/projects/${projectId}/settings`,
     "/not-a-real-route",

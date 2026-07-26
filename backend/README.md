@@ -1,8 +1,8 @@
 # AIWebNovel 后端
 
-本目录包含已冻结的阶段 0 Python 后端基础设施，以及DEV-1.1至DEV-1.6的Project领域、持久化、应用与HTTP适配层。目前提供四个Project业务接口、稳定Keyset列表读取、严格Pydantic DTO、ETag/If-Match并发协议、安全错误映射和显式组合根装配。
+本目录包含已冻结的阶段 0 Python 后端基础设施，以及阶段1的Project领域、持久化、应用与HTTP适配层。目前提供六个Project业务接口、当前列表与不可变Revision历史的稳定Keyset读取、严格Pydantic DTO、ETag/If-Match并发协议、安全错误映射和显式组合根装配。
 
-当前没有用户账号或登录、Project历史/删除接口、前端Project页面、搜索、筛选、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；详情与列表GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
+当前没有用户账号或登录、Project历史写入/回滚/恢复/删除接口、搜索、筛选、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；详情、列表与历史GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
 
 ## 领域基础
 
@@ -18,7 +18,7 @@ Project模块已拥有`prj`和`prv`两种固定业务ID；Chapter及其他业务
 
 ## Project应用用例
 
-`src/aiwebnovel/project/application/`保持纯Python；列表端口与写Repository分离。`project/web/`单独负责DTO、Snapshot/Page映射、ETag、严格cursor、错误和Router。具体SQLAlchemy Repository与列表Reader只在`main`中用既有Session工厂装配，Router不访问Session或ORM。完整输入顺序见[Project应用用例](../docs/PROJECT_APPLICATION.md)。
+`src/aiwebnovel/project/application/`保持纯Python；当前列表与历史Reader端口均和写Repository分离。`project/web/`单独负责DTO、Snapshot/Page映射、ETag、两类严格cursor、错误和Router。具体SQLAlchemy Repository、列表Reader与历史Reader只在`main`中用既有Session工厂装配，Router不访问Session或ORM。完整输入顺序见[Project应用用例](../docs/PROJECT_APPLICATION.md)，历史边界见[Project不可变修订历史](../docs/PROJECT_REVISION_HISTORY.md)。
 
 ## 环境要求
 

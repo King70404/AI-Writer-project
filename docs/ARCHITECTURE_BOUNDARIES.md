@@ -79,9 +79,9 @@ DEV-1.1建立的通用原语不拥有任何业务前缀或表，也不反向依�
 
 `project.identifiers`、`project.values`、`project.entities`、`project.transitions`、`project.errors`和`project.repository`组成纯业务领域契约，只能依赖Python标准库、通用`domain`和Project自身领域模块。Repository契约不得导入SQLAlchemy、FastAPI或Pydantic；整个领域部分不得导入`db`、`core`、`storage`、`security`、`diagnostics`、`web`、`main`或测试代码。
 
-`project.application`是Project拥有的纯Python应用层。命令保持标准库输入；列表Position、Item和Page可以依赖公开Project ID、版本、时间和标题验证类型，但不依赖框架。`mappers`只显式依赖Project领域Aggregate和应用Snapshot；`services`可以依赖应用模块、Project领域、Repository契约及通用`domain`。应用层把一个创建或修订命令映射到一个Repository写事务，把单Project查询映射到一次Repository读取，把列表查询映射到一次专用`ProjectListReader`调用；它不得打开Session、执行SQL、导入SQLAlchemy、Project持久化实现、FastAPI、Pydantic、Web、Security、Storage或Diagnostics。Project领域与写Repository契约不得反向导入应用层。
+`project.application`是Project拥有的纯Python应用层。命令保持标准库输入；当前列表和Revision历史的Position、Item、Page与Snapshot可以依赖公开Project ID、版本、时间和文本验证类型，但不依赖框架。`mappers`只显式依赖Project领域Aggregate和应用Snapshot；`services`可以依赖应用模块、Project领域、Repository契约及通用`domain`。应用层把一个创建或修订命令映射到一个Repository写事务，把单Project查询映射到一次Repository读取，把两类列表查询分别映射到一次专用`ProjectListReader`或`ProjectRevisionHistoryReader`调用；它不得打开Session、执行SQL、导入SQLAlchemy、Project持久化实现、FastAPI、Pydantic、Web、Security、Storage或Diagnostics。Project领域与写Repository契约不得反向导入应用层。
 
-`project.persistence`是Project拥有的外向数据库适配层，可以导入Project Repository契约、Project领域、自己的模型与mapper、SQLAlchemy以及允许的通用DB类型，但不能导入Web、Security、Storage、Diagnostics、Main或测试代码。唯一受控的应用依赖是`project.persistence.listing`指向Project专用列表端口、读取模型和limit规则；其他持久化模块不得导入应用层。它定义ORM记录、显式双向mapper、固定写Repository与单查询列表Reader；每次操作独立管理Session，不建立全局Session、通用Unit of Work、Pagination框架或任意SQL入口。
+`project.persistence`是Project拥有的外向数据库适配层，可以导入Project Repository契约、Project领域、自己的模型与mapper、SQLAlchemy以及允许的通用DB类型，但不能导入Web、Security、Storage、Diagnostics、Main或测试代码。受控的应用依赖只有`project.persistence.listing`指向Project当前列表端口/读取模型/limit规则，以及`project.persistence.history`指向Project历史Reader端口、历史读取模型和limit规则；其他持久化模块不得导入应用层。它定义ORM记录、显式双向mapper、固定写Repository与两个专用只读Reader；每次操作独立管理Session，不建立全局Session、通用Unit of Work、Pagination框架或任意SQL入口。
 
 `db.model_registry`是模型组合入口，可以确定性导入`project.persistence.models`并返回正式`Base.metadata`；这是通用DB指向Project持久化实现的唯一受控例外。`db.types`、`db.base`和其他通用DB模块不得导入Project，`core`与通用`domain`也不得反向依赖Project。模型注册不连接数据库、不执行迁移，普通Project领域导入不加载SQLAlchemy。
 
@@ -89,13 +89,13 @@ Project唯一拥有`projects`、`project_revisions`和`project_heads`。只有`p
 
 `project.web`是Project拥有的HTTP适配层：DTO只依赖Pydantic与公开业务常量，mapper只依赖应用Snapshot/Page和Web DTO，cursor只依赖标准库、应用Position与公开Project验证类型，Router只依赖FastAPI、Project应用命令/查询/服务与本层ETag、cursor和错误工具。Web层禁止导入SQLAlchemy、Project持久化模型、具体Repository/ListReader、数据库Session、SQL语句和测试Fake。Project领域、应用与持久化层均不得反向导入Web。
 
-`main`是唯一允许把既有Session工厂、`SqlAlchemyProjectRepository`、`SqlAlchemyProjectListReader`、三个Project应用服务和Project Router组合起来的位置；两个数据库适配器复用同一Engine/Session工厂但每次调用各自创建Session。应用构造与Router导入不连接数据库，生命周期关闭时清除服务引用。跨模块仍只能使用公开应用服务与版本化DTO。当前只存在四个Project HTTP接口，没有历史、删除、归档、PATCH或搜索。完整边界见[Project HTTP API](PROJECT_HTTP_API.md)。
+`main`是唯一允许把既有Session工厂、`SqlAlchemyProjectRepository`、`SqlAlchemyProjectListReader`、`SqlAlchemyProjectRevisionHistoryReader`、Project应用服务和Project Router组合起来的位置；三个数据库适配器复用同一Engine/Session工厂但每次调用各自创建Session。应用构造与Router导入不连接数据库，生命周期关闭时清除服务引用。跨模块仍只能使用公开应用服务与版本化DTO。当前存在六个Project HTTP接口；两个历史接口只能读取，没有Revision写入、回滚、恢复、删除、归档、PATCH或搜索。完整边界见[Project HTTP API](PROJECT_HTTP_API.md)和[Project不可变修订历史](PROJECT_REVISION_HISTORY.md)。
 
 ## Project前端边界
 
-通用`frontend/src/api`提供同源JSON传输和受控响应ETag读取，不得反向导入Project功能。Project `api`层可依赖通用传输，但不得依赖React、hooks、组件或页面；详情读取客户端与修订写客户端保持可分离接口。hooks依赖Project API与契约；组件依赖hooks和前端契约；页面只组合组件；Router可以导入公开`ProjectsPage`与`ProjectDetailsPage`。
+通用`frontend/src/api`提供同源JSON传输和受控响应ETag读取，不得反向导入Project功能。Project `api`层可依赖通用传输，但不得依赖React、hooks、组件或页面；详情读取、修订写入与历史只读客户端保持可分离接口。hooks依赖Project API与契约；组件依赖hooks和前端契约；页面只组合组件；Router可以导入公开Project页面。
 
-UI组件不得直接调用裸`fetch`、读取Cookie、获取或硬编码CSRF、持久化token/cursor/ETag/草稿或访问数据库。Project API客户端不得记录请求正文或`If-Match`、自动重试POST/PUT、导入React或使用外部主机。详情GET不得获取Session；修订PUT只能使用已验证详情资源的强ETag并只发送一次。列表Hook不得导入创建表单，详情组件不得重新实现服务端CAS。前端不能导入Python、SQLAlchemy或测试Fake。列表语义见[Project前端流程](PROJECT_FRONTEND.md)，详情与冲突语义见[Project详情与修订前端流程](PROJECT_DETAIL_FRONTEND.md)。
+UI组件不得直接调用裸`fetch`、读取Cookie、获取或硬编码CSRF、持久化token/cursor/ETag/草稿/历史正文或访问数据库。Project API客户端不得记录请求正文、Revision正文、cursor或`If-Match`，不得自动重试POST/PUT、导入React或使用外部主机。详情和历史GET不得获取Session；修订PUT只能使用已验证详情资源的强ETag并只发送一次。历史前端只发送GET、不解析cursor、不自动加载全部正文；Router不得直接访问Session或SQL，Web层不得导入具体HistoryReader。前端不能导入Python、SQLAlchemy或测试Fake。历史语义见[Project不可变修订历史](PROJECT_REVISION_HISTORY.md)。
 
 ## 所有权与跨模块规则
 

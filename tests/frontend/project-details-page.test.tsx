@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import type {
@@ -86,9 +86,13 @@ describe("Project details page", () => {
       "href",
       "/projects",
     );
+    expect(screen.getByRole("link", { name: "查看修订历史" })).toHaveAttribute(
+      "href",
+      `/projects/${projectId}/history`,
+    );
     expect(
       document.querySelector("main") ?? document.body,
-    ).not.toHaveTextContent(/历史|删除|Character|Chapter/u);
+    ).not.toHaveTextContent(/删除|Character|Chapter/u);
   });
 
   it("renders the explicit empty-description fallback", async () => {

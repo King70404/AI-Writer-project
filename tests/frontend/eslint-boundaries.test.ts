@@ -62,6 +62,15 @@ const boundaryFixtures: readonly BoundaryFixture[] = [
   },
   {
     relativePath:
+      "src/features/projects/hooks/__history_storage_boundary_fixture__.ts",
+    source:
+      'localStorage.setItem("project_revision_cursor", cursor);\nsessionStorage.setItem("project_revision_description", description);\n',
+    expectedMessage:
+      "Project code must not persist security, cursor, ETag, or draft state.",
+    expectedRule: "no-restricted-globals",
+  },
+  {
+    relativePath:
       "src/features/projects/components/__cookie_boundary_fixture__.ts",
     source: "const session = document.cookie;\nexport { session };\n",
     expectedMessage: "Project code must not read browser cookies.",
