@@ -96,8 +96,8 @@ Repository返回的Aggregate是最终权威。创建和修订Snapshot都从Repos
 
 自动测试使用`STORY_BIBLE_APPLICATION_SECRET_CANARY`验证命令、查询、Snapshot、Factory和Repository错误不会泄漏正文。成功Snapshot按职责包含正常用户标题与正文。
 
-## 当前范围与DEV-2.4
+## DEV-2.4传输适配
 
-当前没有Story Bible HTTP API、Pydantic DTO、Web错误映射、组合根装配、前端路由或页面，也没有历史列表、单Revision读取、删除、归档、恢复、Character、World、PowerSystem、Planning、三区、审批、Codex或Agent。内部应用用例不能登记为用户可见能力，`FEATURE_REALITY_MATRIX.md`保持不变。
+DEV-2.4通过四条HTTP操作调用本文件的既有服务：Create/Revise各发送一个命令，按ID/Project读取各发送一个查询。Pydantic DTO和HTTP错误映射位于`story_bible.web`，不会反向进入本应用包；Repository返回的Snapshot仍是响应映射的唯一权威。组合根显式注入真实Repository、UTC Clock和两个ID Factory，Router不生成ID、不调用Clock、不创建Session，也不在PUT前预读。
 
-DEV-2.4如被独立任务授权，预期只能在本应用契约之外定义明确的传输边界、错误映射和组合方式；其实际范围仍必须以对应任务包为准，DEV-2.3不预先创建DTO、API或前端。
+当前仍没有Story Bible前端、Revision历史API、删除、归档、恢复、Character、World、PowerSystem、Planning、三区、审批、Codex或Agent。完整HTTP边界见[Story Bible HTTP API](STORY_BIBLE_HTTP_API.md)。

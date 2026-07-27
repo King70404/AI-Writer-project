@@ -95,6 +95,8 @@ DEV-2.2只授权Story Bible内部持久化基础：归属Project且一对一的�
 
 DEV-2.3只授权Story Bible纯应用层：原语Create/Revise命令、Get/GetForProject查询、不可变Snapshot、显式Mapper，以及只依赖Repository契约的命令/查询服务。创建和修订各只调用一次Repository，修订不得预读或自行调用Clock/Revision ID Factory；真实集成与并发测试继续使用迁移到0003的独立临时数据库。它不改变Schema或迁移，不授权DTO、HTTP API、组合根接线、前端、历史读取、Character、World、PowerSystem、规划、三区、审批、Codex或Agent；DEV-2.4仍需独立任务授权。
 
+DEV-2.4只授权Story Bible HTTP传输边界：两个严格请求DTO、一个严格响应DTO、显式映射、公共强ETag协议、四条固定路由、统一错误映射和FastAPI lifespan组合根。POST/PUT继承本地Session/CSRF安全，GET只读；PUT不预读、不重试且只完整替换。任务不改变Schema、迁移、Repository事务、Project行为或前端，不授权Revision历史API、删除/归档/恢复、结构化实体、规划、Codex或Agent；DEV-2.5仍需独立任务授权。
+
 ## 统一执行报告
 
 任务报告至少包含：

@@ -89,6 +89,24 @@ def test_checker_accepts_declared_story_bible_application_dependencies(
     assert check_story_bible_boundaries(package_root) == ()
 
 
+def test_checker_accepts_declared_story_bible_web_dependencies(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "story_bible/web/router.py",
+        "from fastapi import APIRouter\n"
+        "from pydantic import BaseModel\n"
+        "from aiwebnovel.api.etags import format_strong_etag\n"
+        "from aiwebnovel.core.errors import AppError\n"
+        "from aiwebnovel.story_bible.application.services import StoryBibleCommandService\n"
+        "from aiwebnovel.story_bible.identifiers import StoryBibleId\n",
+    )
+
+    assert check_story_bible_boundaries(package_root) == ()
+
+
 @pytest.mark.parametrize(
     ("module_path", "source", "expected_rule"),
     [
@@ -251,6 +269,58 @@ def test_checker_rejects_forbidden_application_dependencies(
     assert expected_rule in {violation.rule for violation in violations}
 
 
+@pytest.mark.parametrize(
+    ("source", "expected_rule"),
+    [
+        (
+            "import sqlalchemy\n",
+            "story-bible-web-must-not-import-persistence-frameworks",
+        ),
+        (
+            "import alembic\n",
+            "story-bible-web-must-not-import-persistence-frameworks",
+        ),
+        (
+            "from aiwebnovel.story_bible.persistence.repository import "
+            "SqlAlchemyStoryBibleRepository\n",
+            "story-bible-web-must-not-import-concrete-repository",
+        ),
+        (
+            "from aiwebnovel.db.session import create_database_session_factory\n",
+            "story-bible-web-must-use-declared-dependencies",
+        ),
+        (
+            "import frontend\n",
+            "story-bible-web-must-use-declared-dependencies",
+        ),
+    ],
+)
+def test_checker_rejects_forbidden_story_bible_web_dependencies(
+    tmp_path: Path,
+    source: str,
+    expected_rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "story_bible/web/bad.py", source)
+
+    violations = check_story_bible_boundaries(package_root)
+
+    assert expected_rule in {violation.rule for violation in violations}
+
+
+def test_checker_rejects_project_web_reverse_dependency(tmp_path: Path) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "project/web/bad.py",
+        "from aiwebnovel.story_bible.web import create_story_bible_router\n",
+    )
+
+    violations = check_story_bible_boundaries(package_root)
+
+    assert "project-must-not-import-story-bible" in {violation.rule for violation in violations}
+
+
 def test_checker_keeps_fake_repository_implementations_out_of_production(
     tmp_path: Path,
 ) -> None:
@@ -327,6 +397,44 @@ def test_application_package_import_has_no_runtime_or_schema_side_effects(
         [sys.executable, "-c", script],
         cwd=tmp_path,
         env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    evidence = completed.stdout.strip()
+    expected_tables = (
+        '["project_heads", "project_revisions", "projects", '
+        '"story_bible_heads", "story_bible_revisions", "story_bibles"]'
+    )
+    assert f'"before": {expected_tables}' in evidence
+    assert f'"after": {expected_tables}' in evidence
+    assert '"forbidden": []' in evidence
+    assert '"files": []' in evidence
+
+
+def test_web_package_import_has_no_runtime_or_schema_side_effects(
+    tmp_path: Path,
+) -> None:
+    script = (
+        "import json, pathlib, sys\n"
+        "from aiwebnovel.db.model_registry import load_model_metadata\n"
+        "before = sorted(load_model_metadata().tables)\n"
+        "before_modules = set(sys.modules)\n"
+        "import aiwebnovel.story_bible.web\n"
+        "after = sorted(load_model_metadata().tables)\n"
+        "forbidden = sorted(name for name in set(sys.modules) - before_modules if "
+        "name.startswith(('aiwebnovel.main', 'aiwebnovel.storage', "
+        "'aiwebnovel.story_bible.persistence.repository')))\n"
+        "files = sorted(path.as_posix() for path in pathlib.Path('.').rglob('*') "
+        "if path.is_file())\n"
+        "print(json.dumps({'before': before, 'after': after, "
+        "'forbidden': forbidden, 'files': files}))\n"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env=os.environ.copy(),
         check=True,
         capture_output=True,
         text=True,

@@ -82,8 +82,10 @@ SQLite写事务使用`BEGIN IMMEDIATE`串行化锁获取，使两个独立Reposi
 
 正式`Base.metadata`在明确调用模型注册入口后精确包含三张Project表和三张StoryBible表。普通`import aiwebnovel.story_bible`仍不注册ORM、不连接数据库、不执行迁移。
 
-## DEV-2.3调用边界与当前限制
+## 应用与HTTP调用边界
 
 DEV-2.3的命令服务创建时调用`create()`一次，修订时调用`append_revision()`一次且不预先GET；应用层把同一Clock与Revision ID Factory传给Repository，因此本文件定义的事务内stale优先级保持不变。查询服务分别只调用`get()`或`get_for_project()`一次，Project不存在错误原样传播，Project存在但无Story Bible由应用边界转换为专用错误。
 
-当前仍没有DTO、HTTP API、OpenAPI路径、组合根接线、前端路由、页面、历史读取、Character、World、PowerSystem、Planning、Codex、Agent、审批、分支、导出或备份。内部领域、持久化与应用能力不得登记为用户可用功能。
+DEV-2.4的FastAPI lifespan复用现有Engine和Session factory装配本Repository，四条HTTP操作仍只通过DEV-2.3应用服务进入事务边界。应用启动和请求都不会创建表或执行迁移；空库或0002数据库的合法Story Bible调用返回安全503。HTTP层不改变三表、双不可变触发器、stale优先级或Repository调用次数。
+
+当前仍没有前端路由、页面、Revision历史读取API、Character、World、PowerSystem、Planning、Codex、Agent、审批、分支、导出或备份。传输契约见[Story Bible HTTP API](STORY_BIBLE_HTTP_API.md)。

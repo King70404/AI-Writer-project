@@ -412,6 +412,7 @@ def _project_web_import_violation(reference: _ImportReference) -> tuple[str, str
             "Project Web code must use application services rather than persistence",
         )
     allowed_modules = (
+        "aiwebnovel.api",
         "aiwebnovel.core.errors",
         "aiwebnovel.domain.concurrency",
         "aiwebnovel.domain.errors",

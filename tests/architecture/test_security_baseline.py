@@ -168,6 +168,24 @@ def _write_safe_security_wiring(repository: Path) -> None:
         "backend/src/aiwebnovel/project/web/dto.py",
         "class CreateProjectRequest:\n    title: str\n    description: str\n",
     )
+    _write(
+        repository,
+        "backend/src/aiwebnovel/story_bible/web/router.py",
+        '@router.post("/projects/{project_id}/story-bible")\n'
+        "def create_story_bible():\n    pass\n"
+        '@router.put("/story-bibles/{story_bible_id}")\n'
+        "def revise_story_bible():\n    pass\n",
+    )
+    _write(
+        repository,
+        "backend/src/aiwebnovel/story_bible/web/errors.py",
+        'def safe_error(exc):\n    return {"message": "Story Bible request failed"}\n',
+    )
+    _write(
+        repository,
+        "backend/src/aiwebnovel/story_bible/web/dto.py",
+        "class CreateStoryBibleRequest:\n    title: str\n    content: str\n",
+    )
 
 
 def _run_security_script(
@@ -420,6 +438,45 @@ def test_security_baseline_rejects_project_api_security_regressions(tmp_path: Pa
         "project-router-direct-persistence-access",
         "project-error-exception-text-exposed",
         "project-cors-contract-missing",
+    ):
+        assert f"type={rule}" in output
+
+
+def test_security_baseline_rejects_story_bible_api_security_regressions(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "unsafe-story-bible-api-security-repository"
+    _initialize_repository(repository)
+    script = _install_script(repository)
+    _write_safe_security_wiring(repository)
+    _write(
+        repository,
+        "backend/src/aiwebnovel/story_bible/web/router.py",
+        "from aiwebnovel.story_bible.persistence.repository import "
+        "SqlAlchemyStoryBibleRepository\n"
+        "CSRF_EXEMPT = 'csrf_exempt'\n",
+    )
+    _write(
+        repository,
+        "backend/src/aiwebnovel/story_bible/web/errors.py",
+        'def unsafe_error(exc):\n    return {"message": str(exc)}\n',
+    )
+    _write(
+        repository,
+        "backend/src/aiwebnovel/story_bible/web/dto.py",
+        "class UnsafeStoryBibleResponse:\n    csrf_token: str\n",
+    )
+    _commit_all(repository)
+
+    result = _run_security_script(repository, script=script)
+    output = result.stdout + result.stderr
+
+    assert result.returncode != 0
+    for rule in (
+        "story-bible-write-csrf-exemption-detected",
+        "story-bible-router-direct-persistence-access",
+        "story-bible-error-exception-text-exposed",
+        "story-bible-dto-sensitive-field",
     ):
         assert f"type={rule}" in output
 

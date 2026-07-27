@@ -14,6 +14,9 @@ _ENTRYPOINT_PATH = "backend/src/aiwebnovel/__main__.py"
 _PROJECT_ROUTER_PATH = "backend/src/aiwebnovel/project/web/router.py"
 _PROJECT_ERRORS_PATH = "backend/src/aiwebnovel/project/web/errors.py"
 _PROJECT_DTO_PATH = "backend/src/aiwebnovel/project/web/dto.py"
+_STORY_BIBLE_ROUTER_PATH = "backend/src/aiwebnovel/story_bible/web/router.py"
+_STORY_BIBLE_ERRORS_PATH = "backend/src/aiwebnovel/story_bible/web/errors.py"
+_STORY_BIBLE_DTO_PATH = "backend/src/aiwebnovel/story_bible/web/dto.py"
 _CHECKER_PATH = "scripts/check_security_ast.py"
 
 _TARGET_PATHS = (
@@ -24,6 +27,9 @@ _TARGET_PATHS = (
     _PROJECT_ROUTER_PATH,
     _PROJECT_ERRORS_PATH,
     _PROJECT_DTO_PATH,
+    _STORY_BIBLE_ROUTER_PATH,
+    _STORY_BIBLE_ERRORS_PATH,
+    _STORY_BIBLE_DTO_PATH,
 )
 _SECURITY_FIELDS = (
     "trusted_hosts",
@@ -407,6 +413,74 @@ def _check_project_dto(tree: ast.Module) -> list[Violation]:
     return []
 
 
+def _check_story_bible_router(tree: ast.Module) -> list[Violation]:
+    violations: list[Violation] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import) and any(
+            alias.name == "sqlalchemy" or alias.name.startswith("sqlalchemy.")
+            for alias in node.names
+        ):
+            violations.append(
+                (
+                    "story-bible-router-direct-persistence-access",
+                    _STORY_BIBLE_ROUTER_PATH,
+                )
+            )
+            break
+        if isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if (
+                module == "sqlalchemy"
+                or module.startswith("sqlalchemy.")
+                or module == "aiwebnovel.db.session"
+                or module.startswith("aiwebnovel.story_bible.persistence")
+            ):
+                violations.append(
+                    (
+                        "story-bible-router-direct-persistence-access",
+                        _STORY_BIBLE_ROUTER_PATH,
+                    )
+                )
+                break
+    constants = {value.lower() for value in _string_constants(tree)}
+    if any("csrf_exempt" in value or "csrf-exempt" in value for value in constants):
+        violations.append(("story-bible-write-csrf-exemption-detected", _STORY_BIBLE_ROUTER_PATH))
+    return violations
+
+
+def _check_story_bible_errors(tree: ast.Module) -> list[Violation]:
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and _is_name(node.func, "str")
+            and any(_contains_name(argument, "exc") for argument in node.args)
+        ) or (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "exc"
+            and node.attr in {"args", "message"}
+        ):
+            return [
+                (
+                    "story-bible-error-exception-text-exposed",
+                    _STORY_BIBLE_ERRORS_PATH,
+                )
+            ]
+    return []
+
+
+def _check_story_bible_dto(tree: ast.Module) -> list[Violation]:
+    sensitive_fragments = ("cookie", "session", "token", "csrf")
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and any(fragment in node.target.id.lower() for fragment in sensitive_fragments)
+        ):
+            return [("story-bible-dto-sensitive-field", _STORY_BIBLE_DTO_PATH)]
+    return []
+
+
 def _check_entrypoint(tree: ast.Module) -> list[Violation]:
     main_function = _function_named(tree.body, "main")
     if main_function is None:
@@ -458,6 +532,12 @@ def _run(repository_root: Path) -> int:
         violations.extend(_check_project_errors(trees[_PROJECT_ERRORS_PATH]))
     if _PROJECT_DTO_PATH in trees:
         violations.extend(_check_project_dto(trees[_PROJECT_DTO_PATH]))
+    if _STORY_BIBLE_ROUTER_PATH in trees:
+        violations.extend(_check_story_bible_router(trees[_STORY_BIBLE_ROUTER_PATH]))
+    if _STORY_BIBLE_ERRORS_PATH in trees:
+        violations.extend(_check_story_bible_errors(trees[_STORY_BIBLE_ERRORS_PATH]))
+    if _STORY_BIBLE_DTO_PATH in trees:
+        violations.extend(_check_story_bible_dto(trees[_STORY_BIBLE_DTO_PATH]))
 
     for rule, relative_path in sorted(set(violations)):
         print(f"{rule}\t{relative_path}")

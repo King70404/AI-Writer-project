@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施、已由M1冻结的Project闭环，以及DEV-2.1至DEV-2.3建立的Story Bible领域、持久化和应用依赖方向。当前Story Bible没有DTO、API、组合根接线或前端；系统仍不包含Revision历史读取/回滚/恢复/Diff/编辑/删除、Project删除/归档或其他创作页面。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施、已由M1冻结的Project闭环，以及DEV-2.1至DEV-2.4建立的Story Bible领域、持久化、应用和HTTP依赖方向。当前Story Bible已有四条本地HTTP操作但没有前端或Revision历史API；系统仍不包含Revision回滚/恢复/Diff/删除、Project删除/归档或其他创作页面。
 
 ## 业务模块
 
@@ -107,7 +107,7 @@ UI组件不得直接调用裸`fetch`、读取Cookie、获取或硬编码CSRF、�
 
 纯领域和Repository契约不得导入Alembic、FastAPI、Pydantic、`db`、`core`、`security`、`storage`或前端；只有持久化子包可以导入SQLAlchemy和通用DB。Project与通用`domain`不得反向导入Story Bible。只有`story_bible.persistence`可以直接写`story_bibles`、`story_bible_revisions`和`story_bible_heads`；AST门禁以真实生产包和受控正负样例验证这些方向。
 
-当前Story Bible拥有领域模型、三张表、迁移0003、显式ORM/Mapper、Repository契约、事务适配器，以及内部Create/Revise/Get/GetForProject应用用例与不可变Snapshot。它没有DTO、API、组合根接线、前端、历史读取、Character/World/PowerSystem结构或Codex能力；M1路由保持冻结。详细契约见[Story Bible纯领域模型](STORY_BIBLE_DOMAIN.md)、[Story Bible持久化基础](STORY_BIBLE_PERSISTENCE.md)和[Story Bible应用用例](STORY_BIBLE_APPLICATION.md)。
+当前Story Bible拥有领域模型、三张表、迁移0003、显式ORM/Mapper、Repository契约、事务适配器、Create/Revise/Get/GetForProject应用用例与不可变Snapshot，以及只调用这些用例的四条HTTP操作。Web层可依赖FastAPI、Pydantic、Story Bible应用/领域公开类型和公共HTTP ETag工具；禁止依赖SQLAlchemy、具体Repository、Session、SQL、ORM、Clock或ID生成实现。领域、Repository契约和应用层不得反向依赖Web，Project Web不得导入Story Bible Web。当前没有前端、Revision历史API、Character/World/PowerSystem结构或Codex能力。详细契约见[Story Bible纯领域模型](STORY_BIBLE_DOMAIN.md)、[Story Bible持久化基础](STORY_BIBLE_PERSISTENCE.md)、[Story Bible应用用例](STORY_BIBLE_APPLICATION.md)和[Story Bible HTTP API](STORY_BIBLE_HTTP_API.md)。
 
 ## 所有权与跨模块规则
 

@@ -65,4 +65,4 @@ development/test 可通过配置开启 `/docs`、`/redoc` 和 `/openapi.json`；
 
 后者使用独立临时数据根和动态环回端口启动 production 服务，完成实际 Host、响应头、会话、限制、日志和清理验收；它不读取正式用户数据。
 
-任何安全配置、静态检查、运行测试、CSP页面验收或清理检查失败，都不得绕过门禁或开始下一编号任务。当前只有受保护的Project创建与完整修订写接口；仍没有上传、用户登录、安全设置页面、Codex沙箱或全面ACL治理。
+任何安全配置、静态检查、运行测试、CSP页面验收或清理检查失败，都不得绕过门禁或开始下一编号任务。当前受保护写接口包括Project创建/完整修订与Story Bible创建/完整修订；全部继承相同的Host、可信Origin、进程内Session、CSRF、JSON媒体类型、1 MiB正文限制、request ID和安全响应头。Story Bible GET不要求Session或CSRF，所有Story Bible成功响应均`no-store`，写入正文和If-Match不进入日志。仍没有上传、用户登录、安全设置页面、Codex沙箱或全面ACL治理。

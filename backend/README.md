@@ -1,6 +1,6 @@
 # AIWebNovel 后端
 
-本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层，以及DEV-2.1至DEV-2.3建立的Story Bible纯领域、内部持久化和应用用例。目前提供六个Project业务接口、当前列表与不可变Revision历史的稳定Keyset读取、严格Pydantic DTO、ETag/If-Match并发协议、安全错误映射和显式组合根装配；Story Bible已有三表、事务Repository及内部命令/查询服务，但尚无DTO、HTTP接口或组合根接线。
+本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层，以及DEV-2.1至DEV-2.4建立的Story Bible领域、持久化、应用用例和HTTP适配。目前提供六个Project业务接口、四个Story Bible业务接口、当前列表与不可变Project Revision历史的稳定Keyset读取、严格Pydantic DTO、ETag/If-Match并发协议、安全错误映射和显式组合根装配。
 
 当前没有用户账号或登录、Project历史写入/回滚/恢复/删除接口、搜索、筛选、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；详情、列表与历史GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
 
@@ -18,7 +18,7 @@ Project模块已拥有`prj`和`prv`两种固定业务ID；Story Bible纯领域�
 
 `story_bible/application/`只依赖公开领域类型和`StoryBibleRepository`契约，定义不可变Create/Revise命令、两种当前读取Query、脱离ORM的`StoryBibleSnapshot`、显式Mapper以及命令/查询服务。创建和修订各只调用一次Repository；修订不预读，Clock和Revision ID Factory继续由Repository在事务内按stale优先级调用。
 
-该模块当前没有DTO、FastAPI Router、组合根装配、历史读取或前端接线，应用不会自动执行0003迁移。完整边界见[Story Bible纯领域模型](../docs/STORY_BIBLE_DOMAIN.md)、[Story Bible持久化基础](../docs/STORY_BIBLE_PERSISTENCE.md)和[Story Bible应用用例](../docs/STORY_BIBLE_APPLICATION.md)。
+`story_bible/web/`提供两个严格请求DTO、一个严格响应DTO、显式Mapper、四条FastAPI操作、安全错误映射和公共强ETag协议接线；`main`在lifespan中复用唯一Session factory装配真实Repository与应用服务。该模块当前没有Revision历史读取API或前端接线，应用不会自动执行0003迁移。完整边界见[Story Bible纯领域模型](../docs/STORY_BIBLE_DOMAIN.md)、[Story Bible持久化基础](../docs/STORY_BIBLE_PERSISTENCE.md)、[Story Bible应用用例](../docs/STORY_BIBLE_APPLICATION.md)和[Story Bible HTTP API](../docs/STORY_BIBLE_HTTP_API.md)。
 
 ## Project持久化基础
 
@@ -165,3 +165,7 @@ Remove-Item Env:AIWEBNOVEL_DATA_ROOT
 ```
 
 完整本地门禁由 `.\scripts\quality_gate.ps1` 负责，并在 Python 检查前运行只扫描 Git 跟踪生产代码的安全静态基线。后端语句覆盖率不得低于 80%，分支覆盖率不得低于 75%。完整命令和失败规则见 [本地质量门禁](../docs/QUALITY_GATES.md)。
+
+## Story Bible HTTP边界
+
+后端现已在既有0003 Schema和应用服务之上提供四条Story Bible HTTP操作：按Project创建与读取、按Story Bible ID读取，以及带强`If-Match`的完整替换修订。POST/PUT继承Session、CSRF、可信Origin、Host、JSON与1 MiB限制；GET不要求CSRF。应用不会自动迁移空库或0002数据库，合法调用会安全返回503。完整DTO、ETag、错误和组合根契约见[Story Bible HTTP API](../docs/STORY_BIBLE_HTTP_API.md)。当前没有Story Bible前端、Revision历史API、删除、归档或恢复。

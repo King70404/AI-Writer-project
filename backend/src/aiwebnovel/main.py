@@ -17,6 +17,7 @@ from aiwebnovel.core.middleware import RequestIdMiddleware
 from aiwebnovel.db.engine import create_database_engine, resolve_database_url
 from aiwebnovel.db.health import check_database_health
 from aiwebnovel.db.session import create_database_session_factory
+from aiwebnovel.domain.time import utc_now
 from aiwebnovel.project.application.services import (
     ProjectCommandService,
     ProjectListQueryService,
@@ -39,6 +40,12 @@ from aiwebnovel.security.redaction import redact_text, safe_request_path
 from aiwebnovel.storage.health import check_storage_health
 from aiwebnovel.storage.initializer import initialize_storage
 from aiwebnovel.storage.paths import StoragePaths
+from aiwebnovel.story_bible.application.services import (
+    StoryBibleCommandService,
+    StoryBibleQueryService,
+)
+from aiwebnovel.story_bible.identifiers import StoryBibleId, StoryBibleRevisionId
+from aiwebnovel.story_bible.web import create_story_bible_router
 from aiwebnovel.web.frontend import FrontendStaticService
 
 logger = get_logger("health")
@@ -234,6 +241,9 @@ def create_app(
                     from aiwebnovel.project.persistence.repository import (
                         SqlAlchemyProjectRepository,
                     )
+                    from aiwebnovel.story_bible.persistence.repository import (
+                        SqlAlchemyStoryBibleRepository,
+                    )
 
                     application.state.database_engine = runtime_engine
                     application.state.database_session_factory = session_factory
@@ -254,6 +264,16 @@ def create_app(
                     application.state.project_revision_history_query_service = (
                         ProjectRevisionHistoryQueryService(project_revision_history_reader)
                     )
+                    story_bible_repository = SqlAlchemyStoryBibleRepository(session_factory)
+                    application.state.story_bible_command_service = StoryBibleCommandService(
+                        story_bible_repository,
+                        utc_now,
+                        StoryBibleId.new,
+                        StoryBibleRevisionId.new,
+                    )
+                    application.state.story_bible_query_service = StoryBibleQueryService(
+                        story_bible_repository
+                    )
 
         application.state.initialized = True
         try:
@@ -264,6 +284,8 @@ def create_app(
             application.state.project_list_query_service = None
             application.state.project_query_service = None
             application.state.project_revision_history_query_service = None
+            application.state.story_bible_command_service = None
+            application.state.story_bible_query_service = None
             application.state.database_session_factory = None
             session_manager.clear()
             if runtime_engine is not None:
@@ -289,6 +311,8 @@ def create_app(
     application.state.project_list_query_service = None
     application.state.project_query_service = None
     application.state.project_revision_history_query_service = None
+    application.state.story_bible_command_service = None
+    application.state.story_bible_query_service = None
     application.state.local_session_manager = session_manager
     application.state.proxy_headers_trusted = False
     frontend_service = FrontendStaticService(frontend_dist_path, api_prefix)
@@ -344,6 +368,7 @@ def create_app(
         )
     )
     application.include_router(create_project_router(api_prefix=api_prefix))
+    application.include_router(create_story_bible_router(api_prefix=api_prefix))
 
     @application.get(f"{api_prefix}/health/live")
     async def live() -> dict[str, str]:

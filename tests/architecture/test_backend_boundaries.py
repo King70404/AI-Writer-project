@@ -466,6 +466,7 @@ def test_checker_accepts_declared_project_web_dependencies(tmp_path: Path) -> No
         package_root,
         "project/web/router.py",
         "from fastapi import APIRouter\n"
+        "from aiwebnovel.api.etags import format_strong_etag\n"
         "from aiwebnovel.core.errors import AppError\n"
         "from aiwebnovel.project.application.services import ProjectCommandService\n"
         "from aiwebnovel.project.web.dto import ProjectResponse\n",

@@ -270,6 +270,40 @@ def _story_bible_persistence_violation(
     )
 
 
+def _story_bible_web_violation(
+    reference: _ImportReference,
+) -> tuple[str, str] | None:
+    target = reference.target_module
+    target_root = target.partition(".")[0]
+    if target_root in _STANDARD_LIBRARY_ROOTS or target_root in {"fastapi", "pydantic"}:
+        return None
+    if target_root in {"sqlalchemy", "alembic"}:
+        return (
+            "story-bible-web-must-not-import-persistence-frameworks",
+            "Story Bible Web must not import SQLAlchemy or Alembic",
+        )
+    if _is_module_or_child(target, _STORY_BIBLE_PERSISTENCE):
+        return (
+            "story-bible-web-must-not-import-concrete-repository",
+            "Story Bible Web must use composed application services, not persistence adapters",
+        )
+    if (
+        _is_module_or_child(target, _STORY_BIBLE_WEB)
+        or _is_module_or_child(target, _STORY_BIBLE_APPLICATION)
+        or _is_module_or_child(target, _STORY_BIBLE_ROOT)
+        or _is_module_or_child(target, "aiwebnovel.domain")
+        or _is_module_or_child(target, "aiwebnovel.api")
+        or target == "aiwebnovel.core.errors"
+        or target == "aiwebnovel.project.identifiers"
+        or target == "aiwebnovel.security.request_limits"
+    ):
+        return None
+    return (
+        "story-bible-web-must-use-declared-dependencies",
+        "Story Bible Web may use only its application/domain contracts and public HTTP helpers",
+    )
+
+
 def check_story_bible_boundaries(
     package_root: Path,
 ) -> tuple[StoryBibleArchitectureViolation, ...]:
@@ -281,6 +315,8 @@ def check_story_bible_boundaries(
             result = _story_bible_persistence_violation(reference)
         elif _is_module_or_child(reference.source_module, _STORY_BIBLE_APPLICATION):
             result = _story_bible_application_violation(reference)
+        elif _is_module_or_child(reference.source_module, _STORY_BIBLE_WEB):
+            result = _story_bible_web_violation(reference)
         elif reference.source_module == _STORY_BIBLE_REPOSITORY:
             result = _story_bible_repository_violation(reference)
         elif _is_module_or_child(reference.source_module, _STORY_BIBLE_ROOT):

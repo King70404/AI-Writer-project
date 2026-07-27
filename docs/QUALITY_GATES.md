@@ -178,7 +178,7 @@ DEV-1.8另固定七个详情专项文件：`project-etags`、`project-details-ap
 
 DEV-1.9固定六个前端历史专项文件：`project-revision-history-contracts`、`project-revision-history-api`、`project-revision-history-list`、`project-revision-viewer`、`project-revision-history-page`和`project-revision-history-routes`。它们覆盖严格响应、GET无Session/CSRF、摘要分页、失败保留、按需正文、取消迟到请求、可访问性与路由；新增前端历史生产代码的statements/functions/lines均不低于95%，branches不低于90%。
 
-ESLint受控正负样例保护`shared api → Project api → hooks → components → page → router`方向。安全静态门禁还拒绝CSRF/cursor/ETag/草稿/历史正文浏览器持久化、历史写请求或Security Session、Project POST/PUT自动重试或412自动重放、请求正文/cursor/Revision正文与`If-Match`日志、未编码Project ID路径、Revision写路由、外部API地址、不安全HTML、组件Cookie访问和组件硬编码CSRF。完整浏览器证据由`E2E-INT-008`至`E2E-INT-010`提供。
+ESLint受控正负样例保护`shared api → Project api → hooks → components → page → router`方向。安全静态门禁还拒绝CSRF/cursor/ETag/草稿/历史正文浏览器持久化、历史写请求或Security Session、Project POST/PUT自动重试或412自动重放、请求正文/cursor/Revision正文与`If-Match`日志、未编码Project ID路径、Revision写路由、外部API地址、不安全HTML、组件Cookie访问和组件硬编码CSRF。完整浏览器证据由`E2E-INT-008`至`E2E-INT-011`提供，其中`E2E-INT-011`只验证Story Bible HTTP链路且不增加前端入口。
 
 ## Story Bible专项检查
 
@@ -202,7 +202,7 @@ DEV-2.3的应用专项固定覆盖不可变原语命令/查询、Snapshot全部�
 
 ## 架构与仓库卫生
 
-后端架构测试保护阶段0、M1 Project和DEV-2.1至DEV-2.3 Story Bible依赖方向。Project Web只可使用FastAPI、Pydantic、应用命令/查询/Snapshot/Page/服务契约和明确的Web工具；禁止SQLAlchemy、持久化模型、具体Repository/ListReader与Session。只有专用`project.persistence.listing`可向内依赖Project列表端口、模型与limit规则，其他持久化代码仍不得导入应用层。`main`作为组合根可以显式装配具体Repository、ListReader和应用服务。Story Bible领域、Repository契约与应用层保持纯Python，SQLAlchemy隔离在自身持久化适配器；受控正负样例证明应用不导入具体适配器，领域/Repository/Project/通用`domain`不反向依赖Story Bible应用，其他模块也不能写Story Bible三表。
+后端架构测试保护阶段0、M1 Project和DEV-2.1至DEV-2.4 Story Bible依赖方向。Project Web只可使用FastAPI、Pydantic、应用命令/查询/Snapshot/Page/服务契约和明确的Web工具；禁止SQLAlchemy、持久化模型、具体Repository/ListReader与Session。只有专用`project.persistence.listing`可向内依赖Project列表端口、模型与limit规则，其他持久化代码仍不得导入应用层。`main`作为组合根可以显式装配具体Repository、ListReader和应用服务。Story Bible领域、Repository契约与应用层保持纯Python，SQLAlchemy隔离在自身持久化适配器；Story Bible Web只可使用FastAPI、Pydantic、应用/领域公开类型与公共HTTP工具，禁止具体Repository、SQLAlchemy、Session、Clock和ID生成。受控正负样例证明各层没有反向依赖，其他模块也不能写Story Bible三表。
 
 仓库卫生脚本只使用 `git ls-files` 枚举并读取已跟踪文件，不读取未跟踪的用户文件。它发现疑似秘密时只输出仓库相对文件名和问题类型，不输出匹配值；不会自动删除文件，也不会改写 `.gitignore`。
 
@@ -220,4 +220,4 @@ DEV-2.3的应用专项固定覆盖不可变原语命令/查询、Snapshot全部�
 
 任何适用门禁失败，都不得声称当前任务完成，也不得开始下一编号任务。应先修复真实原因并完整重跑；不得降低阈值、跳过检查或把失败输出为成功。
 
-安全静态门禁还检查Project写路由无CSRF豁免、Router不导入SQLAlchemy/Session、历史路由无写方法、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。当前已有六个Project API，以及列表/创建、当前详情/完整修订和只读历史页面；所有GET不要求Session/CSRF，前端不记录正文/cursor/`If-Match`或持久化cursor/ETag/草稿/历史正文。仍没有用户登录、历史回滚/恢复/Diff/编辑/删除、Project归档、搜索或筛选，也没有写作、评审、Agent、Skill、Prompt、备份、导出或安装器。
+安全静态门禁还检查Project和Story Bible写路由无CSRF豁免、Router不导入SQLAlchemy/Session、历史路由无写方法、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。Story Bible新增Web生产代码要求statements至少95%、branches至少90%，完整Story Bible包要求statements至少98%、branches至少95%。当前production API精确13条、前端路由仍为5条；Story Bible没有前端或历史API。仍没有用户登录、回滚/恢复/Diff/删除、归档、搜索、写作、评审、Agent、Skill、Prompt、备份、导出或安装器。

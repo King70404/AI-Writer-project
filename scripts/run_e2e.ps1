@@ -426,6 +426,121 @@ finally:
     }
 }
 
+function Assert-StoryBibleHttpDatabaseState {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DataRoot
+    )
+
+    $databasePath = Join-Path $DataRoot "data/aiwebnovel.sqlite3"
+    Assert-SafeContainedPath `
+        -Candidate $databasePath `
+        -Container $DataRoot `
+        -Description "Story Bible HTTP E2E database"
+    $pythonExecutable = Join-Path $script:RepositoryRoot ".venv/Scripts/python.exe"
+    $query = @'
+import sqlite3
+import sys
+
+connection = sqlite3.connect(sys.argv[1])
+try:
+    counts = {
+        name: connection.execute('SELECT COUNT(*) FROM ' + name).fetchone()[0]
+        for name in (
+            'projects',
+            'project_heads',
+            'project_revisions',
+            'story_bibles',
+            'story_bible_heads',
+            'story_bible_revisions',
+        )
+    }
+    assert counts == {
+        'projects': 1,
+        'project_heads': 1,
+        'project_revisions': 1,
+        'story_bibles': 1,
+        'story_bible_heads': 1,
+        'story_bible_revisions': 3,
+    }
+
+    project_id, project_version = connection.execute(
+        'SELECT id, concurrency_version FROM projects'
+    ).fetchone()
+    assert project_version == 1
+    story_bible_id, owner_id, story_bible_version = connection.execute(
+        'SELECT id, project_id, concurrency_version FROM story_bibles'
+    ).fetchone()
+    assert owner_id == project_id
+    assert story_bible_version == 3
+    head_revision_id = connection.execute(
+        'SELECT revision_id FROM story_bible_heads WHERE story_bible_id = ?',
+        (story_bible_id,),
+    ).fetchone()[0]
+    revisions = connection.execute(
+        '''
+        SELECT revision_number, id, title, content, created_at
+        FROM story_bible_revisions
+        WHERE story_bible_id = ?
+        ORDER BY revision_number
+        ''',
+        (story_bible_id,),
+    ).fetchall()
+    assert [row[0] for row in revisions] == [1, 2, 3]
+    assert len({row[1] for row in revisions}) == 3
+    assert revisions[0][2:4] == ('Initial Story Bible', 'Line A\nLine B')
+    assert revisions[1][2:4] == ('Replacement Story Bible', '')
+    assert revisions[2][2:4] in {
+        (
+            'E2E-STORY-BIBLE-TITLE-CANARY-011-A',
+            'E2E-STORY-BIBLE-CONTENT-CANARY-011-A',
+        ),
+        (
+            'E2E-STORY-BIBLE-TITLE-CANARY-011-B',
+            'E2E-STORY-BIBLE-CONTENT-CANARY-011-B',
+        ),
+    }
+    assert head_revision_id == revisions[2][1]
+
+    trigger_names = {
+        row[0]
+        for row in connection.execute(
+            '''SELECT name FROM sqlite_master WHERE type = 'trigger' '''
+        )
+    }
+    assert {
+        'trg_story_bible_revisions_no_update',
+        'trg_story_bible_revisions_no_delete',
+    }.issubset(trigger_names)
+    for statement in (
+        'UPDATE story_bible_revisions SET title = title WHERE revision_number = 1',
+        'DELETE FROM story_bible_revisions WHERE revision_number = 1',
+    ):
+        try:
+            connection.execute(statement)
+        except sqlite3.IntegrityError as error:
+            assert 'immutable' in str(error).lower()
+            connection.rollback()
+        else:
+            raise AssertionError('immutable Story Bible revision trigger did not reject a write')
+    unchanged = connection.execute(
+        '''
+        SELECT title, content, created_at
+        FROM story_bible_revisions
+        WHERE story_bible_id = ? AND revision_number = 1
+        ''',
+        (story_bible_id,),
+    ).fetchone()
+    assert unchanged == (revisions[0][2], revisions[0][3], revisions[0][4])
+finally:
+    connection.close()
+'@
+    & $pythonExecutable -c $query $databasePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Story Bible HTTP E2E database state verification failed"
+    }
+}
+
 function Test-LoopbackPortAvailable {
     param(
         [Parameter(Mandatory = $true)]
@@ -1111,6 +1226,7 @@ function Invoke-E2EScenario {
             "E2E-INT-008",
             "E2E-INT-009",
             "E2E-INT-010",
+            "E2E-INT-011",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -1123,12 +1239,13 @@ function Invoke-E2EScenario {
         [System.StringComparison]::Ordinal
     )
     $isMissingBuild = $SelectedScenario -eq "E2E-STARTUP-001"
-    $isProjectApi = $SelectedScenario -in @(
+    $isBusinessApi = $SelectedScenario -in @(
         "E2E-INT-006",
         "E2E-INT-007",
         "E2E-INT-008",
         "E2E-INT-009",
-        "E2E-INT-010"
+        "E2E-INT-010",
+        "E2E-INT-011"
     )
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
@@ -1275,7 +1392,7 @@ function Invoke-E2EScenario {
                 -RunDirectory $runDirectory `
                 -DataRoot $dataRoot `
                 -ServeFrontend `
-                -MigrateDatabase:$isProjectApi `
+                -MigrateDatabase:$isBusinessApi `
                 -FrontendDistPath $frontendDist
             Wait-ServiceUrl `
                 -Name "integrated backend" `
@@ -1318,7 +1435,10 @@ function Invoke-E2EScenario {
         if ($SelectedScenario -eq "E2E-INT-010") {
             Assert-ProjectRevisionHistoryDatabaseState -DataRoot $dataRoot
         }
-        if ($isProjectApi) {
+        if ($SelectedScenario -eq "E2E-INT-011") {
+            Assert-StoryBibleHttpDatabaseState -DataRoot $dataRoot
+        }
+        if ($isBusinessApi) {
             foreach ($logPath in Get-ChildItem -LiteralPath $runDirectory -Filter "*.log") {
                 $logText = Get-Content -LiteralPath $logPath.FullName -Raw -Encoding UTF8
                 if (
@@ -1328,10 +1448,11 @@ function Invoke-E2EScenario {
                     $logText -match "E2E-PROJECT-FRONTEND-DESCRIPTION-CANARY-008" -or
                     $logText -match "E2E-PROJECT-(?:DETAIL|CONFLICT)-.+-CANARY-009" -or
                     $logText -match "E2E-PROJECT-HISTORY-DESCRIPTION-CANARY-010" -or
+                    $logText -match "E2E-STORY-BIBLE-(?:TITLE|CONTENT)-CANARY-011" -or
                     $logText -match "(?i)\bcursor=" -or
                     $logText -match "If-Match"
                 ) {
-                    throw "Project API private request content appeared in service logs"
+                    throw "Business API private request content appeared in service logs"
                 }
             }
         }
@@ -1423,6 +1544,7 @@ try {
         "E2E-INT-008" = "Integrated"
         "E2E-INT-009" = "Integrated"
         "E2E-INT-010" = "Integrated"
+        "E2E-INT-011" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -1437,6 +1559,7 @@ try {
         "E2E-INT-008",
         "E2E-INT-009",
         "E2E-INT-010",
+        "E2E-INT-011",
         "E2E-STARTUP-001"
     )
 
