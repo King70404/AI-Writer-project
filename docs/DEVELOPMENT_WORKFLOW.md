@@ -93,6 +93,8 @@ DEV-2.1只授权`aiwebnovel.story_bible`纯领域层：`sbl`/`sbr`标识、Proje
 
 DEV-2.2只授权Story Bible内部持久化基础：归属Project且一对一的稳定表、不可变完整Revision表、权威Head表、迁移0003、显式ORM/Mapper、纯Repository Protocol和基于独立Session、`BEGIN IMMEDIATE`、Stable/Head双CAS的事务适配器。跨模块只允许读取Project存在性，不得写Project表。它不授权应用服务、DTO、API、前端、历史功能、Character、World、PowerSystem、规划、三区、审批、Codex或Agent；DEV-2.3仍需独立任务授权。
 
+DEV-2.3只授权Story Bible纯应用层：原语Create/Revise命令、Get/GetForProject查询、不可变Snapshot、显式Mapper，以及只依赖Repository契约的命令/查询服务。创建和修订各只调用一次Repository，修订不得预读或自行调用Clock/Revision ID Factory；真实集成与并发测试继续使用迁移到0003的独立临时数据库。它不改变Schema或迁移，不授权DTO、HTTP API、组合根接线、前端、历史读取、Character、World、PowerSystem、规划、三区、审批、Codex或Agent；DEV-2.4仍需独立任务授权。
+
 ## 统一执行报告
 
 任务报告至少包含：

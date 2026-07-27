@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施、已由M1冻结的Project闭环，以及DEV-2.1至DEV-2.2建立的Story Bible领域和持久化依赖方向。当前Story Bible没有应用服务、API或前端；系统仍不包含Revision回滚/恢复/Diff/编辑/删除、Project删除/归档或其他创作页面。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施、已由M1冻结的Project闭环，以及DEV-2.1至DEV-2.3建立的Story Bible领域、持久化和应用依赖方向。当前Story Bible没有DTO、API、组合根接线或前端；系统仍不包含Revision历史读取/回滚/恢复/Diff/编辑/删除、Project删除/归档或其他创作页面。
 
 ## 业务模块
 
@@ -103,9 +103,11 @@ UI组件不得直接调用裸`fetch`、读取Cookie、获取或硬编码CSRF、�
 
 `story_bible.repository`是纯Python Protocol，只依赖Story Bible领域、通用领域契约和ProjectId，不得导入SQLAlchemy或具体适配器。`story_bible.persistence`是DEV-2.2授权的外向适配层，可以依赖SQLAlchemy、通用`db`、Story Bible领域/Repository，以及只读归属检查所需的ProjectId和Project ORM Record；它不得导入Project Repository/Application/Web，也不得写Project三表。
 
+`story_bible.application`是DEV-2.3授权的纯Python应用层。它可以依赖标准库、通用`domain`、ProjectId、Story Bible公开领域类型和`StoryBibleRepository`契约；不得导入SQLAlchemy、Alembic、FastAPI、Pydantic、`db`、`security`、`storage`、具体Repository、Web或前端。每个命令只调用一次写Repository，每个查询只调用一次对应读取；应用层不打开Session、不执行SQL、不管理事务、不预读修订状态，也不自行执行修订Clock或Revision ID Factory。领域和Repository契约不得反向依赖应用层，测试Fake/Spy Repository不得进入生产包。
+
 纯领域和Repository契约不得导入Alembic、FastAPI、Pydantic、`db`、`core`、`security`、`storage`或前端；只有持久化子包可以导入SQLAlchemy和通用DB。Project与通用`domain`不得反向导入Story Bible。只有`story_bible.persistence`可以直接写`story_bibles`、`story_bible_revisions`和`story_bible_heads`；AST门禁以真实生产包和受控正负样例验证这些方向。
 
-当前Story Bible拥有领域模型、三张表、迁移0003、显式ORM/Mapper、Repository契约和事务适配器。它没有应用服务、DTO、API、前端、Character/World/PowerSystem结构或Codex能力；M1路由保持冻结。详细契约见[Story Bible纯领域模型](STORY_BIBLE_DOMAIN.md)和[Story Bible持久化基础](STORY_BIBLE_PERSISTENCE.md)。
+当前Story Bible拥有领域模型、三张表、迁移0003、显式ORM/Mapper、Repository契约、事务适配器，以及内部Create/Revise/Get/GetForProject应用用例与不可变Snapshot。它没有DTO、API、组合根接线、前端、历史读取、Character/World/PowerSystem结构或Codex能力；M1路由保持冻结。详细契约见[Story Bible纯领域模型](STORY_BIBLE_DOMAIN.md)、[Story Bible持久化基础](STORY_BIBLE_PERSISTENCE.md)和[Story Bible应用用例](STORY_BIBLE_APPLICATION.md)。
 
 ## 所有权与跨模块规则
 

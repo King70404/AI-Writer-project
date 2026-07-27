@@ -1,6 +1,6 @@
 # Story Bible 持久化基础
 
-本文档记录 DEV-2.2 建立的内部持久化边界。它把 DEV-2.1 的纯领域 Aggregate 保存为 SQLite 三表，但没有应用服务、DTO、HTTP API、前端入口或用户可用的 Story Bible 功能。
+本文档记录 DEV-2.2 建立的内部持久化边界。它把 DEV-2.1 的纯领域 Aggregate 保存为 SQLite 三表；DEV-2.3只在其公开Repository契约之上增加应用用例，没有改变本文件的Schema、事务或错误语义。
 
 ## 三表职责
 
@@ -82,8 +82,8 @@ SQLite写事务使用`BEGIN IMMEDIATE`串行化锁获取，使两个独立Reposi
 
 正式`Base.metadata`在明确调用模型注册入口后精确包含三张Project表和三张StoryBible表。普通`import aiwebnovel.story_bible`仍不注册ORM、不连接数据库、不执行迁移。
 
-## 当前限制与下一任务
+## DEV-2.3调用边界与当前限制
 
-DEV-2.2没有应用命令/查询服务、API、OpenAPI路径、前端路由、页面、Character、World、PowerSystem、Planning、Codex、Agent、审批、分支、导出或备份。内部持久化能力不得登记为用户可用功能。
+DEV-2.3的命令服务创建时调用`create()`一次，修订时调用`append_revision()`一次且不预先GET；应用层把同一Clock与Revision ID Factory传给Repository，因此本文件定义的事务内stale优先级保持不变。查询服务分别只调用`get()`或`get_for_project()`一次，Project不存在错误原样传播，Project存在但无Story Bible由应用边界转换为专用错误。
 
-DEV-2.3只有在独立任务授权后，才可以在本持久化契约之上定义StoryBible应用用例；本任务不预先决定其命令、查询、DTO、HTTP或前端范围。
+当前仍没有DTO、HTTP API、OpenAPI路径、组合根接线、前端路由、页面、历史读取、Character、World、PowerSystem、Planning、Codex、Agent、审批、分支、导出或备份。内部领域、持久化与应用能力不得登记为用户可用功能。

@@ -100,8 +100,10 @@ DEV-2.2没有改变上述领域对象和值规则。纯Python Repository契约�
 
 迁移`0003_create_story_bible_foundation`把稳定对象、不可变完整Revision和权威Head分别保存为三表。数据库持久化必须重新应用领域不变量，通过显式Head读取当前Aggregate，并以Stable Object与Head双CAS追加；详细Schema、事务顺序、失败回滚和损坏策略见[Story Bible持久化基础](STORY_BIBLE_PERSISTENCE.md)。
 
+## DEV-2.3应用层
+
+DEV-2.3没有改变上述纯领域对象、文本规则或转换语义。独立`story_bible.application`包在Repository契约之上定义原语命令/查询、不可变Snapshot、显式Aggregate映射和命令/查询服务；它不反向进入领域文件，也不让领域依赖应用层。修订服务不预读、不自行调用Clock或Revision ID Factory，继续由Repository事务保持stale优先级。
+
 ## 当前明确不存在
 
-当前仍没有Story Bible应用命令/查询服务、DTO、HTTP API、OpenAPI路径、前端页面、功能真实性ID、历史读取/回滚/恢复/Diff、Character、World、PowerSystem、Codex生成、Agent、审批或三区能力。三表和Repository只属于内部持久化基础，不能视为用户功能完成。
-
-DEV-2.3只有在独立任务明确授权后才能定义应用层；DEV-2.2不提前实现或授权这些能力。
+当前仍没有Story Bible DTO、HTTP API、OpenAPI路径、组合根接线、前端页面、功能真实性ID、历史读取/回滚/恢复/Diff、Character、World、PowerSystem、Codex生成、Agent、审批或三区能力。领域、三表、Repository和内部应用用例不能视为用户功能完成。

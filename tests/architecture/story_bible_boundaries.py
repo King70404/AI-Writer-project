@@ -11,8 +11,10 @@ from pathlib import Path
 _STANDARD_LIBRARY_ROOTS = frozenset({"__future__", *sys.stdlib_module_names})
 _FRAMEWORK_ROOTS = frozenset({"alembic", "fastapi", "pydantic", "sqlalchemy"})
 _STORY_BIBLE_ROOT = "aiwebnovel.story_bible"
+_STORY_BIBLE_APPLICATION = "aiwebnovel.story_bible.application"
 _STORY_BIBLE_REPOSITORY = "aiwebnovel.story_bible.repository"
 _STORY_BIBLE_PERSISTENCE = "aiwebnovel.story_bible.persistence"
+_STORY_BIBLE_WEB = "aiwebnovel.story_bible.web"
 _STORY_BIBLE_TABLE_WRITE_PATTERN = re.compile(
     r"\b(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|UPDATE(?:\s+OR\s+\w+)?"
     r"|DELETE\s+FROM|REPLACE\s+INTO)\s+"
@@ -141,6 +143,11 @@ def _story_bible_domain_violation(
         )
     if target_root in _STANDARD_LIBRARY_ROOTS:
         return None
+    if _is_module_or_child(target, _STORY_BIBLE_APPLICATION):
+        return (
+            "story-bible-domain-must-not-import-application",
+            "Story Bible domain code must not depend on its application layer",
+        )
     if _is_module_or_child(target, _STORY_BIBLE_PERSISTENCE):
         return (
             "story-bible-domain-must-not-import-persistence",
@@ -175,6 +182,11 @@ def _story_bible_repository_violation(
         )
     if target_root in _STANDARD_LIBRARY_ROOTS:
         return None
+    if _is_module_or_child(target, _STORY_BIBLE_APPLICATION):
+        return (
+            "story-bible-repository-contract-must-not-import-application",
+            "The Story Bible repository contract must not depend on application use cases",
+        )
     if _is_module_or_child(target, _STORY_BIBLE_PERSISTENCE):
         return (
             "story-bible-repository-contract-must-not-import-adapter",
@@ -189,6 +201,41 @@ def _story_bible_repository_violation(
     return (
         "story-bible-repository-contract-must-use-declared-dependencies",
         "The repository contract may use only Story Bible domain contracts and ProjectId",
+    )
+
+
+def _story_bible_application_violation(
+    reference: _ImportReference,
+) -> tuple[str, str] | None:
+    target = reference.target_module
+    target_root = target.partition(".")[0]
+    if target_root in _FRAMEWORK_ROOTS:
+        return (
+            "story-bible-application-must-not-import-frameworks",
+            "Story Bible application code must remain independent of persistence and web frameworks",
+        )
+    if target_root in _STANDARD_LIBRARY_ROOTS:
+        return None
+    if _is_module_or_child(target, _STORY_BIBLE_PERSISTENCE):
+        return (
+            "story-bible-application-must-not-import-persistence",
+            "Story Bible application services must use only the repository contract",
+        )
+    if _is_module_or_child(target, _STORY_BIBLE_WEB):
+        return (
+            "story-bible-application-must-not-import-web",
+            "Story Bible application code must not depend on a web adapter",
+        )
+    if (
+        _is_module_or_child(target, _STORY_BIBLE_APPLICATION)
+        or _is_module_or_child(target, _STORY_BIBLE_ROOT)
+        or _is_module_or_child(target, "aiwebnovel.domain")
+        or target == "aiwebnovel.project.identifiers"
+    ):
+        return None
+    return (
+        "story-bible-application-must-use-declared-dependencies",
+        "Story Bible application code may use only domain contracts, ProjectId, and its repository port",
     )
 
 
@@ -232,6 +279,8 @@ def check_story_bible_boundaries(
         result: tuple[str, str] | None = None
         if _is_module_or_child(reference.source_module, _STORY_BIBLE_PERSISTENCE):
             result = _story_bible_persistence_violation(reference)
+        elif _is_module_or_child(reference.source_module, _STORY_BIBLE_APPLICATION):
+            result = _story_bible_application_violation(reference)
         elif reference.source_module == _STORY_BIBLE_REPOSITORY:
             result = _story_bible_repository_violation(reference)
         elif _is_module_or_child(reference.source_module, _STORY_BIBLE_ROOT):
@@ -262,9 +311,27 @@ def check_story_bible_boundaries(
             )
     for source_file in sorted(package_root.rglob("*.py")):
         module_name = _module_name(package_root, source_file)
+        tree = ast.parse(source_file.read_text(encoding="utf-8"), filename=str(source_file))
+        if _is_module_or_child(module_name, _STORY_BIBLE_ROOT):
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                base_names = {base.id for base in node.bases if isinstance(base, ast.Name)} | {
+                    base.attr for base in node.bases if isinstance(base, ast.Attribute)
+                }
+                if (
+                    "fake" in node.name.lower() or "spy" in node.name.lower()
+                ) and "StoryBibleRepository" in base_names:
+                    violations.append(
+                        StoryBibleArchitectureViolation(
+                            path=source_file,
+                            line=node.lineno,
+                            rule="story-bible-test-repositories-must-not-enter-production",
+                            message=("Fake and spy Story Bible repositories belong only in tests"),
+                        )
+                    )
         if _is_module_or_child(module_name, _STORY_BIBLE_PERSISTENCE):
             continue
-        tree = ast.parse(source_file.read_text(encoding="utf-8"), filename=str(source_file))
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.Constant)
