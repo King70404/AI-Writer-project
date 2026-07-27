@@ -10,7 +10,12 @@ import pytest
 from sqlalchemy import inspect
 
 from aiwebnovel.db.base import Base
-from aiwebnovel.db.model_registry import PROJECT_TABLE_NAMES, load_model_metadata
+from aiwebnovel.db.model_registry import (
+    BUSINESS_TABLE_NAMES,
+    PROJECT_TABLE_NAMES,
+    STORY_BIBLE_TABLE_NAMES,
+    load_model_metadata,
+)
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
 from aiwebnovel.domain.identifiers import Ulid
 from aiwebnovel.domain.revisions import RevisionNumber
@@ -64,8 +69,17 @@ def test_model_registry_is_exact_idempotent_and_uses_shared_metadata() -> None:
 
     assert first is Base.metadata
     assert second is first
-    assert frozenset(first.tables) == PROJECT_TABLE_NAMES
-    assert set(first.tables) == {"projects", "project_revisions", "project_heads"}
+    assert frozenset(first.tables) == BUSINESS_TABLE_NAMES
+    assert PROJECT_TABLE_NAMES < BUSINESS_TABLE_NAMES
+    assert STORY_BIBLE_TABLE_NAMES < BUSINESS_TABLE_NAMES
+    assert set(first.tables) == {
+        "projects",
+        "project_revisions",
+        "project_heads",
+        "story_bibles",
+        "story_bible_revisions",
+        "story_bible_heads",
+    }
     assert "alembic_version" not in first.tables
     assert all(table.metadata is first for table in first.tables.values())
 
@@ -94,7 +108,13 @@ def test_domain_import_does_not_register_models_or_create_database(tmp_path: Pat
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.splitlines() == ["", "project_heads,project_revisions,projects"]
+    assert result.stdout.splitlines() == [
+        "",
+        (
+            "project_heads,project_revisions,projects,"
+            "story_bible_heads,story_bible_revisions,story_bibles"
+        ),
+    ]
     assert not database_path.exists()
 
 

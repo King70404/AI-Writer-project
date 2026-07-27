@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 import ast
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 _STANDARD_LIBRARY_ROOTS = frozenset({"__future__", *sys.stdlib_module_names})
 _FRAMEWORK_ROOTS = frozenset({"alembic", "fastapi", "pydantic", "sqlalchemy"})
+_STORY_BIBLE_ROOT = "aiwebnovel.story_bible"
+_STORY_BIBLE_REPOSITORY = "aiwebnovel.story_bible.repository"
+_STORY_BIBLE_PERSISTENCE = "aiwebnovel.story_bible.persistence"
+_STORY_BIBLE_TABLE_WRITE_PATTERN = re.compile(
+    r"\b(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|UPDATE(?:\s+OR\s+\w+)?"
+    r"|DELETE\s+FROM|REPLACE\s+INTO)\s+"
+    r"[\"`\[]?(?:story_bibles|story_bible_revisions|story_bible_heads)[\"`\]]?"
+    r"(?![A-Z0-9_])",
+    flags=re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -118,7 +129,7 @@ def _is_module_or_child(module_name: str, parent: str) -> bool:
     return module_name == parent or module_name.startswith(f"{parent}.")
 
 
-def _story_bible_violation(
+def _story_bible_domain_violation(
     reference: _ImportReference,
 ) -> tuple[str, str] | None:
     target = reference.target_module
@@ -130,8 +141,13 @@ def _story_bible_violation(
         )
     if target_root in _STANDARD_LIBRARY_ROOTS:
         return None
+    if _is_module_or_child(target, _STORY_BIBLE_PERSISTENCE):
+        return (
+            "story-bible-domain-must-not-import-persistence",
+            "Story Bible domain code must not load its SQLAlchemy persistence adapter",
+        )
     if (
-        _is_module_or_child(target, "aiwebnovel.story_bible")
+        _is_module_or_child(target, _STORY_BIBLE_ROOT)
         or _is_module_or_child(target, "aiwebnovel.domain")
         or target == "aiwebnovel.project.identifiers"
     ):
@@ -147,6 +163,66 @@ def _story_bible_violation(
     )
 
 
+def _story_bible_repository_violation(
+    reference: _ImportReference,
+) -> tuple[str, str] | None:
+    target = reference.target_module
+    target_root = target.partition(".")[0]
+    if target_root in _FRAMEWORK_ROOTS:
+        return (
+            "story-bible-repository-contract-must-not-import-frameworks",
+            "The Story Bible repository contract must remain pure Python",
+        )
+    if target_root in _STANDARD_LIBRARY_ROOTS:
+        return None
+    if _is_module_or_child(target, _STORY_BIBLE_PERSISTENCE):
+        return (
+            "story-bible-repository-contract-must-not-import-adapter",
+            "The repository contract must not load its SQLAlchemy adapter",
+        )
+    if (
+        _is_module_or_child(target, _STORY_BIBLE_ROOT)
+        or _is_module_or_child(target, "aiwebnovel.domain")
+        or target == "aiwebnovel.project.identifiers"
+    ):
+        return None
+    return (
+        "story-bible-repository-contract-must-use-declared-dependencies",
+        "The repository contract may use only Story Bible domain contracts and ProjectId",
+    )
+
+
+def _story_bible_persistence_violation(
+    reference: _ImportReference,
+) -> tuple[str, str] | None:
+    target = reference.target_module
+    target_root = target.partition(".")[0]
+    if target_root in {"fastapi", "pydantic", "alembic"}:
+        return (
+            "story-bible-persistence-must-not-import-web-frameworks",
+            "Story Bible persistence must not import FastAPI, Pydantic, or Alembic",
+        )
+    if target_root in _STANDARD_LIBRARY_ROOTS or target_root == "sqlalchemy":
+        return None
+    if (
+        _is_module_or_child(target, _STORY_BIBLE_ROOT)
+        or _is_module_or_child(target, "aiwebnovel.domain")
+        or _is_module_or_child(target, "aiwebnovel.db")
+        or target == "aiwebnovel.project.identifiers"
+        or target == "aiwebnovel.project.persistence.models"
+    ):
+        return None
+    if _is_module_or_child(target, "aiwebnovel.project"):
+        return (
+            "story-bible-persistence-must-not-import-project-services",
+            "Story Bible persistence may read only Project records and identifiers",
+        )
+    return (
+        "story-bible-persistence-must-use-declared-dependencies",
+        "Story Bible persistence may use only SQLAlchemy and declared domain/database contracts",
+    )
+
+
 def check_story_bible_boundaries(
     package_root: Path,
 ) -> tuple[StoryBibleArchitectureViolation, ...]:
@@ -154,11 +230,15 @@ def check_story_bible_boundaries(
     violations: list[StoryBibleArchitectureViolation] = []
     for reference in _import_references(package_root):
         result: tuple[str, str] | None = None
-        if _is_module_or_child(reference.source_module, "aiwebnovel.story_bible"):
-            result = _story_bible_violation(reference)
+        if _is_module_or_child(reference.source_module, _STORY_BIBLE_PERSISTENCE):
+            result = _story_bible_persistence_violation(reference)
+        elif reference.source_module == _STORY_BIBLE_REPOSITORY:
+            result = _story_bible_repository_violation(reference)
+        elif _is_module_or_child(reference.source_module, _STORY_BIBLE_ROOT):
+            result = _story_bible_domain_violation(reference)
         elif _is_module_or_child(
             reference.source_module, "aiwebnovel.project"
-        ) and _is_module_or_child(reference.target_module, "aiwebnovel.story_bible"):
+        ) and _is_module_or_child(reference.target_module, _STORY_BIBLE_ROOT):
             result = (
                 "project-must-not-import-story-bible",
                 "Project must not depend on the Story Bible business module",
@@ -180,4 +260,26 @@ def check_story_bible_boundaries(
                     message=message,
                 )
             )
+    for source_file in sorted(package_root.rglob("*.py")):
+        module_name = _module_name(package_root, source_file)
+        if _is_module_or_child(module_name, _STORY_BIBLE_PERSISTENCE):
+            continue
+        tree = ast.parse(source_file.read_text(encoding="utf-8"), filename=str(source_file))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and _STORY_BIBLE_TABLE_WRITE_PATTERN.search(node.value)
+            ):
+                violations.append(
+                    StoryBibleArchitectureViolation(
+                        path=source_file,
+                        line=node.lineno,
+                        rule="story-bible-tables-written-only-by-story-bible-persistence",
+                        message=(
+                            "Only Story Bible persistence may issue direct writes to "
+                            "Story Bible-owned tables"
+                        ),
+                    )
+                )
     return tuple(sorted(violations))

@@ -91,6 +91,8 @@ DEV-1.10已完成M1 Project基础能力正式验收，`m1-project-foundation`标
 
 DEV-2.1只授权`aiwebnovel.story_bible`纯领域层：`sbl`/`sbr`标识、ProjectId归属引用、标题与纯文本正文值、稳定对象、不可变Revision、显式Head、一致Aggregate及无副作用创建/追加转换。它不授权Story Bible表、迁移、ORM、Repository、应用服务、DTO、API、前端、Character、World、PowerSystem、规划、三区、审批、Codex或Agent。DEV-2.2只有在独立任务明确授权后才能建立持久化能力；DEV-2.1的目录和对象不能被当作用户功能完成证据。
 
+DEV-2.2只授权Story Bible内部持久化基础：归属Project且一对一的稳定表、不可变完整Revision表、权威Head表、迁移0003、显式ORM/Mapper、纯Repository Protocol和基于独立Session、`BEGIN IMMEDIATE`、Stable/Head双CAS的事务适配器。跨模块只允许读取Project存在性，不得写Project表。它不授权应用服务、DTO、API、前端、历史功能、Character、World、PowerSystem、规划、三区、审批、Codex或Agent；DEV-2.3仍需独立任务授权。
+
 ## 统一执行报告
 
 任务报告至少包含：

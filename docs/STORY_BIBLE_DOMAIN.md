@@ -94,8 +94,14 @@ Story Bible错误只包含固定公开消息，不保存HTTP状态、API码、SQ
 
 所有实体和值对象均为`frozen=True, slots=True`或现有不可变Prefixed ULID类型，没有实例`__dict__`、setter、可变容器、`update_in_place`或删除Revision方法。追加转换返回全新对象，不修改任何旧对象。
 
+## DEV-2.2持久化适配
+
+DEV-2.2没有改变上述领域对象和值规则。纯Python Repository契约属于Story Bible公开领域边界，具体SQLAlchemy Record、Mapper、查询和事务Repository隔离在`story_bible.persistence`；领域文件不导入持久化实现或SQLAlchemy。
+
+迁移`0003_create_story_bible_foundation`把稳定对象、不可变完整Revision和权威Head分别保存为三表。数据库持久化必须重新应用领域不变量，通过显式Head读取当前Aggregate，并以Stable Object与Head双CAS追加；详细Schema、事务顺序、失败回滚和损坏策略见[Story Bible持久化基础](STORY_BIBLE_PERSISTENCE.md)。
+
 ## 当前明确不存在
 
-DEV-2.1没有Story Bible数据库表、索引、触发器、Alembic迁移、ORM、Repository、Session、应用命令/查询、DTO、HTTP API、前端页面、功能真实性ID、Codex生成、Agent、审批或三区能力。正式Metadata仍只有三张Project表，Alembic head仍为`0002_create_project_foundation`，生产API和前端路由保持M1基线。
+当前仍没有Story Bible应用命令/查询服务、DTO、HTTP API、OpenAPI路径、前端页面、功能真实性ID、历史读取/回滚/恢复/Diff、Character、World、PowerSystem、Codex生成、Agent、审批或三区能力。三表和Repository只属于内部持久化基础，不能视为用户功能完成。
 
-DEV-2.2的预期方向是由独立任务定义Story Bible持久化基础及其Schema和事务边界；实际表、迁移、Repository契约和完成标准必须以DEV-2.2任务包为准。DEV-2.1不提前实现或授权这些能力。
+DEV-2.3只有在独立任务明确授权后才能定义应用层；DEV-2.2不提前实现或授权这些能力。

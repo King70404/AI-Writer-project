@@ -43,6 +43,32 @@ def test_checker_accepts_declared_story_bible_dependencies(tmp_path: Path) -> No
     assert check_story_bible_boundaries(package_root) == ()
 
 
+def test_checker_accepts_pure_contract_and_declared_persistence_dependencies(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "story_bible/repository.py",
+        "from typing import Protocol\n"
+        "from aiwebnovel.domain.time import Clock\n"
+        "from aiwebnovel.project.identifiers import ProjectId\n"
+        "from aiwebnovel.story_bible.entities import StoryBibleAggregate\n",
+    )
+    _write_module(
+        package_root,
+        "story_bible/persistence/repository.py",
+        "from sqlalchemy.orm import Session\n"
+        "from aiwebnovel.db.session import create_database_session_factory\n"
+        "from aiwebnovel.project.identifiers import ProjectId\n"
+        "from aiwebnovel.project.persistence.models import ProjectRecord\n"
+        "from aiwebnovel.story_bible.repository import StoryBibleRepository\n"
+        'SQL = "UPDATE story_bibles SET concurrency_version = ? WHERE id = ?"\n',
+    )
+
+    assert check_story_bible_boundaries(package_root) == ()
+
+
 @pytest.mark.parametrize(
     ("module_path", "source", "expected_rule"),
     [
@@ -115,6 +141,62 @@ def test_checker_rejects_all_other_undeclared_story_bible_dependencies(
 
     assert violations
     assert all(violation.rule.startswith("story-bible-domain-") for violation in violations)
+
+
+@pytest.mark.parametrize(
+    ("module_path", "source", "expected_rule"),
+    [
+        (
+            "story_bible/repository.py",
+            "from sqlalchemy.orm import Session\n",
+            "story-bible-repository-contract-must-not-import-frameworks",
+        ),
+        (
+            "story_bible/repository.py",
+            "from aiwebnovel.story_bible.persistence.repository import Adapter\n",
+            "story-bible-repository-contract-must-not-import-adapter",
+        ),
+        (
+            "story_bible/persistence/bad_web.py",
+            "from fastapi import APIRouter\n",
+            "story-bible-persistence-must-not-import-web-frameworks",
+        ),
+        (
+            "story_bible/persistence/bad_project_service.py",
+            "from aiwebnovel.project.application.services import ProjectService\n",
+            "story-bible-persistence-must-not-import-project-services",
+        ),
+    ],
+)
+def test_checker_separates_contract_and_persistence_boundaries(
+    tmp_path: Path,
+    module_path: str,
+    source: str,
+    expected_rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, module_path, source)
+
+    violations = check_story_bible_boundaries(package_root)
+
+    assert expected_rule in {violation.rule for violation in violations}
+
+
+def test_checker_rejects_story_table_writes_outside_owned_persistence(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "project/bad_write.py",
+        'SQL = "DELETE FROM story_bible_revisions WHERE story_bible_id = ?"\n',
+    )
+
+    violations = check_story_bible_boundaries(package_root)
+
+    assert {violation.rule for violation in violations} == {
+        "story-bible-tables-written-only-by-story-bible-persistence"
+    }
 
 
 def test_checker_output_does_not_echo_unrelated_source_content(tmp_path: Path) -> None:

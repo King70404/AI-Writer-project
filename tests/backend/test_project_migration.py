@@ -112,7 +112,7 @@ def migrated_project_database_context(
 ) -> Iterator[MigratedProjectDatabase]:
     """Create, migrate, and fully remove one task-owned SQLite database."""
     database_path = tmp_path / "migrated project" / "project.sqlite3"
-    upgrade = _run_alembic(database_path, "upgrade", "head")
+    upgrade = _run_alembic(database_path, "upgrade", _PROJECT_REVISION)
     assert upgrade.returncode == 0, upgrade.stderr
     engine = create_database_engine(
         Settings(
@@ -170,7 +170,7 @@ def test_project_migration_upgrade_downgrade_reupgrade_cycle(tmp_path: Path) -> 
             _BASELINE_REVISION,
         )
 
-        reupgrade = _run_alembic(database_path, "upgrade", "head")
+        reupgrade = _run_alembic(database_path, "upgrade", _PROJECT_REVISION)
         assert reupgrade.returncode == 0, reupgrade.stderr
         assert _schema_inventory(database_path) == (
             {"alembic_version", *_PROJECT_TABLES},
@@ -186,7 +186,7 @@ def test_project_migration_offline_sql_has_no_file_side_effect(tmp_path: Path) -
     database_path = tmp_path / "project offline" / "offline.sqlite3"
     data_root = _storage_root(database_path)
 
-    result = _run_alembic(database_path, "upgrade", "head", "--sql")
+    result = _run_alembic(database_path, "upgrade", _PROJECT_REVISION, "--sql")
 
     assert result.returncode == 0, result.stderr
     assert "CREATE TABLE projects" in result.stdout

@@ -1,6 +1,6 @@
 # AIWebNovel 后端
 
-本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层，以及DEV-2.1新增的纯Story Bible领域契约。目前提供六个Project业务接口、当前列表与不可变Revision历史的稳定Keyset读取、严格Pydantic DTO、ETag/If-Match并发协议、安全错误映射和显式组合根装配；Story Bible尚无持久化、应用服务或HTTP接口。
+本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层，以及DEV-2.1至DEV-2.2建立的Story Bible纯领域与内部持久化契约。目前提供六个Project业务接口、当前列表与不可变Revision历史的稳定Keyset读取、严格Pydantic DTO、ETag/If-Match并发协议、安全错误映射和显式组合根装配；Story Bible已有三表与事务Repository，但尚无应用服务或HTTP接口。
 
 当前没有用户账号或登录、Project历史写入/回滚/恢复/删除接口、搜索、筛选、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；详情、列表与历史GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
 
@@ -10,11 +10,13 @@
 
 Project模块已拥有`prj`和`prv`两种固定业务ID；Story Bible纯领域模块拥有`sbl`和`sbr`，单向引用ProjectId。Chapter及其他业务ID仍未定义。完整通用语义见[领域基础原语](../docs/DOMAIN_FOUNDATION.md)。
 
-## Story Bible纯领域契约
+## Story Bible领域与持久化契约
 
-`src/aiwebnovel/story_bible/`只依赖标准库、通用`domain`和`project.identifiers.ProjectId`，定义稳定StoryBible、不可变StoryBibleRevision、权威StoryBibleHead、一致Aggregate、标题/纯文本正文值以及无副作用的初始创建和Revision追加转换。stale版本复用通用`ConcurrencyConflict`，检查优先于时钟回退和Revision ID重复；新Revision采用完整替换，旧Aggregate和旧Revision保持不变。
+`src/aiwebnovel/story_bible/`的领域部分只依赖标准库、通用`domain`和`project.identifiers.ProjectId`，定义稳定StoryBible、不可变StoryBibleRevision、权威StoryBibleHead、一致Aggregate、标题/纯文本正文值以及无副作用的初始创建和Revision追加转换。stale版本复用通用`ConcurrencyConflict`，检查优先于时钟和Revision ID factory；新Revision采用完整替换，旧Aggregate和旧Revision保持不变。
 
-该目录当前没有SQLAlchemy、Alembic、Repository、Session、应用服务、DTO、FastAPI Router或前端接线，不会改变正式Metadata和`0002_create_project_foundation`。完整边界见[Story Bible纯领域模型](../docs/STORY_BIBLE_DOMAIN.md)。
+纯Python`StoryBibleRepository` Protocol不依赖框架；`story_bible/persistence/`单独拥有三个显式ORM Record、Mapper、固定查询和SQLAlchemy事务实现。迁移`0003_create_story_bible_foundation`建立一Project至多一个Story Bible、Head复合所有权外键以及拒绝Revision UPDATE/DELETE的触发器。Repository以`BEGIN IMMEDIATE`、Stable Object与Head双CAS执行原子create/get/get_for_project/append，且不写Project表。
+
+该模块当前没有应用服务、DTO、FastAPI Router或前端接线，应用不会自动执行0003迁移。完整边界见[Story Bible纯领域模型](../docs/STORY_BIBLE_DOMAIN.md)和[Story Bible持久化基础](../docs/STORY_BIBLE_PERSISTENCE.md)。
 
 ## Project持久化基础
 

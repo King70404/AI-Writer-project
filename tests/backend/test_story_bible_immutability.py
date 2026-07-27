@@ -17,7 +17,7 @@ from tests.backend.story_bible_support import (
 
 import aiwebnovel as aiwebnovel_package
 import aiwebnovel.project as project_package
-from aiwebnovel.db.model_registry import load_model_metadata
+from aiwebnovel.db.base import Base
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
 from aiwebnovel.domain.identifiers import Ulid
 from aiwebnovel.story_bible import (
@@ -106,7 +106,7 @@ def test_story_bible_domain_exposes_no_in_place_or_revision_deletion_api() -> No
 def test_import_has_no_database_files_routes_clock_ids_or_project_state_side_effects(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    metadata_before = tuple(sorted(load_model_metadata().tables))
+    metadata_before = tuple(sorted(Base.metadata.tables))
     project_state_before = dict(vars(project_package))
     calls = {
         "connect": 0,
@@ -143,7 +143,7 @@ def test_import_has_no_database_files_routes_clock_ids_or_project_state_side_eff
     imported = importlib.import_module("aiwebnovel.story_bible")
 
     assert imported.StoryBibleId.__name__ == "StoryBibleId"
-    assert tuple(sorted(load_model_metadata().tables)) == metadata_before
+    assert tuple(sorted(Base.metadata.tables)) == metadata_before
     assert dict(vars(project_package)) == project_state_before
     assert calls == {
         "connect": 0,
