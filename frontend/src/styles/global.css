@@ -684,6 +684,182 @@ textarea:focus-visible {
   grid-column: 1 / -1;
 }
 
+.story-bible-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.story-bible-page__header,
+.story-bible-editor__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.story-bible-page__header h2,
+.story-bible-page__header p,
+.story-bible-editor__heading h3,
+.story-bible-editor__heading p {
+  margin: 0;
+}
+
+.story-bible-page__links,
+.story-bible-editor__actions,
+.story-bible-resolution__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.story-bible-metadata,
+.story-bible-create,
+.story-bible-editor,
+.story-bible-resolution,
+.story-bible-state {
+  padding: 1.25rem;
+  border: 1px solid #c8d2d9;
+  border-radius: 0.55rem;
+  background: #ffffff;
+}
+
+.story-bible-metadata h3,
+.story-bible-create h3,
+.story-bible-editor h3,
+.story-bible-resolution h3,
+.story-bible-state h3 {
+  margin-top: 0;
+}
+
+.story-bible-metadata__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.story-bible-metadata__facts div {
+  min-width: 0;
+  padding: 0.8rem;
+  background: #f4f6f7;
+}
+
+.story-bible-metadata__facts dt {
+  color: #52606c;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.story-bible-metadata__facts dd {
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.story-bible-create form,
+.story-bible-editor form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.story-bible-editor__dirty {
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  color: #314450;
+  background: #edf1f3;
+  font-size: 0.88rem;
+}
+
+.story-bible-create button,
+.story-bible-editor button,
+.story-bible-resolution button,
+.story-bible-state button {
+  justify-self: start;
+  min-height: 2.65rem;
+  padding: 0.6rem 0.9rem;
+  border: 0;
+  border-radius: 0.4rem;
+  color: #ffffff;
+  background: #17324d;
+  cursor: pointer;
+}
+
+.story-bible-create button:disabled,
+.story-bible-editor button:disabled,
+.story-bible-resolution button:disabled {
+  color: #56636c;
+  background: #d4dce1;
+  cursor: not-allowed;
+}
+
+.story-bible-editor .button-secondary {
+  color: #17324d;
+  border: 1px solid #8fa2af;
+  background: #ffffff;
+}
+
+.story-bible-feedback,
+.story-bible-resolution__latest-error {
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border-left: 4px solid #3d725c;
+  background: #eff7f2;
+}
+
+.story-bible-feedback--error,
+.story-bible-feedback--save_error,
+.story-bible-resolution__latest-error {
+  border-left-color: #a04b32;
+  background: #fff3ee;
+}
+
+.story-bible-resolution {
+  border-color: #b45f35;
+  background: #fff8f2;
+}
+
+.story-bible-resolution__comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.story-bible-resolution__comparison > section {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid #d7c4b7;
+  background: #ffffff;
+}
+
+.story-bible-resolution__comparison h4,
+.story-bible-resolution__preview-title {
+  margin-top: 0;
+}
+
+.story-bible-resolution__preview-title {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.story-bible-resolution__preview-content {
+  max-height: 18rem;
+  margin-bottom: 0;
+  padding: 0.75rem;
+  overflow: auto;
+  color: #253746;
+  background: #f4f6f7;
+  font: inherit;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.story-bible-resolution__actions {
+  grid-column: 1 / -1;
+}
+
 .project-list__more {
   margin-top: 1rem;
 }
@@ -870,7 +1046,9 @@ textarea:focus-visible {
 
   .project-details-page__header,
   .project-revision-history__header,
-  .project-edit__heading {
+  .project-edit__heading,
+  .story-bible-page__header,
+  .story-bible-editor__heading {
     flex-direction: column;
   }
 
@@ -879,7 +1057,9 @@ textarea:focus-visible {
   }
 
   .project-details__facts,
-  .project-conflict__comparison {
+  .project-conflict__comparison,
+  .story-bible-metadata__facts,
+  .story-bible-resolution__comparison {
     grid-template-columns: 1fr;
   }
 

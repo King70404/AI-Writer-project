@@ -101,8 +101,8 @@ export default [
           message: "The API layer must not depend on UI or app layers.",
         },
         {
-          group: ["**/features/projects/**"],
-          message: "The shared API layer must not depend on Project UI code.",
+          group: ["**/features/projects/**", "**/features/story-bible/**"],
+          message: "The shared API layer must not depend on feature UI code.",
         },
       ),
     },
@@ -133,6 +133,32 @@ export default [
     },
   },
   {
+    files: ["frontend/src/features/story-bible/api/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": restrictedImports({
+        group: [
+          "react",
+          "react/**",
+          "**/components/**",
+          "**/hooks/**",
+          "**/pages/**",
+          "**/features/projects/**",
+        ],
+        message:
+          "The Story Bible API layer must stay independent from React, UI, and Project feature code.",
+      }),
+    },
+  },
+  {
+    files: ["frontend/src/features/story-bible/hooks/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": restrictedImports({
+        group: ["**/components/**", "**/pages/**"],
+        message: "Story Bible hooks must not depend on components or pages.",
+      }),
+    },
+  },
+  {
     files: ["frontend/src/features/projects/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-globals": [
@@ -159,6 +185,37 @@ export default [
           selector:
             "MemberExpression[object.name='document'][property.name='cookie']",
           message: "Project code must not read browser cookies.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["frontend/src/features/story-bible/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "fetch",
+          message:
+            "Story Bible components must use hooks and the typed Story Bible API client.",
+        },
+        {
+          name: "localStorage",
+          message:
+            "Story Bible code must not persist security, ETag, or draft state.",
+        },
+        {
+          name: "sessionStorage",
+          message:
+            "Story Bible code must not persist security, ETag, or draft state.",
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "MemberExpression[object.name='document'][property.name='cookie']",
+          message: "Story Bible code must not read browser cookies.",
         },
       ],
     },

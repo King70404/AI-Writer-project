@@ -8,6 +8,7 @@ import type {
   ProjectRevisionResponse,
   SecuritySessionResponse,
 } from "./contracts";
+import { isCanonicalPrefixedUlid } from "../../../api/identifiers";
 
 export class ProjectContractError extends Error {
   public constructor() {
@@ -45,25 +46,23 @@ function requiredString(
   return value;
 }
 
-const PROJECT_ID = /^prj_[0-9A-HJKMNP-TV-Z]{26}$/u;
-const REVISION_ID = /^prv_[0-9A-HJKMNP-TV-Z]{26}$/u;
 const AWARE_RFC3339 =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u;
 
-function requiredIdentifier(value: unknown, pattern: RegExp): string {
+function requiredIdentifier(value: unknown, prefix: "prj" | "prv"): string {
   const identifier = requiredString(value, { maximum: 64 });
-  if (!pattern.test(identifier)) {
+  if (!isCanonicalPrefixedUlid(identifier, prefix)) {
     throw new ProjectContractError();
   }
   return identifier;
 }
 
 export function isCanonicalProjectId(value: unknown): value is string {
-  return typeof value === "string" && PROJECT_ID.test(value);
+  return isCanonicalPrefixedUlid(value, "prj");
 }
 
 export function parseProjectId(value: unknown): string {
-  return requiredIdentifier(value, PROJECT_ID);
+  return requiredIdentifier(value, "prj");
 }
 
 function requiredPositiveInteger(value: unknown): number {
@@ -103,10 +102,7 @@ export function parseProjectListItemResponse(
   }
   return {
     project_id: parseProjectId(value.project_id),
-    current_revision_id: requiredIdentifier(
-      value.current_revision_id,
-      REVISION_ID,
-    ),
+    current_revision_id: requiredIdentifier(value.current_revision_id, "prv"),
     revision_number: requiredPositiveInteger(value.revision_number),
     concurrency_version: requiredPositiveInteger(value.concurrency_version),
     title: requiredString(value.title, { maximum: 120 }),
@@ -185,7 +181,7 @@ export function parseProjectRevisionHistoryItemResponse(
     throw new ProjectContractError();
   }
   return {
-    revision_id: requiredIdentifier(value.revision_id, REVISION_ID),
+    revision_id: requiredIdentifier(value.revision_id, "prv"),
     revision_number: requiredPositiveInteger(value.revision_number),
     title: requiredString(value.title, { maximum: 120 }),
     created_at: requiredTimestamp(value.created_at),
@@ -297,7 +293,7 @@ export function parseProjectRevisionResponse(
   }
   return {
     project_id: projectId,
-    revision_id: requiredIdentifier(value.revision_id, REVISION_ID),
+    revision_id: requiredIdentifier(value.revision_id, "prv"),
     revision_number: revisionNumber,
     title: requiredString(value.title, { maximum: 120 }),
     description: requiredString(value.description, {

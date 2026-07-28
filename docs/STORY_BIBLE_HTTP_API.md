@@ -1,6 +1,6 @@
 # Story Bible HTTP API
 
-DEV-2.4在既有领域、0003三表持久化和应用用例之上增加受控HTTP传输边界。当前能力仅是本地后端API，不包含Story Bible前端页面、Revision历史API、删除、归档、恢复、Character、World、PowerSystem、规划、Codex或Agent功能。
+DEV-2.4在既有领域、0003三表持久化和应用用例之上增加受控HTTP传输边界。DEV-2.5的`/projects/:projectId/story-bible`页面调用这四条操作，但不改变其协议。当前仍不包含Revision历史API、删除、归档、恢复、Character、World、PowerSystem、规划、Codex或Agent功能。
 
 ## 资源与路由
 
@@ -58,6 +58,6 @@ development/test OpenAPI登记四条Story Bible操作、`Story Bible`标签、�
 
 ## 验证证据与后续边界
 
-专项测试覆盖DTO、显式Mapper、错误、Router、安全、共享ETag、真实0003流程、双服务并发、未迁移数据库、OpenAPI和AST架构边界。`E2E-INT-011`通过真实production集成进程验证Project创建、Story Bible创建、两种GET、完整PUT、stale 412、安全写边界，以及不存在Story Bible UI。
+专项测试覆盖DTO、显式Mapper、错误、Router、安全、共享ETag、真实0003流程、双服务并发、未迁移数据库、OpenAPI和AST架构边界。`E2E-INT-011`通过真实production集成进程验证Project创建、Story Bible创建、两种GET、完整PUT、stale 412和安全写边界；`E2E-INT-012`从真实前端调用同一协议，验证POST一次、GET刷新、PUT完整替换和显式冲突恢复。
 
-当前Revision表继续由0003不可变触发器保护，但没有Revision列表或单Revision读取API。DEV-2.5只有在独立任务授权后才能继续；本任务不预设其实现，不把后续页面、历史、结构化实体或AI能力声明为已完成。
+当前Revision表继续由0003不可变触发器保护，但没有Revision列表或单Revision读取API。前端状态与安全契约见[Story Bible前端流程](STORY_BIBLE_FRONTEND.md)；该页面不把历史、结构化实体或AI能力声明为已完成。

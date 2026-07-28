@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施、已由M1冻结的Project闭环，以及DEV-2.1至DEV-2.4建立的Story Bible领域、持久化、应用和HTTP依赖方向。当前Story Bible已有四条本地HTTP操作但没有前端或Revision历史API；系统仍不包含Revision回滚/恢复/Diff/删除、Project删除/归档或其他创作页面。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施、已由M1冻结的Project闭环，以及DEV-2.1至DEV-2.5建立的Story Bible领域、持久化、应用、HTTP和前端依赖方向。当前Story Bible已有四条本地HTTP操作和一个Project归属的纯文本页面，但没有Revision历史API；系统仍不包含Revision回滚/恢复/Diff/删除、Project删除/归档或其他创作页面。
 
 ## 业务模块
 
@@ -107,7 +107,9 @@ UI组件不得直接调用裸`fetch`、读取Cookie、获取或硬编码CSRF、�
 
 纯领域和Repository契约不得导入Alembic、FastAPI、Pydantic、`db`、`core`、`security`、`storage`或前端；只有持久化子包可以导入SQLAlchemy和通用DB。Project与通用`domain`不得反向导入Story Bible。只有`story_bible.persistence`可以直接写`story_bibles`、`story_bible_revisions`和`story_bible_heads`；AST门禁以真实生产包和受控正负样例验证这些方向。
 
-当前Story Bible拥有领域模型、三张表、迁移0003、显式ORM/Mapper、Repository契约、事务适配器、Create/Revise/Get/GetForProject应用用例与不可变Snapshot，以及只调用这些用例的四条HTTP操作。Web层可依赖FastAPI、Pydantic、Story Bible应用/领域公开类型和公共HTTP ETag工具；禁止依赖SQLAlchemy、具体Repository、Session、SQL、ORM、Clock或ID生成实现。领域、Repository契约和应用层不得反向依赖Web，Project Web不得导入Story Bible Web。当前没有前端、Revision历史API、Character/World/PowerSystem结构或Codex能力。详细契约见[Story Bible纯领域模型](STORY_BIBLE_DOMAIN.md)、[Story Bible持久化基础](STORY_BIBLE_PERSISTENCE.md)、[Story Bible应用用例](STORY_BIBLE_APPLICATION.md)和[Story Bible HTTP API](STORY_BIBLE_HTTP_API.md)。
+当前Story Bible拥有领域模型、三张表、迁移0003、显式ORM/Mapper、Repository契约、事务适配器、Create/Revise/Get/GetForProject应用用例与不可变Snapshot，以及只调用这些用例的四条HTTP操作。Web层可依赖FastAPI、Pydantic、Story Bible应用/领域公开类型和公共HTTP ETag工具；禁止依赖SQLAlchemy、具体Repository、Session、SQL、ORM、Clock或ID生成实现。领域、Repository契约和应用层不得反向依赖Web，Project Web不得导入Story Bible Web。
+
+Story Bible前端固定在`frontend/src/features/story-bible`。其`api`层只依赖通用传输、共享规范ID/强ETag/内存Security Session和自身契约，不得导入React、Project功能、hooks、组件或页面；hooks依赖自身API，组件依赖hooks，页面负责组合，Router只导入公开页面。组件不得裸调用`fetch`或读取Cookie，不得把CSRF、ETag、草稿、title或content写入浏览器存储、URL或日志。GET不获取Session；POST/PUT均只发送一次且不自动重试或重放。Project详情只通过规范路由链接进入Story Bible，不共享或修改Story Bible状态。当前没有Revision历史API/页面、Character/World/PowerSystem结构或Codex能力。详细契约见[Story Bible纯领域模型](STORY_BIBLE_DOMAIN.md)、[Story Bible持久化基础](STORY_BIBLE_PERSISTENCE.md)、[Story Bible应用用例](STORY_BIBLE_APPLICATION.md)、[Story Bible HTTP API](STORY_BIBLE_HTTP_API.md)和[Story Bible前端流程](STORY_BIBLE_FRONTEND.md)。
 
 ## 所有权与跨模块规则
 

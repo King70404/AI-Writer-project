@@ -54,6 +54,7 @@ describe("frontend health API", () => {
     expect(result).toEqual({
       data: liveBody(),
       requestId: "req_live",
+      status: 200,
     });
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/health/live");

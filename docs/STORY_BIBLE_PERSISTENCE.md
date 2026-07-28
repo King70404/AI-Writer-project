@@ -88,4 +88,4 @@ DEV-2.3的命令服务创建时调用`create()`一次，修订时调用`append_r
 
 DEV-2.4的FastAPI lifespan复用现有Engine和Session factory装配本Repository，四条HTTP操作仍只通过DEV-2.3应用服务进入事务边界。应用启动和请求都不会创建表或执行迁移；空库或0002数据库的合法Story Bible调用返回安全503。HTTP层不改变三表、双不可变触发器、stale优先级或Repository调用次数。
 
-当前仍没有前端路由、页面、Revision历史读取API、Character、World、PowerSystem、Planning、Codex、Agent、审批、分支、导出或备份。传输契约见[Story Bible HTTP API](STORY_BIBLE_HTTP_API.md)。
+DEV-2.5已增加调用现有HTTP边界的纯文本前端路由与页面，但没有改变本文件的三表或Repository语义。当前仍没有Revision历史读取API、Character、World、PowerSystem、Planning、Codex、Agent、审批、分支、导出或备份。传输契约见[Story Bible HTTP API](STORY_BIBLE_HTTP_API.md)，界面契约见[Story Bible前端流程](STORY_BIBLE_FRONTEND.md)。

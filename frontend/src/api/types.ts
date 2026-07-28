@@ -13,8 +13,10 @@ export interface BackendErrorEnvelope {
 
 export interface ApiResponse<T> {
   readonly data: T;
+  readonly status?: number;
   readonly requestId: string | null;
   readonly etag?: string;
+  readonly location?: string;
 }
 
 export type JsonDecoder<T> = (value: unknown) => T;

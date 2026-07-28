@@ -1,8 +1,6 @@
 import type { ProjectResponse, VersionedProjectResource } from "./contracts";
 import { ProjectContractError } from "./parsers";
-
-const STRONG_PROJECT_ETAG = /^"([1-9]\d*)"$/u;
-const MAX_SIGNED_64_BIT = 9_223_372_036_854_775_807n;
+import { parseStrongVersionEtag } from "../../../api/etags";
 
 export interface ParsedProjectEtag {
   readonly etag: string;
@@ -10,21 +8,11 @@ export interface ParsedProjectEtag {
 }
 
 export function parseProjectEtag(value: string | null): ParsedProjectEtag {
-  if (value === null) {
+  try {
+    return parseStrongVersionEtag(value);
+  } catch {
     throw new ProjectContractError();
   }
-  const match = STRONG_PROJECT_ETAG.exec(value);
-  if (match === null || match[1] === undefined) {
-    throw new ProjectContractError();
-  }
-  const integer = BigInt(match[1]);
-  if (
-    integer > MAX_SIGNED_64_BIT ||
-    integer > BigInt(Number.MAX_SAFE_INTEGER)
-  ) {
-    throw new ProjectContractError();
-  }
-  return { etag: value, version: Number(integer) };
 }
 
 export function createVersionedProjectResource(

@@ -97,6 +97,8 @@ DEV-2.3只授权Story Bible纯应用层：原语Create/Revise命令、Get/GetFor
 
 DEV-2.4只授权Story Bible HTTP传输边界：两个严格请求DTO、一个严格响应DTO、显式映射、公共强ETag协议、四条固定路由、统一错误映射和FastAPI lifespan组合根。POST/PUT继承本地Session/CSRF安全，GET只读；PUT不预读、不重试且只完整替换。任务不改变Schema、迁移、Repository事务、Project行为或前端，不授权Revision历史API、删除/归档/恢复、结构化实体、规划、Codex或Agent；DEV-2.5仍需独立任务授权。
 
+DEV-2.5只授权React侧的`/projects/:projectId/story-bible`纯文本创建、当前读取、完整修订与显式并发冲突处理。GET不获取Session；POST/PUT只发送一次，不自动重试、重放、预读或合并；冲突与写结果未知必须保留草稿和旧基线，等待用户显式读取与选择。任务不改变后端、Schema、迁移或Repository，不授权Revision历史API/页面、删除/归档/恢复、Character、World、PowerSystem、规划、三区、审批、Codex或Agent；后续能力仍需独立编号任务授权。
+
 ## 统一执行报告
 
 任务报告至少包含：

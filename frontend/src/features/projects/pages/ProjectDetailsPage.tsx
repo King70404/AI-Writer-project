@@ -15,7 +15,7 @@ import { ProjectDetails } from "../components/ProjectDetails";
 import { ProjectEditForm } from "../components/ProjectEditForm";
 import { useProjectDetails } from "../hooks/useProjectDetails";
 import { useReviseProject } from "../hooks/useReviseProject";
-import { projectRevisionHistoryPath } from "../routing";
+import { projectRevisionHistoryPath, projectStoryBiblePath } from "../routing";
 
 interface ProjectDetailsPageProps {
   readonly client?: ProjectDetailApiClient & ProjectRevisionApiClient;
@@ -69,11 +69,20 @@ function ProjectDetailsRoute({
         </div>
         <div className="project-details-page__links">
           {state.status === "ready" ? (
-            <Link
-              to={projectRevisionHistoryPath(state.resource.project.project_id)}
-            >
-              查看修订历史
-            </Link>
+            <>
+              <Link
+                to={projectStoryBiblePath(state.resource.project.project_id)}
+              >
+                查看 Story Bible
+              </Link>
+              <Link
+                to={projectRevisionHistoryPath(
+                  state.resource.project.project_id,
+                )}
+              >
+                查看修订历史
+              </Link>
+            </>
           ) : null}
           <Link to="/projects">返回项目列表</Link>
         </div>

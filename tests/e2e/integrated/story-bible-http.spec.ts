@@ -12,7 +12,7 @@ const concurrentCandidates = [
   },
 ] as const;
 
-test("E2E-INT-011 exercises the Story Bible HTTP chain without a Story Bible UI", async ({
+test("E2E-INT-011 exercises the Story Bible HTTP chain independently of its UI", async ({
   baseURL,
   browserAudit,
   context,
@@ -188,7 +188,9 @@ test("E2E-INT-011 exercises the Story Bible HTTP chain without a Story Bible UI"
 
   const projectPage = await page.goto(`/projects/${projectBody.project_id}`);
   expect(projectPage?.status()).toBe(200);
-  await expect(page.getByRole("link", { name: /Story Bible/i })).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "查看 Story Bible" }),
+  ).toHaveAttribute("href", `/projects/${projectBody.project_id}/story-bible`);
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
   expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
   expect(

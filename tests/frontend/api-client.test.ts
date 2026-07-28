@@ -63,6 +63,7 @@ describe("typed API client", () => {
     expect(result).toEqual({
       data: { value: "ready" },
       requestId: "req_success",
+      status: 200,
     });
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0];

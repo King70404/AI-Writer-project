@@ -11,8 +11,8 @@ export function AppShell() {
           <p className="app-shell__eyebrow">本地长篇创作系统 · 工程基础</p>
           <h1 className="app-shell__title">AIWebNovel</h1>
         </div>
-        <p className="phase-label" aria-label="当前阶段：阶段 1">
-          阶段 1
+        <p className="phase-label" aria-label="当前阶段：阶段 2">
+          阶段 2
         </p>
       </header>
 
@@ -28,7 +28,10 @@ export function AppShell() {
       </main>
 
       <footer className="app-shell__footer">
-        <p>当前状态：Project列表与创建已实现；其他小说业务功能尚未实现。</p>
+        <p>
+          当前状态：Project基础与单份纯文本Story
+          Bible流程已实现；规划、章节写作与AI功能尚未实现。
+        </p>
       </footer>
     </div>
   );

@@ -172,10 +172,13 @@ async function requestJson<T>(
   const requestId = responseRequestId(response);
   try {
     const etag = response.headers.get("ETag");
+    const location = response.headers.get("Location");
     return {
       data: decode(parsed.value),
+      status: response.status,
       requestId,
       ...(etag === null ? {} : { etag }),
+      ...(location === null ? {} : { location }),
     };
   } catch {
     throw new ApiError({
