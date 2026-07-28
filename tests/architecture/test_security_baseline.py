@@ -481,6 +481,61 @@ def test_security_baseline_rejects_story_bible_api_security_regressions(
         assert f"type={rule}" in output
 
 
+def test_security_baseline_rejects_story_bible_history_privacy_regressions(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "unsafe-story-bible-history-security-repository"
+    _initialize_repository(repository)
+    script = _install_script(repository)
+    _write_safe_security_wiring(repository)
+    _write(
+        repository,
+        "frontend/src/features/story-bible/pages/UnsafeHistory.tsx",
+        "\n".join(
+            (
+                "localStorage.setItem('history_cursor', cursor);",
+                "sessionStorage.setItem('revision_content', content);",
+                "navigate(`/history?cursor=${cursor}`);",
+                "console.log(cursor, content);",
+                "const unsafe = <div dangerouslySetInnerHTML={{__html: content}} />;",
+                "rollback(); restore(); deleteRevision();",
+                "Promise.all(items.map(() => getStoryBibleRevision()));",
+                "useEffect(() => { loadMore(); }, []);",
+                "const hidden = <div hidden>{revision.content}</div>;",
+                "",
+            )
+        ),
+    )
+    _write(
+        repository,
+        "frontend/src/features/story-bible/api/unsafe-history.ts",
+        "const listStoryBibleRevisions = async () => {\n"
+        "  const session = await getValidSession();\n"
+        "  return getJson('story-bibles/id/revisions', {headers: "
+        "{'X-CSRF-Token': session.csrfToken}});\n"
+        "};\n",
+    )
+    _commit_all(repository)
+
+    result = _run_security_script(repository, script=script)
+    output = result.stdout + result.stderr
+
+    assert result.returncode != 0
+    for rule in (
+        "story-bible-history-cursor-browser-persistence",
+        "story-bible-history-content-browser-persistence",
+        "story-bible-history-cursor-page-url",
+        "story-bible-history-sensitive-log",
+        "story-bible-history-security-session",
+        "unsafe-story-bible-history-html",
+        "story-bible-history-mutation-action",
+        "story-bible-history-bulk-body-fetch",
+        "story-bible-history-page-prefetch",
+        "story-bible-history-hidden-content",
+    ):
+        assert f"type={rule}" in output
+
+
 def test_security_baseline_requires_actual_middleware_registration(
     tmp_path: Path,
 ) -> None:

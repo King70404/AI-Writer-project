@@ -106,4 +106,4 @@ DEV-2.3没有改变上述纯领域对象、文本规则或转换语义。独立`
 
 ## 当前明确不存在
 
-当前仍没有Story Bible DTO、HTTP API、OpenAPI路径、组合根接线、前端页面、功能真实性ID、历史读取/回滚/恢复/Diff、Character、World、PowerSystem、Codex生成、Agent、审批或三区能力。领域、三表、Repository和内部应用用例不能视为用户功能完成。
+DEV-2.6没有改变本文件的领域对象、值或转换；不可变历史读取只投影既有Revision与权威Head。当前已有历史摘要和单Revision只读入口，但仍没有回滚、恢复、Diff、历史编辑、删除、Character、World、PowerSystem、Codex生成、Agent、审批或三区能力。

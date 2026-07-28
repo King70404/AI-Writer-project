@@ -362,6 +362,56 @@ function Invoke-SecurityBaselineCheck {
             PathPattern = '^frontend/src/features/projects/api/'
         },
         [pscustomobject]@{
+            Name = "story-bible-history-cursor-browser-persistence"
+            Pattern = '(?is)(?:localStorage|sessionStorage)\s*(?:\.\s*setItem\s*\([^)]{0,1024}\bcursor\b|\.\s*[A-Za-z_$][\w$]*cursor[\w$]*\s*=|\[\s*["''][^"'']{0,256}cursor[^"'']{0,256}["'']\s*\]\s*=)'
+            PathPattern = '^frontend/src/features/story-bible/'
+        },
+        [pscustomobject]@{
+            Name = "story-bible-history-content-browser-persistence"
+            Pattern = '(?is)(?:localStorage|sessionStorage)\s*(?:\.\s*setItem\s*\([^)]{0,1024}\b(?:content|revisionBody|revision_body)\b|\.\s*[A-Za-z_$][\w$]*(?:content|revisionBody|revision_body)[\w$]*\s*=)'
+            PathPattern = '^frontend/src/features/story-bible/'
+        },
+        [pscustomobject]@{
+            Name = "story-bible-history-cursor-page-url"
+            Pattern = '(?is)\b(?:navigate|history\s*\.\s*(?:pushState|replaceState))\s*\([^)]{0,2048}(?:[?&]cursor=|\bcursor\b)'
+            PathPattern = '^frontend/src/features/story-bible/(?:components|hooks|pages)/'
+        },
+        [pscustomobject]@{
+            Name = "story-bible-history-sensitive-log"
+            Pattern = '(?is)\b(?:logger|logging|console)\s*\.\s*(?:log|debug|info|warn|warning|error)\s*\([^)]{0,1024}\b(?:cursor|content|revisionBody|revision_body)\b|\bprint\s*\([^)]{0,1024}\b(?:cursor|content|revision_body)\b'
+            PathPattern = '^(?:frontend/src/features/story-bible/|backend/src/aiwebnovel/story_bible/)'
+        },
+        [pscustomobject]@{
+            Name = "story-bible-history-security-session"
+            Pattern = '(?is)(?:\basync\s+(?:listStoryBibleRevisions|getStoryBibleRevision)\b|\bconst\s+(?:listStoryBibleRevisions|getStoryBibleRevision)\s*=\s*async\b)[\s\S]{0,3072}\b(?:getValidSession|securitySession|X-CSRF-Token)\b'
+            PathPattern = '^frontend/src/features/story-bible/api/'
+        },
+        [pscustomobject]@{
+            Name = "unsafe-story-bible-history-html"
+            Pattern = '(?i)dangerouslySetInnerHTML\s*='
+            PathPattern = '^frontend/src/features/story-bible/'
+        },
+        [pscustomobject]@{
+            Name = "story-bible-history-mutation-action"
+            Pattern = '(?is)\b(?:rollback|restore|delete\w*)\s*\('
+            PathPattern = '^frontend/src/features/story-bible/(?:components|hooks|pages)/'
+        },
+        [pscustomobject]@{
+            Name = "story-bible-history-bulk-body-fetch"
+            Pattern = '(?is)\bPromise\s*\.\s*all\b[\s\S]{0,4096}\bgetStoryBibleRevision\s*\('
+            PathPattern = '^frontend/src/features/story-bible/'
+        },
+        [pscustomobject]@{
+            Name = "story-bible-history-page-prefetch"
+            Pattern = '(?is)\buseEffect\b[\s\S]{0,4096}\bloadMore\s*\('
+            PathPattern = '^frontend/src/features/story-bible/'
+        },
+        [pscustomobject]@{
+            Name = "story-bible-history-hidden-content"
+            Pattern = '(?is)<[^>]{0,1024}\b(?:hidden|aria-hidden)\b[^>]*>[\s\S]{0,2048}\b(?:content|revision\s*\.\s*content)\b'
+            PathPattern = '^frontend/src/features/story-bible/'
+        },
+        [pscustomobject]@{
             Name = "project-post-auto-retry"
             Pattern = '(?is)\bretry\w*\s*\([\s\S]{0,2048}\b(?:postJson|fetch)\s*\('
             PathPattern = '^frontend/src/features/projects/api/'

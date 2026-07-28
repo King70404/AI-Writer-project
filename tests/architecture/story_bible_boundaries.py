@@ -14,6 +14,7 @@ _STORY_BIBLE_ROOT = "aiwebnovel.story_bible"
 _STORY_BIBLE_APPLICATION = "aiwebnovel.story_bible.application"
 _STORY_BIBLE_REPOSITORY = "aiwebnovel.story_bible.repository"
 _STORY_BIBLE_PERSISTENCE = "aiwebnovel.story_bible.persistence"
+_STORY_BIBLE_HISTORY_READER = "aiwebnovel.story_bible.persistence.history_reader"
 _STORY_BIBLE_WEB = "aiwebnovel.story_bible.web"
 _STORY_BIBLE_TABLE_WRITE_PATTERN = re.compile(
     r"\b(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|UPDATE(?:\s+OR\s+\w+)?"
@@ -244,6 +245,11 @@ def _story_bible_persistence_violation(
 ) -> tuple[str, str] | None:
     target = reference.target_module
     target_root = target.partition(".")[0]
+    if reference.source_module == _STORY_BIBLE_HISTORY_READER and target == _STORY_BIBLE_REPOSITORY:
+        return (
+            "story-bible-history-reader-must-not-import-write-repository",
+            "The Story Bible history reader must use its read port and records directly",
+        )
     if target_root in {"fastapi", "pydantic", "alembic"}:
         return (
             "story-bible-persistence-must-not-import-web-frameworks",
@@ -367,6 +373,22 @@ def check_story_bible_boundaries(
                         )
                     )
         if _is_module_or_child(module_name, _STORY_BIBLE_PERSISTENCE):
+            if module_name != _STORY_BIBLE_HISTORY_READER:
+                continue
+            for node in ast.walk(tree):
+                if (
+                    isinstance(node, ast.Constant)
+                    and isinstance(node.value, str)
+                    and _STORY_BIBLE_TABLE_WRITE_PATTERN.search(node.value)
+                ):
+                    violations.append(
+                        StoryBibleArchitectureViolation(
+                            path=source_file,
+                            line=node.lineno,
+                            rule="story-bible-history-reader-must-remain-read-only",
+                            message="The Story Bible history reader must never issue table writes",
+                        )
+                    )
             continue
         for node in ast.walk(tree):
             if (

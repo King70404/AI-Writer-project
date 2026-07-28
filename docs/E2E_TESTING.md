@@ -44,7 +44,7 @@ npm run e2e:integrated -- -Scenario E2E-INT-011
 npm run e2e:integrated -- -Scenario E2E-INT-012
 ```
 
-当前完整集共16个场景：3个开发模式、12个生产集成模式和1个缺失构建启动失败场景。
+当前完整集共17个场景：3个开发模式、13个生产集成模式和1个缺失构建启动失败场景。`E2E-INT-013`验证Story Bible 21项不可变历史、20+1 keyset分页、按需正文、无历史Security Session、无浏览器持久化及Head指向Revision 21。
 
 统一启动入口的最低浏览器验收由仓库根目录的受控脚本执行：
 

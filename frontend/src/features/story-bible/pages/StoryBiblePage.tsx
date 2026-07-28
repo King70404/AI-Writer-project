@@ -12,7 +12,10 @@ import {
   StoryBibleProjectNotFound,
 } from "../components/StoryBibleStates";
 import { useStoryBible } from "../hooks/useStoryBible";
-import { projectDetailsPath } from "../../projects/routing";
+import {
+  projectDetailsPath,
+  storyBibleRevisionHistoryPath,
+} from "../../projects/routing";
 
 interface StoryBiblePageProps {
   readonly client?: StoryBibleApiClient;
@@ -43,6 +46,11 @@ function StoryBibleRoute({
           </h2>
         </div>
         <div className="story-bible-page__links">
+          {projectId !== undefined && state.status === "ready" ? (
+            <Link to={storyBibleRevisionHistoryPath(projectId)}>
+              查看修订历史
+            </Link>
+          ) : null}
           {projectId === undefined ? null : (
             <Link
               to={

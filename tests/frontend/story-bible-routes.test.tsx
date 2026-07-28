@@ -108,7 +108,6 @@ describe("Story Bible route and navigation", () => {
 
   it.each([
     `/story-bibles/sbl_01ARZ3NDEKTSV4RRFFQ69G5FAV`,
-    `/projects/${storyProjectId}/story-bible/history`,
     `/projects/${storyProjectId}/story-bible/edit`,
     `/projects/${storyProjectId}/story-bible/settings`,
   ])("keeps unsupported Story Bible route %s on the React 404", (path) => {

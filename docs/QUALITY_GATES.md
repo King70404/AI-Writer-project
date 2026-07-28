@@ -222,4 +222,4 @@ DEV-2.5的前端专项固定覆盖严格11字段响应、共享规范ID和强ETa
 
 任何适用门禁失败，都不得声称当前任务完成，也不得开始下一编号任务。应先修复真实原因并完整重跑；不得降低阈值、跳过检查或把失败输出为成功。
 
-安全静态门禁还检查Project和Story Bible写路由无CSRF豁免、Router不导入SQLAlchemy/Session、历史路由无写方法、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。Story Bible新增Web生产代码要求statements至少95%、branches至少90%，完整Story Bible后端包要求statements至少98%、branches至少95%。当前production API精确13条、前端路由精确6条；Story Bible已有当前纯文本前端但没有历史API或历史页面。仍没有用户登录、回滚/恢复/Diff/删除、归档、搜索、写作、评审、Agent、Skill、Prompt、备份、导出或安装器。
+安全静态门禁还检查Project和Story Bible写路由无CSRF豁免、Router不导入SQLAlchemy/Session、历史路由无写方法、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。DEV-2.6新增历史生产代码专项达到statements 100%、branches不低于95%；完整Story Bible后端包保持statements至少98%、branches至少95%。当前production API精确15条、前端路由精确7条，`E2E-INT-013`使完整E2E为17个。仍没有用户登录、回滚/恢复/Diff/历史编辑/删除、归档、搜索、写作、评审、Agent、Skill、Prompt、备份、导出或安装器。

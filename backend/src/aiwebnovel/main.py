@@ -40,12 +40,18 @@ from aiwebnovel.security.redaction import redact_text, safe_request_path
 from aiwebnovel.storage.health import check_storage_health
 from aiwebnovel.storage.initializer import initialize_storage
 from aiwebnovel.storage.paths import StoragePaths
+from aiwebnovel.story_bible.application.history_service import (
+    StoryBibleRevisionHistoryQueryService,
+)
 from aiwebnovel.story_bible.application.services import (
     StoryBibleCommandService,
     StoryBibleQueryService,
 )
 from aiwebnovel.story_bible.identifiers import StoryBibleId, StoryBibleRevisionId
-from aiwebnovel.story_bible.web import create_story_bible_router
+from aiwebnovel.story_bible.web import (
+    create_story_bible_history_router,
+    create_story_bible_router,
+)
 from aiwebnovel.web.frontend import FrontendStaticService
 
 logger = get_logger("health")
@@ -241,6 +247,9 @@ def create_app(
                     from aiwebnovel.project.persistence.repository import (
                         SqlAlchemyProjectRepository,
                     )
+                    from aiwebnovel.story_bible.persistence.history_reader import (
+                        SqlAlchemyStoryBibleRevisionHistoryReader,
+                    )
                     from aiwebnovel.story_bible.persistence.repository import (
                         SqlAlchemyStoryBibleRepository,
                     )
@@ -274,6 +283,12 @@ def create_app(
                     application.state.story_bible_query_service = StoryBibleQueryService(
                         story_bible_repository
                     )
+                    story_bible_history_reader = SqlAlchemyStoryBibleRevisionHistoryReader(
+                        session_factory
+                    )
+                    application.state.story_bible_revision_history_query_service = (
+                        StoryBibleRevisionHistoryQueryService(story_bible_history_reader)
+                    )
 
         application.state.initialized = True
         try:
@@ -286,6 +301,7 @@ def create_app(
             application.state.project_revision_history_query_service = None
             application.state.story_bible_command_service = None
             application.state.story_bible_query_service = None
+            application.state.story_bible_revision_history_query_service = None
             application.state.database_session_factory = None
             session_manager.clear()
             if runtime_engine is not None:
@@ -313,6 +329,7 @@ def create_app(
     application.state.project_revision_history_query_service = None
     application.state.story_bible_command_service = None
     application.state.story_bible_query_service = None
+    application.state.story_bible_revision_history_query_service = None
     application.state.local_session_manager = session_manager
     application.state.proxy_headers_trusted = False
     frontend_service = FrontendStaticService(frontend_dist_path, api_prefix)
@@ -369,6 +386,7 @@ def create_app(
     )
     application.include_router(create_project_router(api_prefix=api_prefix))
     application.include_router(create_story_bible_router(api_prefix=api_prefix))
+    application.include_router(create_story_bible_history_router(api_prefix=api_prefix))
 
     @application.get(f"{api_prefix}/health/live")
     async def live() -> dict[str, str]:

@@ -100,4 +100,4 @@ Repository返回的Aggregate是最终权威。创建和修订Snapshot都从Repos
 
 DEV-2.4通过四条HTTP操作调用本文件的既有服务：Create/Revise各发送一个命令，按ID/Project读取各发送一个查询。Pydantic DTO和HTTP错误映射位于`story_bible.web`，不会反向进入本应用包；Repository返回的Snapshot仍是响应映射的唯一权威。组合根显式注入真实Repository、UTC Clock和两个ID Factory，Router不生成ID、不调用Clock、不创建Session，也不在PUT前预读。
 
-当前仍没有Story Bible前端、Revision历史API、删除、归档、恢复、Character、World、PowerSystem、Planning、三区、审批、Codex或Agent。完整HTTP边界见[Story Bible HTTP API](STORY_BIBLE_HTTP_API.md)。
+DEV-2.6在独立的History Reader端口上增加只读历史查询服务，不修改本文件的创建、修订或当前快照用例，也不把历史读取塞入写Repository。当前仍没有Revision写入、Diff、删除、归档、回滚、恢复、Character、World、PowerSystem、Planning、三区、审批、Codex或Agent。历史契约见[Story Bible不可变修订历史](STORY_BIBLE_REVISION_HISTORY.md)。

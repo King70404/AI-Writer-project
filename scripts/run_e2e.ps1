@@ -676,6 +676,80 @@ finally:
     }
 }
 
+function Assert-StoryBibleRevisionHistoryDatabaseState {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DataRoot
+    )
+
+    $databasePath = Join-Path $DataRoot "data/aiwebnovel.sqlite3"
+    Assert-SafeContainedPath `
+        -Candidate $databasePath `
+        -Container $DataRoot `
+        -Description "Story Bible revision history E2E database"
+    $pythonExecutable = Join-Path $script:RepositoryRoot ".venv/Scripts/python.exe"
+    $query = @'
+import sqlite3
+import sys
+
+connection = sqlite3.connect(sys.argv[1])
+try:
+    counts = {
+        name: connection.execute('SELECT COUNT(*) FROM ' + name).fetchone()[0]
+        for name in (
+            'projects',
+            'project_heads',
+            'project_revisions',
+            'story_bibles',
+            'story_bible_heads',
+            'story_bible_revisions',
+        )
+    }
+    assert counts == {
+        'projects': 1,
+        'project_heads': 1,
+        'project_revisions': 1,
+        'story_bibles': 1,
+        'story_bible_heads': 1,
+        'story_bible_revisions': 21,
+    }
+    story_bible_id, version = connection.execute(
+        'SELECT id, concurrency_version FROM story_bibles'
+    ).fetchone()
+    assert version == 21
+    revisions = connection.execute(
+        '''
+        SELECT revision_number, id, title, content
+        FROM story_bible_revisions
+        WHERE story_bible_id = ?
+        ORDER BY revision_number
+        ''',
+        (story_bible_id,),
+    ).fetchall()
+    assert [row[0] for row in revisions] == list(range(1, 22))
+    assert len({row[1] for row in revisions}) == 21
+    assert revisions[0][2:] == (
+        'E2E Story Bible History Revision 01 013',
+        'E2E-STORY-BIBLE-HISTORY-CONTENT-CANARY-013-01',
+    )
+    assert revisions[-1][2:] == (
+        'E2E Story Bible History Revision 21 013',
+        'E2E-STORY-BIBLE-HISTORY-CONTENT-CANARY-013-21',
+    )
+    head = connection.execute(
+        'SELECT revision_id FROM story_bible_heads WHERE story_bible_id = ?',
+        (story_bible_id,),
+    ).fetchone()[0]
+    assert head == revisions[-1][1]
+finally:
+    connection.close()
+'@
+    & $pythonExecutable -c $query $databasePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Story Bible revision history E2E database state verification failed"
+    }
+}
+
 function Test-LoopbackPortAvailable {
     param(
         [Parameter(Mandatory = $true)]
@@ -1363,6 +1437,7 @@ function Invoke-E2EScenario {
             "E2E-INT-010",
             "E2E-INT-011",
             "E2E-INT-012",
+            "E2E-INT-013",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -1382,7 +1457,8 @@ function Invoke-E2EScenario {
         "E2E-INT-009",
         "E2E-INT-010",
         "E2E-INT-011",
-        "E2E-INT-012"
+        "E2E-INT-012",
+        "E2E-INT-013"
     )
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
@@ -1578,6 +1654,9 @@ function Invoke-E2EScenario {
         if ($SelectedScenario -eq "E2E-INT-012") {
             Assert-StoryBibleFrontendDatabaseState -DataRoot $dataRoot
         }
+        if ($SelectedScenario -eq "E2E-INT-013") {
+            Assert-StoryBibleRevisionHistoryDatabaseState -DataRoot $dataRoot
+        }
         if ($isBusinessApi) {
             foreach ($logPath in Get-ChildItem -LiteralPath $runDirectory -Filter "*.log") {
                 $logText = Get-Content -LiteralPath $logPath.FullName -Raw -Encoding UTF8
@@ -1590,6 +1669,7 @@ function Invoke-E2EScenario {
                     $logText -match "E2E-PROJECT-HISTORY-DESCRIPTION-CANARY-010" -or
                     $logText -match "E2E-STORY-BIBLE-(?:TITLE|CONTENT)-CANARY-011" -or
                     $logText -match "E2E-STORY-BIBLE-(?:PROJECT-DESCRIPTION|UI-CONTENT)-CANARY-012" -or
+                    $logText -match "E2E-STORY-BIBLE-HISTORY-(?:PROJECT|CONTENT)-CANARY-013" -or
                     $logText -match "(?i)\bcursor=" -or
                     $logText -match "If-Match"
                 ) {
@@ -1687,6 +1767,7 @@ try {
         "E2E-INT-010" = "Integrated"
         "E2E-INT-011" = "Integrated"
         "E2E-INT-012" = "Integrated"
+        "E2E-INT-013" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -1703,6 +1784,7 @@ try {
         "E2E-INT-010",
         "E2E-INT-011",
         "E2E-INT-012",
+        "E2E-INT-013",
         "E2E-STARTUP-001"
     )
 

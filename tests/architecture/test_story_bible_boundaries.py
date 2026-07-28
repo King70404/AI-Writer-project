@@ -107,6 +107,63 @@ def test_checker_accepts_declared_story_bible_web_dependencies(
     assert check_story_bible_boundaries(package_root) == ()
 
 
+def test_checker_accepts_declared_story_bible_history_dependency_direction(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "story_bible/application/history_service.py",
+        "from aiwebnovel.story_bible.application.history_reader import "
+        "StoryBibleRevisionHistoryReader\n"
+        "from aiwebnovel.story_bible.identifiers import StoryBibleId\n",
+    )
+    _write_module(
+        package_root,
+        "story_bible/persistence/history_reader.py",
+        "from sqlalchemy.orm import Session\n"
+        "from aiwebnovel.story_bible.application.history_reader import "
+        "StoryBibleRevisionHistoryReader\n"
+        "from aiwebnovel.story_bible.persistence.models import StoryBibleRevisionRecord\n"
+        'SQL = "SELECT revision_number FROM story_bible_revisions"\n',
+    )
+    _write_module(
+        package_root,
+        "story_bible/web/history_router.py",
+        "from fastapi import APIRouter\n"
+        "from aiwebnovel.story_bible.application.history_service import "
+        "StoryBibleRevisionHistoryQueryService\n",
+    )
+
+    assert check_story_bible_boundaries(package_root) == ()
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_rule"),
+    [
+        (
+            "from aiwebnovel.story_bible.repository import StoryBibleRepository\n",
+            "story-bible-history-reader-must-not-import-write-repository",
+        ),
+        (
+            'SQL = "DELETE FROM story_bible_revisions WHERE story_bible_id = ?"\n',
+            "story-bible-history-reader-must-remain-read-only",
+        ),
+    ],
+)
+def test_checker_rejects_history_reader_write_dependencies(
+    tmp_path: Path,
+    source: str,
+    expected_rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "story_bible/persistence/history_reader.py", source)
+
+    violations = check_story_bible_boundaries(package_root)
+
+    assert expected_rule in {violation.rule for violation in violations}
+
+
 @pytest.mark.parametrize(
     ("module_path", "source", "expected_rule"),
     [

@@ -6,7 +6,7 @@ DEV-2.5在不修改后端、Schema、迁移或Repository事务语义的前提下
 
 - 唯一路由是`/projects/:projectId/story-bible`，由Project详情页“查看 Story Bible”链接进入，并支持生产构建直接刷新。
 - 路由参数必须是规范`prj_` ULID；非法值在任何网络请求前失败，既不自动修复也不回显原值。
-- 前端总路由保持六条：`/`、`/projects`、Project详情、Project历史、Project Story Bible和通配404。没有独立Story Bible ID页、历史页、编辑子路由或设置页。
+- 前端总路由保持七条：`/`、`/projects`、Project详情、Project历史、Project Story Bible、Project归属的Story Bible历史和通配404。没有独立Story Bible ID页、编辑子路由或设置页。
 
 ## 运行时契约与版本资源
 
@@ -51,4 +51,4 @@ GET不获取Security Session。POST/PUT先完成本地验证，再按需取得�
 
 Vitest专项覆盖严格契约、API协议、创建、编辑、冲突、路由和受控架构正负样例。`E2E-INT-012`使用真实production服务与迁移到0003的独立SQLite数据库，从UI创建Project和Story Bible v1，刷新、修订v2，经外部API形成v3，再由旧页面触发412、显式读取、保留草稿并手动保存v4；数据库验收确认一个Stable、四个不可变Revision、一个Head以及Project版本未变。
 
-当前没有Story Bible Revision列表或单Revision读取、历史页面、Diff、回滚、恢复、删除、归档、Character、World、PowerSystem、规划、三区、审批、Codex、Agent、Skill、Prompt或AI生成。后续能力必须由独立编号任务授权。
+DEV-2.6增加`/projects/:projectId/story-bible/history`只读页面。它先按Project取得Story Bible ID，再加载不含content的第一页摘要；点击后才读取单Revision正文，选择竞态使用Abort与generation保护，加载更多只传递不透明cursor。当前仍没有Diff、回滚、恢复、历史编辑、删除、归档、Character、World、PowerSystem、规划、三区、审批、Codex、Agent、Skill、Prompt或AI生成。详见[Story Bible不可变修订历史](STORY_BIBLE_REVISION_HISTORY.md)。

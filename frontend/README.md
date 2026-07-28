@@ -4,9 +4,9 @@
 
 ## 当前范围
 
-当前包含阶段 0 工程基础页、全局错误边界、真实 `SystemStatus`、DEV-1.7 的 `/projects` 列表与创建页面、DEV-1.8 的 `/projects/:projectId` 当前详情、完整修订和显式并发冲突流程、DEV-1.9 的 `/projects/:projectId/history` 只读不可变修订历史页面，以及DEV-2.5的`/projects/:projectId/story-bible`纯文本创建、读取、完整修订和显式并发冲突流程。Project与Story Bible前端使用类型化 API客户端、精确运行时响应校验、共享的内存 Security Session和强ETag编辑基线；创建POST与修订PUT均只发送一次且不自动重试。
+当前包含阶段 0 工程基础页、Project列表/详情/历史流程、DEV-2.5的`/projects/:projectId/story-bible`纯文本编辑流程，以及DEV-2.6的`/projects/:projectId/story-bible/history`不可变历史页。历史页先取得归属Story Bible ID，再按RevisionNumber降序加载摘要，正文只在显式选择后读取。Project与Story Bible前端使用类型化客户端和精确运行时响应校验；创建POST与修订PUT均只发送一次且不自动重试。
 
-前端没有用户登录、安全设置页、Project或Story Bible历史回滚/恢复/Diff/编辑/删除、归档/自动保存、规划、写作、评审、Codex 或其他创作功能。Project历史摘要不含 description，正文只在显式选择单个 Revision 后按需读取；cursor 和正文不进入浏览器存储。Story Bible没有Revision历史入口。本地 session 不是身份认证；CSRF、ETag和编辑草稿只保存在当前 JavaScript/React 内存，不写入 `localStorage` 或 `sessionStorage`，页面不显示安全令牌。Project和Story Bible管理可用不代表小说创作功能已经实现。
+前端没有用户登录、安全设置页、Project或Story Bible历史回滚/恢复/Diff/编辑/删除、归档/自动保存、规划、写作、评审、Codex 或其他创作功能。两类历史摘要均不含正文，正文只在显式选择单个Revision后按需读取；cursor和正文不进入浏览器存储或URL。GET历史不获取Security Session；CSRF、ETag和编辑草稿只保存在当前JavaScript/React内存。Project和Story Bible管理可用不代表小说创作功能已经实现。
 
 ## 环境要求
 
@@ -48,7 +48,7 @@ npm run e2e:report
 
 每个场景使用独立服务和数据库。可用 `npm run e2e:dev -- -Scenario E2E-DEV-001` 或 `npm run e2e:integrated -- -Scenario E2E-INT-003` 独立运行固定场景编号。
 
-当前16个 E2E 场景验收阶段0基础、Project API、`E2E-INT-008`真实Project前端创建/持久刷新/21项加载更多、`E2E-INT-009`详情读取与显式412冲突恢复、`E2E-INT-010`不可变历史逐项读取与20+1分页、`E2E-INT-011` Story Bible HTTP链路，以及`E2E-INT-012` Story Bible前端创建、刷新、完整修订和显式412冲突恢复；同时验证生产安全头、CSP、本地Session Cookie、浏览器无CSRF/cursor/ETag/草稿/正文持久数据和专用数据根清理。它不覆盖小说正文创作功能。
+当前17个E2E场景在原有工程、Project和Story Bible当前流程之外，以`E2E-INT-013`验证Story Bible不可变历史的21项降序20+1分页、按需正文、无历史Security Session、无浏览器持久化及真实数据库Head/Revision状态。它不覆盖小说正文创作功能。
 
 ## 本地命令
 

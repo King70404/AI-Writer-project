@@ -5,7 +5,12 @@ import {
   validateStoryBibleInput,
 } from "../validation";
 
-import type { StoryBibleResponse } from "./contracts";
+import type {
+  StoryBibleResponse,
+  StoryBibleRevisionHistoryItemResponse,
+  StoryBibleRevisionHistoryPageResponse,
+  StoryBibleRevisionResponse,
+} from "./contracts";
 
 export class StoryBibleContractError extends Error {
   public constructor() {
@@ -144,5 +149,177 @@ export function parseStoryBibleResponse(
     updated_at: updatedAt,
     revision_created_at: revisionCreatedAt,
     head_updated_at: headUpdatedAt,
+  };
+}
+
+const REVISION_HISTORY_ITEM_KEYS = [
+  "revision_id",
+  "revision_number",
+  "title",
+  "created_at",
+  "is_current",
+] as const;
+
+const REVISION_HISTORY_PAGE_KEYS = [
+  "story_bible_id",
+  "project_id",
+  "current_revision_number",
+  "items",
+  "next_cursor",
+  "has_more",
+] as const;
+
+const REVISION_KEYS = [
+  "story_bible_id",
+  "project_id",
+  "revision_id",
+  "revision_number",
+  "title",
+  "content",
+  "created_at",
+  "is_current",
+  "current_revision_number",
+] as const;
+
+function canonicalTitle(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    validateStoryBibleInput(value, "").some(
+      (error) => error.field === "title",
+    ) ||
+    normalizeStoryBibleTitle(value) !== value
+  ) {
+    throw new StoryBibleContractError();
+  }
+  return value;
+}
+
+function canonicalContent(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    validateStoryBibleInput("History", value).some(
+      (error) => error.field === "content",
+    ) ||
+    normalizeStoryBibleContent(value) !== value
+  ) {
+    throw new StoryBibleContractError();
+  }
+  return value;
+}
+
+function parseHistoryItem(
+  value: unknown,
+): StoryBibleRevisionHistoryItemResponse {
+  if (!isRecord(value) || !hasExactKeys(value, REVISION_HISTORY_ITEM_KEYS)) {
+    throw new StoryBibleContractError();
+  }
+  if (typeof value.is_current !== "boolean") {
+    throw new StoryBibleContractError();
+  }
+  return {
+    revision_id: requiredIdentifier(value.revision_id, "sbr"),
+    revision_number: requiredPositiveInteger(value.revision_number),
+    title: canonicalTitle(value.title),
+    created_at: requiredTimestamp(value.created_at),
+    is_current: value.is_current,
+  };
+}
+
+export function parseStoryBibleRevisionHistoryPageResponse(
+  value: unknown,
+  expectedStoryBibleId: string,
+  expectedProjectId: string,
+): StoryBibleRevisionHistoryPageResponse {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, REVISION_HISTORY_PAGE_KEYS) ||
+    !Array.isArray(value.items) ||
+    typeof value.has_more !== "boolean" ||
+    (value.next_cursor !== null &&
+      (typeof value.next_cursor !== "string" ||
+        value.next_cursor.length === 0 ||
+        value.next_cursor.length > 256 ||
+        !/^[\x20-\x7E]+$/u.test(value.next_cursor)))
+  ) {
+    throw new StoryBibleContractError();
+  }
+  const storyBibleId = requiredIdentifier(value.story_bible_id, "sbl");
+  const projectId = requiredIdentifier(value.project_id, "prj");
+  const currentRevisionNumber = requiredPositiveInteger(
+    value.current_revision_number,
+  );
+  if (
+    storyBibleId !== expectedStoryBibleId ||
+    projectId !== expectedProjectId ||
+    value.has_more !== (value.next_cursor !== null)
+  ) {
+    throw new StoryBibleContractError();
+  }
+  const items = value.items.map(parseHistoryItem);
+  const revisionIds = new Set<string>();
+  const revisionNumbers = new Set<number>();
+  for (const [index, item] of items.entries()) {
+    if (
+      revisionIds.has(item.revision_id) ||
+      revisionNumbers.has(item.revision_number) ||
+      (index > 0 && items[index - 1].revision_number <= item.revision_number) ||
+      item.is_current !== (item.revision_number === currentRevisionNumber)
+    ) {
+      throw new StoryBibleContractError();
+    }
+    revisionIds.add(item.revision_id);
+    revisionNumbers.add(item.revision_number);
+  }
+  if (items.length === 0 && value.has_more) {
+    throw new StoryBibleContractError();
+  }
+  return {
+    story_bible_id: storyBibleId,
+    project_id: projectId,
+    current_revision_number: currentRevisionNumber,
+    items,
+    next_cursor: value.next_cursor,
+    has_more: value.has_more,
+  };
+}
+
+export function parseStoryBibleRevisionResponse(
+  value: unknown,
+  expectedStoryBibleId: string,
+  expectedProjectId: string,
+  expectedRevisionNumber: number,
+): StoryBibleRevisionResponse {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, REVISION_KEYS) ||
+    typeof value.is_current !== "boolean"
+  ) {
+    throw new StoryBibleContractError();
+  }
+  const storyBibleId = requiredIdentifier(value.story_bible_id, "sbl");
+  const projectId = requiredIdentifier(value.project_id, "prj");
+  const revisionNumber = requiredPositiveInteger(value.revision_number);
+  const currentRevisionNumber = requiredPositiveInteger(
+    value.current_revision_number,
+  );
+  if (
+    storyBibleId !== expectedStoryBibleId ||
+    projectId !== expectedProjectId ||
+    revisionNumber !== expectedRevisionNumber ||
+    revisionNumber > currentRevisionNumber ||
+    value.is_current !== (revisionNumber === currentRevisionNumber)
+  ) {
+    throw new StoryBibleContractError();
+  }
+  return {
+    story_bible_id: storyBibleId,
+    project_id: projectId,
+    revision_id: requiredIdentifier(value.revision_id, "sbr"),
+    revision_number: revisionNumber,
+    title: canonicalTitle(value.title),
+    content: canonicalContent(value.content),
+    created_at: requiredTimestamp(value.created_at),
+    is_current: value.is_current,
+    current_revision_number: currentRevisionNumber,
   };
 }

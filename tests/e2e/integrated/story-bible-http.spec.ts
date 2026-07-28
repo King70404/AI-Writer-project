@@ -179,9 +179,17 @@ test("E2E-INT-011 exercises the Story Bible HTTP chain independently of its UI",
       })
     ).status(),
   ).toBe(405);
-  expect((await context.request.get(`${directPath}/revisions`)).status()).toBe(
-    404,
-  );
+  const immutableHistory = await context.request.get(`${directPath}/revisions`);
+  expect(immutableHistory.status()).toBe(200);
+  const immutableHistoryBody = (await immutableHistory.json()) as {
+    readonly items: readonly Readonly<Record<string, unknown>>[];
+  };
+  expect(
+    immutableHistoryBody.items.map((item) => item.revision_number),
+  ).toEqual([3, 2, 1]);
+  expect(
+    immutableHistoryBody.items.every((item) => !Object.hasOwn(item, "content")),
+  ).toBe(true);
   expect(
     (await context.request.get("/api/v1/story-bibles/not-a-route")).status(),
   ).toBe(422);

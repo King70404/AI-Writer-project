@@ -99,6 +99,8 @@ DEV-2.4只授权Story Bible HTTP传输边界：两个严格请求DTO、一个严
 
 DEV-2.5只授权React侧的`/projects/:projectId/story-bible`纯文本创建、当前读取、完整修订与显式并发冲突处理。GET不获取Session；POST/PUT只发送一次，不自动重试、重放、预读或合并；冲突与写结果未知必须保留草稿和旧基线，等待用户显式读取与选择。任务不改变后端、Schema、迁移或Repository，不授权Revision历史API/页面、删除/归档/恢复、Character、World、PowerSystem、规划、三区、审批、Codex或Agent；后续能力仍需独立编号任务授权。
 
+DEV-2.6只授权Story Bible不可变历史的专用Reader端口、普通只读SQLAlchemy适配器、降序RevisionNumber keyset分页、两条GET、严格DTO与`/projects/:projectId/story-bible/history`页面。列表不读content/total，正文只按需读取，历史GET不获取Session或CSRF，游标和正文不持久化。任务不改变Schema、0003、写Repository或当前编辑流程，不授权Diff、回滚、恢复、采用、历史编辑、删除或后续结构化/AI能力；DEV-2.7仍需独立编号任务授权。
+
 ## 统一执行报告
 
 任务报告至少包含：

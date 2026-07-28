@@ -10,6 +10,7 @@ export type StoryBibleApiErrorKind =
   | "security"
   | "project_not_found"
   | "story_bible_not_found"
+  | "story_bible_revision_not_found"
   | "story_bible_for_project_not_found"
   | "already_exists"
   | "conflict"
@@ -165,6 +166,9 @@ function apiErrorKind(error: ApiError): StoryBibleApiErrorKind {
   if (error.code === "STORY_BIBLE_NOT_FOUND") {
     return "story_bible_not_found";
   }
+  if (error.code === "STORY_BIBLE_REVISION_NOT_FOUND") {
+    return "story_bible_revision_not_found";
+  }
   if (error.code === "STORY_BIBLE_FOR_PROJECT_NOT_FOUND") {
     return "story_bible_for_project_not_found";
   }
@@ -203,6 +207,9 @@ function safeMessage(kind: StoryBibleApiErrorKind, code: string): string {
   }
   if (kind === "story_bible_not_found") {
     return "指定Story Bible不存在。";
+  }
+  if (kind === "story_bible_revision_not_found") {
+    return "指定的 Story Bible 修订不存在。";
   }
   if (kind === "story_bible_for_project_not_found") {
     return "该项目尚未创建Story Bible。";

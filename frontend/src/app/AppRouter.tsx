@@ -7,7 +7,10 @@ import {
 } from "../features/projects";
 import { FoundationPage } from "../pages/FoundationPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
-import { StoryBiblePage } from "../features/story-bible";
+import {
+  StoryBiblePage,
+  StoryBibleRevisionHistoryPage,
+} from "../features/story-bible";
 import { AppShell } from "./AppShell";
 
 export function AppRouter() {
@@ -24,6 +27,10 @@ export function AppRouter() {
         <Route
           path="projects/:projectId/story-bible"
           element={<StoryBiblePage />}
+        />
+        <Route
+          path="projects/:projectId/story-bible/history"
+          element={<StoryBibleRevisionHistoryPage />}
         />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

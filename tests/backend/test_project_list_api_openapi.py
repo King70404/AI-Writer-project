@@ -30,6 +30,11 @@ def test_route_inventory_contains_all_declared_business_routes(tmp_path: Path) -
         ("GET", "/api/v1/projects/{project_id}/story-bible"),
         ("GET", "/api/v1/story-bibles/{story_bible_id}"),
         ("PUT", "/api/v1/story-bibles/{story_bible_id}"),
+        ("GET", "/api/v1/story-bibles/{story_bible_id}/revisions"),
+        (
+            "GET",
+            "/api/v1/story-bibles/{story_bible_id}/revisions/{revision_number}",
+        ),
     }
 
 

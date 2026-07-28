@@ -5,7 +5,10 @@ from typing import Never
 from aiwebnovel.api.error_causes import has_database_driver_cause
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.domain.errors import ConcurrencyConflict, InvalidDomainIdentifier
-from aiwebnovel.story_bible.application.errors import StoryBibleForProjectNotFound
+from aiwebnovel.story_bible.application.errors import (
+    StoryBibleForProjectNotFound,
+    StoryBibleRevisionNotFound,
+)
 from aiwebnovel.story_bible.errors import (
     InvalidStoryBibleContent,
     InvalidStoryBibleTitle,
@@ -40,6 +43,39 @@ def invalid_story_bible_id() -> AppError:
         code="INVALID_STORY_BIBLE_ID",
         message="The Story Bible identifier is invalid.",
         status_code=422,
+    )
+
+
+def invalid_story_bible_revision_cursor() -> AppError:
+    return AppError(
+        code="INVALID_STORY_BIBLE_REVISION_CURSOR",
+        message="The Story Bible revision cursor is invalid.",
+        status_code=400,
+    )
+
+
+def invalid_story_bible_revision_history_request() -> AppError:
+    return AppError(
+        code="REQUEST_VALIDATION_ERROR",
+        message="The Story Bible revision-history request is invalid.",
+        status_code=422,
+    )
+
+
+def invalid_story_bible_revision_number() -> AppError:
+    return AppError(
+        code="INVALID_REVISION_NUMBER",
+        message="The revision number is invalid.",
+        status_code=422,
+    )
+
+
+def story_bible_history_service_unavailable() -> AppError:
+    return AppError(
+        code="STORY_BIBLE_HISTORY_SERVICE_UNAVAILABLE",
+        message="Story Bible revision history is unavailable.",
+        status_code=503,
+        retryable=True,
     )
 
 
@@ -87,6 +123,12 @@ def raise_story_bible_http_error(exc: Exception) -> Never:
         mapped = AppError(
             code="STORY_BIBLE_FOR_PROJECT_NOT_FOUND",
             message="The Project does not have a Story Bible.",
+            status_code=404,
+        )
+    elif isinstance(exc, StoryBibleRevisionNotFound):
+        mapped = AppError(
+            code="STORY_BIBLE_REVISION_NOT_FOUND",
+            message="The Story Bible revision was not found.",
             status_code=404,
         )
     elif isinstance(exc, StoryBibleProjectNotFound):
@@ -154,8 +196,12 @@ __all__ = [
     "invalid_if_match",
     "invalid_project_id",
     "invalid_story_bible_id",
+    "invalid_story_bible_revision_cursor",
+    "invalid_story_bible_revision_history_request",
+    "invalid_story_bible_revision_number",
     "precondition_required",
     "raise_story_bible_http_error",
+    "story_bible_history_service_unavailable",
     "story_bible_service_unavailable",
     "unsupported_media_type",
 ]

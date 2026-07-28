@@ -60,4 +60,4 @@ development/test OpenAPI登记四条Story Bible操作、`Story Bible`标签、�
 
 专项测试覆盖DTO、显式Mapper、错误、Router、安全、共享ETag、真实0003流程、双服务并发、未迁移数据库、OpenAPI和AST架构边界。`E2E-INT-011`通过真实production集成进程验证Project创建、Story Bible创建、两种GET、完整PUT、stale 412和安全写边界；`E2E-INT-012`从真实前端调用同一协议，验证POST一次、GET刷新、PUT完整替换和显式冲突恢复。
 
-当前Revision表继续由0003不可变触发器保护，但没有Revision列表或单Revision读取API。前端状态与安全契约见[Story Bible前端流程](STORY_BIBLE_FRONTEND.md)；该页面不把历史、结构化实体或AI能力声明为已完成。
+DEV-2.6另行增加`GET /api/v1/story-bibles/{story_bible_id}/revisions`与`GET /api/v1/story-bibles/{story_bible_id}/revisions/{revision_number}`。两者只读、`no-store`、无ETag、无Session/CSRF；列表使用Story Bible绑定的RevisionNumber keyset游标且不返回content或total，单Revision正文按需读取。production API因此精确为15条。历史DTO、Reader、错误和前端契约见[Story Bible不可变修订历史](STORY_BIBLE_REVISION_HISTORY.md)。

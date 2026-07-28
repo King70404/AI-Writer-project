@@ -258,7 +258,7 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
   expect(page.url()).not.toMatch(/etag|csrf|token|content|draft/iu);
   await expect(
     page.getByRole("link", {
-      name: /历史|Character|World|Power|删除|归档|恢复/iu,
+      name: /Character|World|Power|删除|归档|恢复|回滚|Diff/iu,
     }),
   ).toHaveCount(0);
   expectCleanBrowserAudit(browserAudit);
