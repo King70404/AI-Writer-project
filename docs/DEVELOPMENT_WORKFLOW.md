@@ -117,6 +117,10 @@ DEV-3.2只授权Character内部持久化基础：一Project对多Character的稳
 
 DEV-3.2不授权应用服务、DTO、HTTP API、组合根接线、前端、角色列表、历史列表、关系、结构化属性、World、PowerSystem、规划、章节、三区、审批、Codex、Agent或AI生成。内部三表与Repository不能作为用户功能完成证据；DEV-3.3仍需独立编号任务授权。
 
+DEV-3.3只授权Character纯应用命令、当前按ID读取、按Project稳定列表读取、不可变Snapshot/Page/Position、独立只读List Reader端口与SQLAlchemy投影适配器。列表固定按创建时间和Character ID降序执行Project绑定复合Keyset，最多两个业务SELECT，不使用COUNT、OFFSET或profile；命令服务不预读，创建与修订各只调用一次写Repository。
+
+DEV-3.3不改变Schema、迁移、写Repository事务语义、production API、前端路由或功能真实性矩阵，也不授权DTO、HTTP、组合根接线、前端、Revision历史、关系、结构化属性、World、PowerSystem、规划、章节、三区、审批、Codex、Agent或AI生成。DEV-3.4仍需独立编号任务授权。
+
 ## 统一执行报告
 
 任务报告至少包含：

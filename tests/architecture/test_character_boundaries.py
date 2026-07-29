@@ -1,5 +1,8 @@
 """Controlled positive and negative tests for Character AST boundaries."""
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -62,6 +65,103 @@ def test_checker_accepts_repository_contract_and_persistence_dependencies(
     )
 
     assert check_character_boundaries(package_root) == ()
+
+
+def test_checker_accepts_declared_application_and_list_reader_dependencies(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "character/application/services.py",
+        "from aiwebnovel.character.repository import CharacterRepository\n"
+        "from aiwebnovel.character.application.list_reader import CharacterListReader\n"
+        "from aiwebnovel.domain.time import Clock\n"
+        "from aiwebnovel.project.identifiers import ProjectId\n",
+    )
+    _write_module(
+        package_root,
+        "character/persistence/list_reader.py",
+        "from sqlalchemy.orm import Session\n"
+        "from aiwebnovel.character.application.models import CharacterListPage\n"
+        "from aiwebnovel.db.session import create_database_session_factory\n"
+        "from aiwebnovel.project.persistence.models import ProjectRecord\n",
+    )
+
+    assert check_character_boundaries(package_root) == ()
+
+
+@pytest.mark.parametrize(
+    ("source", "rule"),
+    [
+        (
+            "from sqlalchemy.orm import Session\n",
+            "character-application-must-use-declared-dependencies",
+        ),
+        (
+            "from fastapi import APIRouter\n",
+            "character-application-must-use-declared-dependencies",
+        ),
+        (
+            "from pydantic import BaseModel\n",
+            "character-application-must-use-declared-dependencies",
+        ),
+        (
+            "from aiwebnovel.character.persistence.repository import "
+            "SqlAlchemyCharacterRepository\n",
+            "character-application-must-not-import-persistence",
+        ),
+        (
+            "from aiwebnovel.character.persistence.list_reader import "
+            "SqlAlchemyCharacterListReader\n",
+            "character-application-must-not-import-persistence",
+        ),
+        (
+            "from aiwebnovel.story_bible import StoryBibleId\n",
+            "character-application-must-use-declared-dependencies",
+        ),
+    ],
+)
+def test_checker_detects_forbidden_application_imports(
+    tmp_path: Path,
+    source: str,
+    rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "character/application/services.py", source)
+
+    violations = check_character_boundaries(package_root)
+
+    assert len(violations) == 1
+    assert violations[0].rule == rule
+
+
+def test_checker_rejects_non_list_adapter_importing_application(tmp_path: Path) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "character/persistence/repository.py",
+        "from aiwebnovel.character.application.models import CharacterSnapshot\n",
+    )
+
+    violations = check_character_boundaries(package_root)
+
+    assert len(violations) == 1
+    assert violations[0].rule == "only-character-list-reader-may-import-application"
+
+
+def test_checker_rejects_persistence_list_reader_importing_web(tmp_path: Path) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "character/persistence/list_reader.py",
+        "from aiwebnovel.character.web import router\n",
+    )
+
+    violations = check_character_boundaries(package_root)
+
+    assert len(violations) == 1
+    assert violations[0].rule == "character-persistence-must-not-import-web"
 
 
 @pytest.mark.parametrize(
@@ -190,7 +290,7 @@ def test_checker_detects_forbidden_parallel_package_names(
     assert violations[0].rule == "character-package-name-must-be-singular"
 
 
-@pytest.mark.parametrize("layer", ["application", "dto.py", "history", "listing", "web"])
+@pytest.mark.parametrize("layer", ["dto.py", "history", "listing", "web"])
 def test_checker_detects_unauthorized_later_character_layers(
     tmp_path: Path,
     layer: str,
@@ -217,6 +317,47 @@ def test_checker_rejects_fake_repository_in_production(tmp_path: Path) -> None:
 
     assert len(violations) == 1
     assert violations[0].rule == "fake-character-repository-must-remain-in-tests"
+
+
+def test_application_and_list_reader_imports_have_no_runtime_or_schema_side_effects(
+    tmp_path: Path,
+) -> None:
+    script = (
+        "import json, pathlib, sys\n"
+        "from aiwebnovel.db.model_registry import load_model_metadata\n"
+        "before = sorted(load_model_metadata().tables)\n"
+        "before_modules = set(sys.modules)\n"
+        "import aiwebnovel.character.application\n"
+        "import aiwebnovel.character.persistence.list_reader\n"
+        "after = sorted(load_model_metadata().tables)\n"
+        "forbidden = sorted(name for name in set(sys.modules) - before_modules if "
+        "name.startswith(('aiwebnovel.character.persistence.repository', "
+        "'aiwebnovel.character.web', 'aiwebnovel.main', 'aiwebnovel.storage', "
+        "'fastapi')))\n"
+        "files = sorted(path.as_posix() for path in pathlib.Path('.').rglob('*') "
+        "if path.is_file())\n"
+        "print(json.dumps({'before': before, 'after': after, "
+        "'forbidden': forbidden, 'files': files}))\n"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env=os.environ.copy(),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    evidence = completed.stdout.strip()
+    expected_tables = (
+        '["character_heads", "character_revisions", "characters", '
+        '"project_heads", "project_revisions", "projects", '
+        '"story_bible_heads", "story_bible_revisions", "story_bibles"]'
+    )
+    assert f'"before": {expected_tables}' in evidence
+    assert f'"after": {expected_tables}' in evidence
+    assert '"forbidden": []' in evidence
+    assert '"files": []' in evidence
 
 
 def test_violation_render_is_relative_and_does_not_leak_source(tmp_path: Path) -> None:

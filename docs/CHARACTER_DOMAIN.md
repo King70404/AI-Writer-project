@@ -1,6 +1,6 @@
 # Character纯领域模型
 
-本文档记录DEV-3.1建立的`aiwebnovel.character`内部领域契约。DEV-3.2已在该纯领域之外围建立三表持久化和事务Repository，但没有改变本文件的身份、不可变Revision和乐观并发规则；当前仍没有Character应用服务、HTTP API、前端入口或用户可见能力。
+本文档记录DEV-3.1建立的`aiwebnovel.character`内部领域契约。DEV-3.2已在该纯领域之外围建立三表持久化和事务Repository，DEV-3.3又建立纯应用用例与只读稳定列表投影；二者都没有改变本文件的身份、不可变Revision和乐观并发规则。当前仍没有Character HTTP API、前端入口、Revision历史或用户可见能力。
 
 ## 模块职责与归属
 
@@ -89,16 +89,17 @@ Character纯领域生产代码只允许导入标准库、`aiwebnovel.domain`、�
 
 ## 当前限制与下一步
 
-DEV-3.2现已建立：
+DEV-3.3现已在不改变领域规则的前提下建立：
 
 - Character稳定对象、不可变Revision与权威Head三表；
 - 迁移0004、非唯一Project索引与Revision不可变触发器；
 - 纯Repository契约、显式Mapper和事务SQLAlchemy适配器。
+- 原语应用命令、当前Snapshot、Get查询和按Project的无profile稳定列表投影。
 
 当前明确没有：
 
-- Character应用服务、DTO、API或前端；
-- 角色列表、关系、关系图、头像、附件或结构化属性；
+- Character DTO、API、组合根接线或前端；
+- Character Revision历史、关系、关系图、头像、附件或结构化属性；
 - World、PowerSystem、规划、章节、三区、审批、Codex、Agent或AI生成。
 
-持久化细节见[Character持久化基础](CHARACTER_PERSISTENCE.md)。DEV-3.3仍需新的明确任务授权；DEV-3.2不得被视为应用、API或用户能力完成证据。
+持久化细节见[Character持久化基础](CHARACTER_PERSISTENCE.md)，应用层见[Character应用用例](CHARACTER_APPLICATION.md)。DEV-3.3内部用例不得被视为API、页面或用户能力完成证据；DEV-3.4仍需新的明确任务授权。

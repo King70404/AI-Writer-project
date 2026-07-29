@@ -1,6 +1,6 @@
 # AIWebNovel 后端
 
-本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层、已通过M2正式验收的Story Bible闭环，以及阶段3的Character纯领域与事务持久化基础。目前提供六个Project业务接口、六个Story Bible业务接口、稳定Keyset历史读取、严格DTO、ETag/If-Match写并发协议、安全错误映射和显式组合根装配。Character当前已有三表、迁移0004和内部Repository，但没有应用服务、API或用户入口；World、PowerSystem、规划、章节写作、Codex和Agent也未实现。
+本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层、已通过M2正式验收的Story Bible闭环，以及阶段3的Character领域、事务持久化与纯应用用例。目前提供六个Project业务接口、六个Story Bible业务接口、稳定Keyset历史读取、严格DTO、ETag/If-Match写并发协议、安全错误映射和显式组合根装配。Character当前已有三表、迁移0004、内部Repository、Create/Revise/Get应用服务，以及按Project的只读稳定列表投影，但没有API、组合根接线、前端或用户入口；World、PowerSystem、规划、章节写作、Codex和Agent也未实现。
 
 当前没有用户账号或登录、Project历史写入/回滚/恢复/删除接口、搜索、筛选、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；详情、列表与历史GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
 
@@ -14,7 +14,9 @@ Project模块已拥有`prj`和`prv`两种固定业务ID；Story Bible拥有`sbl`
 
 `src/aiwebnovel/character/`的领域部分只依赖标准库、通用`domain`、自身领域模块和`project.identifiers.ProjectId`。它定义稳定Character、不可变完整CharacterRevision、权威CharacterHead、一致Aggregate、name/role/profile值对象，以及无副作用的初始创建和Revision追加转换。stale检查优先于时钟回退与重复Revision ID；成功追加完整替换三个角色卡字段且不修改旧对象。
 
-纯Python `CharacterRepository` Protocol只公开create/get/append；`character/persistence/`拥有三个显式Record、Mapper、固定查询和SQLAlchemy事务适配器。迁移`0004_create_character_foundation`建立一Project对多Character、非唯一归属索引、Head复合所有权外键和拒绝Revision UPDATE/DELETE的触发器。Repository以独立Session、`BEGIN IMMEDIATE`、Stable与Head双CAS保证原子性，只读Project存在性且不写Project表。当前没有Character应用、HTTP或前端；完整契约见[Character纯领域模型](../docs/CHARACTER_DOMAIN.md)和[Character持久化基础](../docs/CHARACTER_PERSISTENCE.md)。
+纯Python `CharacterRepository` Protocol只公开create/get/append；`character/persistence/`拥有三个显式Record、Mapper、固定查询和SQLAlchemy事务适配器。迁移`0004_create_character_foundation`建立一Project对多Character、非唯一归属索引、Head复合所有权外键和拒绝Revision UPDATE/DELETE的触发器。Repository以独立Session、`BEGIN IMMEDIATE`、Stable与Head双CAS保证原子性，只读Project存在性且不写Project表。
+
+`character/application/`定义不可变Create/Revise命令、Get/List查询、脱离ORM的当前Snapshot、无profile列表摘要、Project绑定复合Keyset位置和命令/查询服务。独立`CharacterListReader`端口与写Repository分离；SQLAlchemy列表适配器每页最多执行Project存在性与当前Head投影两个SELECT，不使用COUNT、OFFSET或profile列。当前仍没有Character HTTP、组合根接线或前端；完整契约见[Character纯领域模型](../docs/CHARACTER_DOMAIN.md)、[Character持久化基础](../docs/CHARACTER_PERSISTENCE.md)和[Character应用用例](../docs/CHARACTER_APPLICATION.md)。
 
 ## Story Bible领域、持久化与应用契约
 

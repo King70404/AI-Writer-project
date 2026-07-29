@@ -202,6 +202,10 @@ DEV-3.2持久化专项覆盖精确九表Metadata、三种Character ORM Record、
 
 DEV-3.2架构门禁区分纯领域、纯Repository契约和SQLAlchemy适配器：只有`character.persistence`可以依赖SQLAlchemy、通用DB适配层及只读Project Record；领域和契约不得导入具体适配器，Project、Story Bible和通用模块不得反向依赖Character。专项数据库必须迁移到0004并位于任务专属TEMP/TMP，结束后数据库、WAL、SHM和journal必须为0。
 
+DEV-3.3应用专项覆盖不可变原语命令/查询、当前Snapshot、无profile列表摘要、Project绑定复合Position、严格Page不变量、显式Mapper、命令副作用顺序、Factory精确类型、写Repository与只读Reader单次调用、Project不存在与空列表区别、两SELECT上限、无COUNT/OFFSET/profile、Head权威、21个以上同时间Character稳定分页、真实应用流程和双Command Service并发。新增Character应用与列表读取生产代码要求statements不低于95%、branches不低于90%；命令、查询、模型与纯Mapper原则上statements为100%、branches不低于95%。专项结果不能替代默认、IncludeE2E及依赖审计加IncludeE2E三种完整门禁。
+
+DEV-3.3架构门禁允许应用层依赖Character领域、写Repository契约和纯List Reader端口，但拒绝SQLAlchemy、具体Repository/List Reader、FastAPI、Pydantic、Story Bible与前端。只有`character.persistence.list_reader`可以反向实现应用列表端口；写Repository、领域、Project和Story Bible不得反向依赖Character应用层。导入应用与列表适配器不得连接数据库、创建文件、运行迁移、注册路由或改变九表Metadata。
+
 ## 显式格式化
 
 格式化不是质量门禁的隐式步骤。需要改写格式时，在仓库根目录显式运行：
