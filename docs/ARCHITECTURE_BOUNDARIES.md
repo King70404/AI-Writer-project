@@ -111,13 +111,13 @@ UI组件不得直接调用裸`fetch`、读取Cookie、获取或硬编码CSRF、�
 
 Story Bible前端固定在`frontend/src/features/story-bible`。API → hook → component → page → Router保持单向依赖；组件不得裸调用`fetch`或读取Cookie。历史页URL只含Project ID，游标保持不透明且不进入URL/存储/日志，摘要不含content，正文按需GET并可取消旧选择请求。GET不获取Session；POST/PUT均只发送一次且不自动重试或重放。当前没有Diff、回滚、恢复、历史编辑、Character/World/PowerSystem结构或Codex能力。详细契约见[Story Bible不可变修订历史](STORY_BIBLE_REVISION_HISTORY.md)。
 
-## 阶段3 Character纯领域模块
+## 阶段3 Character领域与持久化模块
 
 `character.identifiers`、`character.values`、`character.entities`、领域错误和`character.transitions`组成DEV-3.1的纯领域边界。允许依赖Python标准库、通用`domain`、Character自身模块和`project.identifiers.ProjectId`；依赖方向固定为`Character Domain → ProjectId`。ProjectId只表达稳定归属，Character不得读取或修改Project状态、验证Project存在性或导入Project实体、Repository、应用、持久化或Web层。
 
-Character不属于Story Bible内部，也不得依赖`aiwebnovel.story_bible`。Project、Story Bible和通用`domain`均不得反向导入Character。AST门禁解析真实绝对与相对导入，并以受控非法样例拒绝SQLAlchemy、Alembic、FastAPI、Pydantic、通用基础设施、Project非标识层、Story Bible、反向依赖及并存包名。
+Character不属于Story Bible内部，也不得依赖`aiwebnovel.story_bible`。Project、Story Bible和通用`domain`均不得反向导入Character。纯`CharacterRepository`契约只暴露create/get/append；`character.persistence`单独拥有三个Record、Mapper、查询和SQLAlchemy事务适配器，可只读Project Record验证归属存在，但不得导入Project Repository、应用或Web层。
 
-当前Character只包含`chr`/`crv`标识、name/role/profile值、稳定对象、不可变完整Revision、权威Head、一致Aggregate与无副作用创建/追加转换。没有Character表、迁移、ORM、Repository、应用服务、DTO、API、前端、角色列表、关系或结构化属性。详细契约见[Character纯领域模型](CHARACTER_DOMAIN.md)。
+迁移0004建立一Project对多Character、不可变完整Revision和权威Head三表。事务适配器使用独立Session、`BEGIN IMMEDIATE`与Stable/Head双CAS；创建只读Project存在性，不写Project表。AST门禁继续解析真实绝对与相对导入，并以受控非法样例保护领域、契约和适配器边界。当前没有Character应用服务、DTO、API、前端、角色列表、关系或结构化属性。详细契约见[Character纯领域模型](CHARACTER_DOMAIN.md)和[Character持久化基础](CHARACTER_PERSISTENCE.md)。
 
 ## 所有权与跨模块规则
 

@@ -17,6 +17,7 @@ _REVERSE_ROOTS = (
 _FORBIDDEN_PACKAGE_NAMES = frozenset(
     {"cast", "character_card", "character_cards", "characters", "person", "persona"}
 )
+_FORBIDDEN_CHARACTER_LAYERS = frozenset({"application", "dto", "history", "listing", "web"})
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -123,11 +124,60 @@ def _is_module_or_child(module_name: str, parent: str) -> bool:
 
 
 def _character_dependency_violation(
+    source: str,
     target: str,
 ) -> tuple[str, str] | None:
     target_root = target.partition(".")[0]
     if target_root in _STANDARD_LIBRARY_ROOTS:
         return None
+    if _is_module_or_child(source, "aiwebnovel.character.persistence"):
+        if (
+            _is_module_or_child(target, _CHARACTER_ROOT)
+            or _is_module_or_child(target, "aiwebnovel.domain")
+            or _is_module_or_child(target, "aiwebnovel.db")
+            or target == "aiwebnovel.project.identifiers"
+            or target == "aiwebnovel.project.persistence.models"
+            or _is_module_or_child(target, "sqlalchemy")
+        ):
+            return None
+        if _is_module_or_child(target, "aiwebnovel.story_bible"):
+            return (
+                "character-persistence-must-not-import-story-bible",
+                "Character persistence must not access Story Bible",
+            )
+        if _is_module_or_child(target, "aiwebnovel.project"):
+            return (
+                "character-persistence-may-only-read-project-model",
+                "Character persistence may only read the Project ownership record",
+            )
+        return (
+            "character-persistence-must-use-declared-dependencies",
+            "Character persistence may use only its declared database adapters",
+        )
+    if source == "aiwebnovel.character.repository":
+        if _is_module_or_child(target, "aiwebnovel.character.persistence"):
+            return (
+                "character-repository-contract-must-be-framework-independent",
+                "CharacterRepository must not import a concrete persistence adapter",
+            )
+        if (
+            _is_module_or_child(target, _CHARACTER_ROOT)
+            or _is_module_or_child(target, "aiwebnovel.domain")
+            or target == "aiwebnovel.project.identifiers"
+        ):
+            return None
+        return (
+            "character-repository-contract-must-be-framework-independent",
+            "CharacterRepository may depend only on pure Character contracts",
+        )
+    if (
+        _is_module_or_child(target, "aiwebnovel.character.persistence")
+        or target == "aiwebnovel.character.repository"
+    ):
+        return (
+            "character-domain-must-not-import-persistence",
+            "Character domain must not depend on persistence or Repository contracts",
+        )
     if (
         _is_module_or_child(target, _CHARACTER_ROOT)
         or _is_module_or_child(target, "aiwebnovel.domain")
@@ -158,7 +208,10 @@ def check_character_boundaries(
     for reference in _import_references(package_root):
         result: tuple[str, str] | None = None
         if _is_module_or_child(reference.source_module, _CHARACTER_ROOT):
-            result = _character_dependency_violation(reference.target_module)
+            result = _character_dependency_violation(
+                reference.source_module,
+                reference.target_module,
+            )
         elif any(
             _is_module_or_child(reference.source_module, reverse_root)
             for reverse_root in _REVERSE_ROOTS
@@ -188,4 +241,35 @@ def check_character_boundaries(
                     message="Character production code must use only aiwebnovel.character",
                 )
             )
+
+    character_root = package_root / "character"
+    if character_root.exists():
+        for child in sorted(character_root.iterdir()):
+            if child.stem in _FORBIDDEN_CHARACTER_LAYERS:
+                violations.append(
+                    CharacterArchitectureViolation(
+                        path=child,
+                        line=1,
+                        rule="character-persistence-task-must-not-add-later-layers",
+                        message=(
+                            "Character application, history, DTO, and Web layers "
+                            "require later task authorization"
+                        ),
+                    )
+                )
+        for source_file in sorted(character_root.rglob("*.py")):
+            tree = ast.parse(
+                source_file.read_text(encoding="utf-8"),
+                filename=str(source_file),
+            )
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef) and node.name.startswith("Fake"):
+                    violations.append(
+                        CharacterArchitectureViolation(
+                            path=source_file,
+                            line=node.lineno,
+                            rule="fake-character-repository-must-remain-in-tests",
+                            message="Fake Character adapters must not enter production code",
+                        )
+                    )
     return tuple(sorted(set(violations)))

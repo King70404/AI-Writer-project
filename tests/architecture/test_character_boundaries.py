@@ -41,6 +41,29 @@ def test_checker_accepts_declared_character_dependencies(tmp_path: Path) -> None
     assert check_character_boundaries(package_root) == ()
 
 
+def test_checker_accepts_repository_contract_and_persistence_dependencies(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "character/repository.py",
+        "from typing import Protocol\n"
+        "from aiwebnovel.character.entities import CharacterAggregate\n"
+        "from aiwebnovel.domain.time import Clock\n",
+    )
+    _write_module(
+        package_root,
+        "character/persistence/repository.py",
+        "from sqlalchemy.orm import Session\n"
+        "from aiwebnovel.character.repository import CharacterRepository\n"
+        "from aiwebnovel.db.session import create_database_session_factory\n"
+        "from aiwebnovel.project.persistence.models import ProjectRecord\n",
+    )
+
+    assert check_character_boundaries(package_root) == ()
+
+
 @pytest.mark.parametrize(
     ("source", "rule"),
     [
@@ -64,6 +87,10 @@ def test_checker_accepts_declared_character_dependencies(tmp_path: Path) -> None
             "from aiwebnovel.core.config import Settings\n",
             "character-must-use-declared-dependencies",
         ),
+        (
+            "from aiwebnovel.character.persistence.models import CharacterRecord\n",
+            "character-domain-must-not-import-persistence",
+        ),
     ],
 )
 def test_checker_detects_forbidden_character_imports(
@@ -73,6 +100,57 @@ def test_checker_detects_forbidden_character_imports(
 ) -> None:
     package_root = _fixture_package(tmp_path)
     _write_module(package_root, "character/entities.py", source)
+
+    violations = check_character_boundaries(package_root)
+
+    assert len(violations) == 1
+    assert violations[0].rule == rule
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "source", "rule"),
+    [
+        (
+            "character/repository.py",
+            "from sqlalchemy.orm import Session\n",
+            "character-repository-contract-must-be-framework-independent",
+        ),
+        (
+            "character/repository.py",
+            "from aiwebnovel.character.persistence.repository import "
+            "SqlAlchemyCharacterRepository\n",
+            "character-repository-contract-must-be-framework-independent",
+        ),
+        (
+            "character/persistence/repository.py",
+            "from fastapi import APIRouter\n",
+            "character-persistence-must-use-declared-dependencies",
+        ),
+        (
+            "character/persistence/repository.py",
+            "from pydantic import BaseModel\n",
+            "character-persistence-must-use-declared-dependencies",
+        ),
+        (
+            "character/persistence/repository.py",
+            "from aiwebnovel.project.repository import ProjectRepository\n",
+            "character-persistence-may-only-read-project-model",
+        ),
+        (
+            "character/persistence/repository.py",
+            "from aiwebnovel.story_bible.persistence.models import StoryBibleRecord\n",
+            "character-persistence-must-not-import-story-bible",
+        ),
+    ],
+)
+def test_checker_detects_forbidden_repository_and_persistence_imports(
+    tmp_path: Path,
+    relative_path: str,
+    source: str,
+    rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, relative_path, source)
 
     violations = check_character_boundaries(package_root)
 
@@ -110,6 +188,35 @@ def test_checker_detects_forbidden_parallel_package_names(
 
     assert len(violations) == 1
     assert violations[0].rule == "character-package-name-must-be-singular"
+
+
+@pytest.mark.parametrize("layer", ["application", "dto.py", "history", "listing", "web"])
+def test_checker_detects_unauthorized_later_character_layers(
+    tmp_path: Path,
+    layer: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    relative_path = f"character/{layer}/__init__.py" if "." not in layer else f"character/{layer}"
+    _write_module(package_root, relative_path, "VALUE = 1\n")
+
+    violations = check_character_boundaries(package_root)
+
+    assert len(violations) == 1
+    assert violations[0].rule == ("character-persistence-task-must-not-add-later-layers")
+
+
+def test_checker_rejects_fake_repository_in_production(tmp_path: Path) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "character/persistence/fakes.py",
+        "class FakeCharacterRepository:\n    pass\n",
+    )
+
+    violations = check_character_boundaries(package_root)
+
+    assert len(violations) == 1
+    assert violations[0].rule == "fake-character-repository-must-remain-in-tests"
 
 
 def test_violation_render_is_relative_and_does_not_leak_source(tmp_path: Path) -> None:

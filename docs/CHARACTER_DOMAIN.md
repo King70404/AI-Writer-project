@@ -1,6 +1,6 @@
 # Character纯领域模型
 
-本文档记录DEV-3.1建立的`aiwebnovel.character`内部领域契约。它只证明Character的身份、不可变Revision和乐观并发规则已经形成；当前没有Character数据库表、Repository、应用服务、HTTP API、前端入口或用户可见能力。
+本文档记录DEV-3.1建立的`aiwebnovel.character`内部领域契约。DEV-3.2已在该纯领域之外围建立三表持久化和事务Repository，但没有改变本文件的身份、不可变Revision和乐观并发规则；当前仍没有Character应用服务、HTTP API、前端入口或用户可见能力。
 
 ## 模块职责与归属
 
@@ -83,17 +83,22 @@ profile
 
 值错误分别为`InvalidCharacterName`、`InvalidCharacterRole`和`InvalidCharacterProfile`；损坏状态为`InvalidCharacterState`；标识符复用`InvalidDomainIdentifier`；并发复用`ConcurrencyConflict`；时间遵循共享UTC政策。错误不包含HTTP状态、API错误码、数据库、SQL、路径、对象repr或角色卡正文。
 
-Character生产代码只允许导入标准库、`aiwebnovel.domain`、自身模块和`aiwebnovel.project.identifiers.ProjectId`。AST门禁拒绝SQLAlchemy、Alembic、FastAPI、Pydantic、通用基础设施、Project实体/Repository/Application/Persistence/Web、Story Bible及反向依赖，并阻止`characters`、`character_card`、`character_cards`、`person`、`persona`和`cast`等并存生产包。
+Character纯领域生产代码只允许导入标准库、`aiwebnovel.domain`、自身领域模块和`aiwebnovel.project.identifiers.ProjectId`。Repository契约同样保持纯Python；SQLAlchemy只允许隔离在`character.persistence`。AST门禁拒绝领域反向导入持久化、框架或基础设施，拒绝Project实体/Repository/Application/Web、Story Bible及反向依赖，并阻止`characters`、`character_card`、`character_cards`、`person`、`persona`和`cast`等并存生产包。
 
 导入`aiwebnovel.character`不会连接或创建数据库、读取数据根、创建目录、注册路由、调用Clock、生成ID、修改Project/Story Bible状态或改变正式Metadata。
 
 ## 当前限制与下一步
 
+DEV-3.2现已建立：
+
+- Character稳定对象、不可变Revision与权威Head三表；
+- 迁移0004、非唯一Project索引与Revision不可变触发器；
+- 纯Repository契约、显式Mapper和事务SQLAlchemy适配器。
+
 当前明确没有：
 
-- Character数据库表、索引、触发器或迁移；
-- Character Repository、应用服务、DTO、API或前端；
+- Character应用服务、DTO、API或前端；
 - 角色列表、关系、关系图、头像、附件或结构化属性；
 - World、PowerSystem、规划、章节、三区、审批、Codex、Agent或AI生成。
 
-DEV-3.2预期只在新的明确任务授权下建立Character持久化基础；它不得通过本领域文档被视为已授权，也不得改写本任务的不可变Revision和模块依赖契约。
+持久化细节见[Character持久化基础](CHARACTER_PERSISTENCE.md)。DEV-3.3仍需新的明确任务授权；DEV-3.2不得被视为应用、API或用户能力完成证据。

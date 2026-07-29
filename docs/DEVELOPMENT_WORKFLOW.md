@@ -113,6 +113,10 @@ DEV-3.1只授权`aiwebnovel.character`纯领域层：`chr`/`crv`规范标识、P
 
 DEV-3.1不授权Character表、迁移、ORM、Repository、应用服务、DTO、API、前端、列表、关系、结构化年龄/性别/能力、World、PowerSystem、规划、章节、三区、审批、Codex、Agent或AI生成。内部领域对象不能作为用户功能完成证据；DEV-3.2只有在独立任务明确授权后才能建立其规定范围。
 
+DEV-3.2只授权Character内部持久化基础：一Project对多Character的稳定表、不可变完整Revision表、权威Head表、迁移0004、显式ORM/Mapper、纯Repository Protocol和基于独立Session、`BEGIN IMMEDIATE`、Stable/Head双CAS的事务适配器。跨模块只允许读取Project存在性，不得写Project表。同一Project允许多个同名Character。
+
+DEV-3.2不授权应用服务、DTO、HTTP API、组合根接线、前端、角色列表、历史列表、关系、结构化属性、World、PowerSystem、规划、章节、三区、审批、Codex、Agent或AI生成。内部三表与Repository不能作为用户功能完成证据；DEV-3.3仍需独立编号任务授权。
+
 ## 统一执行报告
 
 任务报告至少包含：

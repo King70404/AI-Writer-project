@@ -461,7 +461,8 @@ def test_application_package_import_has_no_runtime_or_schema_side_effects(
 
     evidence = completed.stdout.strip()
     expected_tables = (
-        '["project_heads", "project_revisions", "projects", '
+        '["character_heads", "character_revisions", "characters", '
+        '"project_heads", "project_revisions", "projects", '
         '"story_bible_heads", "story_bible_revisions", "story_bibles"]'
     )
     assert f'"before": {expected_tables}' in evidence
@@ -499,7 +500,8 @@ def test_web_package_import_has_no_runtime_or_schema_side_effects(
 
     evidence = completed.stdout.strip()
     expected_tables = (
-        '["project_heads", "project_revisions", "projects", '
+        '["character_heads", "character_revisions", "characters", '
+        '"project_heads", "project_revisions", "projects", '
         '"story_bible_heads", "story_bible_revisions", "story_bibles"]'
     )
     assert f'"before": {expected_tables}' in evidence

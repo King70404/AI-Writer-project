@@ -12,11 +12,23 @@ STORY_BIBLE_TABLE_NAMES = frozenset(
         "story_bible_heads",
     }
 )
-BUSINESS_TABLE_NAMES = PROJECT_TABLE_NAMES | STORY_BIBLE_TABLE_NAMES
+CHARACTER_TABLE_NAMES = frozenset(
+    {
+        "characters",
+        "character_revisions",
+        "character_heads",
+    }
+)
+BUSINESS_TABLE_NAMES = PROJECT_TABLE_NAMES | STORY_BIBLE_TABLE_NAMES | CHARACTER_TABLE_NAMES
 
 
 def load_model_metadata() -> MetaData:
     """Load the explicit model set without connecting to or migrating a database."""
+    from aiwebnovel.character.persistence.models import (
+        CharacterHeadRecord,
+        CharacterRecord,
+        CharacterRevisionRecord,
+    )
     from aiwebnovel.project.persistence.models import (
         ProjectHeadRecord,
         ProjectRecord,
@@ -35,6 +47,9 @@ def load_model_metadata() -> MetaData:
         StoryBibleRecord,
         StoryBibleRevisionRecord,
         StoryBibleHeadRecord,
+        CharacterRecord,
+        CharacterRevisionRecord,
+        CharacterHeadRecord,
     )
     if any(record.metadata is not Base.metadata for record in registered_records):
         raise RuntimeError("Registered models must use the shared database metadata")

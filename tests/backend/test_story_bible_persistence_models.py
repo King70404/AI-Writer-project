@@ -5,6 +5,7 @@ from sqlalchemy import inspect
 from aiwebnovel.db.base import Base
 from aiwebnovel.db.model_registry import (
     BUSINESS_TABLE_NAMES,
+    CHARACTER_TABLE_NAMES,
     STORY_BIBLE_TABLE_NAMES,
     load_model_metadata,
 )
@@ -15,7 +16,7 @@ from aiwebnovel.story_bible.persistence.models import (
 )
 
 
-def test_registry_contains_exactly_project_and_story_bible_tables() -> None:
+def test_registry_contains_exactly_authorized_business_tables() -> None:
     metadata = load_model_metadata()
 
     assert metadata is Base.metadata
@@ -24,6 +25,9 @@ def test_registry_contains_exactly_project_and_story_bible_tables() -> None:
         frozenset({"story_bibles", "story_bible_revisions", "story_bible_heads"})
         == STORY_BIBLE_TABLE_NAMES
     )
+    assert (
+        frozenset({"characters", "character_revisions", "character_heads"}) == CHARACTER_TABLE_NAMES
+    )
     assert set(metadata.tables) == {
         "projects",
         "project_revisions",
@@ -31,6 +35,9 @@ def test_registry_contains_exactly_project_and_story_bible_tables() -> None:
         "story_bibles",
         "story_bible_revisions",
         "story_bible_heads",
+        "characters",
+        "character_revisions",
+        "character_heads",
     }
     assert "alembic_version" not in metadata.tables
 

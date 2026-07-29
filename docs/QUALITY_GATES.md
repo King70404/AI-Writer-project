@@ -198,6 +198,10 @@ DEV-3.1的六组专项测试固定覆盖`chr`/`crv`严格规范标识、name/rol
 
 Character架构门禁只允许标准库、通用`domain`、Character自身和`project.identifiers.ProjectId`，拒绝框架、基础设施、Project其他层、Story Bible、Project/Story Bible/domain反向依赖和并存包名。该专项不访问数据库、网络、真实系统时间或正式数据根，不新增依赖，也不能替代默认、IncludeE2E及依赖审计加E2E三种完整门禁。
 
+DEV-3.2持久化专项覆盖精确九表Metadata、三种Character ORM Record、显式Mapper、一Project多Character与非唯一索引、RESTRICT及Head复合所有权外键、Revision检查/唯一约束、总计六个Revision UPDATE/DELETE触发器、0003→0004→0003→0004迁移循环、Repository create/get/append、Stable与Head双CAS、stale优先级、晚期失败回滚、损坏检测和确定性双实例并发。新增Character持久化与Repository生产代码要求statements不低于95%、branches不低于90%，原有Character纯领域覆盖率不得下降。
+
+DEV-3.2架构门禁区分纯领域、纯Repository契约和SQLAlchemy适配器：只有`character.persistence`可以依赖SQLAlchemy、通用DB适配层及只读Project Record；领域和契约不得导入具体适配器，Project、Story Bible和通用模块不得反向依赖Character。专项数据库必须迁移到0004并位于任务专属TEMP/TMP，结束后数据库、WAL、SHM和journal必须为0。
+
 ## 显式格式化
 
 格式化不是质量门禁的隐式步骤。需要改写格式时，在仓库根目录显式运行：

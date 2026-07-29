@@ -367,6 +367,11 @@ def test_checker_accepts_declared_project_domain_persistence_and_registry_depend
         "story_bible/persistence/queries.py",
         "from aiwebnovel.project.persistence.models import ProjectRecord\n",
     )
+    _write_module(
+        package_root,
+        "character/persistence/queries.py",
+        "from aiwebnovel.project.persistence.models import ProjectRecord\n",
+    )
 
     assert check_backend_boundaries(package_root) == ()
 
