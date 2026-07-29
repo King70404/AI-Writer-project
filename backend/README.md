@@ -1,6 +1,6 @@
 # AIWebNovel 后端
 
-本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层，以及DEV-2.1至DEV-2.6建立的Story Bible领域、持久化、应用、当前HTTP和不可变历史读取。目前提供六个Project业务接口、六个Story Bible业务接口、稳定Keyset历史读取、严格DTO、ETag/If-Match写并发协议、安全错误映射和显式组合根装配。
+本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层，以及已通过M2正式验收的Story Bible领域、持久化、应用、当前HTTP和不可变历史读取。目前提供六个Project业务接口、六个Story Bible业务接口、稳定Keyset历史读取、严格DTO、ETag/If-Match写并发协议、安全错误映射和显式组合根装配。M2冻结不表示Character、World、PowerSystem、规划、章节写作、Codex或Agent已经实现。
 
 当前没有用户账号或登录、Project历史写入/回滚/恢复/删除接口、搜索、筛选、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；详情、列表与历史GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
 

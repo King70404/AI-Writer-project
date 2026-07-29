@@ -1,6 +1,6 @@
 # 架构边界
 
-本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施、已由M1冻结的Project闭环，以及DEV-2.1至DEV-2.6建立的Story Bible领域、持久化、应用、HTTP、前端与不可变历史依赖方向。当前Story Bible已有四条当前操作、两条历史GET、纯文本编辑页和只读历史页；系统仍不包含Revision回滚/恢复/Diff/历史编辑/删除、Project删除/归档或其他创作页面。
+本文档记录 AIWebNovel 的高层模块边界、阶段 0 后端基础设施、已由M1冻结的Project闭环，以及已由M2冻结的Story Bible领域、持久化、应用、HTTP、前端与不可变历史依赖方向。当前Story Bible已有四条当前操作、两条历史GET、纯文本编辑页和只读历史页；系统仍不包含Revision回滚/恢复/Diff/历史编辑/删除、Project删除/归档或其他创作页面。
 
 ## 业务模块
 

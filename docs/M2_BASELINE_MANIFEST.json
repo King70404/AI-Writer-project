@@ -1,0 +1,2245 @@
+{
+  "schema_version": 1,
+  "milestone": "M2",
+  "milestone_name": "Story Bible Foundation",
+  "accepted_implementation": {
+    "commit": "2e28d41a304a80ad9544dfea7558ae4c05563ca1",
+    "tree": "3dbe13b1f6f9f35e79372d41f17ed82a20283c7e",
+    "commit_count": 28,
+    "tracked_file_count": 468,
+    "has_submodules": false,
+    "acceptance_tag": {
+      "name": "m2-story-bible-foundation",
+      "tag_type": "tag",
+      "message": "M2 story bible foundation accepted",
+      "target": "the commit containing this manifest"
+    }
+  },
+  "m0_baseline": {
+    "tag": "m0-engineering-foundation",
+    "tag_type": "tag",
+    "tag_object": "a017a9167aefe09b6ee4026a20dac4cc4ce33780",
+    "target": "a9a3a6ff361a610aac6ef66a98deed60efccd715"
+  },
+  "m1_baseline": {
+    "tag": "m1-project-foundation",
+    "tag_type": "tag",
+    "tag_object": "e7a21496565d57f59e34242770c9cc29131157da",
+    "target": "15bc7c559cd7021ab409e21bde93a7bf9853e7ce",
+    "message": "M1 project foundation accepted"
+  },
+  "database": {
+    "alembic_head": "0003_create_story_bible_foundation",
+    "migrations": [
+      {
+        "revision": "0001_initialize_database",
+        "path": "backend/alembic/versions/0001_initialize_database.py",
+        "blob_oid": "63112b9b7d4510decb9b38de07ceb867491f2e05"
+      },
+      {
+        "revision": "0002_create_project_foundation",
+        "path": "backend/alembic/versions/0002_create_project_foundation.py",
+        "blob_oid": "5aa10200b7290278000cc21951850960dc914089"
+      },
+      {
+        "revision": "0003_create_story_bible_foundation",
+        "path": "backend/alembic/versions/0003_create_story_bible_foundation.py",
+        "blob_oid": "deb9c9c05fa2af8dd78c701c1afe72fb26b7fc99"
+      }
+    ],
+    "tables": [
+      "project_heads",
+      "project_revisions",
+      "projects",
+      "story_bible_heads",
+      "story_bible_revisions",
+      "story_bibles"
+    ],
+    "revision_immutability_triggers": [
+      "trg_project_revisions_no_delete",
+      "trg_project_revisions_no_update",
+      "trg_story_bible_revisions_no_delete",
+      "trg_story_bible_revisions_no_update"
+    ],
+    "constraints": {
+      "story_bible_project_foreign_key": true,
+      "story_bible_project_unique": true,
+      "story_bible_head_composite_ownership_foreign_key": true
+    },
+    "sqlite": {
+      "wal": true,
+      "foreign_keys": true
+    },
+    "migration_0004_present": false,
+    "verified_cycle": [
+      "0001_initialize_database",
+      "0002_create_project_foundation",
+      "0003_create_story_bible_foundation",
+      "0002_create_project_foundation",
+      "0003_create_story_bible_foundation"
+    ]
+  },
+  "routes": {
+    "backend_production_api_count": 15,
+    "backend_production_api": [
+      {
+        "method": "GET",
+        "path": "/api/v1/health/live"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/health/ready"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/projects"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/projects/{project_id}"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/v1/projects/{project_id}"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/projects/{project_id}/revisions"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/projects/{project_id}/revisions/{revision_number}"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/projects/{project_id}/story-bible"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/projects/{project_id}/story-bible"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/security/session"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/story-bibles/{story_bible_id}"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/v1/story-bibles/{story_bible_id}"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/story-bibles/{story_bible_id}/revisions"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/story-bibles/{story_bible_id}/revisions/{revision_number}"
+      }
+    ],
+    "frontend_count": 7,
+    "frontend": [
+      "/",
+      "/projects",
+      "/projects/:projectId",
+      "/projects/:projectId/history",
+      "/projects/:projectId/story-bible",
+      "/projects/:projectId/story-bible/history",
+      "*"
+    ]
+  },
+  "features": {
+    "inherited": [
+      "PRJ-001",
+      "PRJ-002",
+      "PRJ-003",
+      "PRJ-004",
+      "PRJ-005",
+      "PRJ-006",
+      "PRJ-007"
+    ],
+    "milestone": [
+      "STB-001",
+      "STB-002",
+      "STB-003"
+    ],
+    "all_accepted": [
+      "PRJ-001",
+      "PRJ-002",
+      "PRJ-003",
+      "PRJ-004",
+      "PRJ-005",
+      "PRJ-006",
+      "PRJ-007",
+      "STB-001",
+      "STB-002",
+      "STB-003"
+    ],
+    "names": [
+      {
+        "feature_id": "PRJ-001",
+        "name": "Project创建API"
+      },
+      {
+        "feature_id": "PRJ-002",
+        "name": "当前Project读取API"
+      },
+      {
+        "feature_id": "PRJ-003",
+        "name": "Project完整修订API"
+      },
+      {
+        "feature_id": "PRJ-004",
+        "name": "Project列表API"
+      },
+      {
+        "feature_id": "PRJ-005",
+        "name": "Project列表与创建前端流程"
+      },
+      {
+        "feature_id": "PRJ-006",
+        "name": "Project详情与修订前端流程"
+      },
+      {
+        "feature_id": "PRJ-007",
+        "name": "Project不可变修订历史查看"
+      },
+      {
+        "feature_id": "STB-001",
+        "name": "Story Bible本地HTTP API"
+      },
+      {
+        "feature_id": "STB-002",
+        "name": "Story Bible纯文本创建与修订前端"
+      },
+      {
+        "feature_id": "STB-003",
+        "name": "Story Bible不可变修订历史查看"
+      }
+    ],
+    "absent": [
+      "STB-004"
+    ]
+  },
+  "runtime": {
+    "python": "3.12.10",
+    "sqlite": "3.49.1",
+    "fastapi": "0.139.0",
+    "starlette": "1.3.1",
+    "pydantic": "2.13.4",
+    "sqlalchemy": "2.0.51",
+    "alembic": "1.18.5",
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "react": "19.2.7",
+    "react_dom": "19.2.7",
+    "react_router": "8.3.0",
+    "vite": "8.1.4",
+    "vitest": "4.1.10",
+    "playwright": "1.61.1"
+  },
+  "quality": {
+    "backend": {
+      "status": "pass",
+      "tests_passed": 1655,
+      "statements_percent": 95.99,
+      "branches_percent": 90.66,
+      "statement_count": 6263,
+      "statements_missed": 251,
+      "branch_count": 1434,
+      "partial_branches": 120
+    },
+    "frontend": {
+      "status": "pass",
+      "test_files_passed": 36,
+      "tests_passed": 354,
+      "statements_percent": 96.26,
+      "branches_percent": 91.85,
+      "functions_percent": 99.45,
+      "lines_percent": 96.28
+    },
+    "story_bible_history_backend": {
+      "status": "pass",
+      "tests_passed": 135,
+      "statements_percent": 100,
+      "branches_percent": 100
+    },
+    "story_bible_history_frontend": {
+      "status": "pass",
+      "test_files_passed": 1,
+      "tests_passed": 24,
+      "statements_percent": 96.03,
+      "branches_percent": 91.3,
+      "functions_percent": 100,
+      "lines_percent": 96.03
+    },
+    "migration_cycle": {
+      "status": "pass",
+      "tests_passed": 2
+    },
+    "e2e": {
+      "status": "pass",
+      "scenarios_passed": 17,
+      "scenario_ids": [
+        "E2E-DEV-001",
+        "E2E-DEV-002",
+        "E2E-DEV-003",
+        "E2E-INT-001",
+        "E2E-INT-002",
+        "E2E-INT-003",
+        "E2E-INT-004",
+        "E2E-INT-005",
+        "E2E-INT-006",
+        "E2E-INT-007",
+        "E2E-INT-008",
+        "E2E-INT-009",
+        "E2E-INT-010",
+        "E2E-INT-011",
+        "E2E-INT-012",
+        "E2E-INT-013",
+        "E2E-STARTUP-001"
+      ]
+    },
+    "quality_gates": {
+      "default": "pass",
+      "include_e2e": "pass",
+      "dependency_audit_and_e2e": "pass"
+    },
+    "python_dependency_check": "pass",
+    "npm_production_vulnerabilities": 0,
+    "react_router": "8.3.0",
+    "warning_count": 4,
+    "warnings": [
+      {
+        "count": 1,
+        "category": "Starlette httpx TestClient deprecation"
+      },
+      {
+        "count": 3,
+        "category": "Python 3.12 sqlite3 default datetime adapter deprecation in controlled corruption tests"
+      }
+    ],
+    "cleanup": {
+      "status": "pass",
+      "task_temp_root_removed": true,
+      "temporary_databases_and_sidecars": 0,
+      "playwright_artifacts": 0,
+      "tracked_coverage_artifacts": 0,
+      "residual_project_services": 0,
+      "e2e_ports_released": true
+    }
+  },
+  "security": {
+    "bind_host": "127.0.0.1",
+    "host_validation": true,
+    "cors_wildcard": false,
+    "cors_credentials": false,
+    "write_requests_require_session": true,
+    "write_requests_require_csrf": true,
+    "write_requests_require_trusted_origin": true,
+    "readonly_get_requires_csrf": false,
+    "browser_persistence": {
+      "story_bible_content": false,
+      "story_bible_draft": false,
+      "etag": false,
+      "cursor": false
+    },
+    "logs_exclude": [
+      "session",
+      "csrf",
+      "if-match",
+      "etag",
+      "cursor",
+      "story_bible_content",
+      "story_bible_draft"
+    ],
+    "production_docs_enabled": false,
+    "production_openapi_enabled": false,
+    "unmigrated_database_auto_migration": false
+  },
+  "acceptance_artifacts": [
+    "docs/M2_ACCEPTANCE_REPORT.md",
+    "docs/M2_BASELINE_MANIFEST.json",
+    "docs/M2_ACCEPTANCE_CHECKLIST.md"
+  ],
+  "tracked_files": [
+    {
+      "path": ".editorconfig",
+      "blob_oid": "de0a236a89b5e04bc0e08c61a31462b162c806b5"
+    },
+    {
+      "path": ".gitattributes",
+      "blob_oid": "4da9475df2eebd524c6a195132c8d18f874e84b3"
+    },
+    {
+      "path": ".gitignore",
+      "blob_oid": "3ee2f6c85e5691dcfe451a6b3aa2dd6411a5c28d"
+    },
+    {
+      "path": "README.md",
+      "blob_oid": "bf237e26f33e6ce0565b5410ae8565404c4be547"
+    },
+    {
+      "path": "backend/README.md",
+      "blob_oid": "28e035ff003bd2877053f80ae09896d821083221"
+    },
+    {
+      "path": "backend/alembic.ini",
+      "blob_oid": "052dbefdf2fad14413a313c69a61ce3c2d9c3a97"
+    },
+    {
+      "path": "backend/alembic/env.py",
+      "blob_oid": "5ba937b22ea8bcb548d6f9000b0714a721f9e2a3"
+    },
+    {
+      "path": "backend/alembic/script.py.mako",
+      "blob_oid": "9ce1ef0aa5b95ead3c04467878be68e60c2bc553"
+    },
+    {
+      "path": "backend/alembic/versions/0001_initialize_database.py",
+      "blob_oid": "63112b9b7d4510decb9b38de07ceb867491f2e05"
+    },
+    {
+      "path": "backend/alembic/versions/0002_create_project_foundation.py",
+      "blob_oid": "5aa10200b7290278000cc21951850960dc914089"
+    },
+    {
+      "path": "backend/alembic/versions/0003_create_story_bible_foundation.py",
+      "blob_oid": "deb9c9c05fa2af8dd78c701c1afe72fb26b7fc99"
+    },
+    {
+      "path": "backend/pyproject.toml",
+      "blob_oid": "306c2f44fdb80a53faac9db68418a8bdd5089953"
+    },
+    {
+      "path": "backend/src/aiwebnovel/__init__.py",
+      "blob_oid": "32705119d73370913d89fbf345aaa71597c5ab31"
+    },
+    {
+      "path": "backend/src/aiwebnovel/__main__.py",
+      "blob_oid": "f46560b7d5499a312923df4b6696845ffcfca7e9"
+    },
+    {
+      "path": "backend/src/aiwebnovel/api/__init__.py",
+      "blob_oid": "5b240c2d4e46934647bebcfb2823e268c607f30a"
+    },
+    {
+      "path": "backend/src/aiwebnovel/api/error_causes.py",
+      "blob_oid": "fe42f7a8a881f8afe49055116fbbf17cdb86adf7"
+    },
+    {
+      "path": "backend/src/aiwebnovel/api/etags.py",
+      "blob_oid": "5b97eb96daf8c83b08f0e5803016d4107aeb05d3"
+    },
+    {
+      "path": "backend/src/aiwebnovel/core/__init__.py",
+      "blob_oid": "2c28d071a7be62123634b28d1422e3160f18f039"
+    },
+    {
+      "path": "backend/src/aiwebnovel/core/config.py",
+      "blob_oid": "5cd29ab41ea56682ce0cb06ac143d2b059df13d0"
+    },
+    {
+      "path": "backend/src/aiwebnovel/core/errors.py",
+      "blob_oid": "5d1e2b4a734244f4f92af1ac586fd3a4fee78171"
+    },
+    {
+      "path": "backend/src/aiwebnovel/core/logging.py",
+      "blob_oid": "24ed01d9fd503756a0798f0a385b923d57dd5f19"
+    },
+    {
+      "path": "backend/src/aiwebnovel/core/middleware.py",
+      "blob_oid": "fa44eac29df42995c9bc5df8d3dbcb9da8f9a48b"
+    },
+    {
+      "path": "backend/src/aiwebnovel/db/__init__.py",
+      "blob_oid": "27761a5be8009a496ce9a298ba893098ced82d9c"
+    },
+    {
+      "path": "backend/src/aiwebnovel/db/base.py",
+      "blob_oid": "7bdd066811c7bacf447b441f777bc59e1574285d"
+    },
+    {
+      "path": "backend/src/aiwebnovel/db/diagnostics.py",
+      "blob_oid": "98bdb0408a9d5a6a08727a260a7d3936d4d9b3b3"
+    },
+    {
+      "path": "backend/src/aiwebnovel/db/engine.py",
+      "blob_oid": "642e316f08c87b683d6f8237fb4a5d8fa98ce2a5"
+    },
+    {
+      "path": "backend/src/aiwebnovel/db/health.py",
+      "blob_oid": "f87b93bb56b193fb966114956d93efa37a8bfb6d"
+    },
+    {
+      "path": "backend/src/aiwebnovel/db/model_registry.py",
+      "blob_oid": "000ab5d519597527abfe3c8ca7ddb9a8bcad648b"
+    },
+    {
+      "path": "backend/src/aiwebnovel/db/session.py",
+      "blob_oid": "496d2f2dbd473dafa4132b24e6eac71066085860"
+    },
+    {
+      "path": "backend/src/aiwebnovel/db/types.py",
+      "blob_oid": "1ed6c570cbe74f383b76daae0ac89d7d87d4cb91"
+    },
+    {
+      "path": "backend/src/aiwebnovel/diagnostics/__init__.py",
+      "blob_oid": "7135103df6d52f3ae91b5e167f14e6ca1b340698"
+    },
+    {
+      "path": "backend/src/aiwebnovel/diagnostics/checks.py",
+      "blob_oid": "6a15f333e50d69c6207a568e217e57564cd0bc65"
+    },
+    {
+      "path": "backend/src/aiwebnovel/diagnostics/models.py",
+      "blob_oid": "d28a75a0adb57d4a949a6c730474d87f86abe5c0"
+    },
+    {
+      "path": "backend/src/aiwebnovel/diagnostics/probes.py",
+      "blob_oid": "12d1c7927f547ded56b32c26faeed42aae8fa593"
+    },
+    {
+      "path": "backend/src/aiwebnovel/diagnostics/redaction.py",
+      "blob_oid": "249d0bffa15d313e8980fde6179556ae1207d268"
+    },
+    {
+      "path": "backend/src/aiwebnovel/diagnostics/runner.py",
+      "blob_oid": "79308fc877f98621bcc03105421ed0a7185f7157"
+    },
+    {
+      "path": "backend/src/aiwebnovel/domain/__init__.py",
+      "blob_oid": "1ab885b901159858610da310ee9da165c4d0be9e"
+    },
+    {
+      "path": "backend/src/aiwebnovel/domain/concurrency.py",
+      "blob_oid": "3df1845f509f63b97e2dbd059972cfb8fd7de6d1"
+    },
+    {
+      "path": "backend/src/aiwebnovel/domain/errors.py",
+      "blob_oid": "f0dbdd3751ddf5c4c01e8e0a20811f0d10ae5d5d"
+    },
+    {
+      "path": "backend/src/aiwebnovel/domain/identifiers.py",
+      "blob_oid": "2b1e1d22a451741dd66d85616f88d9e138145076"
+    },
+    {
+      "path": "backend/src/aiwebnovel/domain/revisions.py",
+      "blob_oid": "94807260bfb0068ae6de14440bb739f02e5caad1"
+    },
+    {
+      "path": "backend/src/aiwebnovel/domain/time.py",
+      "blob_oid": "7550984b03affe97b74ba5a475a24d367813152e"
+    },
+    {
+      "path": "backend/src/aiwebnovel/main.py",
+      "blob_oid": "ae50cc3c85f0bc38bdf32224d3b673fd75ad189d"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/__init__.py",
+      "blob_oid": "21d6ac0bfdc95dc6a4010da8fd6a429fbae887ed"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/application/__init__.py",
+      "blob_oid": "f472731c7ffc9a3f51d2b39004f7ece98dee27cc"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/application/commands.py",
+      "blob_oid": "53d14241dbae8b741e41ac717ca4ee27d0acd446"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/application/history.py",
+      "blob_oid": "cb5b122f58d380127083288b5711c9d8056604b0"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/application/listing.py",
+      "blob_oid": "24212c610abb30f226f86307f37debd418e3f136"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/application/mappers.py",
+      "blob_oid": "cb54df9c7ef4053bcc9d9ae6ca9b7b13a4c12201"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/application/models.py",
+      "blob_oid": "f4a83095d99ec98b80ba657f726c4f0e3cc81e09"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/application/queries.py",
+      "blob_oid": "e968610c1b5c50f52fb068232932fa800c127119"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/application/services.py",
+      "blob_oid": "84322d323310b1fb4591721c6ae50867350bc489"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/entities.py",
+      "blob_oid": "a8b9cff57b391a4d3a2cae72d5bab53f8fef1136"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/errors.py",
+      "blob_oid": "3c73207e62feadc6b94a153fce2f339c2c950b74"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/identifiers.py",
+      "blob_oid": "14ca7e44ba13cbf68533a39277c618e70350026e"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/persistence/__init__.py",
+      "blob_oid": "cbe9d003ceacdf9d84c3f7433d28335c0dc8c043"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/persistence/history.py",
+      "blob_oid": "71e60304eca56c9685f772e272f793b99d030c1d"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/persistence/listing.py",
+      "blob_oid": "ee2d7f3c728b302f9c96075ec50c3b1fd3dac9db"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/persistence/mappers.py",
+      "blob_oid": "b0b66fe606b5b785ba027239f7b5d70e29eec3ce"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/persistence/models.py",
+      "blob_oid": "2b13f93d17739c444252dc564ea33b50d5187aeb"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/persistence/queries.py",
+      "blob_oid": "50663060f7d1d9e2118ac34925f76d1b11c39347"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/persistence/repository.py",
+      "blob_oid": "7ad1c12cd81cb70ab8903863171dc4565c074676"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/repository.py",
+      "blob_oid": "1492436ae7781580ec85bdb7b27d7430e9e1abf0"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/transitions.py",
+      "blob_oid": "c8531a96293e7ca60550e0afdccd20c179e90c1c"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/values.py",
+      "blob_oid": "7ef6f497e2ca728dad329f74926190ecaf3af4c1"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/web/__init__.py",
+      "blob_oid": "17a8232e19a358ee05701ce726c36295501eb789"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/web/cursors.py",
+      "blob_oid": "f3c64d8c4d9fa350e4ccc648ad02e0b82df423e7"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/web/dependencies.py",
+      "blob_oid": "639cceb32cfb32770510d2bb11d22e53a735cbf6"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/web/dto.py",
+      "blob_oid": "e38f79d5ec0499853a4ce97acaa9cd7205f5e719"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/web/errors.py",
+      "blob_oid": "05478d2920b55d9afe464f5e20750543f97db965"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/web/etags.py",
+      "blob_oid": "f3470f1dec42128fcc98ac9a2f6cd237dfcc9554"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/web/mappers.py",
+      "blob_oid": "abf81517addd6e53b90ea9e2b3d34b99d5dcd8f6"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/web/revision_cursors.py",
+      "blob_oid": "f59c9328c635c18cd6832cfc3ebaa48d4c149039"
+    },
+    {
+      "path": "backend/src/aiwebnovel/project/web/router.py",
+      "blob_oid": "98be9832c643b723e67cb75daead6122aae1d875"
+    },
+    {
+      "path": "backend/src/aiwebnovel/security/__init__.py",
+      "blob_oid": "b3101199802da825cac9a4a524e8ffcbf11518db"
+    },
+    {
+      "path": "backend/src/aiwebnovel/security/csrf.py",
+      "blob_oid": "b484e003553d49c39c12bf65f5c2a2b92a6afc45"
+    },
+    {
+      "path": "backend/src/aiwebnovel/security/diagnostics.py",
+      "blob_oid": "2c8aa245c9687cd6bd7875947188a40176e543cc"
+    },
+    {
+      "path": "backend/src/aiwebnovel/security/headers.py",
+      "blob_oid": "eb668b15188b575c781143a5a6a4d65e3817f20c"
+    },
+    {
+      "path": "backend/src/aiwebnovel/security/health.py",
+      "blob_oid": "808c46cc0fd6bad540e9e77103761260b2b57701"
+    },
+    {
+      "path": "backend/src/aiwebnovel/security/host.py",
+      "blob_oid": "cdb2f8ebd2c0ba103dd5774f6df7648e766e9de5"
+    },
+    {
+      "path": "backend/src/aiwebnovel/security/redaction.py",
+      "blob_oid": "479cdccdeb525d9e5c39f49cbe7a07f8eed892b3"
+    },
+    {
+      "path": "backend/src/aiwebnovel/security/request_limits.py",
+      "blob_oid": "58649e9db2d3ea8294147d8185684f2e4e43bb4d"
+    },
+    {
+      "path": "backend/src/aiwebnovel/security/responses.py",
+      "blob_oid": "2adaf205f95b29d27c38280482d6ea81c7ed575c"
+    },
+    {
+      "path": "backend/src/aiwebnovel/security/sessions.py",
+      "blob_oid": "262b1b73911956602c2aad88fbf86161e5a0a64d"
+    },
+    {
+      "path": "backend/src/aiwebnovel/storage/__init__.py",
+      "blob_oid": "e40fb8430baa5c49c9c683fcdd2c527a06891398"
+    },
+    {
+      "path": "backend/src/aiwebnovel/storage/access.py",
+      "blob_oid": "76ddb3eb30383a7a53c2a0398d95379f113b08f9"
+    },
+    {
+      "path": "backend/src/aiwebnovel/storage/health.py",
+      "blob_oid": "702ad56866fefada14f80b7ceeaf2ac9c5a9a433"
+    },
+    {
+      "path": "backend/src/aiwebnovel/storage/initializer.py",
+      "blob_oid": "321d975be1117d2e1d55f52fb0b121142538e09e"
+    },
+    {
+      "path": "backend/src/aiwebnovel/storage/paths.py",
+      "blob_oid": "ad799d2bc4976a86db64098aea038698a6d77383"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/__init__.py",
+      "blob_oid": "91d80661b4c37ce2a3e0cee3090e8aa8887132d0"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/application/__init__.py",
+      "blob_oid": "5bf7de03323f6abd0a244570a73ff1441f5d4eeb"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/application/commands.py",
+      "blob_oid": "716784899f257ffada901d3aa1938947784129c1"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/application/errors.py",
+      "blob_oid": "4964927d1cf313c433ea7db301238f1024d0093a"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/application/history_models.py",
+      "blob_oid": "03ecb2129fdaacafd5133a25c385f17f6e489390"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/application/history_queries.py",
+      "blob_oid": "4a3e4207f5aa352974b8e7eafcba0636ab35dc4f"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/application/history_reader.py",
+      "blob_oid": "0f13562c50fc51cdcd8e1051768ed347def46ae5"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/application/history_service.py",
+      "blob_oid": "0e63413344b4a5856e98a750f4b56039558e926f"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/application/mappers.py",
+      "blob_oid": "b7ae8342f3badea851a53ef26cae2ef5f4e97f02"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/application/models.py",
+      "blob_oid": "a56b3a10054457bf1028d8994f3584cd159b0322"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/application/queries.py",
+      "blob_oid": "c376b32a6c836cd5d1b499c4c91d4e791429f345"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/application/services.py",
+      "blob_oid": "3eecb2e3d35a0bc8896151cf93ac9f3d00046d4e"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/entities.py",
+      "blob_oid": "075423927544315a01d2c78da0ecbfa7471db5f4"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/errors.py",
+      "blob_oid": "33ed00512c9f2d3854512e6ea9842ab99af20617"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/identifiers.py",
+      "blob_oid": "b62d415268ae5bcaf2fe0257175200c52549ce69"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/persistence/__init__.py",
+      "blob_oid": "5a33af34f49121038d726060494168dce84fe610"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/persistence/history_reader.py",
+      "blob_oid": "e0e3a42bd382dabb1376361ec2212a16a729b51a"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/persistence/mappers.py",
+      "blob_oid": "4e9e9914bb5ee5e50cf7feb0c1a4154403ab1ee4"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/persistence/models.py",
+      "blob_oid": "59912e2893941e2f197fec32e8b9b0e42a7733d1"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/persistence/queries.py",
+      "blob_oid": "b255a60283143863218ebb5409dfe7e2895abc2c"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/persistence/repository.py",
+      "blob_oid": "1291c1a258eeaf39e8dac130fd54b7e21f5f185b"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/repository.py",
+      "blob_oid": "7552d904291a6306ff949305a71c4223e649e313"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/transitions.py",
+      "blob_oid": "f425dd7de85a39b654cb67ea9375660bdcfee11b"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/values.py",
+      "blob_oid": "a883392cdfd7aba0ed61aa4724a096fdb0036682"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/web/__init__.py",
+      "blob_oid": "705f32b429b5ac45f4462bde1424173596738898"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/web/dependencies.py",
+      "blob_oid": "4ca5f09129d5780815b7a48f128e185395d5286f"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/web/dto.py",
+      "blob_oid": "660047808ec373b2ca3b09941f85a1196299ed72"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/web/errors.py",
+      "blob_oid": "440a20d551ffcd3584e4b2f9d595d8fabd64b9c1"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/web/history_cursor.py",
+      "blob_oid": "369461043c7232b2c40ab3befd13aeb29bf9f606"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/web/history_dependencies.py",
+      "blob_oid": "90daf1758d0f72e405fb0b29c0623b860d3c04f9"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/web/history_dto.py",
+      "blob_oid": "9d7c2f222e5e2814eb7c44a0ad7c062c1523ae92"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/web/history_mappers.py",
+      "blob_oid": "0d900508a58c218ef2cd3c3bdbe00289e2778a7d"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/web/history_router.py",
+      "blob_oid": "3b7d93478902b17829f9812113fa209299c73ad4"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/web/mappers.py",
+      "blob_oid": "ff783cd2618cb43b8d84877e83d9d7dc2e3588c3"
+    },
+    {
+      "path": "backend/src/aiwebnovel/story_bible/web/router.py",
+      "blob_oid": "2caec7ed607fa889e24d6ccb8840ade3fb0ef85d"
+    },
+    {
+      "path": "backend/src/aiwebnovel/web/__init__.py",
+      "blob_oid": "6db267f0cffc2aa8fa19a0ef3c8856d7c07e79df"
+    },
+    {
+      "path": "backend/src/aiwebnovel/web/frontend.py",
+      "blob_oid": "9ceee00b412f305907eecff4ceeab6a536406fdc"
+    },
+    {
+      "path": "docs/ARCHITECTURE_BOUNDARIES.md",
+      "blob_oid": "1a7c45ee9c8a3831be6152a8f02eebb9610301e9"
+    },
+    {
+      "path": "docs/CODEX_GLOBAL_INSTRUCTIONS.md",
+      "blob_oid": "8f3248ebf568ea0058e1846dc44cbaf45f46d319"
+    },
+    {
+      "path": "docs/DEVELOPMENT_WORKFLOW.md",
+      "blob_oid": "c5b074cbeea19058014c3b5194aa5c12611778cb"
+    },
+    {
+      "path": "docs/DOMAIN_FOUNDATION.md",
+      "blob_oid": "6019bea471beb07c33c43de14223300b0923dff9"
+    },
+    {
+      "path": "docs/E2E_TESTING.md",
+      "blob_oid": "b0e685d5c5a5cc05ab1c15c615bef23aa8f89af6"
+    },
+    {
+      "path": "docs/ENVIRONMENT_DIAGNOSTICS.md",
+      "blob_oid": "ff28897173c421baf71bd8bae1819d43ef20aa92"
+    },
+    {
+      "path": "docs/FEATURE_REALITY_MATRIX.md",
+      "blob_oid": "0dc1c277bbee74c1e737506fc40e304cc58278a5"
+    },
+    {
+      "path": "docs/LOCAL_STARTUP.md",
+      "blob_oid": "23cb1dbf10fff543b1679193bb51a402e8448ada"
+    },
+    {
+      "path": "docs/LOCAL_STORAGE.md",
+      "blob_oid": "3607642360ab741a74d1679ecae6991221e774b9"
+    },
+    {
+      "path": "docs/M0_ACCEPTANCE_CHECKLIST.md",
+      "blob_oid": "01c9e71060b91321d90499297077611fe0751cd1"
+    },
+    {
+      "path": "docs/M0_ACCEPTANCE_REPORT.md",
+      "blob_oid": "9ef01dac8b849b118270fe960addbbca3c764975"
+    },
+    {
+      "path": "docs/M0_BASELINE_MANIFEST.json",
+      "blob_oid": "5fa7c1dcbbc54cefc894bd9202e43e2504ffb69e"
+    },
+    {
+      "path": "docs/M1_ACCEPTANCE_CHECKLIST.md",
+      "blob_oid": "1b3f9c1e9c21e5c790d6d9e7baa200470cc642ff"
+    },
+    {
+      "path": "docs/M1_ACCEPTANCE_REPORT.md",
+      "blob_oid": "cf14b373468d9e7c5639021b736439e7316572d0"
+    },
+    {
+      "path": "docs/M1_BASELINE_MANIFEST.json",
+      "blob_oid": "50c055d4b6fb79f216699336e7bf08c1eaebf47e"
+    },
+    {
+      "path": "docs/PROJECT_APPLICATION.md",
+      "blob_oid": "91bdb1305c38159e013975d64ec6c305978a4ee9"
+    },
+    {
+      "path": "docs/PROJECT_DETAIL_FRONTEND.md",
+      "blob_oid": "c7dba80a6be72a6f2d25da5c2c5a40a7eabe4d6d"
+    },
+    {
+      "path": "docs/PROJECT_FOUNDATION.md",
+      "blob_oid": "11ecfa6e04973a8daefb3951baa5f90f3041857b"
+    },
+    {
+      "path": "docs/PROJECT_FRONTEND.md",
+      "blob_oid": "2578ca0dd27b574fedcc96d3dd15154833f0262f"
+    },
+    {
+      "path": "docs/PROJECT_HTTP_API.md",
+      "blob_oid": "1c233d3257f494edf19c7cb267d4dce3a5e43591"
+    },
+    {
+      "path": "docs/PROJECT_LISTING.md",
+      "blob_oid": "3a8fb65cbdbff90256d5836765c63499408a391d"
+    },
+    {
+      "path": "docs/PROJECT_REPOSITORY.md",
+      "blob_oid": "8ae5bd1d2c1418bd990b178c71cb0c04aff36375"
+    },
+    {
+      "path": "docs/PROJECT_REVISION_HISTORY.md",
+      "blob_oid": "f12c8dd32f256b690b960647ce18a68c2b917523"
+    },
+    {
+      "path": "docs/QUALITY_GATES.md",
+      "blob_oid": "3014b3d421c6154365acb5fc61254e613f4dfce9"
+    },
+    {
+      "path": "docs/SECURITY_BASELINE.md",
+      "blob_oid": "6662bd8aa611b4b173ac14fe1344efd19876233e"
+    },
+    {
+      "path": "docs/STORY_BIBLE_APPLICATION.md",
+      "blob_oid": "cd81e10f08fa0f09be80397be73e58a4603abaa0"
+    },
+    {
+      "path": "docs/STORY_BIBLE_DOMAIN.md",
+      "blob_oid": "8a859244d4223c53f1bb1c3d204a6f9e96262d62"
+    },
+    {
+      "path": "docs/STORY_BIBLE_FRONTEND.md",
+      "blob_oid": "3178000cec32fca6dfbb77452515e65c51a2ae58"
+    },
+    {
+      "path": "docs/STORY_BIBLE_HTTP_API.md",
+      "blob_oid": "780010c07e183544089e436d997894a1e197dbff"
+    },
+    {
+      "path": "docs/STORY_BIBLE_PERSISTENCE.md",
+      "blob_oid": "472039b2cf09ba683ee0ae57634f2c099c7e27e6"
+    },
+    {
+      "path": "docs/STORY_BIBLE_REVISION_HISTORY.md",
+      "blob_oid": "e56ec84aeef4f2e6b8a5b7fee0e8d8c3d3045a00"
+    },
+    {
+      "path": "frontend/.prettierignore",
+      "blob_oid": "ad9e9a218b8f1665d97aa12242501219c5903a8e"
+    },
+    {
+      "path": "frontend/.prettierrc.json",
+      "blob_oid": "8c30e4098a801e94c09832cee037aab9b3854ef0"
+    },
+    {
+      "path": "frontend/README.md",
+      "blob_oid": "41c76428aab6e0f24a03e8e62d5ba2406e26149e"
+    },
+    {
+      "path": "frontend/eslint.config.js",
+      "blob_oid": "57dd17ad1781fe0b1301807cb4fc23c0c46b30b2"
+    },
+    {
+      "path": "frontend/index.html",
+      "blob_oid": "32f33403f08c3872debf4ebf8bef756931713f08"
+    },
+    {
+      "path": "frontend/package-lock.json",
+      "blob_oid": "0fdea6a237e896e23194f4d14e740181fd180030"
+    },
+    {
+      "path": "frontend/package.json",
+      "blob_oid": "32ca1ea6d26f6c393c27c37a9c69cfa95c1b0baf"
+    },
+    {
+      "path": "frontend/playwright.dev.config.ts",
+      "blob_oid": "0488d92076e56a6bcb3fd2d1602f221fb0470574"
+    },
+    {
+      "path": "frontend/playwright.integrated.config.ts",
+      "blob_oid": "95796be494da59a89b239751c207037fcc80953d"
+    },
+    {
+      "path": "frontend/playwright.shared.ts",
+      "blob_oid": "d44a8cce67d5589341bb0313c738cc43631d0c69"
+    },
+    {
+      "path": "frontend/public/favicon.svg",
+      "blob_oid": "412fee4dbce0af4a89a4363701319a18e2856031"
+    },
+    {
+      "path": "frontend/src/api/client.ts",
+      "blob_oid": "b8d98ed2b8b569de492277cbecf01d24d1a18395"
+    },
+    {
+      "path": "frontend/src/api/errors.ts",
+      "blob_oid": "6436866dc88cadf29f8f85a3d1afcd9fa5ab061b"
+    },
+    {
+      "path": "frontend/src/api/etags.ts",
+      "blob_oid": "020c01caba3503fb1860e8e8809ae6d5f1057a46"
+    },
+    {
+      "path": "frontend/src/api/health.ts",
+      "blob_oid": "8ccb719f398aebca1a82ba2ac87a6f875e7dce6e"
+    },
+    {
+      "path": "frontend/src/api/identifiers.ts",
+      "blob_oid": "7fa7b751702e4f0f9cc9052d209a571ca715e5cc"
+    },
+    {
+      "path": "frontend/src/api/security-session.ts",
+      "blob_oid": "9c4e77a0c244ff35aa7d950d2e4adba1dcaa9b36"
+    },
+    {
+      "path": "frontend/src/api/security.ts",
+      "blob_oid": "5a4a6d756d3a0b279309b3d5f823d03b69493fdf"
+    },
+    {
+      "path": "frontend/src/api/types.ts",
+      "blob_oid": "de6f2f7e920204708da39d231f049d00472763f4"
+    },
+    {
+      "path": "frontend/src/app/App.tsx",
+      "blob_oid": "a1fc17671ee1b69cf7e2c193c448a9a89d79af02"
+    },
+    {
+      "path": "frontend/src/app/AppRouter.tsx",
+      "blob_oid": "3e2f18c257321399b711a392e2a130c060227850"
+    },
+    {
+      "path": "frontend/src/app/AppShell.tsx",
+      "blob_oid": "6c0466359b159cf6638c8d1c141de6a3ddc1812b"
+    },
+    {
+      "path": "frontend/src/components/AppErrorBoundary.tsx",
+      "blob_oid": "63e18045b21fe59ff398c0c4a7c0a94949074aa9"
+    },
+    {
+      "path": "frontend/src/components/LoadingState.tsx",
+      "blob_oid": "3e8599857fb3d86ebf187d42a29ff2c24dda7eac"
+    },
+    {
+      "path": "frontend/src/components/SystemStatus.tsx",
+      "blob_oid": "919481eada3ffc38b669af77c4c9966016093a67"
+    },
+    {
+      "path": "frontend/src/features/projects/api/client.ts",
+      "blob_oid": "bc1b1f6a2b4e9b3a67bb82d8068951084eef81d5"
+    },
+    {
+      "path": "frontend/src/features/projects/api/contracts.ts",
+      "blob_oid": "3871adb907758037a73437e948b2d5e6f0f57149"
+    },
+    {
+      "path": "frontend/src/features/projects/api/errors.ts",
+      "blob_oid": "1a1fb0a8c1cdbbab8056a65ccaaa254d5a564714"
+    },
+    {
+      "path": "frontend/src/features/projects/api/etags.ts",
+      "blob_oid": "e3b44268be998f3dc693ca59bbee6bc1d7cc7962"
+    },
+    {
+      "path": "frontend/src/features/projects/api/parsers.ts",
+      "blob_oid": "a7deb8b13ac56e4d5c6727a592e36447922288f0"
+    },
+    {
+      "path": "frontend/src/features/projects/api/security-session.ts",
+      "blob_oid": "bdf90d68046f3fc1e77b0aa7fa6a0992bbfc207b"
+    },
+    {
+      "path": "frontend/src/features/projects/components/CreateProjectForm.tsx",
+      "blob_oid": "309098a255e7ee884c9258bb6300c0487038d4ac"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectConflictPanel.tsx",
+      "blob_oid": "78528e5560ae14b5ca6a98258c3779adcf0ea62c"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectDetailStates.tsx",
+      "blob_oid": "9bfc7b9cc745211f29f4940cf9e2da65ac9d3a9b"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectDetails.tsx",
+      "blob_oid": "dc99610ecca012daac0bdb9f7c5a5601a171d751"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectEditForm.tsx",
+      "blob_oid": "a7d279d2d9562c61c0d37de1a5001d6e1eca9096"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectList.tsx",
+      "blob_oid": "f4e4ae42e53bd3af76baabc9e3aff5467e594902"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectListItem.tsx",
+      "blob_oid": "5e678bc24eaf662eb300d4f70591025a8e4eb60e"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectListStates.tsx",
+      "blob_oid": "8327c3dbaedec4b99e4ef6eedea37ad21acd6d29"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectPageHeader.tsx",
+      "blob_oid": "153f09800692b087fba535d8392b7e7705f28401"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectRevisionHistoryItem.tsx",
+      "blob_oid": "42d015821a0c714fa4ca0c0370426dd537831ce9"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectRevisionHistoryList.tsx",
+      "blob_oid": "44b77888ba4de57ad34992cd2a12a555e77ad9f1"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectRevisionHistoryStates.tsx",
+      "blob_oid": "6794f76a3bd685ac2953f263b27819fbc6b712e1"
+    },
+    {
+      "path": "frontend/src/features/projects/components/ProjectRevisionViewer.tsx",
+      "blob_oid": "e090ac67efcafc2cc6dc6e3402b073c2a6305d0f"
+    },
+    {
+      "path": "frontend/src/features/projects/constants.ts",
+      "blob_oid": "3551fcfe9bd601929cf23e18ba6af634bbc27f1a"
+    },
+    {
+      "path": "frontend/src/features/projects/formatting.ts",
+      "blob_oid": "cecdfc12ba002a36630050b190dbd3561bedefc7"
+    },
+    {
+      "path": "frontend/src/features/projects/hooks/useCreateProject.ts",
+      "blob_oid": "9f7e642b7854977fe5b165d1ad1513807bb6b9e9"
+    },
+    {
+      "path": "frontend/src/features/projects/hooks/useProjectDetails.ts",
+      "blob_oid": "5880436616c101a7b46b40c33947327091c2b4d2"
+    },
+    {
+      "path": "frontend/src/features/projects/hooks/useProjectList.ts",
+      "blob_oid": "71a1267a3b0bfed8dad60a30ea0f466837e42978"
+    },
+    {
+      "path": "frontend/src/features/projects/hooks/useProjectRevisionHistory.ts",
+      "blob_oid": "7639d4e4ce729dd66c408f72cf84f3f24a09a0dd"
+    },
+    {
+      "path": "frontend/src/features/projects/hooks/useReviseProject.ts",
+      "blob_oid": "a1c4214fc1705e313747f85d8eaa349f962d0f2c"
+    },
+    {
+      "path": "frontend/src/features/projects/index.ts",
+      "blob_oid": "62666d80149f85e8139f2a3169adc2f93ab2a8ec"
+    },
+    {
+      "path": "frontend/src/features/projects/pages/ProjectDetailsPage.tsx",
+      "blob_oid": "10f31556521de094480f63ac9c74c03d1b9a97a5"
+    },
+    {
+      "path": "frontend/src/features/projects/pages/ProjectRevisionHistoryPage.tsx",
+      "blob_oid": "ed316bb85489ccd2dbdeb45be7885549828149ce"
+    },
+    {
+      "path": "frontend/src/features/projects/pages/ProjectsPage.tsx",
+      "blob_oid": "9750f47f509b13c19d07cb307d6da13b70a7d628"
+    },
+    {
+      "path": "frontend/src/features/projects/routing.ts",
+      "blob_oid": "1b170f5d7ec2506d8ee94152dcacb8f676c569e1"
+    },
+    {
+      "path": "frontend/src/features/projects/validation.ts",
+      "blob_oid": "a8f21ebf9e60b5c69f5e75ef06ad82e5e9de973a"
+    },
+    {
+      "path": "frontend/src/features/story-bible/api/client.ts",
+      "blob_oid": "94aa7412757eb2d9fb20ec0c6e948b1cac7da7b0"
+    },
+    {
+      "path": "frontend/src/features/story-bible/api/contracts.ts",
+      "blob_oid": "6b5f42e4e24a464580f4c9f41cc818c58a19956b"
+    },
+    {
+      "path": "frontend/src/features/story-bible/api/errors.ts",
+      "blob_oid": "bfe0b279cc9c07797ff9ac4b8436481b77db5649"
+    },
+    {
+      "path": "frontend/src/features/story-bible/api/etags.ts",
+      "blob_oid": "a2652b58e021d02d26a264a651610ee863658b3d"
+    },
+    {
+      "path": "frontend/src/features/story-bible/api/parsers.ts",
+      "blob_oid": "84b53c3dd18670a6eac197a726942fd50b3692b9"
+    },
+    {
+      "path": "frontend/src/features/story-bible/components/StoryBibleCreateForm.tsx",
+      "blob_oid": "124faf126b986c3e660647b6c4e0927b2b364274"
+    },
+    {
+      "path": "frontend/src/features/story-bible/components/StoryBibleEditor.tsx",
+      "blob_oid": "c7e57a6611eced812958e43ef0ffad4b1cf3bc45"
+    },
+    {
+      "path": "frontend/src/features/story-bible/components/StoryBibleMetadata.tsx",
+      "blob_oid": "92b5e0c118fc5192d84a8d3536eba521e7199081"
+    },
+    {
+      "path": "frontend/src/features/story-bible/components/StoryBibleResolutionPanel.tsx",
+      "blob_oid": "efe10906956491fd68aac94342c7153c4bc4935a"
+    },
+    {
+      "path": "frontend/src/features/story-bible/components/StoryBibleRevisionHistory.tsx",
+      "blob_oid": "b99e22977a5fca8e4411816427b4f1456ffa5e96"
+    },
+    {
+      "path": "frontend/src/features/story-bible/components/StoryBibleStates.tsx",
+      "blob_oid": "27a04bd3434a103be7cb98da8e857050f8e5aebd"
+    },
+    {
+      "path": "frontend/src/features/story-bible/constants.ts",
+      "blob_oid": "d62a8135122dcde29639e22e13492ec912b6f15a"
+    },
+    {
+      "path": "frontend/src/features/story-bible/hooks/useStoryBible.ts",
+      "blob_oid": "af1ca6a1de2caef0a71ca8fa7b1c4344e39e2fd6"
+    },
+    {
+      "path": "frontend/src/features/story-bible/hooks/useStoryBibleRevisionHistory.ts",
+      "blob_oid": "311b3d7f377d6abda2d5eba3ecf6246cdae8a258"
+    },
+    {
+      "path": "frontend/src/features/story-bible/index.ts",
+      "blob_oid": "8810978a4e6f1af9dc7a74df0dee7d68be8c2dd1"
+    },
+    {
+      "path": "frontend/src/features/story-bible/pages/StoryBiblePage.tsx",
+      "blob_oid": "8d09239649f4c83fdcc9a9d884087d2be7111dfc"
+    },
+    {
+      "path": "frontend/src/features/story-bible/pages/StoryBibleRevisionHistoryPage.tsx",
+      "blob_oid": "2d77b089ac54032198c51310236c7248e47c073d"
+    },
+    {
+      "path": "frontend/src/features/story-bible/validation.ts",
+      "blob_oid": "448c01f200c1ccf448a6e8ee13d54c63f28a7260"
+    },
+    {
+      "path": "frontend/src/main.tsx",
+      "blob_oid": "aa0b35b09168b65e1bffe991d1d99d196c8e976e"
+    },
+    {
+      "path": "frontend/src/pages/FoundationPage.tsx",
+      "blob_oid": "e0eadc52588e5803c73f106a304189220bd6af08"
+    },
+    {
+      "path": "frontend/src/pages/NotFoundPage.tsx",
+      "blob_oid": "cdce9161b42b2361962e6df48b9b57c12797fa98"
+    },
+    {
+      "path": "frontend/src/styles/global.css",
+      "blob_oid": "e44414578cba509493e4db55ac907adf01635230"
+    },
+    {
+      "path": "frontend/src/test/setup.ts",
+      "blob_oid": "6cb6f75d5f3b1cdfbb83b54d94d6792d270c8776"
+    },
+    {
+      "path": "frontend/src/vite-env.d.ts",
+      "blob_oid": "d43868c462a778a92c85baf04265a3495922adec"
+    },
+    {
+      "path": "frontend/tests/security-session.test.ts",
+      "blob_oid": "53b97552007795be63819a3de8d8dca74d53d91c"
+    },
+    {
+      "path": "frontend/tsconfig.app.json",
+      "blob_oid": "b8977f99662f97df08e507204251272609ecf2c3"
+    },
+    {
+      "path": "frontend/tsconfig.e2e.json",
+      "blob_oid": "302659f5593a0ea1940aad09cebb78d4b1c9f68c"
+    },
+    {
+      "path": "frontend/tsconfig.json",
+      "blob_oid": "d4b394e1a9a8e1429a8743db5b442466aae7be67"
+    },
+    {
+      "path": "frontend/tsconfig.node.json",
+      "blob_oid": "34c719304a55ec375ec164cb91ebf9f67e3b25d7"
+    },
+    {
+      "path": "frontend/tsconfig.test.json",
+      "blob_oid": "0f5d354d140703cad8cb4376430f2ae02c4450dd"
+    },
+    {
+      "path": "frontend/vite.config.ts",
+      "blob_oid": "2fa26b14e9a2a009e948b3e5d1541422ed03d6dc"
+    },
+    {
+      "path": "frontend/vitest.config.ts",
+      "blob_oid": "b2a365649a66d68b42a4474c3c9038a4a772c599"
+    },
+    {
+      "path": "packs/genres/README.md",
+      "blob_oid": "43804437e52413f148d9b0507b04fea3d92d81bf"
+    },
+    {
+      "path": "packs/platforms/README.md",
+      "blob_oid": "e249c056a4a1796ae9a44728a059e190be2619b5"
+    },
+    {
+      "path": "sample_data/README.md",
+      "blob_oid": "a8347f2c028dc2b0326640dc13a820176f350848"
+    },
+    {
+      "path": "scripts/README.md",
+      "blob_oid": "8592147d6acb5c8a0eaa0926a96fef76e9664b1d"
+    },
+    {
+      "path": "scripts/check_backend_coverage.py",
+      "blob_oid": "7f207ece884f0dee3710e5f1d6c3e07c7ffe6521"
+    },
+    {
+      "path": "scripts/check_e2e_cleanup.ps1",
+      "blob_oid": "4cefc39fa9d25862bd5ee04b94c998118472d393"
+    },
+    {
+      "path": "scripts/check_repository_hygiene.ps1",
+      "blob_oid": "69ec4aae4ea3a721f8e6acffa6a4535e125de0c0"
+    },
+    {
+      "path": "scripts/check_security_ast.py",
+      "blob_oid": "2198a3a25993acf1b895cf28e7362883163391e3"
+    },
+    {
+      "path": "scripts/check_security_baseline.ps1",
+      "blob_oid": "283f0928f1e388017329cb06da722d5c3e0e4489"
+    },
+    {
+      "path": "scripts/check_security_runtime.ps1",
+      "blob_oid": "d4a0982bbf0a4dae16e2ebc13ecefafb006ca702"
+    },
+    {
+      "path": "scripts/check_startup_runtime.ps1",
+      "blob_oid": "fd01053390b0dcc9299c7a46a29ddb2e10b576d0"
+    },
+    {
+      "path": "scripts/check_startup_safety.ps1",
+      "blob_oid": "d810f3aa4ed1a6a3b4404731c7b5143fea6b5a2f"
+    },
+    {
+      "path": "scripts/check_windows_storage.ps1",
+      "blob_oid": "c47d511a43bbec0675e0199e7b2b2cc1a4cb493f"
+    },
+    {
+      "path": "scripts/environment_doctor.ps1",
+      "blob_oid": "f7f516fee180c1fbcb2451c020bcc47472a3b2f9"
+    },
+    {
+      "path": "scripts/format_code.ps1",
+      "blob_oid": "94fddd0cef4bcf9b65fee50b7f9dc65ef045606c"
+    },
+    {
+      "path": "scripts/invoke_owned_process.ps1",
+      "blob_oid": "e009a73510cbf5333dba91536fb3dc27c364ff5d"
+    },
+    {
+      "path": "scripts/m0_preflight.ps1",
+      "blob_oid": "e387a445479eaeebcea64d52cecf27f162dce9e0"
+    },
+    {
+      "path": "scripts/quality_gate.ps1",
+      "blob_oid": "4cedbe0af2f9646339fd8c795403b954c4105f5a"
+    },
+    {
+      "path": "scripts/run_e2e.ps1",
+      "blob_oid": "94ad6ecf0c6237e5821d08a7a576936458736adf"
+    },
+    {
+      "path": "scripts/run_e2e_service.ps1",
+      "blob_oid": "ec38b8e7473efb24521e51cfe5a54fd7bbcc45b5"
+    },
+    {
+      "path": "scripts/show_e2e_report.ps1",
+      "blob_oid": "519c3aaad0eeb95ba20bd6bdd0a37f0fb0ca4dc2"
+    },
+    {
+      "path": "scripts/start_development.ps1",
+      "blob_oid": "dd8660ed12bda79e9dc813fdf0d827816761dbf4"
+    },
+    {
+      "path": "scripts/start_integrated.ps1",
+      "blob_oid": "9e38ac1cf8aaf35598783ed3085dd256703eb420"
+    },
+    {
+      "path": "tests/README.md",
+      "blob_oid": "ec9c1021c4f76dc50fb9450505ccc2e989eace5e"
+    },
+    {
+      "path": "tests/architecture/__init__.py",
+      "blob_oid": "99b2c0b48819819f42268703d14c9867b845a0d0"
+    },
+    {
+      "path": "tests/architecture/backend_boundaries.py",
+      "blob_oid": "484a19c1f2fa7d4d1e0b5514ebf931ca3c20c480"
+    },
+    {
+      "path": "tests/architecture/story_bible_boundaries.py",
+      "blob_oid": "224d2d5504dc8bd5c9d1735762d84cbbf44c8855"
+    },
+    {
+      "path": "tests/architecture/test_backend_boundaries.py",
+      "blob_oid": "0994f1ddacf85621065ebee4155b0d6da9b32dec"
+    },
+    {
+      "path": "tests/architecture/test_m0_preflight.py",
+      "blob_oid": "49f4cddc4c02153e8e0dafa42a5e30fefe639b36"
+    },
+    {
+      "path": "tests/architecture/test_repository_hygiene.py",
+      "blob_oid": "c2afde0609a8f17dfd62f7e7bd7304c849606d24"
+    },
+    {
+      "path": "tests/architecture/test_security_baseline.py",
+      "blob_oid": "95df4f2e5b1557441973fd4fd14aabc9f00c3698"
+    },
+    {
+      "path": "tests/architecture/test_startup_scripts.py",
+      "blob_oid": "30123369bef76f5131e0c638977a8d372f41029f"
+    },
+    {
+      "path": "tests/architecture/test_story_bible_boundaries.py",
+      "blob_oid": "8b63f698f17c3d700e90ea62425046afe9fa1e75"
+    },
+    {
+      "path": "tests/backend/__init__.py",
+      "blob_oid": "b371ec255f70aa2c84b204984d2fec91c64961d0"
+    },
+    {
+      "path": "tests/backend/conftest.py",
+      "blob_oid": "ae545dd9c315abdac9c8bcf357aa7cde12594676"
+    },
+    {
+      "path": "tests/backend/factories.py",
+      "blob_oid": "e52bf2c4fda3dcb092c4b91152009789c40c081d"
+    },
+    {
+      "path": "tests/backend/project_api_support.py",
+      "blob_oid": "12c4768c476de69c23c514d2ee152cd3ee18eab3"
+    },
+    {
+      "path": "tests/backend/project_repository_support.py",
+      "blob_oid": "eab781dfbe71ec923c51c8c438a3ae5714524aa1"
+    },
+    {
+      "path": "tests/backend/story_bible_application_support.py",
+      "blob_oid": "00ee9d5672c1562e1cfe0750e71614d3a767d9ea"
+    },
+    {
+      "path": "tests/backend/story_bible_http_support.py",
+      "blob_oid": "7f60680effa46be822449e352ba8b7e6bd453cca"
+    },
+    {
+      "path": "tests/backend/story_bible_repository_support.py",
+      "blob_oid": "12867d5d05d642342274c1c508e359fce2cf175e"
+    },
+    {
+      "path": "tests/backend/story_bible_support.py",
+      "blob_oid": "605cd1443692e73266d20f0938803fa55643a07a"
+    },
+    {
+      "path": "tests/backend/test_config.py",
+      "blob_oid": "d80c990787669b866b233a13f6eb735c4e82ec0c"
+    },
+    {
+      "path": "tests/backend/test_cors.py",
+      "blob_oid": "25e60a4c72541ab33bff659a954baff7d18eb73b"
+    },
+    {
+      "path": "tests/backend/test_csrf.py",
+      "blob_oid": "cf89b1e88dc3e375d289eed6fa75f233451bd350"
+    },
+    {
+      "path": "tests/backend/test_database_config.py",
+      "blob_oid": "9b5ec581357681319cdda96d991191308e3cc0e2"
+    },
+    {
+      "path": "tests/backend/test_database_diagnostics.py",
+      "blob_oid": "68e0709dbed2359c6a591f388f207501d337ffdf"
+    },
+    {
+      "path": "tests/backend/test_database_domain_types.py",
+      "blob_oid": "f3359b8de2393c9f9636faf0cd7e7391736a1e4a"
+    },
+    {
+      "path": "tests/backend/test_database_engine.py",
+      "blob_oid": "493bf84a6593fdd841552b41c18dc30254a8d8cf"
+    },
+    {
+      "path": "tests/backend/test_database_health.py",
+      "blob_oid": "a91f13cf4670dc5f35628508ec8b89604afe2ce8"
+    },
+    {
+      "path": "tests/backend/test_database_session.py",
+      "blob_oid": "290324e1cc6fc1687ab97a941338de4e55a83922"
+    },
+    {
+      "path": "tests/backend/test_diagnostics_checks.py",
+      "blob_oid": "3b8e8d40d73773f78e47865c38530a035ba5a709"
+    },
+    {
+      "path": "tests/backend/test_diagnostics_models.py",
+      "blob_oid": "4ef9e9ca1822ecc758afc20467ebd86f3a205c4b"
+    },
+    {
+      "path": "tests/backend/test_diagnostics_probes.py",
+      "blob_oid": "c1e4a918f4bb46def101c5c4b9828a5954aa662d"
+    },
+    {
+      "path": "tests/backend/test_diagnostics_redaction.py",
+      "blob_oid": "aac99234adbdf788c882ce77c26323da4c026671"
+    },
+    {
+      "path": "tests/backend/test_diagnostics_runner.py",
+      "blob_oid": "e648ebd39903d46b9f256a105455c11accba83d0"
+    },
+    {
+      "path": "tests/backend/test_domain_concurrency.py",
+      "blob_oid": "f1442f65ae706d58b86170bbf6802bdb6718a262"
+    },
+    {
+      "path": "tests/backend/test_domain_identifiers.py",
+      "blob_oid": "89396a7d6b38cbcfc3f65c05a3e5fc8df47aa65a"
+    },
+    {
+      "path": "tests/backend/test_domain_revisions.py",
+      "blob_oid": "9ca858d4051538d4d1c28caf725762d985de41fd"
+    },
+    {
+      "path": "tests/backend/test_domain_time.py",
+      "blob_oid": "318cece03e51d4c940d6113152bdead502e549a6"
+    },
+    {
+      "path": "tests/backend/test_errors.py",
+      "blob_oid": "5621a3f7af1eccc0f324aa354cdd5d38f6944f37"
+    },
+    {
+      "path": "tests/backend/test_frontend_static.py",
+      "blob_oid": "f92b983046a52e8c28af1f6fc4516061cacc4e18"
+    },
+    {
+      "path": "tests/backend/test_health.py",
+      "blob_oid": "129c95f291978f513a55a6b254ea574d159d8c45"
+    },
+    {
+      "path": "tests/backend/test_migrations.py",
+      "blob_oid": "4da3f521863812165ab90a9b3c3220e16fecb5a7"
+    },
+    {
+      "path": "tests/backend/test_project_api_concurrency.py",
+      "blob_oid": "d9c7a18c77433b3200fdc78ac8ed55adee29f035"
+    },
+    {
+      "path": "tests/backend/test_project_api_create.py",
+      "blob_oid": "0c3a51b2a57d4ab0b7b0a1bfca3630ab91abd7dc"
+    },
+    {
+      "path": "tests/backend/test_project_api_dto.py",
+      "blob_oid": "4ce7991d56d7f44a4cbf6f6c3cbcb4b899c60eb4"
+    },
+    {
+      "path": "tests/backend/test_project_api_errors.py",
+      "blob_oid": "e5c303f9fb72f6cdaf91eca78ad87399f1e0cdc8"
+    },
+    {
+      "path": "tests/backend/test_project_api_etags.py",
+      "blob_oid": "df4e6c74a9c43b4ea9c27fc39268262255e3c13d"
+    },
+    {
+      "path": "tests/backend/test_project_api_get.py",
+      "blob_oid": "2fc37508fe54ef2ca2a00eaab9483ac6a52c73f4"
+    },
+    {
+      "path": "tests/backend/test_project_api_integration.py",
+      "blob_oid": "aaad28da9f93ff505b7675a6878c34a8e34bef2d"
+    },
+    {
+      "path": "tests/backend/test_project_api_openapi.py",
+      "blob_oid": "c45ed64b2c97f819197eba993433867ef5bdf21d"
+    },
+    {
+      "path": "tests/backend/test_project_api_revise.py",
+      "blob_oid": "ac66710b972f6bc022520f9715a5aa116d8475f3"
+    },
+    {
+      "path": "tests/backend/test_project_api_security.py",
+      "blob_oid": "1b3746c88cf10e9dc4e1e2ef1b33d94f64947647"
+    },
+    {
+      "path": "tests/backend/test_project_application_commands.py",
+      "blob_oid": "58ec634e7b66a529d0ad6439bf669e17a4cb5d41"
+    },
+    {
+      "path": "tests/backend/test_project_application_integration.py",
+      "blob_oid": "4f8afa227ef2094519b2789e228eb16121afaec1"
+    },
+    {
+      "path": "tests/backend/test_project_application_models.py",
+      "blob_oid": "b58192ffaf1891aa14b2dede34d01fced29b5be1"
+    },
+    {
+      "path": "tests/backend/test_project_application_queries.py",
+      "blob_oid": "851aac50f67d4365a18bdbe364f86dd4aebc7c33"
+    },
+    {
+      "path": "tests/backend/test_project_application_services.py",
+      "blob_oid": "d855cdf63f835f68ff9dcc6c64d87b39aa778d08"
+    },
+    {
+      "path": "tests/backend/test_project_application_side_effects.py",
+      "blob_oid": "eef4e3f2a270af870786aa1cf43ddce603372b3a"
+    },
+    {
+      "path": "tests/backend/test_project_entities.py",
+      "blob_oid": "9a76c941f74141e5ce0f2aa3acf15edcb1b816fb"
+    },
+    {
+      "path": "tests/backend/test_project_identifiers.py",
+      "blob_oid": "ac52a645eab3c1dff2283f7a1a7f9206745e49e9"
+    },
+    {
+      "path": "tests/backend/test_project_list_api.py",
+      "blob_oid": "b78c0064dcd9e52dbb7238268719e9c686b397aa"
+    },
+    {
+      "path": "tests/backend/test_project_list_api_integration.py",
+      "blob_oid": "b2ac4d67ab8241dea2f1b7bd89ec2751581463f9"
+    },
+    {
+      "path": "tests/backend/test_project_list_api_openapi.py",
+      "blob_oid": "620e327175984d5a23082c5c83d740cccba87bf1"
+    },
+    {
+      "path": "tests/backend/test_project_list_cursor.py",
+      "blob_oid": "767ba4770e7b06009d89dd835d7f1f40d60abc1a"
+    },
+    {
+      "path": "tests/backend/test_project_listing_corruption.py",
+      "blob_oid": "381614c753c76546ed6d1b7d4bd5769df69f6923"
+    },
+    {
+      "path": "tests/backend/test_project_listing_models.py",
+      "blob_oid": "a774231ad328f41bf9301a4da18b041a487bf971"
+    },
+    {
+      "path": "tests/backend/test_project_listing_pagination.py",
+      "blob_oid": "9b13bac135e06d0f24af3724e2f0678638531dec"
+    },
+    {
+      "path": "tests/backend/test_project_listing_persistence.py",
+      "blob_oid": "6e7f17901ce11db9baad804316f1344b46a588f3"
+    },
+    {
+      "path": "tests/backend/test_project_listing_service.py",
+      "blob_oid": "6f1a16da1074f3e4426a3d39b3f67bca145804a7"
+    },
+    {
+      "path": "tests/backend/test_project_migration.py",
+      "blob_oid": "b3e6317a494d64970119313c8303fb0eef82e2b4"
+    },
+    {
+      "path": "tests/backend/test_project_persistence_constraints.py",
+      "blob_oid": "9d47683f3ebb886b413e28edb9756a8abd6dcab3"
+    },
+    {
+      "path": "tests/backend/test_project_persistence_models.py",
+      "blob_oid": "1b139f2087887757bb2b021a03ac8e7133306850"
+    },
+    {
+      "path": "tests/backend/test_project_repository_append.py",
+      "blob_oid": "fb4363f55d409496b96ef31ccb9f59029226ba0b"
+    },
+    {
+      "path": "tests/backend/test_project_repository_concurrency.py",
+      "blob_oid": "41671d404cebf93f4f84362852588c392d07de9f"
+    },
+    {
+      "path": "tests/backend/test_project_repository_contract.py",
+      "blob_oid": "8e5c0bb98441b7fa53d1ecf3c3adc29ae3e42ea7"
+    },
+    {
+      "path": "tests/backend/test_project_repository_corruption.py",
+      "blob_oid": "0a6319f6ddcce1af8020ae0b396f86c5b2f29c78"
+    },
+    {
+      "path": "tests/backend/test_project_repository_create.py",
+      "blob_oid": "5c227ada19b482103b3869c034c90ee524f5795a"
+    },
+    {
+      "path": "tests/backend/test_project_repository_read.py",
+      "blob_oid": "021b8aec827a0b4cf91285e5700f95ea8856ab64"
+    },
+    {
+      "path": "tests/backend/test_project_repository_transactions.py",
+      "blob_oid": "deddcb34073cd1b180a849f4fb516154245990a1"
+    },
+    {
+      "path": "tests/backend/test_project_revision_cursor.py",
+      "blob_oid": "d20f3139aaac6df664e285ccaefc01f1dd7760b3"
+    },
+    {
+      "path": "tests/backend/test_project_revision_history_api.py",
+      "blob_oid": "8f3b9c9a93d97e6c7d5bd0ec72b41a02476ad58e"
+    },
+    {
+      "path": "tests/backend/test_project_revision_history_api_integration.py",
+      "blob_oid": "9c4f8401eaea889c934de0811519a2221d4ecac8"
+    },
+    {
+      "path": "tests/backend/test_project_revision_history_corruption.py",
+      "blob_oid": "995aba0a22c1c73ed8b982958696393089026b8f"
+    },
+    {
+      "path": "tests/backend/test_project_revision_history_models.py",
+      "blob_oid": "9b19fe1600b33edfdb8e8fd68787aa956b40d07e"
+    },
+    {
+      "path": "tests/backend/test_project_revision_history_openapi.py",
+      "blob_oid": "52b8780d6617df9409fe540818be0f0b053e5e2d"
+    },
+    {
+      "path": "tests/backend/test_project_revision_history_pagination.py",
+      "blob_oid": "dc9b44eb7dfa3b4075b60c188b6fc1fa218d5ed7"
+    },
+    {
+      "path": "tests/backend/test_project_revision_history_persistence.py",
+      "blob_oid": "854e5f22d04cc81a29b5d66c738d470fdd1eedac"
+    },
+    {
+      "path": "tests/backend/test_project_revision_history_service.py",
+      "blob_oid": "8d6a8b947080b1154b4fec7560ef894dcf6a0a16"
+    },
+    {
+      "path": "tests/backend/test_project_revision_immutability.py",
+      "blob_oid": "3d296019ac30b219711eb7ce729c502af506afae"
+    },
+    {
+      "path": "tests/backend/test_project_transitions.py",
+      "blob_oid": "3f71cbcbc96adea9cbdafd43643af8cf9138d158"
+    },
+    {
+      "path": "tests/backend/test_project_values.py",
+      "blob_oid": "a26669bc039609b219d8db76ad64bfcc57c00e91"
+    },
+    {
+      "path": "tests/backend/test_request_limits.py",
+      "blob_oid": "1c9c5cafc74f73e731622ec35caebea6be2ac475"
+    },
+    {
+      "path": "tests/backend/test_security_application.py",
+      "blob_oid": "49e08af2e4d0618629c0938d5b6ceb3db3dcebad"
+    },
+    {
+      "path": "tests/backend/test_security_config.py",
+      "blob_oid": "5579c90472d53d9c0015798807641e86cde75778"
+    },
+    {
+      "path": "tests/backend/test_security_headers.py",
+      "blob_oid": "859534dfe6834dd09e55a3e87259b1011a5516a0"
+    },
+    {
+      "path": "tests/backend/test_security_health.py",
+      "blob_oid": "5543aa81d33260eaf1cfb1a23baa53938b205c02"
+    },
+    {
+      "path": "tests/backend/test_security_redaction.py",
+      "blob_oid": "7b3f1e915486ac1432a5a8ee56c8b6726730063d"
+    },
+    {
+      "path": "tests/backend/test_security_sessions.py",
+      "blob_oid": "7ddaf5270bd85af1351665960368d9c118a62556"
+    },
+    {
+      "path": "tests/backend/test_security_startup.py",
+      "blob_oid": "2610c154efe13ad8ebe5d2b6accdbad9f4fa72bc"
+    },
+    {
+      "path": "tests/backend/test_storage_access.py",
+      "blob_oid": "7be02404ce624e4d1a7879d76b6ce44f20de5474"
+    },
+    {
+      "path": "tests/backend/test_storage_database_integration.py",
+      "blob_oid": "f484fed75e7474f647e1ace99a16b442dd5d1e67"
+    },
+    {
+      "path": "tests/backend/test_storage_health.py",
+      "blob_oid": "51c447e4f0ff334219c316f241d40edc1cac8b58"
+    },
+    {
+      "path": "tests/backend/test_storage_initializer.py",
+      "blob_oid": "bf9f5be94ad21aa19f32d0ccfd1a6616aca66bcd"
+    },
+    {
+      "path": "tests/backend/test_storage_paths.py",
+      "blob_oid": "9b67a3df70373d23406af2e99347967b9ffa8006"
+    },
+    {
+      "path": "tests/backend/test_story_bible_application_commands.py",
+      "blob_oid": "99b2fc47564837730be8cd4a6ee52630753870d0"
+    },
+    {
+      "path": "tests/backend/test_story_bible_application_concurrency.py",
+      "blob_oid": "15c7de7be9a9432975ed40300be7fe9b4ec370e1"
+    },
+    {
+      "path": "tests/backend/test_story_bible_application_integration.py",
+      "blob_oid": "eb4e280c297dcbbddf68fbab4804a81c25ebcb4d"
+    },
+    {
+      "path": "tests/backend/test_story_bible_application_mappers.py",
+      "blob_oid": "23f17b57dffa15ca8afb6ce36f2f0f27f2d2f1c0"
+    },
+    {
+      "path": "tests/backend/test_story_bible_application_models.py",
+      "blob_oid": "9979af79b5c8b72ce13fb3508690252538da1fd4"
+    },
+    {
+      "path": "tests/backend/test_story_bible_application_queries.py",
+      "blob_oid": "241bf3db4c6e666617586ccee168a25aee3388b6"
+    },
+    {
+      "path": "tests/backend/test_story_bible_command_service.py",
+      "blob_oid": "81be9325784a8dceed046ce39c5b1dcef09f4d37"
+    },
+    {
+      "path": "tests/backend/test_story_bible_entities.py",
+      "blob_oid": "e3a2d74f7d1f24a702fd79448e8932f2d3b8bae9"
+    },
+    {
+      "path": "tests/backend/test_story_bible_http_concurrency.py",
+      "blob_oid": "cf4a6386d91763a995e1dce868e24e4b8b31f8b2"
+    },
+    {
+      "path": "tests/backend/test_story_bible_http_dto.py",
+      "blob_oid": "c78e99eadd27e79e43a1077e71e50b7348dcd23e"
+    },
+    {
+      "path": "tests/backend/test_story_bible_http_errors.py",
+      "blob_oid": "50c7506628c36c0ed103eecde06c466962a909d2"
+    },
+    {
+      "path": "tests/backend/test_story_bible_http_etags.py",
+      "blob_oid": "2636fd25b3c652daad77f41de9cbb9bc3c7d08d6"
+    },
+    {
+      "path": "tests/backend/test_story_bible_http_integration.py",
+      "blob_oid": "95325dd6e4c758f7283ef30305529f18dbf99c9b"
+    },
+    {
+      "path": "tests/backend/test_story_bible_http_mappers.py",
+      "blob_oid": "82698d8978b177a0d53017e3144c095795bf1841"
+    },
+    {
+      "path": "tests/backend/test_story_bible_http_openapi.py",
+      "blob_oid": "caa730da011060710b1eaea99258e755c1910101"
+    },
+    {
+      "path": "tests/backend/test_story_bible_http_router.py",
+      "blob_oid": "baa45eb69efb6ff6b83b6a26690000aa692c26b6"
+    },
+    {
+      "path": "tests/backend/test_story_bible_http_security.py",
+      "blob_oid": "0990388f61bb6e1b7a36dc3654846a64691e49ba"
+    },
+    {
+      "path": "tests/backend/test_story_bible_http_unmigrated.py",
+      "blob_oid": "5e072c79e55880def1b0d5168c6a08095ab94655"
+    },
+    {
+      "path": "tests/backend/test_story_bible_identifiers.py",
+      "blob_oid": "df1accb466da538b9273e83e838583c673641475"
+    },
+    {
+      "path": "tests/backend/test_story_bible_immutability.py",
+      "blob_oid": "13de0a167112067cb72e1434bcd0c21b4bb08c68"
+    },
+    {
+      "path": "tests/backend/test_story_bible_migration.py",
+      "blob_oid": "71af06284fa4cb027e207ca4ac3eabaab80d7a11"
+    },
+    {
+      "path": "tests/backend/test_story_bible_persistence_constraints.py",
+      "blob_oid": "a94c185915108e49f41db0007bbae7bf5336e88b"
+    },
+    {
+      "path": "tests/backend/test_story_bible_persistence_mappers.py",
+      "blob_oid": "05aee8f2b6bab0ed8051db95c450b6496a2d7e15"
+    },
+    {
+      "path": "tests/backend/test_story_bible_persistence_models.py",
+      "blob_oid": "f8379ef3fa4d13fb4cd2714c0382a209e8318862"
+    },
+    {
+      "path": "tests/backend/test_story_bible_query_service.py",
+      "blob_oid": "0e48393ecad73558636904432628f2ac63832cdc"
+    },
+    {
+      "path": "tests/backend/test_story_bible_repository_append.py",
+      "blob_oid": "240c7bd163e30cc298f10c152b8a187906bf0ece"
+    },
+    {
+      "path": "tests/backend/test_story_bible_repository_concurrency.py",
+      "blob_oid": "d3acceb566a64e43d1f2099916583d246e6ab579"
+    },
+    {
+      "path": "tests/backend/test_story_bible_repository_corruption.py",
+      "blob_oid": "8010bb555d77f6570d2f83dd227686aec90a5c23"
+    },
+    {
+      "path": "tests/backend/test_story_bible_repository_create.py",
+      "blob_oid": "69ff6d34d20bcab812780ecaab93e0753e7cb694"
+    },
+    {
+      "path": "tests/backend/test_story_bible_repository_failures.py",
+      "blob_oid": "3c6209f1c75894e4e820f41cdb4b2110a780da16"
+    },
+    {
+      "path": "tests/backend/test_story_bible_repository_get.py",
+      "blob_oid": "ba9373b40a0f4dbe069ef974bf464ff2ad0ba711"
+    },
+    {
+      "path": "tests/backend/test_story_bible_revision_history_api_integration.py",
+      "blob_oid": "3a6d74de046d2d09cdb2d6a97df88d168ef96967"
+    },
+    {
+      "path": "tests/backend/test_story_bible_revision_history_http_contracts.py",
+      "blob_oid": "78a12b41f0666f0ebcfc31358c2098db1362e349"
+    },
+    {
+      "path": "tests/backend/test_story_bible_revision_history_models_service_cursor.py",
+      "blob_oid": "8065d0163f740cf294717cb9ac9a3934976054c7"
+    },
+    {
+      "path": "tests/backend/test_story_bible_revision_history_persistence.py",
+      "blob_oid": "032d1c585bf8637c84f00cc320bb8758683dba6a"
+    },
+    {
+      "path": "tests/backend/test_story_bible_revision_immutability.py",
+      "blob_oid": "78a81a52b12d12b166c002df92a362a4956ad52d"
+    },
+    {
+      "path": "tests/backend/test_story_bible_transitions.py",
+      "blob_oid": "edca2027274623e6ae3448f5c01726ffd61bbb3a"
+    },
+    {
+      "path": "tests/backend/test_story_bible_values.py",
+      "blob_oid": "dd95d2335701b61a6bbd4267520723e2b5871c6a"
+    },
+    {
+      "path": "tests/backend/test_trusted_host.py",
+      "blob_oid": "ccf1cce9ba3b07898d4f89dcde70b71c00fdd61b"
+    },
+    {
+      "path": "tests/e2e/development/client-routing.spec.ts",
+      "blob_oid": "8ef3cfd1ddd27da5b9310bec29d31f3ba0a7b94a"
+    },
+    {
+      "path": "tests/e2e/development/foundation-status.spec.ts",
+      "blob_oid": "70e4b244525a388ca19b4525e3328b23eccd76a1"
+    },
+    {
+      "path": "tests/e2e/integrated/integrated-application.spec.ts",
+      "blob_oid": "fd213e93c2c0c306be0a1b1b167ecfa17abd9aac"
+    },
+    {
+      "path": "tests/e2e/integrated/project-api.spec.ts",
+      "blob_oid": "af8ee66f6937a009b10fe32d45e7fc48c421ad9c"
+    },
+    {
+      "path": "tests/e2e/integrated/project-detail-edit.spec.ts",
+      "blob_oid": "6bc0002e028faa34b93a1d5e9347b7aa87a1aa8e"
+    },
+    {
+      "path": "tests/e2e/integrated/project-frontend.spec.ts",
+      "blob_oid": "4434a5a4226e526347de6aee2d67bf88e802a0dd"
+    },
+    {
+      "path": "tests/e2e/integrated/project-list-api.spec.ts",
+      "blob_oid": "f0916168ad2bee58402befd2732b3db65b1555e5"
+    },
+    {
+      "path": "tests/e2e/integrated/project-revision-history.spec.ts",
+      "blob_oid": "99899486a53997aeae6974140b2f563e04a4c66f"
+    },
+    {
+      "path": "tests/e2e/integrated/route-isolation.spec.ts",
+      "blob_oid": "04779f04b85bdd12a4681a0cfaec5c697641873b"
+    },
+    {
+      "path": "tests/e2e/integrated/security-baseline.spec.ts",
+      "blob_oid": "d0dc4ca3d49bbfa44429c85f6d432c39e400a2b1"
+    },
+    {
+      "path": "tests/e2e/integrated/story-bible-frontend.spec.ts",
+      "blob_oid": "76caaae8f0cb1d49a850796f4b9899019ce1d8a1"
+    },
+    {
+      "path": "tests/e2e/integrated/story-bible-http.spec.ts",
+      "blob_oid": "b3bec24b05fcca3121ca65bbec28b74c1a638d77"
+    },
+    {
+      "path": "tests/e2e/integrated/story-bible-revision-history.spec.ts",
+      "blob_oid": "eca14d026dabdf6f564341b986e2eb56757fc0e9"
+    },
+    {
+      "path": "tests/e2e/startup-failure/missing-build.spec.ts",
+      "blob_oid": "d9509d6f906267f4a3f4932c12af6c73cc47944e"
+    },
+    {
+      "path": "tests/e2e/support/assertions.ts",
+      "blob_oid": "be0040b4a8780e76179abc64e583cbadbd52b441"
+    },
+    {
+      "path": "tests/e2e/support/fixture.ts",
+      "blob_oid": "5d4961a381bd74e1aa80ae0270eaad83df3a8930"
+    },
+    {
+      "path": "tests/e2e/support/network-guard.ts",
+      "blob_oid": "9b76b0356353e32ff11b0a299bd76bbf1d35c5b3"
+    },
+    {
+      "path": "tests/e2e/support/request-gate.ts",
+      "blob_oid": "5aa1a20030d21a99c0edcfcbbf751687c1e9b141"
+    },
+    {
+      "path": "tests/frontend/api-client.test.ts",
+      "blob_oid": "feb4290a2bbb264ff99e11e12b4f9aba8a42b2a8"
+    },
+    {
+      "path": "tests/frontend/app.test.tsx",
+      "blob_oid": "fe60434e59f95281d4d1711dd1ef26929e879cb4"
+    },
+    {
+      "path": "tests/frontend/error-boundary.test.tsx",
+      "blob_oid": "9f0acbd1526c7e2d4f2ae4f63481e8a6315715d1"
+    },
+    {
+      "path": "tests/frontend/eslint-boundaries.test.ts",
+      "blob_oid": "f2ed09ca605fad542ff87c45ac54080a6a896ac2"
+    },
+    {
+      "path": "tests/frontend/health-api.test.ts",
+      "blob_oid": "ff7662cbf989905e3cd778746679d3a472aaaae7"
+    },
+    {
+      "path": "tests/frontend/project-api-client.test.ts",
+      "blob_oid": "bdf23ab4546d7d5e819a01631878a6f09a499821"
+    },
+    {
+      "path": "tests/frontend/project-api-contracts.test.ts",
+      "blob_oid": "8fcb34b1b7bfc8f9e330f0b0379fc439b270569a"
+    },
+    {
+      "path": "tests/frontend/project-conflict-flow.test.tsx",
+      "blob_oid": "2d0079771fb8e508bc1be064846819ecf33051d9"
+    },
+    {
+      "path": "tests/frontend/project-create-form.test.tsx",
+      "blob_oid": "1d3f501d6c43abc3094742889746e2fdfa089f03"
+    },
+    {
+      "path": "tests/frontend/project-detail-routes.test.tsx",
+      "blob_oid": "16398b7a0b963ea1fbfd29164f164b6b3f728d39"
+    },
+    {
+      "path": "tests/frontend/project-detail-support.ts",
+      "blob_oid": "da74be4ccbf48affc3e3e2a5b07b035557094fe3"
+    },
+    {
+      "path": "tests/frontend/project-details-api.test.ts",
+      "blob_oid": "84a26d402c5421b77904d07e23e4f1623a8ddeab"
+    },
+    {
+      "path": "tests/frontend/project-details-page.test.tsx",
+      "blob_oid": "5377cf1455cda380374b78becac916866de19911"
+    },
+    {
+      "path": "tests/frontend/project-edit-form.test.tsx",
+      "blob_oid": "c604f974756994ceef322915d62b10891274b68f"
+    },
+    {
+      "path": "tests/frontend/project-etags.test.ts",
+      "blob_oid": "7102c2b8617b6fee11de658ba11e7cc6d688c9e2"
+    },
+    {
+      "path": "tests/frontend/project-list.test.tsx",
+      "blob_oid": "f1d5af6165422a58193fc44a33a06e85f0799700"
+    },
+    {
+      "path": "tests/frontend/project-revise-api.test.ts",
+      "blob_oid": "38a2330c7dd05ca91d7c6093707b0b4eb9c99d20"
+    },
+    {
+      "path": "tests/frontend/project-revision-history-api.test.ts",
+      "blob_oid": "9b9b04e9306f8488b13ed9f031fe8765a6efc060"
+    },
+    {
+      "path": "tests/frontend/project-revision-history-contracts.test.ts",
+      "blob_oid": "ba5e43c8181a3d65ee224a5d4ad2dda01fe748ef"
+    },
+    {
+      "path": "tests/frontend/project-revision-history-list.test.tsx",
+      "blob_oid": "a2a1527f8702c9b2ddcf2bfa67f2fffcb82f5490"
+    },
+    {
+      "path": "tests/frontend/project-revision-history-page.test.tsx",
+      "blob_oid": "9a0104547a01b74ab579603fe5229eef37706c0e"
+    },
+    {
+      "path": "tests/frontend/project-revision-history-routes.test.tsx",
+      "blob_oid": "b7ac7b836983f42b31f2145a46f9402061356ee4"
+    },
+    {
+      "path": "tests/frontend/project-revision-viewer.test.tsx",
+      "blob_oid": "3272585bbf2bad575628e17435c34fe7f45fc773"
+    },
+    {
+      "path": "tests/frontend/project-routes.test.tsx",
+      "blob_oid": "517aaf4871ddda489fe60e24c5f42ed2802592dc"
+    },
+    {
+      "path": "tests/frontend/project-security-session.test.ts",
+      "blob_oid": "124eafe05fcba5ac9b884c2e65062c0617af4d38"
+    },
+    {
+      "path": "tests/frontend/projects-page.test.tsx",
+      "blob_oid": "d7b44a126667dccacc90393430b519ce6a7c588e"
+    },
+    {
+      "path": "tests/frontend/routing.test.tsx",
+      "blob_oid": "fcfdfcab81ad935cb82c32340fa95d8a67a1c9bd"
+    },
+    {
+      "path": "tests/frontend/story-bible-api-client.test.ts",
+      "blob_oid": "889d280d1da21e4a179a7bc78951570ce1c61c46"
+    },
+    {
+      "path": "tests/frontend/story-bible-api-contracts.test.ts",
+      "blob_oid": "edc9b0b7984948db7cad8099c93b8631f65e94bc"
+    },
+    {
+      "path": "tests/frontend/story-bible-conflict-flow.test.tsx",
+      "blob_oid": "b1c2dc2f77b9072b25800eaf7aab560baec091d4"
+    },
+    {
+      "path": "tests/frontend/story-bible-create-flow.test.tsx",
+      "blob_oid": "5f42dfc150e81854596026f00a9079efa527aced"
+    },
+    {
+      "path": "tests/frontend/story-bible-editor.test.tsx",
+      "blob_oid": "b70cbdf7baddf652272039d71024c407728f470b"
+    },
+    {
+      "path": "tests/frontend/story-bible-errors.test.ts",
+      "blob_oid": "70d37c27185e4c9b5c89e9208f5e09047df16de8"
+    },
+    {
+      "path": "tests/frontend/story-bible-revision-history.test.tsx",
+      "blob_oid": "2d490fb115c3191c6382be48f77d193add1d4380"
+    },
+    {
+      "path": "tests/frontend/story-bible-routes.test.tsx",
+      "blob_oid": "71e658c67ac9773f5a6b1cfe318188f3279436fc"
+    },
+    {
+      "path": "tests/frontend/story-bible-support.ts",
+      "blob_oid": "607d9d177304c592e9414fa64f462dd01ecef8f7"
+    },
+    {
+      "path": "tests/frontend/system-status.test.tsx",
+      "blob_oid": "0b12196e88ae26ea8c688bb12525dbb69bd1f7fe"
+    },
+    {
+      "path": "tests/pytest.ini",
+      "blob_oid": "2852eaaf506a78c4558db9224967fb14406f7457"
+    },
+    {
+      "path": "tests/ruff.toml",
+      "blob_oid": "62ef1a5f25e9067979457c48b9231071b0bbd85e"
+    }
+  ]
+}

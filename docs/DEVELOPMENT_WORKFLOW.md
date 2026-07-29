@@ -89,6 +89,12 @@ DEV-1.9授权Project不可变Revision历史的独立读取模型、Reader端口�
 
 DEV-1.10已完成M1 Project基础能力正式验收，`m1-project-foundation`标签和三份M1验收文件与既有M0基线一同冻结。后续任务不得移动、覆盖或改写两个标签及其历史事实；发现缺陷必须使用新的编号任务和提交。
 
+## M2冻结与后续任务边界
+
+DEV-2.7已完成M2 Story Bible基础能力正式验收。`m2-story-bible-foundation`是不可移动、不可覆盖、不可重建的历史冻结标签；三份M2验收文件不得改写。后续里程碑可以通过新编号任务和新提交扩展Story Bible，但不得amend验收提交或改写M2历史事实。M0与M1标签及六份既有冻结文件继续永久保留。
+
+M2冻结只确认不可变领域模型、事务持久化、应用用例、当前HTTP与React纯文本创建/修订，以及只读Revision历史形成真实闭环；不表示Character、World、PowerSystem、规划、章节写作、Review、Canon、Codex、Agent或完整AI网文产品已经完成。未来发现缺陷必须由新任务修复，M2标签仍保留为当时可复现基线。
+
 DEV-2.1只授权`aiwebnovel.story_bible`纯领域层：`sbl`/`sbr`标识、ProjectId归属引用、标题与纯文本正文值、稳定对象、不可变Revision、显式Head、一致Aggregate及无副作用创建/追加转换。它不授权Story Bible表、迁移、ORM、Repository、应用服务、DTO、API、前端、Character、World、PowerSystem、规划、三区、审批、Codex或Agent。DEV-2.2只有在独立任务明确授权后才能建立持久化能力；DEV-2.1的目录和对象不能被当作用户功能完成证据。
 
 DEV-2.2只授权Story Bible内部持久化基础：归属Project且一对一的稳定表、不可变完整Revision表、权威Head表、迁移0003、显式ORM/Mapper、纯Repository Protocol和基于独立Session、`BEGIN IMMEDIATE`、Stable/Head双CAS的事务适配器。跨模块只允许读取Project存在性，不得写Project表。它不授权应用服务、DTO、API、前端、历史功能、Character、World、PowerSystem、规划、三区、审批、Codex或Agent；DEV-2.3仍需独立任务授权。
