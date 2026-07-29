@@ -192,6 +192,12 @@ DEV-2.5的前端专项固定覆盖严格11字段响应、共享规范ID和强ETa
 
 独立AST门禁扫描真实生产包，并以受控合法与非法模块证明：Story Bible纯领域与Repository契约只可依赖标准库、通用`domain`、Story Bible自身和`project.identifiers.ProjectId`；应用层只可增加对Repository契约的依赖；具体持久化适配器才可使用SQLAlchemy、通用`db`和只读Project ORM归属。FastAPI、Pydantic、Alembic运行时依赖、具体Repository、Project服务/Repository/Web、反向依赖、生产Fake/Spy及Story Bible表的跨模块直接写入均被拒绝。专项测试只访问自有临时数据库，不访问网络、正式数据根或真实系统时间，也不新增依赖；它不能替代默认、IncludeE2E及依赖审计加E2E三种完整门禁。
 
+## Character专项检查
+
+DEV-3.1的六组专项测试固定覆盖`chr`/`crv`严格规范标识、name/role/profile代码点与控制字符规则、Stable/Revision/Head/Aggregate全部不变量、无副作用初始创建、完整替换追加、stale优先级、clock rollback、强不可变性、100个Revision确定性序列、导入无副作用及AST架构正负样例。新增`aiwebnovel.character`生产代码要求statements为100%、branches不低于95%；专项覆盖率只采集该包，不能以全局覆盖率替代。
+
+Character架构门禁只允许标准库、通用`domain`、Character自身和`project.identifiers.ProjectId`，拒绝框架、基础设施、Project其他层、Story Bible、Project/Story Bible/domain反向依赖和并存包名。该专项不访问数据库、网络、真实系统时间或正式数据根，不新增依赖，也不能替代默认、IncludeE2E及依赖审计加E2E三种完整门禁。
+
 ## 显式格式化
 
 格式化不是质量门禁的隐式步骤。需要改写格式时，在仓库根目录显式运行：

@@ -111,6 +111,14 @@ UI组件不得直接调用裸`fetch`、读取Cookie、获取或硬编码CSRF、�
 
 Story Bible前端固定在`frontend/src/features/story-bible`。API → hook → component → page → Router保持单向依赖；组件不得裸调用`fetch`或读取Cookie。历史页URL只含Project ID，游标保持不透明且不进入URL/存储/日志，摘要不含content，正文按需GET并可取消旧选择请求。GET不获取Session；POST/PUT均只发送一次且不自动重试或重放。当前没有Diff、回滚、恢复、历史编辑、Character/World/PowerSystem结构或Codex能力。详细契约见[Story Bible不可变修订历史](STORY_BIBLE_REVISION_HISTORY.md)。
 
+## 阶段3 Character纯领域模块
+
+`character.identifiers`、`character.values`、`character.entities`、领域错误和`character.transitions`组成DEV-3.1的纯领域边界。允许依赖Python标准库、通用`domain`、Character自身模块和`project.identifiers.ProjectId`；依赖方向固定为`Character Domain → ProjectId`。ProjectId只表达稳定归属，Character不得读取或修改Project状态、验证Project存在性或导入Project实体、Repository、应用、持久化或Web层。
+
+Character不属于Story Bible内部，也不得依赖`aiwebnovel.story_bible`。Project、Story Bible和通用`domain`均不得反向导入Character。AST门禁解析真实绝对与相对导入，并以受控非法样例拒绝SQLAlchemy、Alembic、FastAPI、Pydantic、通用基础设施、Project非标识层、Story Bible、反向依赖及并存包名。
+
+当前Character只包含`chr`/`crv`标识、name/role/profile值、稳定对象、不可变完整Revision、权威Head、一致Aggregate与无副作用创建/追加转换。没有Character表、迁移、ORM、Repository、应用服务、DTO、API、前端、角色列表、关系或结构化属性。详细契约见[Character纯领域模型](CHARACTER_DOMAIN.md)。
+
 ## 所有权与跨模块规则
 
 - 每类数据只能有一个权威所有者，其他模块不得绕过所有者直接读写其内部存储。

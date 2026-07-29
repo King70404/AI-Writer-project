@@ -1,6 +1,6 @@
 # AIWebNovel 后端
 
-本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层，以及已通过M2正式验收的Story Bible领域、持久化、应用、当前HTTP和不可变历史读取。目前提供六个Project业务接口、六个Story Bible业务接口、稳定Keyset历史读取、严格DTO、ETag/If-Match写并发协议、安全错误映射和显式组合根装配。M2冻结不表示Character、World、PowerSystem、规划、章节写作、Codex或Agent已经实现。
+本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层、已通过M2正式验收的Story Bible闭环，以及阶段3当前仅有的Character纯领域契约。目前提供六个Project业务接口、六个Story Bible业务接口、稳定Keyset历史读取、严格DTO、ETag/If-Match写并发协议、安全错误映射和显式组合根装配。Character当前没有表、Repository、应用服务、API或用户入口；World、PowerSystem、规划、章节写作、Codex和Agent也未实现。
 
 当前没有用户账号或登录、Project历史写入/回滚/恢复/删除接口、搜索、筛选、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；详情、列表与历史GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
 
@@ -8,7 +8,11 @@
 
 `src/aiwebnovel/domain/`只依赖Python标准库，提供标准ULID、进程内单调生成、受验证的前缀ULID类型工厂、aware UTC时间、`RevisionNumber`、`ConcurrencyVersion`和安全领域错误。`src/aiwebnovel/db/types.py`使用现有SQLAlchemy把这些值适配为TEXT、INTEGER或UTC时间；通用适配器本身不拥有Project业务规则。
 
-Project模块已拥有`prj`和`prv`两种固定业务ID；Story Bible纯领域模块拥有`sbl`和`sbr`，单向引用ProjectId。Chapter及其他业务ID仍未定义。完整通用语义见[领域基础原语](../docs/DOMAIN_FOUNDATION.md)。
+Project模块已拥有`prj`和`prv`两种固定业务ID；Story Bible拥有`sbl`和`sbr`；Character纯领域模块拥有`chr`和`crv`。Story Bible与Character均只以ProjectId表达归属。Chapter及其他业务ID仍未定义。完整通用语义见[领域基础原语](../docs/DOMAIN_FOUNDATION.md)。
+
+## Character纯领域契约
+
+`src/aiwebnovel/character/`只依赖标准库、通用`domain`、自身模块和`project.identifiers.ProjectId`。它定义稳定Character、不可变完整CharacterRevision、权威CharacterHead、一致Aggregate、name/role/profile值对象，以及无副作用的初始创建和Revision追加转换。stale检查优先于时钟回退与重复Revision ID；成功追加完整替换三个角色卡字段且不修改旧对象。当前无Character ORM、迁移、Repository、应用、HTTP或前端；完整契约见[Character纯领域模型](../docs/CHARACTER_DOMAIN.md)。
 
 ## Story Bible领域、持久化与应用契约
 
