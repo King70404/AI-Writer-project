@@ -59,7 +59,7 @@ def test_missing_project_is_distinct_from_existing_project_empty_page(
 def test_lists_same_name_characters_for_only_requested_project_without_profile(
     tmp_path: Path,
 ) -> None:
-    secret = "CHARACTER_APPLICATION_SECRET_CANARY"
+    privacy_canary = "CHARACTER_APPLICATION_SECRET_CANARY"
     with repository_database(tmp_path) as database:
         create_project(database, 1)
         create_project(database, 2)
@@ -69,7 +69,7 @@ def test_lists_same_name_characters_for_only_requested_project_without_profile(
                 project_value=1,
                 name="Shared Name",
                 role="Hero",
-                profile=secret,
+                profile=privacy_canary,
             )
         )
         database.repository.create(
@@ -78,7 +78,7 @@ def test_lists_same_name_characters_for_only_requested_project_without_profile(
                 project_value=1,
                 name="Shared Name",
                 role="Rival",
-                profile=secret,
+                profile=privacy_canary,
             )
         )
         database.repository.create(character_aggregate(3, project_value=2))
@@ -93,7 +93,7 @@ def test_lists_same_name_characters_for_only_requested_project_without_profile(
     assert [item.name for item in page.items] == ["Shared Name", "Shared Name"]
     assert [item.role for item in page.items] == ["Rival", "Hero"]
     assert all(not hasattr(item, "profile") for item in page.items)
-    assert secret not in repr(page)
+    assert privacy_canary not in repr(page)
     assert str(character_id(3)) not in {item.character_id for item in page.items}
 
 
@@ -226,7 +226,7 @@ def test_head_is_authoritative_instead_of_highest_revision(tmp_path: Path) -> No
 def test_one_corrupt_row_fails_the_whole_page_without_leaking_text(
     tmp_path: Path,
 ) -> None:
-    secret = "CHARACTER_APPLICATION_SECRET_CANARY"
+    privacy_canary = "CHARACTER_APPLICATION_SECRET_CANARY"
     with repository_database(tmp_path) as database:
         create_project(database)
         with closing(sqlite3.connect(database.engine.url.database)) as connection:
@@ -242,7 +242,7 @@ def test_one_corrupt_row_fails_the_whole_page_without_leaking_text(
                 "INSERT INTO character_revisions "
                 "(id, character_id, revision_number, name, role, profile, created_at) "
                 "VALUES (?, ?, 1, ?, '', '', '2026-07-29 08:09:10.000000')",
-                (str(character_revision_id(31)), str(character_id(1)), secret),
+                (str(character_revision_id(31)), str(character_id(1)), privacy_canary),
             )
             connection.execute(
                 "INSERT INTO character_heads (character_id, revision_id, updated_at) "
@@ -256,7 +256,7 @@ def test_one_corrupt_row_fails_the_whole_page_without_leaking_text(
             )
 
     assert str(captured.value) == "The stored Character state is inconsistent."
-    assert secret not in str(captured.value)
+    assert privacy_canary not in str(captured.value)
 
 
 def test_reader_rejects_invalid_inputs_before_opening_session() -> None:

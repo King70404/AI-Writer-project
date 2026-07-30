@@ -1,7 +1,7 @@
 import { writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 
-import { ESLint } from "eslint";
+import { ESLint, Linter } from "eslint";
 import { describe, expect, it } from "vitest";
 
 const repositoryRoot = path.resolve(process.cwd(), "..");
@@ -129,55 +129,54 @@ const boundaryFixtures: readonly BoundaryFixture[] = [
 
 describe("frontend import boundaries", () => {
   it("rejects controlled illegal imports without polluting production source", async () => {
-    const fixturePaths = boundaryFixtures.map((fixture) =>
-      path.join(frontendRoot, fixture.relativePath),
-    );
+    const eslint = new ESLint({
+      cwd: repositoryRoot,
+      overrideConfigFile: "frontend/eslint.config.js",
+    });
+    const linter = new Linter({ cwd: repositoryRoot, configType: "flat" });
 
-    try {
-      await Promise.all(
-        boundaryFixtures.map((fixture, index) =>
-          writeFile(fixturePaths[index], fixture.source, {
-            encoding: "utf8",
-            flag: "wx",
-          }),
-        ),
-      );
-
-      const eslint = new ESLint({
-        cwd: repositoryRoot,
-        overrideConfigFile: "frontend/eslint.config.js",
-      });
-      const results = await eslint.lintFiles(fixturePaths);
-
-      expect(results).toHaveLength(boundaryFixtures.length);
-      for (const [index, result] of results.entries()) {
-        expect(result.errorCount).toBeGreaterThan(0);
-        const boundaryViolation = result.messages.find(
-          (message) =>
-            message.ruleId ===
-              (boundaryFixtures[index].expectedRule ??
-                "no-restricted-imports") &&
-            message.message.includes(boundaryFixtures[index].expectedMessage),
-        );
-        expect(boundaryViolation).toBeDefined();
+    for (const fixture of boundaryFixtures) {
+      const fixturePath = path.join(frontendRoot, fixture.relativePath);
+      const ruleId = fixture.expectedRule ?? "no-restricted-imports";
+      const configured = (await eslint.calculateConfigForFile(
+        fixturePath,
+      )) as Linter.Config;
+      const ruleConfiguration = configured.rules?.[ruleId];
+      expect(
+        ruleConfiguration,
+        `${fixture.relativePath} must enable ${ruleId}`,
+      ).toBeDefined();
+      if (ruleConfiguration === undefined) {
+        continue;
       }
-    } finally {
-      await Promise.all(
-        fixturePaths.map(async (fixturePath) => {
-          try {
-            await unlink(fixturePath);
-          } catch (error) {
-            if (
-              typeof error !== "object" ||
-              error === null ||
-              !("code" in error) ||
-              error.code !== "ENOENT"
-            ) {
-              throw error;
-            }
-          }
-        }),
+
+      const messages = linter.verify(
+        fixture.source,
+        {
+          files: ["**/*.ts"],
+          languageOptions: {
+            ecmaVersion: "latest",
+            sourceType: "module",
+          },
+          rules: {
+            [ruleId]: ruleConfiguration,
+          },
+        },
+        { filename: fixture.relativePath },
       );
+      const boundaryViolation = messages.find(
+        (message) =>
+          message.ruleId === ruleId &&
+          message.message.includes(fixture.expectedMessage),
+      );
+      expect(
+        boundaryViolation,
+        `${fixture.relativePath} must be rejected by ${ruleId}; observed rules: ${
+          messages
+            .map((message) => message.ruleId ?? "configuration")
+            .join(", ") || "none"
+        }; diagnostics: ${messages.map((message) => message.message).join(" | ")}`,
+      ).toBeDefined();
     }
   }, 15_000);
 

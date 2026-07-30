@@ -116,11 +116,12 @@ describe("Create Project form", () => {
     expect(options?.signal).toBeInstanceOf(AbortSignal);
 
     resolveCreate(createdProject());
-    expect(await screen.findByRole("status")).toHaveTextContent(projectId);
+    const successMessage = await screen.findByRole("status");
+    expect(successMessage).toHaveTextContent(projectId);
     expect(title).toHaveValue("");
     expect(screen.getByRole("textbox", { name: "项目简介" })).toHaveValue("");
     expect(reloadProjects).toHaveBeenCalledOnce();
-    expect(screen.getByRole("status")).toHaveFocus();
+    await waitFor(() => expect(successMessage).toHaveFocus());
     expect(
       screen.queryByRole("button", { name: /编辑|删除/ }),
     ).not.toBeInTheDocument();
