@@ -4,7 +4,7 @@
 
 `aiwebnovel.character.application`在纯Character领域与事务`CharacterRepository`之上提供内部应用用例。它只定义传输原语命令、类型化查询、脱离持久化的不可变读取模型、显式Mapper和无状态服务，不依赖SQLAlchemy、FastAPI、Pydantic、数据库Session或具体适配器。
 
-本层当前没有HTTP API、Pydantic DTO、组合根接线或前端入口，也没有Character Revision历史、关系、World、PowerSystem、规划、章节、Codex、Agent或AI生成。
+DEV-3.4已在本层之外增加独立`character.web`适配器和组合根接线；应用层自身仍不依赖FastAPI或Pydantic。当前没有Character前端入口、Revision历史、关系、World、PowerSystem、规划、章节、Codex、Agent或AI生成。
 
 ## Commands与当前读取
 
@@ -157,6 +157,6 @@ Character Revision ID Factory
 
 ## 当前限制与下一步
 
-DEV-3.3只建立内部应用用例与只读列表投影，不修改0004、九表Metadata、production API、前端路由、E2E集合或功能真实性矩阵。不存在Character API、页面、Revision历史、关系、删除、归档、恢复、结构化年龄/性别/能力、World、PowerSystem、规划或AI生成。
+DEV-3.4只在应用层外增加四条Character HTTP操作、严格DTO/游标/错误映射和组合根，不修改0004、九表Metadata、应用命令与Repository事务语义或前端路由。完整传输契约见[Character HTTP API](CHARACTER_HTTP_API.md)。
 
-DEV-3.4只有在新的明确任务授权下才能继续；本文件不能作为用户已能操作Character的证据。
+当前不存在Character页面、Revision历史、关系、删除、归档、恢复、结构化年龄/性别/能力、World、PowerSystem、规划或AI生成。DEV-3.5仍需新的明确任务授权。

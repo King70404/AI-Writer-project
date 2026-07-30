@@ -17,7 +17,7 @@ _REVERSE_ROOTS = (
 _FORBIDDEN_PACKAGE_NAMES = frozenset(
     {"cast", "character_card", "character_cards", "characters", "person", "persona"}
 )
-_FORBIDDEN_CHARACTER_LAYERS = frozenset({"dto", "history", "listing", "web"})
+_FORBIDDEN_CHARACTER_LAYERS = frozenset({"dto", "history", "listing"})
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -130,6 +130,34 @@ def _character_dependency_violation(
     target_root = target.partition(".")[0]
     if target_root in _STANDARD_LIBRARY_ROOTS:
         return None
+    if _is_module_or_child(source, "aiwebnovel.character.web"):
+        if target_root in {"fastapi", "pydantic"}:
+            return None
+        if target_root in {"sqlalchemy", "alembic"}:
+            return (
+                "character-web-must-not-import-persistence-frameworks",
+                "Character Web must not import SQLAlchemy or Alembic",
+            )
+        if _is_module_or_child(target, "aiwebnovel.character.persistence"):
+            return (
+                "character-web-must-not-import-concrete-adapters",
+                "Character Web must use composed application services, not persistence adapters",
+            )
+        if (
+            _is_module_or_child(target, "aiwebnovel.character.web")
+            or _is_module_or_child(target, "aiwebnovel.character.application")
+            or _is_module_or_child(target, _CHARACTER_ROOT)
+            or _is_module_or_child(target, "aiwebnovel.domain")
+            or _is_module_or_child(target, "aiwebnovel.api")
+            or target == "aiwebnovel.core.errors"
+            or target == "aiwebnovel.project.identifiers"
+            or target == "aiwebnovel.security.request_limits"
+        ):
+            return None
+        return (
+            "character-web-must-use-declared-dependencies",
+            "Character Web may use only application/domain contracts and public HTTP helpers",
+        )
     if _is_module_or_child(source, "aiwebnovel.character.application"):
         if _is_module_or_child(target, "aiwebnovel.character.persistence"):
             return (
@@ -290,7 +318,7 @@ def check_character_boundaries(
                         line=1,
                         rule="character-persistence-task-must-not-add-later-layers",
                         message=(
-                            "Character history, DTO, listing, and Web layers "
+                            "Character history, DTO, and listing layers "
                             "require later task authorization"
                         ),
                     )

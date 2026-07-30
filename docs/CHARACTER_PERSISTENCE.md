@@ -1,6 +1,6 @@
 # Character持久化基础
 
-本文档记录DEV-3.2建立的内部持久化边界。它把DEV-3.1的不可变Character聚合保存到SQLite，但不提供应用服务、DTO、HTTP API、前端页面、角色列表或用户可见能力。
+本文档记录DEV-3.2建立并由后续任务复用的内部持久化边界。它把DEV-3.1的不可变Character聚合保存到SQLite；DEV-3.3在其外建立应用服务和只读列表，DEV-3.4再在其外建立HTTP适配器。持久化层自身仍不提供DTO、Router或前端页面。
 
 ## 所有权与基数
 
@@ -153,9 +153,8 @@ DEV-3.3已在写Repository之外新增独立只读列表适配器。它使用普
 
 当前明确没有：
 
-- Character DTO、HTTP API、Router或组合根接线；
 - Character前端入口、Revision历史或关系图；
 - 头像、附件、结构化年龄/性别/能力/关系；
 - World、PowerSystem、规划、章节、三区、审批、Codex、Agent或AI生成。
 
-应用层和列表边界见[Character应用用例](CHARACTER_APPLICATION.md)。现有内部能力不构成用户功能；DEV-3.4仍需独立编号任务授权。
+应用层和列表边界见[Character应用用例](CHARACTER_APPLICATION.md)，传输边界见[Character HTTP API](CHARACTER_HTTP_API.md)。HTTP能力仅是本地后端接口，不构成Character前端；DEV-3.5仍需独立编号任务授权。

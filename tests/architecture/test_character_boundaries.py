@@ -290,7 +290,7 @@ def test_checker_detects_forbidden_parallel_package_names(
     assert violations[0].rule == "character-package-name-must-be-singular"
 
 
-@pytest.mark.parametrize("layer", ["dto.py", "history", "listing", "web"])
+@pytest.mark.parametrize("layer", ["dto.py", "history", "listing"])
 def test_checker_detects_unauthorized_later_character_layers(
     tmp_path: Path,
     layer: str,
@@ -303,6 +303,54 @@ def test_checker_detects_unauthorized_later_character_layers(
 
     assert len(violations) == 1
     assert violations[0].rule == ("character-persistence-task-must-not-add-later-layers")
+
+
+def test_character_web_accepts_declared_http_and_application_dependencies(
+    tmp_path: Path,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "character/web/router.py",
+        "from fastapi import APIRouter\n"
+        "from pydantic import BaseModel\n"
+        "from aiwebnovel.api.etags import format_strong_etag\n"
+        "from aiwebnovel.character.application.services import CharacterQueryService\n",
+    )
+
+    assert check_character_boundaries(package_root) == ()
+
+
+@pytest.mark.parametrize(
+    ("statement", "rule"),
+    [
+        (
+            "from sqlalchemy import select\n",
+            "character-web-must-not-import-persistence-frameworks",
+        ),
+        (
+            "from aiwebnovel.character.persistence.repository import "
+            "SqlAlchemyCharacterRepository\n",
+            "character-web-must-not-import-concrete-adapters",
+        ),
+        (
+            "from aiwebnovel.story_bible.web import router\n",
+            "character-web-must-use-declared-dependencies",
+        ),
+    ],
+)
+def test_character_web_rejects_undeclared_dependencies(
+    tmp_path: Path,
+    statement: str,
+    rule: str,
+) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(package_root, "character/web/router.py", statement)
+
+    violations = check_character_boundaries(package_root)
+
+    assert len(violations) == 1
+    assert violations[0].rule == rule
 
 
 def test_checker_rejects_fake_repository_in_production(tmp_path: Path) -> None:
@@ -334,6 +382,45 @@ def test_application_and_list_reader_imports_have_no_runtime_or_schema_side_effe
         "name.startswith(('aiwebnovel.character.persistence.repository', "
         "'aiwebnovel.character.web', 'aiwebnovel.main', 'aiwebnovel.storage', "
         "'fastapi')))\n"
+        "files = sorted(path.as_posix() for path in pathlib.Path('.').rglob('*') "
+        "if path.is_file())\n"
+        "print(json.dumps({'before': before, 'after': after, "
+        "'forbidden': forbidden, 'files': files}))\n"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env=os.environ.copy(),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    evidence = completed.stdout.strip()
+    expected_tables = (
+        '["character_heads", "character_revisions", "characters", '
+        '"project_heads", "project_revisions", "projects", '
+        '"story_bible_heads", "story_bible_revisions", "story_bibles"]'
+    )
+    assert f'"before": {expected_tables}' in evidence
+    assert f'"after": {expected_tables}' in evidence
+    assert '"forbidden": []' in evidence
+    assert '"files": []' in evidence
+
+
+def test_character_web_import_has_no_runtime_or_schema_side_effects(
+    tmp_path: Path,
+) -> None:
+    script = (
+        "import json, pathlib, sys\n"
+        "from aiwebnovel.db.model_registry import load_model_metadata\n"
+        "before = sorted(load_model_metadata().tables)\n"
+        "before_modules = set(sys.modules)\n"
+        "import aiwebnovel.character.web\n"
+        "after = sorted(load_model_metadata().tables)\n"
+        "forbidden = sorted(name for name in set(sys.modules) - before_modules if "
+        "name.startswith(('aiwebnovel.character.persistence', 'aiwebnovel.main', "
+        "'aiwebnovel.storage', 'sqlalchemy.engine')))\n"
         "files = sorted(path.as_posix() for path in pathlib.Path('.').rglob('*') "
         "if path.is_file())\n"
         "print(json.dumps({'before': before, 'after': after, "

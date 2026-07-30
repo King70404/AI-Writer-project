@@ -236,6 +236,6 @@ DEV-3.3架构门禁允许应用层依赖Character领域、写Repository契约和
 
 任何适用门禁失败，都不得声称当前任务完成，也不得开始下一编号任务。应先修复真实原因并完整重跑；不得降低阈值、跳过检查或把失败输出为成功。
 
-安全静态门禁还检查Project和Story Bible写路由无CSRF豁免、Router不导入SQLAlchemy/Session、历史路由无写方法、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。DEV-2.6新增历史生产代码专项达到statements 100%、branches不低于95%；完整Story Bible后端包保持statements至少98%、branches至少95%。当前production API精确15条、前端路由精确7条，`E2E-INT-013`使完整E2E为17个。仍没有用户登录、回滚/恢复/Diff/历史编辑/删除、归档、搜索、写作、评审、Agent、Skill、Prompt、备份、导出或安装器。
+安全静态门禁还检查Project、Story Bible和Character写路由无CSRF豁免、Router不导入SQLAlchemy/Session、历史路由无写方法、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。DEV-3.4新增Character Web生产代码专项要求statements至少95%、branches至少90%；完整Character包保持statements至少98%、branches至少95%。当前production API精确19条、前端路由精确7条，`E2E-INT-014`使完整E2E为18个。仍没有Character前端/Revision历史/关系，以及用户登录、回滚/恢复/Diff/历史编辑/删除、归档、搜索、写作、评审、Agent、Skill、Prompt、备份、导出或安装器。
 
 DEV-2.7正式验收在任务专属TEMP/TMP中重新执行默认、IncludeE2E、依赖审计加IncludeE2E三种完整门禁并全部通过；17个E2E和npm生产依赖0漏洞均为M2冻结证据。后续任务不得通过降低阈值、删减场景或改写M2验收文件来改变该历史结论。

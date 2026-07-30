@@ -121,6 +121,8 @@ DEV-3.3只授权Character纯应用命令、当前按ID读取、按Project稳定�
 
 DEV-3.3不改变Schema、迁移、写Repository事务语义、production API、前端路由或功能真实性矩阵，也不授权DTO、HTTP、组合根接线、前端、Revision历史、关系、结构化属性、World、PowerSystem、规划、章节、三区、审批、Codex、Agent或AI生成。DEV-3.4仍需独立编号任务授权。
 
+DEV-3.4只授权Character HTTP传输边界：严格Create/Revise/当前响应/列表DTO、显式映射、Project绑定复合Keyset游标、共享强ETag/If-Match协议、四条固定路由、安全错误映射和`main`组合根装配。POST/PUT继承本地Session/CSRF/Origin，两个GET只读；PUT不预读、不重试且只完整替换。任务不改变Schema、迁移、Repository事务、Project/Story Bible行为或前端路由，不授权Revision历史、关系、删除/归档/恢复、结构化属性、World、PowerSystem、规划、Codex或Agent；DEV-3.5仍需独立任务授权。
+
 ## 统一执行报告
 
 任务报告至少包含：

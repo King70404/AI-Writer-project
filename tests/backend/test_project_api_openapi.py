@@ -16,7 +16,7 @@ def test_project_route_inventory_contains_only_six_business_routes(tmp_path: Pat
     project_routes = {
         (method.upper(), path)
         for path, operations in app.openapi()["paths"].items()
-        if "/projects" in path and "story-bible" not in path
+        if "/projects" in path and "story-bible" not in path and "characters" not in path
         for method in operations
         if method in {"get", "post", "put", "patch", "delete"}
     }
