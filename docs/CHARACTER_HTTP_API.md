@@ -13,7 +13,7 @@ PUT  /api/v1/characters/{character_id}
 
 创建和列表使用Project嵌套路径，因为两者都以归属Project为明确边界；当前读取和修订使用稳定Character资源路径，因为Character身份由`CharacterId`唯一决定。一个Project可以拥有多个Character，同名Character合法。
 
-当前没有Character前端、Revision历史、关系接口、PATCH、删除、归档、恢复或AI生成。DEV-3.5必须由新的编号任务另行授权。
+DEV-3.5现已在这四条操作上建立Character稳定列表/创建/当前完整修订前端，见[Character前端流程](CHARACTER_FRONTEND.md)。当前仍没有Revision历史、关系接口、PATCH、删除、归档、恢复或AI生成。
 
 ## DTO与显式映射
 

@@ -27,3 +27,10 @@ export function storyBibleRevisionHistoryPath(projectId: string): string {
   }
   return `/projects/${encodeURIComponent(projectId)}/story-bible/history`;
 }
+
+export function projectCharactersPath(projectId: string): string {
+  if (!isCanonicalProjectId(projectId)) {
+    throw new Error("A canonical Project ID is required for navigation.");
+  }
+  return `/projects/${encodeURIComponent(projectId)}/characters`;
+}

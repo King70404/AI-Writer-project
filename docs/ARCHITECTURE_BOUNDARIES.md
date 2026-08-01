@@ -121,7 +121,7 @@ Character不属于Story Bible内部，也不得依赖`aiwebnovel.story_bible`。
 
 `character.application`只依赖标准库、通用`domain`、Character公开领域类型、`ProjectId`、纯`CharacterRepository`契约和自身`CharacterListReader`端口。它不得依赖SQLAlchemy、`db`、具体Repository或List Reader、FastAPI、Pydantic、Story Bible、Web或前端。专用`character.persistence.list_reader`是唯一允许反向实现应用列表端口的持久化模块；其他持久化代码、写Repository、Character领域、Project和Story Bible不得反向导入Character应用层。
 
-列表Reader与写Repository分离，使用普通独立只读Session和最多两个业务SELECT；它不使用`BEGIN IMMEDIATE`、COUNT、OFFSET，不读取profile，并只以Head指向的Revision作为当前权威。`character.web`只可依赖FastAPI、Pydantic、Character应用/领域公开契约以及公共HTTP、安全请求工具；不得导入SQLAlchemy、Alembic、具体Repository/ListReader、ORM、Session、Story Bible Web或前端。领域、Repository/Reader契约、应用、Project和Story Bible不得反向导入Character Web。具体适配器只由`main`组合根装配。AST门禁继续解析真实绝对与相对导入，并以受控合法和非法样例保护这些方向。当前没有Character前端、Revision历史、关系或结构化属性。详细契约见[Character纯领域模型](CHARACTER_DOMAIN.md)、[Character持久化基础](CHARACTER_PERSISTENCE.md)、[Character应用用例](CHARACTER_APPLICATION.md)和[Character HTTP API](CHARACTER_HTTP_API.md)。
+列表Reader与写Repository分离，使用普通独立只读Session和最多两个业务SELECT；它不使用`BEGIN IMMEDIATE`、COUNT、OFFSET，不读取profile，并只以Head指向的Revision作为当前权威。`character.web`只可依赖FastAPI、Pydantic、Character应用/领域公开契约以及公共HTTP、安全请求工具；不得导入SQLAlchemy、Alembic、具体Repository/ListReader、ORM、Session、Story Bible Web或前端。领域、Repository/Reader契约、应用、Project和Story Bible不得反向导入Character Web。具体适配器只由`main`组合根装配。Character前端API层只依赖共享协议工具，不导入React、UI、Project或Story Bible Feature；hook不导入组件/页面，组件不使用裸fetch或浏览器持久存储。23个受控ESLint非法样例保护前端方向。当前没有Character Revision历史、关系或结构化属性。详细契约见[Character纯领域模型](CHARACTER_DOMAIN.md)、[Character持久化基础](CHARACTER_PERSISTENCE.md)、[Character应用用例](CHARACTER_APPLICATION.md)、[Character HTTP API](CHARACTER_HTTP_API.md)和[Character前端流程](CHARACTER_FRONTEND.md)。
 
 ## 所有权与跨模块规则
 

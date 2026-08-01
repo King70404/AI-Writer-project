@@ -1,6 +1,6 @@
 # 浏览器端到端测试
 
-Playwright在独立本地数据根上验收开发与生产集成服务。`E2E-INT-006`覆盖单Project API链路，`E2E-INT-007`覆盖稳定Keyset列表API，`E2E-INT-008`完成Project创建与列表分页，`E2E-INT-009`覆盖当前详情、修订和显式412冲突恢复，`E2E-INT-010`覆盖不可变Revision历史查看与20+1分页，`E2E-INT-011`覆盖Story Bible HTTP创建、两种读取、完整替换、stale 412与写安全边界，`E2E-INT-012`覆盖Story Bible前端创建、刷新、完整修订和显式冲突恢复。七个业务场景只对自己的临时数据库显式迁移；应用启动本身仍不迁移。
+Playwright在独立本地数据根上验收开发与生产集成服务。`E2E-INT-006`至`E2E-INT-010`覆盖Project API、稳定Keyset列表、前端创建/修订/显式412恢复和不可变Revision历史；`E2E-INT-011`至`E2E-INT-013`覆盖Story Bible HTTP、前端当前流程与只读历史；`E2E-INT-014/015`覆盖Character HTTP和前端创建/稳定列表/当前修订/显式412恢复。这十个业务场景只对自己的临时数据库显式迁移；应用启动本身仍不迁移。
 
 ## 安装
 
@@ -26,7 +26,7 @@ npm run e2e
 ```
 
 - `e2e:dev` 验证 Vite 页面、真实健康检查、手动重新检查和客户端路由；
-- `e2e:integrated`先构建前端，再验证FastAPI静态服务、生产安全基线、`E2E-INT-006`单Project API链路、`E2E-INT-007`稳定列表分页、`E2E-INT-008`Project列表/创建、`E2E-INT-009`Project详情/修订、`E2E-INT-010`Project不可变历史、`E2E-INT-011`Story Bible HTTP链路、`E2E-INT-012`Story Bible前端链路，以及缺失构建的安全失败；
+- `e2e:integrated`先构建前端，再验证FastAPI静态服务、生产安全基线、Project API/前端/历史、Story Bible HTTP/前端/历史、Character HTTP/前端链路，以及缺失构建的安全失败；
 - `e2e` 按开发模式、生产集成模式的顺序运行全部浏览器验收，任一阶段失败即返回非零。
 
 每个场景都重新启动所需服务并使用独立 `AIWEBNOVEL_DATA_ROOT`，不依赖其他场景的执行顺序。需要独立复现单项时，在对应模式后传入固定场景编号，例如：
@@ -44,7 +44,7 @@ npm run e2e:integrated -- -Scenario E2E-INT-011
 npm run e2e:integrated -- -Scenario E2E-INT-012
 ```
 
-当前完整集共18个场景：3个开发模式、14个生产集成模式和1个缺失构建启动失败场景。`E2E-INT-013`验证Story Bible 21项不可变历史、20+1 keyset分页、按需正文、无历史Security Session、无浏览器持久化及Head指向Revision 21；`E2E-INT-014`验证Character HTTP创建同名多实例、无profile列表、当前读取、完整替换、双独立请求上下文并发一成功一412、Revision不可变、无前端路由及日志/浏览器存储隐私。
+当前完整集共19个场景：3个开发模式、15个生产集成模式和1个缺失构建启动失败场景。`E2E-INT-014`验证Character HTTP创建、稳定列表与并发修订；`E2E-INT-015`在生产构建、真实后端和临时0004 SQLite上验证Project入口、Character空列表、UI创建两个同名实例、列表不显示profile、当前完整修订、412草稿保留、显式latest读取/基线重建/再次手动保存、五个不可变Revision与隐私/清理。
 
 统一启动入口的最低浏览器验收由仓库根目录的受控脚本执行：
 
@@ -53,7 +53,7 @@ npm run e2e:integrated -- -Scenario E2E-INT-012
 .\scripts\check_startup_runtime.ps1 -Mode Integrated
 ```
 
-Development与Integrated烟测使用专用临时端口和唯一隔离数据根；它们不会复制全部16个E2E场景。`E2E-INT-006`保留完整单Project API链路，`E2E-INT-007`保留稳定列表API，`E2E-INT-008`验证Project列表/创建，`E2E-INT-009`验证详情修订与冲突恢复。`E2E-INT-010`经UI形成Revision 1至3并逐项读取原始正文，再经独立API扩展到21，验证20+1降序Keyset分页、current标记、cursor不进入URL/存储/日志、历史GET不获取Session、production直接刷新、未知路由404、双不可变触发器、无外部网络及完整清理。`E2E-INT-011`通过真实production进程验证Story Bible的Project归属、双GET一致性、强ETag、完整替换、stale隐私和Session/CSRF边界。`E2E-INT-012`从Project UI创建归属对象，经Story Bible页面建立v1、刷新、修订v2、外部写入v3、触发412、显式读取、保留草稿并手动写入v4，同时验证四条不可变Revision、Head、Project不变、浏览器无持久草稿/ETag/正文及完整清理。
+Development与Integrated烟测使用专用临时端口和唯一隔离数据根；它们不会复制全部19个E2E场景。`E2E-INT-006`至`E2E-INT-010`保留Project API、稳定列表、前端创建/修订与不可变历史证据；`E2E-INT-011`至`E2E-INT-013`验证Story Bible HTTP、真实前端当前流程和只读历史。`E2E-INT-014`验证Character HTTP创建、稳定列表与并发修订；`E2E-INT-015`从Project UI进入Character列表，创建两个同名实例并确认列表不显示profile，再完成当前修订、外部并发写、412草稿保留、显式latest读取/重建基线/手动保存，同时验证五条不可变Revision、Head、Project不变、浏览器无持久profile/草稿/ETag/cursor及完整清理。
 
 默认使用无头 Chromium、`retries=0` 和单 worker，不自动打开报告或浏览器窗口。人工调试时可执行 `npm run e2e:headed`；失败后执行 `npm run e2e:report` 查看本地 HTML 报告。截图和 trace 只在失败时保留，视频关闭；成功运行会删除无用的模式报告和结果目录。
 

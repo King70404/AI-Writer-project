@@ -101,7 +101,11 @@ export default [
           message: "The API layer must not depend on UI or app layers.",
         },
         {
-          group: ["**/features/projects/**", "**/features/story-bible/**"],
+          group: [
+            "**/features/projects/**",
+            "**/features/story-bible/**",
+            "**/features/character/**",
+          ],
           message: "The shared API layer must not depend on feature UI code.",
         },
       ),
@@ -155,6 +159,33 @@ export default [
       "no-restricted-imports": restrictedImports({
         group: ["**/components/**", "**/pages/**"],
         message: "Story Bible hooks must not depend on components or pages.",
+      }),
+    },
+  },
+  {
+    files: ["frontend/src/features/character/api/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": restrictedImports({
+        group: [
+          "react",
+          "react/**",
+          "**/components/**",
+          "**/hooks/**",
+          "**/pages/**",
+          "**/features/projects/**",
+          "**/features/story-bible/**",
+        ],
+        message:
+          "The Character API layer must stay independent from React, UI, Project, and Story Bible feature code.",
+      }),
+    },
+  },
+  {
+    files: ["frontend/src/features/character/hooks/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": restrictedImports({
+        group: ["**/components/**", "**/pages/**"],
+        message: "Character hooks must not depend on components or pages.",
       }),
     },
   },
@@ -216,6 +247,43 @@ export default [
           selector:
             "MemberExpression[object.name='document'][property.name='cookie']",
           message: "Story Bible code must not read browser cookies.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["frontend/src/features/character/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "fetch",
+          message:
+            "Character components must use hooks and the typed Character API client.",
+        },
+        {
+          name: "localStorage",
+          message:
+            "Character code must not persist profile, draft, cursor, ETag, or security state.",
+        },
+        {
+          name: "sessionStorage",
+          message:
+            "Character code must not persist profile, draft, cursor, ETag, or security state.",
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "MemberExpression[object.name='document'][property.name='cookie']",
+          message: "Character code must not read browser cookies.",
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='console'][callee.property.name=/^(log|debug|info|warn|error)$/]",
+          message:
+            "Character code must not log profile, draft, cursor, or ETag.",
         },
       ],
     },

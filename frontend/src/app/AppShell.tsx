@@ -29,8 +29,8 @@ export function AppShell() {
 
       <footer className="app-shell__footer">
         <p>
-          当前状态：Project基础与单份纯文本Story
-          Bible流程已实现；规划、章节写作与AI功能尚未实现。
+          当前状态：Project、单份纯文本Story Bible与Character当前流程已实现；
+          规划、章节写作与AI功能尚未实现。
         </p>
       </footer>
     </div>

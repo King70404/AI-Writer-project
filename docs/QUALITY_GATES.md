@@ -178,7 +178,7 @@ DEV-1.8另固定七个详情专项文件：`project-etags`、`project-details-ap
 
 DEV-1.9固定六个前端历史专项文件：`project-revision-history-contracts`、`project-revision-history-api`、`project-revision-history-list`、`project-revision-viewer`、`project-revision-history-page`和`project-revision-history-routes`。它们覆盖严格响应、GET无Session/CSRF、摘要分页、失败保留、按需正文、取消迟到请求、可访问性与路由；新增前端历史生产代码的statements/functions/lines均不低于95%，branches不低于90%。
 
-ESLint受控正负样例保护`shared api → feature api → hooks → components → page → router`方向。安全静态门禁还拒绝CSRF/cursor/ETag/草稿/正文浏览器持久化、历史写请求或不必要Security Session、Project或Story Bible POST/PUT自动重试与412自动重放、请求正文/cursor/Revision正文与`If-Match`日志、未编码业务ID路径、Revision写路由、外部API地址、不安全HTML、组件Cookie访问和组件硬编码CSRF。完整浏览器证据由`E2E-INT-008`至`E2E-INT-012`提供；`E2E-INT-011`验证Story Bible HTTP链路，`E2E-INT-012`验证Story Bible真实前端流程。
+ESLint受控正负样例保护`shared api → feature api → hooks → components → page → router`方向。安全静态门禁还拒绝CSRF/cursor/ETag/草稿/正文浏览器持久化、历史写请求或不必要Security Session、Project、Story Bible或Character POST/PUT自动重试与412自动重放、请求正文/cursor/Revision正文与`If-Match`日志、未编码业务ID路径、Revision写路由、外部API地址、不安全HTML、组件Cookie访问和组件硬编码CSRF。完整浏览器证据由`E2E-INT-008`至`E2E-INT-015`提供；`E2E-INT-011/012`验证Story Bible HTTP与真实前端流程，`E2E-INT-014/015`验证Character HTTP与真实前端流程。
 
 ## Story Bible专项检查
 
@@ -236,6 +236,6 @@ DEV-3.3架构门禁允许应用层依赖Character领域、写Repository契约和
 
 任何适用门禁失败，都不得声称当前任务完成，也不得开始下一编号任务。应先修复真实原因并完整重跑；不得降低阈值、跳过检查或把失败输出为成功。
 
-安全静态门禁还检查Project、Story Bible和Character写路由无CSRF豁免、Router不导入SQLAlchemy/Session、历史路由无写方法、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。DEV-3.4新增Character Web生产代码专项要求statements至少95%、branches至少90%；完整Character包保持statements至少98%、branches至少95%。当前production API精确19条、前端路由精确7条，`E2E-INT-014`使完整E2E为18个。仍没有Character前端/Revision历史/关系，以及用户登录、回滚/恢复/Diff/历史编辑/删除、归档、搜索、写作、评审、Agent、Skill、Prompt、备份、导出或安装器。
+安全静态门禁还检查Project、Story Bible和Character写路由无CSRF豁免、Router不导入SQLAlchemy/Session、历史路由无写方法、错误映射不输出异常正文、CORS不含PATCH/DELETE且显式暴露ETag/Location、DTO无Cookie/Session/Token字段。DEV-3.4新增Character Web生产代码专项要求statements至少95%、branches至少90%；完整Character包保持statements至少98%、branches至少95%。DEV-3.5固定严格Character前端契约、稳定Keyset列表/创建、当前完整修订、单次写入、内存Security Session、强ETag以及显式412/结果未知恢复；新增Character前端生产代码要求statements至少95%、branches至少90%，23个ESLint受控非法导入样例保护前端方向。当前production API精确19条、前端路由精确9条，`E2E-INT-015`使完整E2E为19个。仍没有Character Revision历史/关系/删除/归档/恢复/结构化属性/AI生成，以及用户登录、回滚/恢复/Diff/历史编辑、搜索、写作、评审、Agent、Skill、Prompt、备份、导出或安装器。
 
 DEV-2.7正式验收在任务专属TEMP/TMP中重新执行默认、IncludeE2E、依赖审计加IncludeE2E三种完整门禁并全部通过；17个E2E和npm生产依赖0漏洞均为M2冻结证据。后续任务不得通过降低阈值、删减场景或改写M2验收文件来改变该历史结论。

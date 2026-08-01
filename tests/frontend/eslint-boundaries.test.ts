@@ -125,6 +125,47 @@ const boundaryFixtures: readonly BoundaryFixture[] = [
     expectedMessage: "Story Bible code must not read browser cookies.",
     expectedRule: "no-restricted-syntax",
   },
+  {
+    relativePath: "src/api/__character_boundary_fixture__.ts",
+    source: 'import "../features/character/components/CharacterEditor";\n',
+    expectedMessage: "The shared API layer must not depend on feature UI code.",
+  },
+  {
+    relativePath: "src/features/character/api/__react_boundary_fixture__.ts",
+    source: 'import React from "react";\nexport { React };\n',
+    expectedMessage:
+      "The Character API layer must stay independent from React, UI, Project, and Story Bible feature code.",
+  },
+  {
+    relativePath:
+      "src/features/character/hooks/__component_boundary_fixture__.ts",
+    source: 'import "../components/CharacterEditor";\n',
+    expectedMessage: "Character hooks must not depend on components or pages.",
+  },
+  {
+    relativePath:
+      "src/features/character/components/__fetch_boundary_fixture__.ts",
+    source: 'void fetch("/api/v1/characters/example");\n',
+    expectedMessage:
+      "Character components must use hooks and the typed Character API client.",
+    expectedRule: "no-restricted-globals",
+  },
+  {
+    relativePath:
+      "src/features/character/hooks/__storage_boundary_fixture__.ts",
+    source:
+      'localStorage.setItem("character_etag", etag);\nsessionStorage.setItem("character_profile", profile);\n',
+    expectedMessage:
+      "Character code must not persist profile, draft, cursor, ETag, or security state.",
+    expectedRule: "no-restricted-globals",
+  },
+  {
+    relativePath:
+      "src/features/character/components/__cookie_boundary_fixture__.ts",
+    source: "const session = document.cookie;\nexport { session };\n",
+    expectedMessage: "Character code must not read browser cookies.",
+    expectedRule: "no-restricted-syntax",
+  },
 ];
 
 describe("frontend import boundaries", () => {

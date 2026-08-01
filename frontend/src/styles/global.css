@@ -860,6 +860,86 @@ textarea:focus-visible {
   grid-column: 1 / -1;
 }
 
+.character-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.character-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.character-list {
+  display: grid;
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.character-card,
+.character-form,
+.character-alert,
+.character-conflict {
+  padding: 1rem;
+  border: 1px solid #c8d0d6;
+  border-radius: 0.55rem;
+  background: #ffffff;
+}
+
+.character-card h3,
+.character-form h2,
+.character-alert h3,
+.character-conflict h2 {
+  margin-top: 0;
+}
+
+.character-card__facts,
+.character-metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.character-card__facts div,
+.character-metadata div {
+  min-width: 0;
+}
+
+.character-card__facts dt,
+.character-metadata dt {
+  font-weight: 700;
+}
+
+.character-card__facts dd,
+.character-metadata dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.character-form form {
+  display: grid;
+  gap: 1rem;
+}
+
+.character-form textarea {
+  resize: vertical;
+}
+
+.character-form button,
+.character-alert button,
+.character-conflict button {
+  margin-right: 0.75rem;
+}
+
+.character-feedback {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #f4f6f7;
+}
+
 .story-bible-revision-viewer__content {
   max-height: 32rem;
   padding: 1rem;
@@ -1064,6 +1144,10 @@ textarea:focus-visible {
     flex-direction: column;
   }
 
+  .character-page__header {
+    flex-direction: column;
+  }
+
   .project-revision-history__content {
     grid-template-columns: 1fr;
   }
@@ -1072,6 +1156,11 @@ textarea:focus-visible {
   .project-conflict__comparison,
   .story-bible-metadata__facts,
   .story-bible-resolution__comparison {
+    grid-template-columns: 1fr;
+  }
+
+  .character-card__facts,
+  .character-metadata {
     grid-template-columns: 1fr;
   }
 

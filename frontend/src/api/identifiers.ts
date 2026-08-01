@@ -1,6 +1,6 @@
 const CANONICAL_ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/u;
 
-export type IdentifierPrefix = "prj" | "prv" | "sbl" | "sbr";
+export type IdentifierPrefix = "prj" | "prv" | "sbl" | "sbr" | "chr" | "crv";
 
 export function isCanonicalPrefixedUlid(
   value: unknown,

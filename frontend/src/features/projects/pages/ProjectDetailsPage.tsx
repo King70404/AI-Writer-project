@@ -15,7 +15,11 @@ import { ProjectDetails } from "../components/ProjectDetails";
 import { ProjectEditForm } from "../components/ProjectEditForm";
 import { useProjectDetails } from "../hooks/useProjectDetails";
 import { useReviseProject } from "../hooks/useReviseProject";
-import { projectRevisionHistoryPath, projectStoryBiblePath } from "../routing";
+import {
+  projectCharactersPath,
+  projectRevisionHistoryPath,
+  projectStoryBiblePath,
+} from "../routing";
 
 interface ProjectDetailsPageProps {
   readonly client?: ProjectDetailApiClient & ProjectRevisionApiClient;
@@ -70,6 +74,11 @@ function ProjectDetailsRoute({
         <div className="project-details-page__links">
           {state.status === "ready" ? (
             <>
+              <Link
+                to={projectCharactersPath(state.resource.project.project_id)}
+              >
+                查看角色
+              </Link>
               <Link
                 to={projectStoryBiblePath(state.resource.project.project_id)}
               >

@@ -4,7 +4,7 @@
 
 ## 当前范围
 
-当前包含阶段 0 工程基础页、Project列表/详情/历史流程，以及已通过M2正式验收的`/projects/:projectId/story-bible`纯文本编辑流程和`/projects/:projectId/story-bible/history`不可变历史页。历史页先取得归属Story Bible ID，再按RevisionNumber降序加载摘要，正文只在显式选择后读取。Project与Story Bible前端使用类型化客户端和精确运行时响应校验；创建POST与修订PUT均只发送一次且不自动重试。M2冻结不表示结构化设定、Diff、回滚、自动保存或小说正文创作已经实现。
+当前包含阶段 0 工程基础页、Project列表/详情/历史流程、已通过M2正式验收的Story Bible当前/历史流程，以及DEV-3.5建立的`/projects/:projectId/characters`稳定列表/创建和`/projects/:projectId/characters/:characterId`当前完整修订流程。Character列表不显示profile，cursor、ETag和草稿只驻留内存，412需用户显式读取最新版本并选择采用服务器版本或保留草稿重建基线。写请求每次用户操作只发送一次，不自动保存、重试或合并。
 
 前端没有用户登录、安全设置页、Project或Story Bible历史回滚/恢复/Diff/编辑/删除、归档/自动保存、规划、写作、评审、Codex 或其他创作功能。两类历史摘要均不含正文，正文只在显式选择单个Revision后按需读取；cursor和正文不进入浏览器存储或URL。GET历史不获取Security Session；CSRF、ETag和编辑草稿只保存在当前JavaScript/React内存。Project和Story Bible管理可用不代表小说创作功能已经实现。
 
@@ -48,7 +48,7 @@ npm run e2e:report
 
 每个场景使用独立服务和数据库。可用 `npm run e2e:dev -- -Scenario E2E-DEV-001` 或 `npm run e2e:integrated -- -Scenario E2E-INT-003` 独立运行固定场景编号。
 
-当前17个E2E场景在原有工程、Project和Story Bible当前流程之外，以`E2E-INT-013`验证Story Bible不可变历史的21项降序20+1分页、按需正文、无历史Security Session、无浏览器持久化及真实数据库Head/Revision状态。它不覆盖小说正文创作功能。
+当前19个E2E场景包含`E2E-INT-015`：它在生产构建与真实后端上验证Character UI创建两个同名角色、稳定列表不显示profile、当前完整修订、ETag 412草稿保留与显式重建基线，并校验真实数据库Head/Revision状态和清理。它不覆盖Character历史、关系、AI生成或小说正文创作。
 
 ## 本地命令
 
