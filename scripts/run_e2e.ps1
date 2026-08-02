@@ -921,6 +921,85 @@ finally:
     }
 }
 
+function Assert-CharacterRevisionHistoryDatabaseState {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DataRoot
+    )
+
+    $databasePath = Join-Path $DataRoot "data/aiwebnovel.sqlite3"
+    Assert-SafeContainedPath `
+        -Candidate $databasePath `
+        -Container $DataRoot `
+        -Description "Character revision history E2E database"
+    $pythonExecutable = Join-Path $script:RepositoryRoot ".venv/Scripts/python.exe"
+    $query = @'
+import sqlite3
+import sys
+
+connection = sqlite3.connect(sys.argv[1])
+try:
+    counts = {
+        name: connection.execute('SELECT COUNT(*) FROM ' + name).fetchone()[0]
+        for name in (
+            'projects', 'project_heads', 'project_revisions',
+            'story_bibles', 'story_bible_heads', 'story_bible_revisions',
+            'characters', 'character_heads', 'character_revisions',
+        )
+    }
+    assert counts == {
+        'projects': 1,
+        'project_heads': 1,
+        'project_revisions': 1,
+        'story_bibles': 0,
+        'story_bible_heads': 0,
+        'story_bible_revisions': 0,
+        'characters': 1,
+        'character_heads': 1,
+        'character_revisions': 21,
+    }
+    assert connection.execute(
+        'SELECT concurrency_version FROM projects'
+    ).fetchone()[0] == 1
+    character_id, version = connection.execute(
+        'SELECT id, concurrency_version FROM characters'
+    ).fetchone()
+    assert version == 21
+    revisions = connection.execute(
+        '''
+        SELECT id, revision_number, name, role, profile
+        FROM character_revisions
+        WHERE character_id = ?
+        ORDER BY revision_number
+        ''',
+        (character_id,),
+    ).fetchall()
+    assert [row[1] for row in revisions] == list(range(1, 22))
+    assert len({row[0] for row in revisions}) == 21
+    assert revisions[0][2:] == (
+        'E2E Character History 016 01',
+        'Lead 01',
+        'E2E-CHARACTER-HISTORY-PROFILE-CANARY-016-01\nline two',
+    )
+    assert revisions[-1][2:] == (
+        'E2E Character History 016 21',
+        'Lead 21',
+        'E2E-CHARACTER-HISTORY-PROFILE-CANARY-016-21',
+    )
+    head = connection.execute(
+        'SELECT revision_id FROM character_heads WHERE character_id = ?',
+        (character_id,),
+    ).fetchone()[0]
+    assert head == revisions[-1][0]
+finally:
+    connection.close()
+'@
+    & $pythonExecutable -c $query $databasePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Character revision history E2E database state verification failed"
+    }
+}
+
 function Test-LoopbackPortAvailable {
     param(
         [Parameter(Mandatory = $true)]
@@ -1611,6 +1690,7 @@ function Invoke-E2EScenario {
             "E2E-INT-013",
             "E2E-INT-014",
             "E2E-INT-015",
+            "E2E-INT-016",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -1633,7 +1713,8 @@ function Invoke-E2EScenario {
         "E2E-INT-012",
         "E2E-INT-013",
         "E2E-INT-014",
-        "E2E-INT-015"
+        "E2E-INT-015",
+        "E2E-INT-016"
     )
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
@@ -1838,6 +1919,9 @@ function Invoke-E2EScenario {
         if ($SelectedScenario -eq "E2E-INT-015") {
             Assert-CharacterFrontendDatabaseState -DataRoot $dataRoot
         }
+        if ($SelectedScenario -eq "E2E-INT-016") {
+            Assert-CharacterRevisionHistoryDatabaseState -DataRoot $dataRoot
+        }
         if ($isBusinessApi) {
             foreach ($logPath in Get-ChildItem -LiteralPath $runDirectory -Filter "*.log") {
                 $logText = Get-Content -LiteralPath $logPath.FullName -Raw -Encoding UTF8
@@ -1853,6 +1937,7 @@ function Invoke-E2EScenario {
                     $logText -match "E2E-STORY-BIBLE-HISTORY-(?:PROJECT|CONTENT)-CANARY-013" -or
                     $logText -match "E2E-CHARACTER-PROFILE-CANARY-014" -or
                     $logText -match "E2E-CHARACTER-PROFILE-CANARY-015" -or
+                    $logText -match "E2E-CHARACTER-HISTORY-PROFILE-CANARY-016" -or
                     $logText -match "(?i)\bcursor=" -or
                     $logText -match "If-Match"
                 ) {
@@ -1953,6 +2038,7 @@ try {
         "E2E-INT-013" = "Integrated"
         "E2E-INT-014" = "Integrated"
         "E2E-INT-015" = "Integrated"
+        "E2E-INT-016" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -1972,6 +2058,7 @@ try {
         "E2E-INT-013",
         "E2E-INT-014",
         "E2E-INT-015",
+        "E2E-INT-016",
         "E2E-STARTUP-001"
     )
 

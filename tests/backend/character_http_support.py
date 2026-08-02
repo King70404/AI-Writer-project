@@ -1,5 +1,9 @@
 """Shared isolated helpers for Character HTTP adapter tests."""
 
+from __future__ import annotations
+
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -11,7 +15,9 @@ from tests.backend.character_repository_support import (
     character_revision_id,
     project_id,
 )
-from tests.backend.factories import create_test_app
+from tests.backend.factories import create_test_app, create_test_settings
+from tests.backend.project_api_support import create_test_app_from_settings
+from tests.backend.test_character_migration import migrated_character_database_context
 
 from aiwebnovel.character.application.models import (
     CharacterListItem,
@@ -104,3 +110,19 @@ def issue_write_headers(client: TestClient) -> dict[str, str]:
         "Origin": ALLOWED_ORIGIN,
         "X-CSRF-Token": str(session.json()["csrf_token"]),
     }
+
+
+@contextmanager
+def migrated_character_api_app(tmp_path: Path) -> Iterator[tuple[FastAPI, Path]]:
+    """Migrate one isolated database, then build the real composed API app."""
+    with migrated_character_database_context(tmp_path) as database:
+        settings = create_test_settings(
+            data_root=(tmp_path / "character-api-storage").resolve(),
+            database_url=str(
+                URL.create(
+                    "sqlite+pysqlite",
+                    database=database.path.resolve().as_posix(),
+                )
+            ),
+        )
+        yield create_test_app_from_settings(settings), database.path

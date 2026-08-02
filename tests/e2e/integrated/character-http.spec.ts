@@ -1,6 +1,37 @@
 import { expectCleanBrowserAudit } from "../support/assertions";
 import { expect, test } from "../support/fixture";
 
+interface CharacterRevisionHistoryItemBody {
+  readonly revision_id: string;
+  readonly revision_number: number;
+  readonly name: string;
+  readonly role: string;
+  readonly created_at: string;
+  readonly is_current: boolean;
+}
+
+interface CharacterRevisionHistoryPageBody {
+  readonly character_id: string;
+  readonly project_id: string;
+  readonly current_revision_number: number;
+  readonly items: readonly CharacterRevisionHistoryItemBody[];
+  readonly next_cursor: string | null;
+  readonly has_more: boolean;
+}
+
+interface CharacterRevisionBody {
+  readonly character_id: string;
+  readonly project_id: string;
+  readonly revision_id: string;
+  readonly revision_number: number;
+  readonly name: string;
+  readonly role: string;
+  readonly profile: string;
+  readonly created_at: string;
+  readonly is_current: boolean;
+  readonly current_revision_number: number;
+}
+
 test("E2E-INT-014 exercises Character HTTP creation, stable listing, and concurrent revision", async ({
   baseURL,
   browserAudit,
@@ -164,9 +195,136 @@ test("E2E-INT-014 exercises Character HTTP creation, stable listing, and concurr
       })
     ).status(),
   ).toBe(405);
-  expect((await context.request.get(`${firstPath}/revisions`)).status()).toBe(
-    404,
-  );
+
+  const historyRequest = await playwright.request.newContext({ baseURL });
+  try {
+    const currentBeforeHistory = await historyRequest.get(firstPath);
+    expect(currentBeforeHistory.status()).toBe(200);
+    const currentBeforeHistoryBody = (await currentBeforeHistory.json()) as {
+      readonly current_revision_id: string;
+      readonly revision_number: number;
+    };
+    expect(currentBeforeHistoryBody.revision_number).toBe(3);
+
+    const historyBefore = await historyRequest.get(`${firstPath}/revisions`);
+    expect(historyBefore.status()).toBe(200);
+    expect(historyBefore.headers()["cache-control"]).toBe("no-store");
+    expect(historyBefore.headers().etag).toBeUndefined();
+    const historyBeforeBody =
+      (await historyBefore.json()) as CharacterRevisionHistoryPageBody;
+    expect(historyBeforeBody.character_id).toBe(firstBody.character_id);
+    expect(historyBeforeBody.project_id).toBe(projectId);
+    expect(historyBeforeBody.current_revision_number).toBe(3);
+    expect(historyBeforeBody.items.map((item) => item.revision_number)).toEqual(
+      [3, 2, 1],
+    );
+    expect(
+      historyBeforeBody.items.every(
+        (item) => item.is_current === (item.revision_number === 3),
+      ),
+    ).toBe(true);
+    expect(
+      historyBeforeBody.items.every((item) => !Object.hasOwn(item, "profile")),
+    ).toBe(true);
+    expect(historyBeforeBody.has_more).toBe(false);
+    expect(historyBeforeBody.next_cursor).toBeNull();
+    expect(Object.hasOwn(historyBeforeBody, "etag")).toBe(false);
+
+    const revisionOne = await historyRequest.get(`${firstPath}/revisions/1`);
+    expect(revisionOne.status()).toBe(200);
+    expect(revisionOne.headers()["cache-control"]).toBe("no-store");
+    expect(revisionOne.headers().etag).toBeUndefined();
+    const revisionOneBody = (await revisionOne.json()) as CharacterRevisionBody;
+    expect(revisionOneBody).toMatchObject({
+      character_id: firstBody.character_id,
+      project_id: projectId,
+      revision_number: 1,
+      name: "Shared Character",
+      role: "Lead",
+      profile: "E2E-CHARACTER-PROFILE-CANARY-014-A",
+      is_current: false,
+      current_revision_number: 3,
+    });
+    expect(revisionOneBody.revision_id).toMatch(
+      /^crv_[0-9A-HJKMNP-TV-Z]{26}$/u,
+    );
+    expect(Object.hasOwn(revisionOneBody, "etag")).toBe(false);
+
+    const forbiddenHistoryWrites = [
+      await context.request.post(`${firstPath}/revisions`, {
+        data: {},
+        headers: writeHeaders,
+      }),
+      await context.request.put(`${firstPath}/revisions/1`, {
+        data: {},
+        headers: writeHeaders,
+      }),
+      await context.request.patch(`${firstPath}/revisions/1`, {
+        data: {},
+        headers: writeHeaders,
+      }),
+      await context.request.delete(`${firstPath}/revisions/1`, {
+        headers: writeHeaders,
+      }),
+    ];
+    expect(forbiddenHistoryWrites.map((response) => response.status())).toEqual(
+      [405, 405, 405, 405],
+    );
+    const forbiddenLifecycleWrites = [
+      await context.request.post(`${firstPath}/rollback`, {
+        data: {},
+        headers: writeHeaders,
+      }),
+      await context.request.post(`${firstPath}/restore`, {
+        data: {},
+        headers: writeHeaders,
+      }),
+    ];
+    expect(
+      forbiddenLifecycleWrites.map((response) => response.status()),
+    ).toEqual([405, 405]);
+    for (const response of [
+      ...forbiddenHistoryWrites,
+      ...forbiddenLifecycleWrites,
+    ]) {
+      expect(await response.text()).not.toMatch(
+        /E2E-CHARACTER-PROFILE|sqlite|no such table|traceback|csrf|session|if-match|[A-Z]:\\/iu,
+      );
+    }
+
+    const historyAfter = await historyRequest.get(`${firstPath}/revisions`);
+    expect(historyAfter.status()).toBe(200);
+    const historyAfterBody =
+      (await historyAfter.json()) as CharacterRevisionHistoryPageBody;
+    expect(historyAfterBody.items).toHaveLength(historyBeforeBody.items.length);
+    expect(
+      historyAfterBody.items.map((item) => [
+        item.revision_id,
+        item.revision_number,
+        item.is_current,
+      ]),
+    ).toEqual(
+      historyBeforeBody.items.map((item) => [
+        item.revision_id,
+        item.revision_number,
+        item.is_current,
+      ]),
+    );
+    expect(historyAfterBody.current_revision_number).toBe(
+      historyBeforeBody.current_revision_number,
+    );
+
+    const currentAfterHistory = await historyRequest.get(firstPath);
+    expect(currentAfterHistory.status()).toBe(200);
+    const currentAfterHistoryBody = (await currentAfterHistory.json()) as {
+      readonly current_revision_id: string;
+      readonly revision_number: number;
+    };
+    expect(currentAfterHistoryBody).toEqual(currentBeforeHistoryBody);
+  } finally {
+    await historyRequest.dispose();
+  }
+
   expect(
     (
       await context.request.get(

@@ -121,7 +121,7 @@ DEV-3.3只授权Character纯应用命令、当前按ID读取、按Project稳定�
 
 DEV-3.3不改变Schema、迁移、写Repository事务语义、production API、前端路由或功能真实性矩阵，也不授权DTO、HTTP、组合根接线、前端、Revision历史、关系、结构化属性、World、PowerSystem、规划、章节、三区、审批、Codex、Agent或AI生成。DEV-3.4仍需独立编号任务授权。
 
-DEV-3.4只授权Character HTTP传输边界。DEV-3.5在不改变Schema、迁移、后端生产代码或依赖的前提下，只授权两个Project嵌套Character路由、严格前端契约、稳定Keyset加载、创建、当前完整修订、共享强ETag和显式412/结果未知恢复。列表不读取profile，草稿/ETag/cursor只驻留内存；写操作不预读、自动保存、重试或合并。仍不授权Revision历史、关系、删除/归档/恢复、结构化属性、World、PowerSystem、规划、Codex或Agent。
+DEV-3.4只授权Character HTTP传输边界。DEV-3.5在不改变Schema、迁移、后端生产代码或依赖的前提下，只授权两个Project嵌套Character路由、严格前端契约、稳定Keyset加载、创建、当前完整修订、共享强ETag和显式412/结果未知恢复。DEV-3.6只授权独立只读History Reader、两条历史GET、Character绑定RevisionNumber keyset、无profile摘要、按需详情、第三个Character前端路由、取消竞态与`E2E-INT-016`；不改变Schema或写Repository。仍不授权历史恢复/回滚/Diff/编辑/删除、关系、归档、结构化属性、World、PowerSystem、规划、Codex或Agent。
 
 ## 统一执行报告
 

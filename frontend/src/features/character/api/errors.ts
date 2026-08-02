@@ -10,6 +10,7 @@ export type CharacterApiErrorKind =
   | "security"
   | "project_not_found"
   | "character_not_found"
+  | "character_revision_not_found"
   | "character_id_conflict"
   | "invalid_cursor"
   | "version_conflict"
@@ -137,13 +138,20 @@ function kindFor(error: ApiError): CharacterApiErrorKind {
     return "security";
   if (error.code === "PROJECT_NOT_FOUND") return "project_not_found";
   if (error.code === "CHARACTER_NOT_FOUND") return "character_not_found";
+  if (error.code === "CHARACTER_REVISION_NOT_FOUND")
+    return "character_revision_not_found";
   if (error.code === "CHARACTER_ID_CONFLICT") return "character_id_conflict";
-  if (error.code === "INVALID_CHARACTER_CURSOR") return "invalid_cursor";
+  if (
+    error.code === "INVALID_CHARACTER_CURSOR" ||
+    error.code === "INVALID_CHARACTER_REVISION_CURSOR"
+  )
+    return "invalid_cursor";
   if (error.code === "CHARACTER_PERSISTENCE_UNAVAILABLE")
     return "persistence_unavailable";
   if (
     error.code === "CHARACTER_SERVICE_UNAVAILABLE" ||
-    error.code === "CHARACTER_QUERY_SERVICE_UNAVAILABLE"
+    error.code === "CHARACTER_QUERY_SERVICE_UNAVAILABLE" ||
+    error.code === "CHARACTER_HISTORY_SERVICE_UNAVAILABLE"
   )
     return "service_unavailable";
   if (
@@ -165,6 +173,7 @@ function kindFor(error: ApiError): CharacterApiErrorKind {
 
 function messageFor(kind: CharacterApiErrorKind): string {
   const messages: Record<CharacterApiErrorKind, string> = {
+    character_revision_not_found: "指定的角色修订不存在。",
     aborted: "请求已取消。",
     network: "无法连接本地角色服务，请检查后手动重试。",
     validation: "角色输入未通过验证。",

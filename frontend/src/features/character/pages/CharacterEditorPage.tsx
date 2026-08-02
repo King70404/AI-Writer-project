@@ -10,7 +10,10 @@ import {
   CharacterLoading,
 } from "../components/CharacterStates";
 import { useCharacterEditor } from "../hooks/useCharacterEditor";
-import { projectCharactersPath } from "../routing";
+import {
+  characterRevisionHistoryPath,
+  projectCharactersPath,
+} from "../routing";
 import { NotFoundPage } from "../../../pages/NotFoundPage";
 
 function CharacterEditorRoute({
@@ -36,15 +39,22 @@ function CharacterEditorRoute({
           </h1>
         </div>
         {projectId === undefined ? null : (
-          <Link
-            to={
-              state.status === "invalid_route"
-                ? "/projects"
-                : projectCharactersPath(projectId)
-            }
-          >
-            返回角色列表
-          </Link>
+          <nav aria-label="角色编辑导航">
+            {state.status === "ready" && characterId !== undefined ? (
+              <Link to={characterRevisionHistoryPath(projectId, characterId)}>
+                查看修订历史
+              </Link>
+            ) : null}{" "}
+            <Link
+              to={
+                state.status === "invalid_route"
+                  ? "/projects"
+                  : projectCharactersPath(projectId)
+              }
+            >
+              返回角色列表
+            </Link>
+          </nav>
         )}
       </header>
       {state.status === "invalid_route" ? (

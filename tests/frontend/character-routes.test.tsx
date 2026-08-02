@@ -8,6 +8,7 @@ import { CharacterEditorPage } from "../../frontend/src/features/character/pages
 import { CharacterListPage } from "../../frontend/src/features/character/pages/CharacterListPage";
 import {
   characterEditorPath,
+  characterRevisionHistoryPath,
   projectCharactersPath,
 } from "../../frontend/src/features/character/routing";
 import { jsonResponse, projectResponse } from "./project-detail-support";
@@ -67,8 +68,12 @@ describe("Character routes and navigation", () => {
     expect(characterEditorPath(characterProjectId, characterId)).toBe(
       `/projects/${characterProjectId}/characters/${characterId}`,
     );
+    expect(characterRevisionHistoryPath(characterProjectId, characterId)).toBe(
+      `/projects/${characterProjectId}/characters/${characterId}/history`,
+    );
     expect(() => projectCharactersPath("bad")).toThrow();
     expect(() => characterEditorPath(characterProjectId, "bad")).toThrow();
+    expect(() => characterRevisionHistoryPath("bad", characterId)).toThrow();
   });
 
   it("directly loads the list and editor routes", async () => {
@@ -126,7 +131,6 @@ describe("Character routes and navigation", () => {
   it.each([
     "/characters",
     `/characters/${characterId}`,
-    `/projects/${characterProjectId}/characters/${characterId}/history`,
     `/projects/${characterProjectId}/characters/history`,
   ])("keeps unsupported Character route %s on the React 404", (path) => {
     const fetchMock = vi.fn<typeof fetch>();

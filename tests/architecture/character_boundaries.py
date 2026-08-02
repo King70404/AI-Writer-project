@@ -181,11 +181,15 @@ def _character_dependency_violation(
                 "Character persistence must remain independent of Web adapters",
             )
         if _is_module_or_child(target, "aiwebnovel.character.application") and (
-            source != "aiwebnovel.character.persistence.list_reader"
+            source
+            not in {
+                "aiwebnovel.character.persistence.list_reader",
+                "aiwebnovel.character.persistence.history_reader",
+            }
         ):
             return (
-                "only-character-list-reader-may-import-application",
-                "Only the Character list adapter may depend on list application contracts",
+                "only-character-read-adapters-may-import-application",
+                "Only Character read adapters may depend on read application contracts",
             )
         if (
             _is_module_or_child(target, _CHARACTER_ROOT)

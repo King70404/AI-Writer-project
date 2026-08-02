@@ -87,6 +87,14 @@ def test_checker_accepts_declared_application_and_list_reader_dependencies(
         "from aiwebnovel.db.session import create_database_session_factory\n"
         "from aiwebnovel.project.persistence.models import ProjectRecord\n",
     )
+    _write_module(
+        package_root,
+        "character/persistence/history_reader.py",
+        "from sqlalchemy.orm import Session\n"
+        "from aiwebnovel.character.application.history_models import "
+        "CharacterRevisionHistoryPage\n"
+        "from aiwebnovel.project.persistence.models import ProjectRecord\n",
+    )
 
     assert check_character_boundaries(package_root) == ()
 
@@ -147,7 +155,7 @@ def test_checker_rejects_non_list_adapter_importing_application(tmp_path: Path) 
     violations = check_character_boundaries(package_root)
 
     assert len(violations) == 1
-    assert violations[0].rule == "only-character-list-reader-may-import-application"
+    assert violations[0].rule == "only-character-read-adapters-may-import-application"
 
 
 def test_checker_rejects_persistence_list_reader_importing_web(tmp_path: Path) -> None:
@@ -377,6 +385,7 @@ def test_application_and_list_reader_imports_have_no_runtime_or_schema_side_effe
         "before_modules = set(sys.modules)\n"
         "import aiwebnovel.character.application\n"
         "import aiwebnovel.character.persistence.list_reader\n"
+        "import aiwebnovel.character.persistence.history_reader\n"
         "after = sorted(load_model_metadata().tables)\n"
         "forbidden = sorted(name for name in set(sys.modules) - before_modules if "
         "name.startswith(('aiwebnovel.character.persistence.repository', "

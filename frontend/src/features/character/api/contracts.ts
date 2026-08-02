@@ -48,3 +48,34 @@ export interface VersionedCharacterResource {
   readonly etag: string;
   readonly version: number;
 }
+
+export interface CharacterRevisionHistoryItemResponse {
+  readonly revision_id: string;
+  readonly revision_number: number;
+  readonly name: string;
+  readonly role: string;
+  readonly created_at: string;
+  readonly is_current: boolean;
+}
+
+export interface CharacterRevisionHistoryPageResponse {
+  readonly character_id: string;
+  readonly project_id: string;
+  readonly current_revision_number: number;
+  readonly items: readonly CharacterRevisionHistoryItemResponse[];
+  readonly next_cursor: string | null;
+  readonly has_more: boolean;
+}
+
+export interface CharacterRevisionResponse {
+  readonly character_id: string;
+  readonly project_id: string;
+  readonly revision_id: string;
+  readonly revision_number: number;
+  readonly name: string;
+  readonly role: string;
+  readonly profile: string;
+  readonly created_at: string;
+  readonly is_current: boolean;
+  readonly current_revision_number: number;
+}

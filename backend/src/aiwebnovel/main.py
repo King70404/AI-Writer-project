@@ -10,12 +10,15 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy import Engine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from aiwebnovel.character.application.history_service import (
+    CharacterRevisionHistoryQueryService,
+)
 from aiwebnovel.character.application.services import (
     CharacterCommandService,
     CharacterQueryService,
 )
 from aiwebnovel.character.identifiers import CharacterId, CharacterRevisionId
-from aiwebnovel.character.web import create_character_router
+from aiwebnovel.character.web import create_character_history_router, create_character_router
 from aiwebnovel.core.config import Settings, get_settings
 from aiwebnovel.core.errors import internal_error_handler, register_error_handlers
 from aiwebnovel.core.logging import configure_logging, get_logger
@@ -244,6 +247,9 @@ def create_app(
                         runtime_engine.dispose()
                         runtime_engine = None
                 else:
+                    from aiwebnovel.character.persistence.history_reader import (
+                        SqlAlchemyCharacterRevisionHistoryReader,
+                    )
                     from aiwebnovel.character.persistence.list_reader import (
                         SqlAlchemyCharacterListReader,
                     )
@@ -313,6 +319,12 @@ def create_app(
                         character_repository,
                         character_list_reader,
                     )
+                    character_history_reader = SqlAlchemyCharacterRevisionHistoryReader(
+                        session_factory
+                    )
+                    application.state.character_revision_history_query_service = (
+                        CharacterRevisionHistoryQueryService(character_history_reader)
+                    )
 
         application.state.initialized = True
         try:
@@ -328,6 +340,7 @@ def create_app(
             application.state.story_bible_revision_history_query_service = None
             application.state.character_command_service = None
             application.state.character_query_service = None
+            application.state.character_revision_history_query_service = None
             application.state.database_session_factory = None
             session_manager.clear()
             if runtime_engine is not None:
@@ -358,6 +371,7 @@ def create_app(
     application.state.story_bible_revision_history_query_service = None
     application.state.character_command_service = None
     application.state.character_query_service = None
+    application.state.character_revision_history_query_service = None
     application.state.local_session_manager = session_manager
     application.state.proxy_headers_trusted = False
     frontend_service = FrontendStaticService(frontend_dist_path, api_prefix)
@@ -416,6 +430,7 @@ def create_app(
     application.include_router(create_story_bible_router(api_prefix=api_prefix))
     application.include_router(create_story_bible_history_router(api_prefix=api_prefix))
     application.include_router(create_character_router(api_prefix=api_prefix))
+    application.include_router(create_character_history_router(api_prefix=api_prefix))
 
     @application.get(f"{api_prefix}/health/live")
     async def live() -> dict[str, str]:

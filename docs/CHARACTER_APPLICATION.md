@@ -4,7 +4,7 @@
 
 `aiwebnovel.character.application`在纯Character领域与事务`CharacterRepository`之上提供内部应用用例。它只定义传输原语命令、类型化查询、脱离持久化的不可变读取模型、显式Mapper和无状态服务，不依赖SQLAlchemy、FastAPI、Pydantic、数据库Session或具体适配器。
 
-DEV-3.4已在本层之外增加独立`character.web`适配器和组合根接线；DEV-3.5只通过该HTTP边界建立Character前端。应用层自身仍不依赖FastAPI、Pydantic或前端。当前没有Revision历史、关系、World、PowerSystem、规划、章节、Codex、Agent或AI生成。
+DEV-3.4已在本层之外增加独立`character.web`适配器和组合根接线；DEV-3.5通过该HTTP边界建立Character当前前端；DEV-3.6在应用层新增独立只读历史端口与服务。应用层自身仍不依赖FastAPI、Pydantic或前端。当前没有历史写入、关系、World、PowerSystem、规划、章节、Codex、Agent或AI生成。
 
 ## Commands与当前读取
 
@@ -159,4 +159,4 @@ Character Revision ID Factory
 
 DEV-3.4只在应用层外增加四条Character HTTP操作、严格DTO/游标/错误映射和组合根，不修改0004、九表Metadata、应用命令与Repository事务语义或前端路由。完整传输契约见[Character HTTP API](CHARACTER_HTTP_API.md)。
 
-DEV-3.5已建立Character当前页面，但不修改本应用层契约。当前仍不存在Revision历史、关系、删除、归档、恢复、结构化年龄/性别/能力、World、PowerSystem、规划或AI生成。
+DEV-3.5已建立Character当前页面。DEV-3.6另增`CharacterRevisionHistoryReader`端口、不可变历史位置/摘要/页/详情模型、两个只读Query及`CharacterRevisionHistoryQueryService`；列表和详情各只调用Reader一次，列表不含profile，详情按RevisionNumber读取完整profile，Head决定current。完整契约见[Character不可变Revision历史](CHARACTER_REVISION_HISTORY.md)。当前仍不存在历史恢复、回滚、Diff、编辑或删除，以及关系、归档、结构化年龄/性别/能力、World、PowerSystem、规划或AI生成。

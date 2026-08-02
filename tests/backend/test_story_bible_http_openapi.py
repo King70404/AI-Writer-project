@@ -28,10 +28,12 @@ EXPECTED_ROUTES = {
     ("POST", "/api/v1/projects/{project_id}/characters"),
     ("GET", "/api/v1/characters/{character_id}"),
     ("PUT", "/api/v1/characters/{character_id}"),
+    ("GET", "/api/v1/characters/{character_id}/revisions"),
+    ("GET", "/api/v1/characters/{character_id}/revisions/{revision_number}"),
 }
 
 
-def test_production_api_inventory_has_exactly_nineteen_routes(tmp_path: Path) -> None:
+def test_production_api_inventory_has_exactly_twenty_one_routes(tmp_path: Path) -> None:
     app = create_test_app(data_root=(tmp_path / "routes").resolve(), expose_api_docs=True)
     routes = {
         (method.upper(), path)

@@ -141,7 +141,7 @@ story_bibles
 
 ## 架构边界
 
-Character领域仍只依赖标准库、共享`domain`、自身领域和`ProjectId`。Repository契约也保持纯Python。只有`character.persistence`可以依赖SQLAlchemy、通用`db`适配层、自身领域/契约，以及为了外键存在性读取而使用的Project Record。专用`character.persistence.list_reader`可以向内实现纯应用层`CharacterListReader`端口并返回脱离Session的列表模型；其他持久化代码不得反向依赖应用层。持久化层不得导入Project Repository、Web层或Story Bible。
+Character领域仍只依赖标准库、共享`domain`、自身领域和`ProjectId`。Repository契约也保持纯Python。只有`character.persistence`可以依赖SQLAlchemy、通用`db`适配层、自身领域/契约，以及为了外键存在性读取而使用的Project Record。专用`character.persistence.list_reader`和`character.persistence.history_reader`可以分别向内实现纯应用层只读端口并返回脱离Session的模型；其他持久化代码不得反向依赖应用层。持久化层不得导入Project Repository、Web层或Story Bible。
 
 `db.model_registry`确定性注册Project、Story Bible和Character的九张表，但不连接数据库。Project、Story Bible、通用`domain`和Character领域均不得反向依赖Character持久化。
 
@@ -149,12 +149,12 @@ Character领域仍只依赖标准库、共享`domain`、自身领域和`ProjectI
 
 专项测试覆盖迁移循环、三表/索引/约束、显式Mapper、创建与读取、完整替换追加、失败回滚、损坏矩阵、Revision不可变触发器和两个独立Repository的确定性并发。测试只使用迁移到0004的独立临时SQLite数据库，结束后清理数据库及sidecar。
 
-DEV-3.3已在写Repository之外新增独立只读列表适配器。它使用普通独立Session、先验证Project存在性、再从Stable Object连接Head所指向的当前Revision，每页最多两个业务SELECT；固定按`created_at DESC, character_id DESC`执行复合Keyset分页，并且不读取profile、不使用COUNT或OFFSET。Head而不是最大RevisionNumber是当前列表的唯一权威。
+DEV-3.3在写Repository之外新增独立列表适配器；DEV-3.6另增独立历史适配器。历史Reader使用普通独立Session，先读取Character与Head权威状态，再按`revision_number DESC`和严格小于位置执行Character绑定Keyset分页；每次最多两个业务SELECT，以`limit + 1`判定后续页，不读取profile、不使用COUNT或OFFSET。Head而不是最大RevisionNumber是current的唯一权威。
 
 当前明确没有：
 
-- Character前端入口、Revision历史或关系图；
+- Character Revision恢复、回滚、Diff、历史编辑、删除或关系图；
 - 头像、附件、结构化年龄/性别/能力/关系；
 - World、PowerSystem、规划、章节、三区、审批、Codex、Agent或AI生成。
 
-应用层和列表边界见[Character应用用例](CHARACTER_APPLICATION.md)，传输边界见[Character HTTP API](CHARACTER_HTTP_API.md)。HTTP能力仅是本地后端接口，不构成Character前端；DEV-3.5仍需独立编号任务授权。
+应用层和列表边界见[Character应用用例](CHARACTER_APPLICATION.md)，传输边界见[Character HTTP API](CHARACTER_HTTP_API.md)，历史读取见[Character不可变Revision历史](CHARACTER_REVISION_HISTORY.md)。

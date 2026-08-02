@@ -16,7 +16,7 @@ def test_route_inventory_contains_all_declared_business_routes(tmp_path: Path) -
         for method in operations
         if method in {"get", "post", "put", "patch", "delete"}
     }
-    assert routes == {
+    expected_routes = {
         ("GET", "/api/v1/health/live"),
         ("GET", "/api/v1/health/ready"),
         ("GET", "/api/v1/security/session"),
@@ -39,7 +39,21 @@ def test_route_inventory_contains_all_declared_business_routes(tmp_path: Path) -
         ("POST", "/api/v1/projects/{project_id}/characters"),
         ("GET", "/api/v1/characters/{character_id}"),
         ("PUT", "/api/v1/characters/{character_id}"),
+        ("GET", "/api/v1/characters/{character_id}/revisions"),
+        ("GET", "/api/v1/characters/{character_id}/revisions/{revision_number}"),
     }
+    assert len(routes) == 21
+    assert routes == expected_routes
+    assert routes.isdisjoint(
+        {
+            ("POST", "/api/v1/characters/{character_id}/revisions"),
+            ("PUT", "/api/v1/characters/{character_id}/revisions/{revision_number}"),
+            ("PATCH", "/api/v1/characters/{character_id}/revisions/{revision_number}"),
+            ("DELETE", "/api/v1/characters/{character_id}/revisions/{revision_number}"),
+            ("POST", "/api/v1/characters/{character_id}/rollback"),
+            ("POST", "/api/v1/characters/{character_id}/restore"),
+        }
+    )
 
 
 def test_openapi_documents_fixed_keyset_contract_and_response(tmp_path: Path) -> None:

@@ -38,6 +38,7 @@ export interface BrowserAudit {
   readonly unexpectedDownloads: string[];
   readonly unexpectedCookies: string[];
   readonly allowOneExpectedHealthCancellation: () => void;
+  readonly allowOneExpectedLocalCancellation: (path: string) => void;
   readonly allowOneExpectedSessionCookie: () => void;
   readonly allowExpectedConsoleHttpFailure: (
     path: string,
@@ -174,6 +175,22 @@ function isExpectedLocalHealthCancellation(
   return expected;
 }
 
+function isExpectedLocalCancellation(
+  request: Request,
+  endpoint: LocalEndpoint,
+  expectedPaths: string[],
+): boolean {
+  const failure = request.failure()?.errorText ?? "";
+  const path = pathOnly(request.url());
+  const expectedIndex = expectedPaths.indexOf(path);
+  const expected =
+    expectedIndex >= 0 &&
+    isAllowedHttp(request.url(), endpoint) &&
+    /(?:ERR_ABORTED|NS_BINDING_ABORTED|cancelled)/iu.test(failure);
+  if (expected) expectedPaths.splice(expectedIndex, 1);
+  return expected;
+}
+
 function addPageDiagnostics(
   page: Page,
   audit: BrowserAudit,
@@ -260,6 +277,7 @@ export async function installBrowserAudit(
   const endpoint = parseLocalEndpoint(baseURL, "Playwright baseURL");
   const expectedConsoleHttpFailures: ExpectedConsoleHttpFailure[] = [];
   const expectedHealthCancellations = { count: 0 };
+  const expectedLocalCancellationPaths: string[] = [];
   const expectedSessionCookies = { count: 0 };
   const audit: BrowserAudit = {
     allowedOrigin: endpoint.origin,
@@ -274,6 +292,14 @@ export async function installBrowserAudit(
     unexpectedCookies: [],
     allowOneExpectedHealthCancellation: () => {
       expectedHealthCancellations.count += 1;
+    },
+    allowOneExpectedLocalCancellation: (path) => {
+      if (!path.startsWith("/") || path.includes("?") || path.includes("#")) {
+        throw new Error(
+          "Expected local cancellation must use one absolute path.",
+        );
+      }
+      expectedLocalCancellationPaths.push(path);
     },
     allowOneExpectedSessionCookie: () => {
       expectedSessionCookies.count += 1;
@@ -365,6 +391,11 @@ export async function installBrowserAudit(
         request,
         endpoint,
         expectedHealthCancellations,
+      ) &&
+      !isExpectedLocalCancellation(
+        request,
+        endpoint,
+        expectedLocalCancellationPaths,
       )
     ) {
       audit.unexpectedRequestFailures.push(

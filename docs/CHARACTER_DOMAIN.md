@@ -96,10 +96,10 @@ DEV-3.3现已在不改变领域规则的前提下建立：
 - 纯Repository契约、显式Mapper和事务SQLAlchemy适配器。
 - 原语应用命令、当前Snapshot、Get查询和按Project的无profile稳定列表投影。
 
-当前明确没有：
+当前领域模型之外已由后续任务建立本地HTTP、前端当前流程和只读Revision历史；这些能力不改变本文件的纯领域边界。当前明确没有：
 
-- Character DTO、API、组合根接线或前端；
-- Character Revision历史、关系、关系图、头像、附件或结构化属性；
+- Character Revision恢复、回滚、Diff、历史编辑或删除；
+- Character关系、关系图、头像、附件或结构化属性；
 - World、PowerSystem、规划、章节、三区、审批、Codex、Agent或AI生成。
 
-持久化细节见[Character持久化基础](CHARACTER_PERSISTENCE.md)，应用层见[Character应用用例](CHARACTER_APPLICATION.md)。DEV-3.3内部用例不得被视为API、页面或用户能力完成证据；DEV-3.4仍需新的明确任务授权。
+持久化细节见[Character持久化基础](CHARACTER_PERSISTENCE.md)，应用层见[Character应用用例](CHARACTER_APPLICATION.md)，只读历史见[Character不可变Revision历史](CHARACTER_REVISION_HISTORY.md)。领域对象本身不提供HTTP、UI或历史写能力。

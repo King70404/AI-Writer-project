@@ -13,7 +13,7 @@ PUT  /api/v1/characters/{character_id}
 
 创建和列表使用Project嵌套路径，因为两者都以归属Project为明确边界；当前读取和修订使用稳定Character资源路径，因为Character身份由`CharacterId`唯一决定。一个Project可以拥有多个Character，同名Character合法。
 
-DEV-3.5现已在这四条操作上建立Character稳定列表/创建/当前完整修订前端，见[Character前端流程](CHARACTER_FRONTEND.md)。当前仍没有Revision历史、关系接口、PATCH、删除、归档、恢复或AI生成。
+DEV-3.5在四条当前操作上建立Character稳定列表/创建/当前完整修订前端；DEV-3.6另增两条只读Revision历史GET和历史页。见[Character前端流程](CHARACTER_FRONTEND.md)与[Character不可变Revision历史](CHARACTER_REVISION_HISTORY.md)。当前仍没有历史写入、关系接口、PATCH、删除、归档、恢复或AI生成。
 
 ## DTO与显式映射
 
@@ -73,6 +73,6 @@ POST和PUT继承现有Host、请求体上限、严格JSON、允许Origin、本�
 
 ## 组合根、OpenAPI与迁移
 
-`main`在唯一Engine和Session factory之上装配`SqlAlchemyCharacterRepository`、`SqlAlchemyCharacterListReader`、`CharacterCommandService`和`CharacterQueryService`；Router只依赖应用服务契约，不访问Session、ORM或SQL。导入Web包不连接数据库、不迁移、不生成ID。
+`main`在唯一Engine和Session factory之上装配`SqlAlchemyCharacterRepository`、`SqlAlchemyCharacterListReader`、`SqlAlchemyCharacterRevisionHistoryReader`及对应应用服务；Router只依赖应用服务契约，不访问Session、ORM或SQL。导入Web包不连接数据库、不迁移、不生成ID。
 
-生产OpenAPI精确登记四个新操作，总API操作数为19；生产文档入口仍关闭并与SPA回退隔离。Alembic head仍是`0004_create_character_foundation`，Metadata仍为九表，没有0005。空数据库或只迁移到0003的数据库不会自动迁移，四个合法Character操作安全返回503。
+DEV-3.6另登记`GET /api/v1/characters/{character_id}/revisions`和`GET /api/v1/characters/{character_id}/revisions/{revision_number}`。两者只读、`no-store`、无ETag/If-Match/Session/CSRF；列表使用Character绑定的RevisionNumber keyset cursor且不返回profile或total，单Revision按需返回完整profile。完整契约见[Character不可变Revision历史](CHARACTER_REVISION_HISTORY.md)。生产API操作数精确为21；生产文档入口仍关闭并与SPA回退隔离。Alembic head仍是`0004_create_character_foundation`，Metadata仍为九表，没有0005。空数据库或只迁移到0003的数据库不会自动迁移，合法Character操作安全返回503。

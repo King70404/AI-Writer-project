@@ -23,6 +23,8 @@ def _assert_reads_are_safe(client: TestClient, project_id: str) -> None:
     responses = (
         client.get(f"/api/v1/projects/{project_id}/characters"),
         client.get(f"/api/v1/characters/{CHARACTER_ID}"),
+        client.get(f"/api/v1/characters/{CHARACTER_ID}/revisions"),
+        client.get(f"/api/v1/characters/{CHARACTER_ID}/revisions/1"),
     )
     assert all(response.status_code == 503 for response in responses)
     assert all("sqlite" not in response.text.lower() for response in responses)

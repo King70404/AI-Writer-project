@@ -5,7 +5,7 @@ from pathlib import Path
 from tests.backend.character_http_support import isolated_app
 
 
-def test_production_api_has_exactly_nineteen_operations_and_four_character_routes(
+def test_production_api_has_exactly_twenty_one_operations_and_six_character_routes(
     tmp_path: Path,
 ) -> None:
     app = isolated_app(tmp_path)
@@ -15,14 +15,19 @@ def test_production_api_has_exactly_nineteen_operations_and_four_character_route
         for method in path_operations
         if method in {"get", "post", "put", "patch", "delete"}
     }
-    assert len(operations) == 19
+    assert len(operations) == 21
     assert {
         ("GET", "/api/v1/projects/{project_id}/characters"),
         ("POST", "/api/v1/projects/{project_id}/characters"),
         ("GET", "/api/v1/characters/{character_id}"),
         ("PUT", "/api/v1/characters/{character_id}"),
+        ("GET", "/api/v1/characters/{character_id}/revisions"),
+        ("GET", "/api/v1/characters/{character_id}/revisions/{revision_number}"),
     }.issubset(operations)
-    assert not any("history" in path and "character" in path for _, path in operations)
+    assert not any(
+        method != "GET" and "/characters/" in path and "/revisions" in path
+        for method, path in operations
+    )
     schema = app.openapi()
     assert "/api/v1/characters/{character_id}" in schema["paths"]
     assert "patch" not in schema["paths"]["/api/v1/characters/{character_id}"]

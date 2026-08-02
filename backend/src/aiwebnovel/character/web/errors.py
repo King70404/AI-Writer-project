@@ -3,6 +3,7 @@
 from typing import Never
 
 from aiwebnovel.api.error_causes import has_database_driver_cause
+from aiwebnovel.character.application.errors import CharacterRevisionNotFound
 from aiwebnovel.character.errors import (
     CharacterAlreadyExists,
     CharacterDataCorruption,
@@ -56,6 +57,39 @@ def invalid_character_cursor() -> AppError:
         code="INVALID_CHARACTER_CURSOR",
         message="The Character list cursor is invalid.",
         status_code=400,
+    )
+
+
+def invalid_character_revision_cursor() -> AppError:
+    return AppError(
+        code="INVALID_CHARACTER_REVISION_CURSOR",
+        message="The Character revision cursor is invalid.",
+        status_code=400,
+    )
+
+
+def invalid_character_revision_history_request() -> AppError:
+    return AppError(
+        code="REQUEST_VALIDATION_ERROR",
+        message="The Character revision-history request is invalid.",
+        status_code=422,
+    )
+
+
+def invalid_character_revision_number() -> AppError:
+    return AppError(
+        code="INVALID_CHARACTER_REVISION_NUMBER",
+        message="The Character revision number is invalid.",
+        status_code=422,
+    )
+
+
+def character_history_service_unavailable() -> AppError:
+    return AppError(
+        code="CHARACTER_HISTORY_SERVICE_UNAVAILABLE",
+        message="Character revision history is unavailable.",
+        status_code=503,
+        retryable=True,
     )
 
 
@@ -114,6 +148,12 @@ def raise_character_http_error(exc: Exception) -> Never:
             status_code=422,
             details={"field": "profile"},
         )
+    elif isinstance(exc, CharacterRevisionNotFound):
+        mapped = AppError(
+            code="CHARACTER_REVISION_NOT_FOUND",
+            message="The Character revision was not found.",
+            status_code=404,
+        )
     elif isinstance(exc, CharacterProjectNotFound):
         mapped = AppError(
             code="PROJECT_NOT_FOUND",
@@ -171,10 +211,14 @@ def raise_character_http_error(exc: Exception) -> Never:
 
 __all__ = [
     "character_command_service_unavailable",
+    "character_history_service_unavailable",
     "character_query_service_unavailable",
     "invalid_character_cursor",
     "invalid_character_id",
     "invalid_character_list_request",
+    "invalid_character_revision_cursor",
+    "invalid_character_revision_history_request",
+    "invalid_character_revision_number",
     "invalid_if_match",
     "invalid_project_id",
     "precondition_required",

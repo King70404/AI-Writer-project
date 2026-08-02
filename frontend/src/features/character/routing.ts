@@ -24,3 +24,10 @@ export function characterEditorPath(
   }
   return `/projects/${encodeURIComponent(projectId)}/characters/${encodeURIComponent(characterId)}`;
 }
+
+export function characterRevisionHistoryPath(
+  projectId: string,
+  characterId: string,
+): string {
+  return `${characterEditorPath(projectId, characterId)}/history`;
+}

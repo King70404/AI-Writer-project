@@ -1,6 +1,6 @@
 # 浏览器端到端测试
 
-Playwright在独立本地数据根上验收开发与生产集成服务。`E2E-INT-006`至`E2E-INT-010`覆盖Project API、稳定Keyset列表、前端创建/修订/显式412恢复和不可变Revision历史；`E2E-INT-011`至`E2E-INT-013`覆盖Story Bible HTTP、前端当前流程与只读历史；`E2E-INT-014/015`覆盖Character HTTP和前端创建/稳定列表/当前修订/显式412恢复。这十个业务场景只对自己的临时数据库显式迁移；应用启动本身仍不迁移。
+Playwright在独立本地数据根上验收开发与生产集成服务。`E2E-INT-006`至`E2E-INT-010`覆盖Project API、稳定Keyset列表、前端创建/修订/显式412恢复和不可变Revision历史；`E2E-INT-011`至`E2E-INT-013`覆盖Story Bible HTTP、前端当前流程与只读历史；`E2E-INT-014`至`E2E-INT-016`覆盖Character HTTP、前端创建/稳定列表/当前修订/显式412恢复及只读历史。这十一个业务场景只对自己的临时数据库显式迁移；应用启动本身仍不迁移。
 
 ## 安装
 
@@ -42,9 +42,10 @@ npm run e2e:integrated -- -Scenario E2E-INT-009
 npm run e2e:integrated -- -Scenario E2E-INT-010
 npm run e2e:integrated -- -Scenario E2E-INT-011
 npm run e2e:integrated -- -Scenario E2E-INT-012
+npm run e2e:integrated -- -Scenario E2E-INT-016
 ```
 
-当前完整集共19个场景：3个开发模式、15个生产集成模式和1个缺失构建启动失败场景。`E2E-INT-014`验证Character HTTP创建、稳定列表与并发修订；`E2E-INT-015`在生产构建、真实后端和临时0004 SQLite上验证Project入口、Character空列表、UI创建两个同名实例、列表不显示profile、当前完整修订、412草稿保留、显式latest读取/基线重建/再次手动保存、五个不可变Revision与隐私/清理。
+当前完整集共20个场景：3个开发模式、16个生产集成模式和1个缺失构建启动失败场景。`E2E-INT-014`验证Character HTTP创建、稳定列表与并发修订；`E2E-INT-015`验证Character当前前端流程；`E2E-INT-016`在生产构建、真实后端和临时0004 SQLite上验证历史入口与直接刷新、首屏一个列表GET且无详情GET、21个Revision的20+1分页、Head current、按需profile、快速切换取消、无历史写入、隐私及数据库/资源清理。
 
 统一启动入口的最低浏览器验收由仓库根目录的受控脚本执行：
 
@@ -53,7 +54,7 @@ npm run e2e:integrated -- -Scenario E2E-INT-012
 .\scripts\check_startup_runtime.ps1 -Mode Integrated
 ```
 
-Development与Integrated烟测使用专用临时端口和唯一隔离数据根；它们不会复制全部19个E2E场景。`E2E-INT-006`至`E2E-INT-010`保留Project API、稳定列表、前端创建/修订与不可变历史证据；`E2E-INT-011`至`E2E-INT-013`验证Story Bible HTTP、真实前端当前流程和只读历史。`E2E-INT-014`验证Character HTTP创建、稳定列表与并发修订；`E2E-INT-015`从Project UI进入Character列表，创建两个同名实例并确认列表不显示profile，再完成当前修订、外部并发写、412草稿保留、显式latest读取/重建基线/手动保存，同时验证五条不可变Revision、Head、Project不变、浏览器无持久profile/草稿/ETag/cursor及完整清理。
+Development与Integrated烟测使用专用临时端口和唯一隔离数据根；它们不会复制全部20个E2E场景。`E2E-INT-006`至`E2E-INT-010`保留Project API、稳定列表、前端创建/修订与不可变历史证据；`E2E-INT-011`至`E2E-INT-013`验证Story Bible HTTP、真实前端当前流程和只读历史；`E2E-INT-014/015`验证Character HTTP与当前前端流程；`E2E-INT-016`验证Character只读Revision历史、取消竞态、21个不可变Revision与完整清理。
 
 默认使用无头 Chromium、`retries=0` 和单 worker，不自动打开报告或浏览器窗口。人工调试时可执行 `npm run e2e:headed`；失败后执行 `npm run e2e:report` 查看本地 HTML 报告。截图和 trace 只在失败时保留，视频关闭；成功运行会删除无用的模式报告和结果目录。
 
@@ -80,7 +81,7 @@ DEV-0.9 起，正常场景的 ready 还必须包含 `security=ok`。生产集成
 
 ## 安全隔离与诊断
 
-每个浏览器上下文安装网络守卫，只允许当前模式的 `http://127.0.0.1:<端口>`，同时阻止外部 HTTP、WebSocket 和 `file://`。页面错误、非预期控制台错误和非预期请求失败会使测试失败。诊断只记录主机与路径摘要，不记录查询参数、Cookie、Authorization、CSRF 令牌或完整页面 HTML。伪造代理头不能改变 Host、scheme、客户端来源或同源判断；服务启动器显式保持代理头不受信任。
+每个浏览器上下文安装网络守卫，只允许当前模式的 `http://127.0.0.1:<端口>`，同时阻止外部 HTTP、WebSocket 和 `file://`。页面错误、非预期控制台错误和非预期请求失败会使测试失败；受控竞态场景可按精确本地路径声明一次预期Abort，其他失败仍阻断。诊断只记录主机与路径摘要，不记录查询参数、Cookie、Authorization、CSRF 令牌或完整页面 HTML。伪造代理头不能改变 Host、scheme、客户端来源或同源判断；服务启动器显式保持代理头不受信任。
 
 失败产物只保存在被 Git 忽略的 `frontend/playwright-results/` 与 `frontend/playwright-report/`。服务启动错误只输出经过路径替换、行数和长度限制的日志尾部；无论成功、断言失败或受控启动中断，服务和临时数据库清理都在 `finally` 中执行。
 

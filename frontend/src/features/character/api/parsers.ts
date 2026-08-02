@@ -10,6 +10,9 @@ import type {
   CharacterListItemResponse,
   CharacterListPageResponse,
   CharacterResponse,
+  CharacterRevisionHistoryItemResponse,
+  CharacterRevisionHistoryPageResponse,
+  CharacterRevisionResponse,
 } from "./contracts";
 
 export class CharacterContractError extends Error {
@@ -260,4 +263,150 @@ export function characterItemsAreDescending(
   return items.every(
     (item, index) => index === 0 || isDescending(items[index - 1], item),
   );
+}
+
+const REVISION_HISTORY_ITEM_KEYS = [
+  "revision_id",
+  "revision_number",
+  "name",
+  "role",
+  "created_at",
+  "is_current",
+] as const;
+
+const REVISION_HISTORY_PAGE_KEYS = [
+  "character_id",
+  "project_id",
+  "current_revision_number",
+  "items",
+  "next_cursor",
+  "has_more",
+] as const;
+
+const REVISION_KEYS = [
+  "character_id",
+  "project_id",
+  "revision_id",
+  "revision_number",
+  "name",
+  "role",
+  "profile",
+  "created_at",
+  "is_current",
+  "current_revision_number",
+] as const;
+
+function parseRevisionHistoryItem(
+  value: unknown,
+): CharacterRevisionHistoryItemResponse {
+  if (
+    !isRecord(value) ||
+    !exactKeys(value, REVISION_HISTORY_ITEM_KEYS) ||
+    typeof value.is_current !== "boolean"
+  ) {
+    throw new CharacterContractError();
+  }
+  const text = canonicalText(value.name, value.role, "");
+  return {
+    revision_id: identifier(value.revision_id, "crv"),
+    revision_number: positiveInteger(value.revision_number),
+    name: text.name,
+    role: text.role,
+    created_at: timestamp(value.created_at),
+    is_current: value.is_current,
+  };
+}
+
+export function parseCharacterRevisionHistoryPageResponse(
+  value: unknown,
+  expectedCharacterId: string,
+  expectedProjectId: string,
+): CharacterRevisionHistoryPageResponse {
+  if (
+    !isRecord(value) ||
+    !exactKeys(value, REVISION_HISTORY_PAGE_KEYS) ||
+    !Array.isArray(value.items) ||
+    typeof value.has_more !== "boolean" ||
+    (value.next_cursor !== null &&
+      (typeof value.next_cursor !== "string" ||
+        value.next_cursor.length === 0 ||
+        value.next_cursor.length > 256 ||
+        !/^[\x20-\x7E]+$/u.test(value.next_cursor)))
+  ) {
+    throw new CharacterContractError();
+  }
+  const characterId = identifier(value.character_id, "chr");
+  const projectId = identifier(value.project_id, "prj");
+  const currentRevisionNumber = positiveInteger(value.current_revision_number);
+  if (
+    characterId !== expectedCharacterId ||
+    projectId !== expectedProjectId ||
+    value.has_more !== (value.next_cursor !== null)
+  ) {
+    throw new CharacterContractError();
+  }
+  const items = value.items.map(parseRevisionHistoryItem);
+  const revisionIds = new Set<string>();
+  const revisionNumbers = new Set<number>();
+  for (const [index, item] of items.entries()) {
+    if (
+      revisionIds.has(item.revision_id) ||
+      revisionNumbers.has(item.revision_number) ||
+      (index > 0 && items[index - 1].revision_number <= item.revision_number) ||
+      item.is_current !== (item.revision_number === currentRevisionNumber)
+    ) {
+      throw new CharacterContractError();
+    }
+    revisionIds.add(item.revision_id);
+    revisionNumbers.add(item.revision_number);
+  }
+  if (items.length === 0 && value.has_more) throw new CharacterContractError();
+  return {
+    character_id: characterId,
+    project_id: projectId,
+    current_revision_number: currentRevisionNumber,
+    items,
+    next_cursor: value.next_cursor,
+    has_more: value.has_more,
+  };
+}
+
+export function parseCharacterRevisionResponse(
+  value: unknown,
+  expectedCharacterId: string,
+  expectedProjectId: string,
+  expectedRevisionNumber: number,
+): CharacterRevisionResponse {
+  if (
+    !isRecord(value) ||
+    !exactKeys(value, REVISION_KEYS) ||
+    typeof value.is_current !== "boolean"
+  ) {
+    throw new CharacterContractError();
+  }
+  const characterId = identifier(value.character_id, "chr");
+  const projectId = identifier(value.project_id, "prj");
+  const revisionNumber = positiveInteger(value.revision_number);
+  const currentRevisionNumber = positiveInteger(value.current_revision_number);
+  const text = canonicalText(value.name, value.role, value.profile);
+  if (
+    characterId !== expectedCharacterId ||
+    projectId !== expectedProjectId ||
+    revisionNumber !== expectedRevisionNumber ||
+    value.is_current !== (revisionNumber === currentRevisionNumber)
+  ) {
+    throw new CharacterContractError();
+  }
+  return {
+    character_id: characterId,
+    project_id: projectId,
+    revision_id: identifier(value.revision_id, "crv"),
+    revision_number: revisionNumber,
+    name: text.name,
+    role: text.role,
+    profile: text.profile,
+    created_at: timestamp(value.created_at),
+    is_current: value.is_current,
+    current_revision_number: currentRevisionNumber,
+  };
 }

@@ -166,6 +166,36 @@ const boundaryFixtures: readonly BoundaryFixture[] = [
     expectedMessage: "Character code must not read browser cookies.",
     expectedRule: "no-restricted-syntax",
   },
+  {
+    relativePath:
+      "src/features/character/api/__history_ui_boundary_fixture__.ts",
+    source: 'import "../components/CharacterRevisionHistory";\n',
+    expectedMessage:
+      "The Character API layer must stay independent from React, UI, Project, and Story Bible feature code.",
+  },
+  {
+    relativePath:
+      "src/features/character/hooks/__history_page_boundary_fixture__.ts",
+    source: 'import "../pages/CharacterRevisionHistoryPage";\n',
+    expectedMessage: "Character hooks must not depend on components or pages.",
+  },
+  {
+    relativePath:
+      "src/features/character/components/__history_fetch_boundary_fixture__.ts",
+    source: 'void fetch("/api/v1/characters/example/revisions");\n',
+    expectedMessage:
+      "Character components must use hooks and the typed Character API client.",
+    expectedRule: "no-restricted-globals",
+  },
+  {
+    relativePath:
+      "src/features/character/hooks/__history_storage_boundary_fixture__.ts",
+    source:
+      'localStorage.setItem("character_revision_cursor", cursor);\nsessionStorage.setItem("character_revision_profile", profile);\n',
+    expectedMessage:
+      "Character code must not persist profile, draft, cursor, ETag, or security state.",
+    expectedRule: "no-restricted-globals",
+  },
 ];
 
 describe("frontend import boundaries", () => {

@@ -11,7 +11,11 @@ import {
   StoryBiblePage,
   StoryBibleRevisionHistoryPage,
 } from "../features/story-bible";
-import { CharacterEditorPage, CharacterListPage } from "../features/character";
+import {
+  CharacterEditorPage,
+  CharacterListPage,
+  CharacterRevisionHistoryPage,
+} from "../features/character";
 import { AppShell } from "./AppShell";
 
 export function AppRouter() {
@@ -40,6 +44,10 @@ export function AppRouter() {
         <Route
           path="projects/:projectId/characters/:characterId"
           element={<CharacterEditorPage />}
+        />
+        <Route
+          path="projects/:projectId/characters/:characterId/history"
+          element={<CharacterRevisionHistoryPage />}
         />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

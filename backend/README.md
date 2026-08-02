@@ -1,6 +1,6 @@
 # AIWebNovel 后端
 
-本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层、已通过M2正式验收的Story Bible闭环，以及阶段3的Character领域、事务持久化、应用用例与HTTP适配层。目前提供六个Project、六个Story Bible和四个Character业务接口。Character支持同Project多实例和同名实例、无profile稳定Keyset列表、当前完整读取、完整替换修订、强ETag/If-Match并发协议、安全错误映射和显式组合根装配，但没有前端、Revision历史、关系或用户页面；World、PowerSystem、规划、章节写作、Codex和Agent也未实现。
+本目录包含已冻结的阶段 0 Python 后端基础设施、阶段1的Project领域/持久化/应用/HTTP适配层、已通过M2正式验收的Story Bible闭环，以及阶段3的Character领域、事务持久化、应用用例与HTTP适配层。目前提供六个Project、六个Story Bible和六个Character业务接口。Character支持同Project多实例和同名实例、无profile稳定Keyset列表、当前完整读取、完整替换修订、强ETag/If-Match并发协议，以及无profile历史摘要与按需Revision详情；仍没有关系、历史写入、World、PowerSystem、规划、章节写作、Codex或Agent。
 
 当前没有用户账号或登录、Project历史写入/回滚/恢复/删除接口、搜索、筛选、Codex调用或工作流。Project POST与PUT要求Origin、本地Session和CSRF；详情、列表与历史GET可匿名本地读取。应用不会自动迁移或建表，安全session只是本机浏览器CSRF基础，不代表身份认证。
 
@@ -16,7 +16,7 @@ Project模块已拥有`prj`和`prv`两种固定业务ID；Story Bible拥有`sbl`
 
 纯Python `CharacterRepository` Protocol只公开create/get/append；`character/persistence/`拥有三个显式Record、Mapper、固定查询和SQLAlchemy事务适配器。迁移`0004_create_character_foundation`建立一Project对多Character、非唯一归属索引、Head复合所有权外键和拒绝Revision UPDATE/DELETE的触发器。Repository以独立Session、`BEGIN IMMEDIATE`、Stable与Head双CAS保证原子性，只读Project存在性且不写Project表。
 
-`character/application/`定义不可变Create/Revise命令、Get/List查询、脱离ORM的当前Snapshot、无profile列表摘要、Project绑定复合Keyset位置和命令/查询服务。独立`CharacterListReader`端口与写Repository分离；SQLAlchemy列表适配器每页最多执行Project存在性与当前Head投影两个SELECT，不使用COUNT、OFFSET或profile列。`character/web/`提供严格DTO、Project绑定游标、显式映射、强ETag/If-Match和四条固定路由；`main`只在组合根装配具体适配器。当前仍没有Character前端、Revision历史或关系；完整契约见[Character纯领域模型](../docs/CHARACTER_DOMAIN.md)、[Character持久化基础](../docs/CHARACTER_PERSISTENCE.md)、[Character应用用例](../docs/CHARACTER_APPLICATION.md)和[Character HTTP API](../docs/CHARACTER_HTTP_API.md)。
+`character/application/`定义不可变Create/Revise命令、当前与历史Get/List查询、脱离ORM的当前/历史Snapshot、无profile摘要、严格位置模型和命令/查询服务。`CharacterListReader`及`CharacterRevisionHistoryReader`均与写Repository分离；SQLAlchemy只读适配器每页最多两个SELECT，不使用COUNT或OFFSET，历史列表也不选择profile。`character/web/`提供严格DTO、Character绑定历史游标、显式映射、强ETag/If-Match和六条固定路由；`main`只在组合根装配具体适配器。当前仍没有Character关系或历史写能力；完整契约见[Character纯领域模型](../docs/CHARACTER_DOMAIN.md)、[Character持久化基础](../docs/CHARACTER_PERSISTENCE.md)、[Character应用用例](../docs/CHARACTER_APPLICATION.md)、[Character HTTP API](../docs/CHARACTER_HTTP_API.md)和[Character不可变Revision历史](../docs/CHARACTER_REVISION_HISTORY.md)。
 
 ## Story Bible领域、持久化与应用契约
 

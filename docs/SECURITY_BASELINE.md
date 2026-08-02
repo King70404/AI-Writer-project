@@ -65,4 +65,4 @@ development/test 可通过配置开启 `/docs`、`/redoc` 和 `/openapi.json`；
 
 后者使用独立临时数据根和动态环回端口启动 production 服务，完成实际 Host、响应头、会话、限制、日志和清理验收；它不读取正式用户数据。
 
-任何安全配置、静态检查、运行测试、CSP页面验收或清理检查失败，都不得绕过门禁或开始下一编号任务。当前受保护写接口包括Project、Story Bible与Character创建/完整修订；全部继承相同的Host、可信Origin、进程内Session、CSRF、JSON媒体类型、1 MiB正文限制、request ID和安全响应头。Story Bible当前/历史GET及Character当前/列表GET均不要求Session或CSRF，所有成功响应均`no-store`；Character列表不读取或显示profile。Character前端复用唯一进程内Security Session，不把profile、草稿、latest profile、ETag/If-Match、cursor、CSRF或Session写入日志、URL、浏览器存储或隐藏DOM。仍没有上传、用户登录、安全设置页面、Codex沙箱或全面ACL治理。
+任何安全配置、静态检查、运行测试、CSP页面验收或清理检查失败，都不得绕过门禁或开始下一编号任务。当前受保护写接口包括Project、Story Bible与Character创建/完整修订；全部继承相同的Host、可信Origin、进程内Session、CSRF、JSON媒体类型、1 MiB正文限制、request ID和安全响应头。Story Bible及Character的当前/列表/历史GET均不要求Session或CSRF，所有成功响应均`no-store`；Character列表和历史摘要不读取或显示profile，历史详情按需读取。Character前端不把profile、草稿、latest profile、ETag/If-Match、cursor、CSRF或Session写入日志、URL、浏览器存储或隐藏DOM。仍没有上传、用户登录、安全设置页面、Codex沙箱或全面ACL治理。

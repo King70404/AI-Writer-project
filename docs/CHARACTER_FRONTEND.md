@@ -2,7 +2,7 @@
 
 ## 路由与入口
 
-DEV-3.5只新增`/projects/:projectId/characters`和`/projects/:projectId/characters/:characterId`两个React路由。Project详情页的真实“查看角色”链接进入列表，列表项使用Character ID作为稳定key和可区分的编辑链接。Character ID只出现在编辑路径；cursor、ETag、profile和草稿不进入URL。当前没有全局Character路由或历史路由。
+DEV-3.5新增`/projects/:projectId/characters`和`/projects/:projectId/characters/:characterId`两个React路由。DEV-3.6另增`/projects/:projectId/characters/:characterId/history`只读历史路由，由编辑页真实“查看修订历史”链接进入。Character ID只出现在嵌套路由；cursor、ETag、profile和草稿不进入URL。完整历史契约见[Character不可变Revision历史](CHARACTER_REVISION_HISTORY.md)。
 
 ## 列表与稳定分页
 
@@ -30,4 +30,4 @@ DEV-3.5只新增`/projects/:projectId/characters`和`/projects/:projectId/charac
 
 profile、创建/编辑草稿、latest profile、ETag/If-Match、cursor、CSRF和Security Session只存在必要的进程/页面内存，不写入浏览器存储、Cookie、URL、history state、隐藏DOM、data属性、诊断文件或日志。表单有真实label、字段错误关联与首错聚焦；加载、成功、错误和冲突使用语义化状态，冲突标题可聚焦。
 
-当前没有Character Revision历史、Diff、回滚/恢复、关系、删除/归档、头像/附件、结构化年龄/阵营/能力或AI生成。DEV-3.6必须由新的编号任务授权，不由本流程预实现。
+Character历史首屏只读取无profile摘要，用户选择后才读取完整Revision；加载更多保持服务端降序，快速切换会取消旧详情请求并抑制迟到响应。当前没有Character历史Diff、回滚/恢复、编辑/删除、关系、归档、头像/附件、结构化年龄/阵营/能力或AI生成。
