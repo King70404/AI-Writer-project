@@ -503,13 +503,14 @@ describe("Character revision history contracts and page", () => {
     expect(invalidHistory.listCharacterRevisions).not.toHaveBeenCalled();
     invalid.unmount();
 
+    const missingHistory = historyClient(
+      vi.fn().mockRejectedValue(characterError("character_not_found")),
+    );
     const missing = renderHook(() =>
       useCharacterRevisionHistory(
         characterProjectId,
         characterId,
-        historyClient(
-          vi.fn().mockRejectedValue(characterError("character_not_found")),
-        ),
+        missingHistory,
       ),
     );
     await waitFor(() =>

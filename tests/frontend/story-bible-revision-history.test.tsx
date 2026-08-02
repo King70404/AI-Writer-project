@@ -470,15 +470,17 @@ describe("Story Bible revision history contracts and page", () => {
     expect(invalidCurrent.getStoryBibleForProject).not.toHaveBeenCalled();
     invalid.unmount();
 
+    const missingCurrent = storyBibleClient({
+      getStoryBibleForProject: vi
+        .fn()
+        .mockRejectedValue(storyBibleError("project_not_found")),
+    });
+    const missingHistory = historyClient();
     const missing = renderHook(() =>
       useStoryBibleRevisionHistory(
         storyProjectId,
-        storyBibleClient({
-          getStoryBibleForProject: vi
-            .fn()
-            .mockRejectedValue(storyBibleError("project_not_found")),
-        }),
-        historyClient(),
+        missingCurrent,
+        missingHistory,
       ),
     );
     await waitFor(() =>
@@ -594,8 +596,9 @@ describe("Story Bible revision history contracts and page", () => {
         },
       ),
     });
+    const history = historyClient();
     const hook = renderHook(() =>
-      useStoryBibleRevisionHistory(storyProjectId, current, historyClient()),
+      useStoryBibleRevisionHistory(storyProjectId, current, history),
     );
     await waitFor(() => expect(capturedSignal).toBeDefined());
     hook.unmount();
