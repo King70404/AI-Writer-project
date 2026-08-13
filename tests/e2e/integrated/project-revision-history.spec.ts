@@ -54,15 +54,24 @@ test("E2E-INT-010 views immutable Project revision history and keyset pages", as
   );
   const projectApiPath = `/api/v1${projectPath}`;
   await page.getByRole("link", { name: "查看新项目" }).click();
-  await expect(page.getByRole("heading", { name: titles[1] })).toBeVisible();
+  await expect(page).toHaveURL(`${origin}${projectPath}`);
+  const projectEditor = page.locator(".project-edit");
+  const titleInput = projectEditor.getByRole("textbox", {
+    name: "项目标题",
+  });
+  const descriptionInput = projectEditor.getByRole("textbox", {
+    name: "项目简介",
+  });
+  await expect(projectEditor).toBeVisible();
+  await expect(titleInput).toHaveValue(titles[1]);
+  await expect(descriptionInput).toHaveValue(descriptions[1]);
 
   for (const revisionNumber of [2, 3] as const) {
-    await page
-      .getByRole("textbox", { name: "项目标题" })
-      .fill(titles[revisionNumber]);
-    await page
-      .getByRole("textbox", { name: "项目简介" })
-      .fill(descriptions[revisionNumber]);
+    await titleInput.fill(titles[revisionNumber]);
+    await expect(titleInput).toHaveValue(titles[revisionNumber]);
+    await descriptionInput.fill(descriptions[revisionNumber]);
+    await expect(descriptionInput).toHaveValue(descriptions[revisionNumber]);
+    await expect(page.getByText("项目修订已保存。")).toHaveCount(0);
     await page.getByRole("button", { name: "保存完整修订" }).click();
     await expect(page.getByText("项目修订已保存。")).toBeVisible();
     await expect(
