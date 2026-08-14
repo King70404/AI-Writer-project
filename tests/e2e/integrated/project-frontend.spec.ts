@@ -19,10 +19,25 @@ test("E2E-INT-008 exercises the Project list and creation UI", async ({
   browserAudit.allowOneExpectedSessionCookie();
 
   const projectListUrls: string[] = [];
+  const healthRequestFailures: Array<{
+    readonly error: string;
+    readonly method: string;
+    readonly path: string;
+  }> = [];
   page.on("request", (request) => {
     const target = new URL(request.url());
     if (request.method() === "GET" && target.pathname === "/api/v1/projects") {
       projectListUrls.push(target.toString());
+    }
+  });
+  page.on("requestfailed", (request) => {
+    const target = new URL(request.url());
+    if (target.pathname.startsWith("/api/v1/health/")) {
+      healthRequestFailures.push({
+        error: request.failure()?.errorText ?? "",
+        method: request.method(),
+        path: target.pathname,
+      });
     }
   });
 
@@ -47,12 +62,23 @@ test("E2E-INT-008 exercises the Project list and creation UI", async ({
     ),
   ).toHaveLength(0);
 
+  browserAudit.allowOneExpectedHealthCancellation();
   await page.getByRole("link", { name: "工程基础" }).click();
   await expect(
     page.getByRole("heading", { name: "AIWebNovel 前端基础已启动" }),
   ).toBeVisible();
   await page.getByRole("link", { name: "项目" }).click();
   await expect(page.getByText("还没有项目")).toBeVisible();
+  expect(healthRequestFailures.length).toBeLessThanOrEqual(1);
+  if (healthRequestFailures.length === 1) {
+    expect(healthRequestFailures).toEqual([
+      {
+        error: "net::ERR_ABORTED",
+        method: "GET",
+        path: "/api/v1/health/ready",
+      },
+    ]);
+  }
 
   await page.getByRole("textbox", { name: "项目标题" }).fill(titleCanary);
   await page.getByRole("textbox", { name: "项目简介" }).fill(descriptionCanary);
