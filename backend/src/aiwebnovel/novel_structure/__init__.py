@@ -1,0 +1,96 @@
+"""Public framework-independent novel-structure domain contracts."""
+
+from aiwebnovel.domain.concurrency import ConcurrencyVersion
+from aiwebnovel.domain.errors import ConcurrencyConflict, InvalidDomainIdentifier
+from aiwebnovel.domain.revisions import RevisionNumber
+from aiwebnovel.novel_structure.entities import (
+    Chapter,
+    ChapterAggregate,
+    ChapterHead,
+    ChapterRevision,
+    Outline,
+    OutlineAggregate,
+    OutlineHead,
+    OutlineRevision,
+    Volume,
+    VolumeAggregate,
+    VolumeHead,
+    VolumeRevision,
+    assert_chapter_belongs_to_volume,
+)
+from aiwebnovel.novel_structure.errors import (
+    InvalidNovelStructurePosition,
+    InvalidNovelStructureState,
+    InvalidNovelStructureSummary,
+    InvalidNovelStructureTitle,
+    NovelStructureDomainError,
+)
+from aiwebnovel.novel_structure.identifiers import (
+    ChapterId,
+    ChapterRevisionId,
+    OutlineId,
+    OutlineRevisionId,
+    VolumeId,
+    VolumeRevisionId,
+)
+from aiwebnovel.novel_structure.transitions import (
+    append_chapter_revision,
+    append_outline_revision,
+    append_volume_revision,
+    create_initial_chapter,
+    create_initial_outline,
+    create_initial_volume,
+)
+from aiwebnovel.novel_structure.values import (
+    MAX_NOVEL_STRUCTURE_POSITION,
+    MAX_NOVEL_STRUCTURE_SUMMARY_LENGTH,
+    MAX_NOVEL_STRUCTURE_TITLE_LENGTH,
+    NovelStructurePosition,
+    NovelStructureSummary,
+    NovelStructureTitle,
+)
+from aiwebnovel.project.identifiers import ProjectId
+
+__all__ = [
+    "MAX_NOVEL_STRUCTURE_POSITION",
+    "MAX_NOVEL_STRUCTURE_SUMMARY_LENGTH",
+    "MAX_NOVEL_STRUCTURE_TITLE_LENGTH",
+    "Chapter",
+    "ChapterAggregate",
+    "ChapterHead",
+    "ChapterId",
+    "ChapterRevision",
+    "ChapterRevisionId",
+    "ConcurrencyConflict",
+    "ConcurrencyVersion",
+    "InvalidDomainIdentifier",
+    "InvalidNovelStructurePosition",
+    "InvalidNovelStructureState",
+    "InvalidNovelStructureSummary",
+    "InvalidNovelStructureTitle",
+    "NovelStructureDomainError",
+    "NovelStructurePosition",
+    "NovelStructureSummary",
+    "NovelStructureTitle",
+    "Outline",
+    "OutlineAggregate",
+    "OutlineHead",
+    "OutlineId",
+    "OutlineRevision",
+    "OutlineRevisionId",
+    "ProjectId",
+    "RevisionNumber",
+    "Volume",
+    "VolumeAggregate",
+    "VolumeHead",
+    "VolumeId",
+    "VolumeRevision",
+    "VolumeRevisionId",
+    "append_chapter_revision",
+    "append_outline_revision",
+    "append_volume_revision",
+    "assert_chapter_belongs_to_volume",
+    "create_initial_chapter",
+    "create_initial_outline",
+    "create_initial_volume",
+]
