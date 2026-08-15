@@ -19,7 +19,25 @@ CHARACTER_TABLE_NAMES = frozenset(
         "character_heads",
     }
 )
-BUSINESS_TABLE_NAMES = PROJECT_TABLE_NAMES | STORY_BIBLE_TABLE_NAMES | CHARACTER_TABLE_NAMES
+NOVEL_STRUCTURE_TABLE_NAMES = frozenset(
+    {
+        "outlines",
+        "outline_revisions",
+        "outline_heads",
+        "volumes",
+        "volume_revisions",
+        "volume_heads",
+        "chapters",
+        "chapter_revisions",
+        "chapter_heads",
+    }
+)
+BUSINESS_TABLE_NAMES = (
+    PROJECT_TABLE_NAMES
+    | STORY_BIBLE_TABLE_NAMES
+    | CHARACTER_TABLE_NAMES
+    | NOVEL_STRUCTURE_TABLE_NAMES
+)
 
 
 def load_model_metadata() -> MetaData:
@@ -28,6 +46,17 @@ def load_model_metadata() -> MetaData:
         CharacterHeadRecord,
         CharacterRecord,
         CharacterRevisionRecord,
+    )
+    from aiwebnovel.novel_structure.persistence.models import (
+        ChapterHeadRecord,
+        ChapterRecord,
+        ChapterRevisionRecord,
+        OutlineHeadRecord,
+        OutlineRecord,
+        OutlineRevisionRecord,
+        VolumeHeadRecord,
+        VolumeRecord,
+        VolumeRevisionRecord,
     )
     from aiwebnovel.project.persistence.models import (
         ProjectHeadRecord,
@@ -50,6 +79,15 @@ def load_model_metadata() -> MetaData:
         CharacterRecord,
         CharacterRevisionRecord,
         CharacterHeadRecord,
+        OutlineRecord,
+        OutlineRevisionRecord,
+        OutlineHeadRecord,
+        VolumeRecord,
+        VolumeRevisionRecord,
+        VolumeHeadRecord,
+        ChapterRecord,
+        ChapterRevisionRecord,
+        ChapterHeadRecord,
     )
     if any(record.metadata is not Base.metadata for record in registered_records):
         raise RuntimeError("Registered models must use the shared database metadata")

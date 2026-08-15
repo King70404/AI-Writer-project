@@ -13,6 +13,7 @@ from aiwebnovel.db.base import Base
 from aiwebnovel.db.model_registry import (
     BUSINESS_TABLE_NAMES,
     CHARACTER_TABLE_NAMES,
+    NOVEL_STRUCTURE_TABLE_NAMES,
     PROJECT_TABLE_NAMES,
     STORY_BIBLE_TABLE_NAMES,
     load_model_metadata,
@@ -74,6 +75,7 @@ def test_model_registry_is_exact_idempotent_and_uses_shared_metadata() -> None:
     assert PROJECT_TABLE_NAMES < BUSINESS_TABLE_NAMES
     assert STORY_BIBLE_TABLE_NAMES < BUSINESS_TABLE_NAMES
     assert CHARACTER_TABLE_NAMES < BUSINESS_TABLE_NAMES
+    assert NOVEL_STRUCTURE_TABLE_NAMES < BUSINESS_TABLE_NAMES
     assert set(first.tables) == {
         "projects",
         "project_revisions",
@@ -84,6 +86,7 @@ def test_model_registry_is_exact_idempotent_and_uses_shared_metadata() -> None:
         "characters",
         "character_revisions",
         "character_heads",
+        *NOVEL_STRUCTURE_TABLE_NAMES,
     }
     assert "alembic_version" not in first.tables
     assert all(table.metadata is first for table in first.tables.values())
@@ -116,9 +119,12 @@ def test_domain_import_does_not_register_models_or_create_database(tmp_path: Pat
     assert result.stdout.splitlines() == [
         "",
         (
+            "chapter_heads,chapter_revisions,chapters,"
             "character_heads,character_revisions,characters,"
+            "outline_heads,outline_revisions,outlines,"
             "project_heads,project_revisions,projects,"
-            "story_bible_heads,story_bible_revisions,story_bibles"
+            "story_bible_heads,story_bible_revisions,story_bibles,"
+            "volume_heads,volume_revisions,volumes"
         ),
     ]
     assert not database_path.exists()

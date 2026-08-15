@@ -16,11 +16,12 @@ from aiwebnovel.db.base import Base
 from aiwebnovel.db.model_registry import (
     BUSINESS_TABLE_NAMES,
     CHARACTER_TABLE_NAMES,
+    NOVEL_STRUCTURE_TABLE_NAMES,
     load_model_metadata,
 )
 
 
-def test_registry_contains_exactly_nine_business_tables() -> None:
+def test_registry_contains_exactly_eighteen_business_tables() -> None:
     metadata = load_model_metadata()
 
     assert metadata is Base.metadata
@@ -28,6 +29,7 @@ def test_registry_contains_exactly_nine_business_tables() -> None:
     assert (
         frozenset({"characters", "character_revisions", "character_heads"}) == CHARACTER_TABLE_NAMES
     )
+    assert len(NOVEL_STRUCTURE_TABLE_NAMES) == 9
     assert set(metadata.tables) == {
         "projects",
         "project_revisions",
@@ -38,6 +40,7 @@ def test_registry_contains_exactly_nine_business_tables() -> None:
         "characters",
         "character_revisions",
         "character_heads",
+        *NOVEL_STRUCTURE_TABLE_NAMES,
     }
     assert "alembic_version" not in metadata.tables
 

@@ -115,6 +115,7 @@ _PROJECT_MODEL_REGISTRY = "aiwebnovel.db.model_registry"
 _PROJECT_PERSISTENCE_MODELS = "aiwebnovel.project.persistence.models"
 _STORY_BIBLE_PERSISTENCE = "aiwebnovel.story_bible.persistence"
 _CHARACTER_PERSISTENCE = "aiwebnovel.character.persistence"
+_NOVEL_STRUCTURE_PERSISTENCE = "aiwebnovel.novel_structure.persistence"
 _PROJECT_PERSISTENCE_DB_MODULES = frozenset(
     {
         "aiwebnovel.db.base",
@@ -465,6 +466,17 @@ def _allowed_character_project_ownership_import(
     )
 
 
+def _allowed_novel_structure_project_ownership_import(
+    reference: _ImportReference,
+    target_layer: Layer | None,
+) -> bool:
+    return (
+        _is_module_or_child(reference.source_module, _NOVEL_STRUCTURE_PERSISTENCE)
+        and reference.target_module == _PROJECT_PERSISTENCE_MODELS
+        and target_layer == "project_persistence"
+    )
+
+
 def _project_import_violation(
     reference: _ImportReference,
     *,
@@ -483,6 +495,8 @@ def _project_import_violation(
     if _allowed_story_bible_project_ownership_import(reference, target_layer):
         return None
     if _allowed_character_project_ownership_import(reference, target_layer):
+        return None
+    if _allowed_novel_structure_project_ownership_import(reference, target_layer):
         return None
     if source_layer == "main":
         return None
