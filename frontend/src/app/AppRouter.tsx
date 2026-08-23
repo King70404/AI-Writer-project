@@ -16,6 +16,7 @@ import {
   CharacterListPage,
   CharacterRevisionHistoryPage,
 } from "../features/character";
+import { NovelStructurePage } from "../features/novel-structure";
 import { AppShell } from "./AppShell";
 
 export function AppRouter() {
@@ -48,6 +49,10 @@ export function AppRouter() {
         <Route
           path="projects/:projectId/characters/:characterId/history"
           element={<CharacterRevisionHistoryPage />}
+        />
+        <Route
+          path="projects/:projectId/structure"
+          element={<NovelStructurePage />}
         />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

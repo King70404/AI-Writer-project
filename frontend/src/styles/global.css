@@ -833,6 +833,107 @@ textarea:focus-visible {
   background: #ffffff;
 }
 
+.novel-structure-page,
+.novel-structure-workspace {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.novel-structure-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.novel-structure-page__header h2,
+.novel-structure-page__header p,
+.novel-structure-panel h3,
+.novel-structure-panel h4,
+.novel-structure-state h3 {
+  margin-top: 0;
+}
+
+.novel-structure-page__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.novel-structure-panel,
+.novel-structure-state {
+  padding: 1.25rem;
+  border: 1px solid #c8d2d9;
+  border-radius: 0.55rem;
+  background: #ffffff;
+}
+
+.novel-structure-panel form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #e0e6ea;
+  border-radius: 0.45rem;
+  background: #f8fafb;
+}
+
+.novel-structure-panel input,
+.novel-structure-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.novel-structure-panel textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.novel-structure-panel button,
+.novel-structure-state button,
+.novel-structure-list button {
+  justify-self: start;
+  min-height: 2.65rem;
+  padding: 0.6rem 0.9rem;
+  border: 0;
+  border-radius: 0.4rem;
+  color: #ffffff;
+  background: #17324d;
+  cursor: pointer;
+}
+
+.novel-structure-panel button:disabled,
+.novel-structure-list button:disabled {
+  color: #56636c;
+  background: #d4dce1;
+  cursor: not-allowed;
+}
+
+.novel-structure-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.novel-structure-list button[aria-pressed="true"] {
+  outline: 3px solid #8db2cc;
+  outline-offset: 2px;
+}
+
+.novel-structure-feedback {
+  margin: 0;
+  padding: 0.9rem;
+  border-left: 4px solid #3d725c;
+  background: #eff7f2;
+}
+
+.novel-structure-feedback--error {
+  border-left-color: #a04b32;
+  background: #fff3ee;
+}
+
 .story-bible-resolution__comparison h4,
 .story-bible-resolution__preview-title {
   margin-top: 0;

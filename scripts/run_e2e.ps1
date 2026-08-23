@@ -1691,6 +1691,7 @@ function Invoke-E2EScenario {
             "E2E-INT-014",
             "E2E-INT-015",
             "E2E-INT-016",
+            "E2E-INT-017",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -1714,7 +1715,8 @@ function Invoke-E2EScenario {
         "E2E-INT-013",
         "E2E-INT-014",
         "E2E-INT-015",
-        "E2E-INT-016"
+        "E2E-INT-016",
+        "E2E-INT-017"
     )
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
@@ -1938,6 +1940,7 @@ function Invoke-E2EScenario {
                     $logText -match "E2E-CHARACTER-PROFILE-CANARY-014" -or
                     $logText -match "E2E-CHARACTER-PROFILE-CANARY-015" -or
                     $logText -match "E2E-CHARACTER-HISTORY-PROFILE-CANARY-016" -or
+                    $logText -match "E2E-NOVEL-STRUCTURE-.+-CANARY-017" -or
                     $logText -match "(?i)\bcursor=" -or
                     $logText -match "If-Match"
                 ) {
@@ -2039,6 +2042,7 @@ try {
         "E2E-INT-014" = "Integrated"
         "E2E-INT-015" = "Integrated"
         "E2E-INT-016" = "Integrated"
+        "E2E-INT-017" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -2059,6 +2063,7 @@ try {
         "E2E-INT-014",
         "E2E-INT-015",
         "E2E-INT-016",
+        "E2E-INT-017",
         "E2E-STARTUP-001"
     )
 

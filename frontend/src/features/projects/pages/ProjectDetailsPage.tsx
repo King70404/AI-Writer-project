@@ -19,6 +19,7 @@ import {
   projectCharactersPath,
   projectRevisionHistoryPath,
   projectStoryBiblePath,
+  projectStructurePath,
 } from "../routing";
 
 interface ProjectDetailsPageProps {
@@ -74,6 +75,11 @@ function ProjectDetailsRoute({
         <div className="project-details-page__links">
           {state.status === "ready" ? (
             <>
+              <Link
+                to={projectStructurePath(state.resource.project.project_id)}
+              >
+                小说结构
+              </Link>
               <Link
                 to={projectCharactersPath(state.resource.project.project_id)}
               >
