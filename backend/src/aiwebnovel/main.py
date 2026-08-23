@@ -27,6 +27,19 @@ from aiwebnovel.db.engine import create_database_engine, resolve_database_url
 from aiwebnovel.db.health import check_database_health
 from aiwebnovel.db.session import create_database_session_factory
 from aiwebnovel.domain.time import utc_now
+from aiwebnovel.novel_structure.application.services import (
+    NovelStructureCommandService,
+    NovelStructureQueryService,
+)
+from aiwebnovel.novel_structure.identifiers import (
+    ChapterId,
+    ChapterRevisionId,
+    OutlineId,
+    OutlineRevisionId,
+    VolumeId,
+    VolumeRevisionId,
+)
+from aiwebnovel.novel_structure.web import create_novel_structure_router
 from aiwebnovel.project.application.services import (
     ProjectCommandService,
     ProjectListQueryService,
@@ -256,6 +269,9 @@ def create_app(
                     from aiwebnovel.character.persistence.repository import (
                         SqlAlchemyCharacterRepository,
                     )
+                    from aiwebnovel.novel_structure.persistence.repository import (
+                        SqlAlchemyNovelStructureRepository,
+                    )
                     from aiwebnovel.project.persistence.history import (
                         SqlAlchemyProjectRevisionHistoryReader,
                     )
@@ -325,6 +341,24 @@ def create_app(
                     application.state.character_revision_history_query_service = (
                         CharacterRevisionHistoryQueryService(character_history_reader)
                     )
+                    novel_structure_repository = SqlAlchemyNovelStructureRepository(session_factory)
+                    application.state.novel_structure_command_service = (
+                        NovelStructureCommandService(
+                            novel_structure_repository,
+                            project_repository,
+                            utc_now,
+                            OutlineId.new,
+                            OutlineRevisionId.new,
+                            VolumeId.new,
+                            VolumeRevisionId.new,
+                            ChapterId.new,
+                            ChapterRevisionId.new,
+                        )
+                    )
+                    application.state.novel_structure_query_service = NovelStructureQueryService(
+                        novel_structure_repository,
+                        project_repository,
+                    )
 
         application.state.initialized = True
         try:
@@ -341,6 +375,8 @@ def create_app(
             application.state.character_command_service = None
             application.state.character_query_service = None
             application.state.character_revision_history_query_service = None
+            application.state.novel_structure_command_service = None
+            application.state.novel_structure_query_service = None
             application.state.database_session_factory = None
             session_manager.clear()
             if runtime_engine is not None:
@@ -372,6 +408,8 @@ def create_app(
     application.state.character_command_service = None
     application.state.character_query_service = None
     application.state.character_revision_history_query_service = None
+    application.state.novel_structure_command_service = None
+    application.state.novel_structure_query_service = None
     application.state.local_session_manager = session_manager
     application.state.proxy_headers_trusted = False
     frontend_service = FrontendStaticService(frontend_dist_path, api_prefix)
@@ -431,6 +469,7 @@ def create_app(
     application.include_router(create_story_bible_history_router(api_prefix=api_prefix))
     application.include_router(create_character_router(api_prefix=api_prefix))
     application.include_router(create_character_history_router(api_prefix=api_prefix))
+    application.include_router(create_novel_structure_router(api_prefix=api_prefix))
 
     @application.get(f"{api_prefix}/health/live")
     async def live() -> dict[str, str]:

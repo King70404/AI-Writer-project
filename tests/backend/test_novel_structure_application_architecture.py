@@ -12,6 +12,7 @@ APPLICATION_ROOT = (
     / "application"
 )
 NOVEL_STRUCTURE_ROOT = APPLICATION_ROOT.parent
+WEB_ROOT = NOVEL_STRUCTURE_ROOT / "web"
 FORBIDDEN_ROOTS = {"alembic", "fastapi", "pydantic", "sqlalchemy"}
 FORBIDDEN_AIWEBNOVEL = {
     "aiwebnovel.novel_structure.persistence",
@@ -53,7 +54,9 @@ def test_application_has_only_declared_pure_python_dependencies() -> None:
 
 def test_domain_repository_and_persistence_do_not_reverse_import_application() -> None:
     production_files = tuple(
-        path for path in NOVEL_STRUCTURE_ROOT.rglob("*.py") if APPLICATION_ROOT not in path.parents
+        path
+        for path in NOVEL_STRUCTURE_ROOT.rglob("*.py")
+        if APPLICATION_ROOT not in path.parents and WEB_ROOT not in path.parents
     )
     assert production_files
     for path in production_files:

@@ -8,7 +8,7 @@ from tests.backend.factories import create_test_app
 pytestmark = pytest.mark.unit
 
 
-def test_project_route_inventory_contains_only_six_business_routes(tmp_path: Path) -> None:
+def test_project_module_inventory_contains_exactly_six_business_routes(tmp_path: Path) -> None:
     app = create_test_app(
         data_root=(tmp_path / "routes").resolve(),
         expose_api_docs=True,
@@ -16,9 +16,9 @@ def test_project_route_inventory_contains_only_six_business_routes(tmp_path: Pat
     project_routes = {
         (method.upper(), path)
         for path, operations in app.openapi()["paths"].items()
-        if "/projects" in path and "story-bible" not in path and "characters" not in path
-        for method in operations
+        for method, operation in operations.items()
         if method in {"get", "post", "put", "patch", "delete"}
+        and operation.get("tags") == ["Projects"]
     }
 
     assert project_routes == {
