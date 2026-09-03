@@ -16,7 +16,10 @@ import {
   CharacterListPage,
   CharacterRevisionHistoryPage,
 } from "../features/character";
-import { NovelStructurePage } from "../features/novel-structure";
+import {
+  ChapterWritingPage,
+  NovelStructurePage,
+} from "../features/novel-structure";
 import { AppShell } from "./AppShell";
 
 export function AppRouter() {
@@ -53,6 +56,10 @@ export function AppRouter() {
         <Route
           path="projects/:projectId/structure"
           element={<NovelStructurePage />}
+        />
+        <Route
+          path="projects/:projectId/chapters/:chapterId/write"
+          element={<ChapterWritingPage />}
         />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

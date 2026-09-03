@@ -833,6 +833,33 @@ textarea:focus-visible {
   background: #ffffff;
 }
 
+.chapter-writing-workspace {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  max-width: 70rem;
+  margin-inline: auto;
+}
+
+.chapter-writing-workspace textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 60vh;
+  resize: vertical;
+  padding: 1.25rem;
+  font: inherit;
+  line-height: 1.9;
+  tab-size: 4;
+}
+
+.chapter-writing-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
 .novel-structure-page,
 .novel-structure-workspace {
   display: grid;

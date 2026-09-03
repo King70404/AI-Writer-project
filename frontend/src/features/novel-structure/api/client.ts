@@ -14,6 +14,7 @@ import {
 } from "../validation";
 
 import type {
+  VersionedChapterContent,
   ChapterResponse,
   OutlineResponse,
   PositionedStructureInput,
@@ -24,6 +25,11 @@ import type {
   VersionedVolume,
   VolumeResponse,
 } from "./contracts";
+import {
+  isManuscript,
+  normalizeManuscript,
+  parseChapterContent,
+} from "./content";
 
 export type NovelStructureErrorKind =
   | "validation"
@@ -188,7 +194,7 @@ function parseList<T extends VolumeResponse | ChapterResponse>(
   );
 }
 
-function versioned<T extends CurrentResource>(
+function versioned<T extends { readonly concurrency_version: number }>(
   resource: T,
   etag: string | null,
 ): VersionedResource<T> {
@@ -202,7 +208,7 @@ function versioned<T extends CurrentResource>(
     throw new NovelStructureContractError();
   }
   return Object.freeze({
-    resource: Object.freeze({ ...resource }) as unknown as T,
+    resource: Object.freeze({ ...resource }),
     etag: parsed.etag,
     version: parsed.version,
   });
@@ -305,7 +311,13 @@ function normalizeError(error: unknown): NovelStructureApiError {
       kind = "ownership_conflict";
     else if (error.status === 412) kind = "conflict";
     else if (error.status === 401 || error.status === 403) kind = "security";
-    else if (error.status === 422 || error.status === 413) kind = "validation";
+    else if (
+      error.status === 422 ||
+      error.status === 413 ||
+      error.status === 400 ||
+      error.status === 428
+    )
+      kind = "validation";
     else if (error.code === "INVALID_RESPONSE") kind = "contract";
     else if (error.status >= 500) kind = "unavailable";
     return new NovelStructureApiError({
@@ -407,9 +419,21 @@ export interface NovelStructureApiClient {
   readonly getChapter: (
     chapterId: string,
     projectId: string,
-    volumeId: string,
+    volumeId?: string,
     signal?: AbortSignal,
   ) => Promise<VersionedChapter>;
+  readonly getChapterContent: (
+    chapterId: string,
+    projectId: string,
+    signal?: AbortSignal,
+  ) => Promise<VersionedChapterContent>;
+  readonly updateChapterContent: (
+    chapterId: string,
+    projectId: string,
+    content: string,
+    etag: string,
+    signal?: AbortSignal,
+  ) => Promise<VersionedChapterContent>;
   readonly createChapter: (
     projectId: string,
     volumeId: string,
@@ -598,7 +622,7 @@ export function createNovelStructureApiClient(
     },
     getChapter(chapterId, projectId, volumeId, signal) {
       validateId(chapterId, "chp");
-      validateId(volumeId, "vol");
+      if (volumeId !== undefined) validateId(volumeId, "vol");
       return current(
         `chapters/${encodeURIComponent(chapterId)}`,
         "chapter",
@@ -606,6 +630,48 @@ export function createNovelStructureApiClient(
         volumeId,
         signal,
       );
+    },
+    async getChapterContent(chapterId, projectId, signal) {
+      validateId(chapterId, "chp");
+      validateProjectId(projectId);
+      try {
+        const response = await getJson(
+          `chapters/${encodeURIComponent(chapterId)}/content`,
+          (value) => parseChapterContent(value, chapterId, projectId),
+          { signal },
+        );
+        requireStatus(response.status, 200);
+        return versioned(response.data, response.etag ?? null);
+      } catch (error) {
+        throw normalizeError(error);
+      }
+    },
+    async updateChapterContent(chapterId, projectId, content, etag, signal) {
+      validateId(chapterId, "chp");
+      validateProjectId(projectId);
+      if (!isManuscript(content))
+        throw validationError(
+          "INVALID_MANUSCRIPT_CONTENT",
+          "正文字段未通过验证。",
+        );
+      try {
+        parseStrongVersionEtag(etag);
+      } catch {
+        throw validationError(
+          "INVALID_IF_MATCH",
+          "正文版本信息无效，请重新加载。",
+        );
+      }
+      return write(session, signal, async (csrfToken) => {
+        const response = await putJson(
+          `chapters/${encodeURIComponent(chapterId)}/content`,
+          { content: normalizeManuscript(content) },
+          (value) => parseChapterContent(value, chapterId, projectId),
+          { signal, headers: { "X-CSRF-Token": csrfToken, "If-Match": etag } },
+        );
+        requireStatus(response.status, 200);
+        return versioned(response.data, response.etag ?? null);
+      });
     },
     createChapter(projectId, volumeId, input, signal) {
       validateId(volumeId, "vol");

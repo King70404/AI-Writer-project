@@ -58,3 +58,17 @@ export interface VersionedResource<T> {
 export type VersionedOutline = VersionedResource<OutlineResponse>;
 export type VersionedVolume = VersionedResource<VolumeResponse>;
 export type VersionedChapter = VersionedResource<ChapterResponse>;
+
+export interface ChapterContentResponse {
+  readonly chapter_id: string;
+  readonly project_id: string;
+  readonly volume_id: string;
+  readonly current_revision_id: string;
+  readonly revision_number: number;
+  readonly concurrency_version: number;
+  readonly content: string;
+  readonly updated_at: string;
+  readonly revision_created_at: string;
+}
+
+export type VersionedChapterContent = VersionedResource<ChapterContentResponse>;

@@ -22,6 +22,7 @@ import {
   type StructureFieldError,
 } from "../validation";
 import { projectDetailsPath } from "../../projects/routing";
+import { chapterWritingPath } from "../routing";
 
 interface NovelStructurePageProps {
   readonly client?: NovelStructureApiClient;
@@ -683,6 +684,11 @@ function NovelStructureWorkspace({
               <ol className="novel-structure-list">
                 {state.chapters.map((chapter) => (
                   <li key={chapter.chapter_id}>
+                    <Link
+                      to={chapterWritingPath(projectId, chapter.chapter_id)}
+                    >
+                      写正文
+                    </Link>
                     <button
                       type="button"
                       aria-pressed={

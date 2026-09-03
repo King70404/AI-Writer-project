@@ -128,6 +128,8 @@ export function structureClient(
     updateVolume: vi.fn().mockResolvedValue(versionedVolume(2)),
     listChapters: vi.fn().mockResolvedValue([chapterResponse()]),
     getChapter: vi.fn().mockResolvedValue(versionedChapter()),
+    getChapterContent: vi.fn(),
+    updateChapterContent: vi.fn(),
     createChapter: vi.fn().mockResolvedValue(versionedChapter()),
     updateChapter: vi.fn().mockResolvedValue(versionedChapter(2)),
     ...overrides,
