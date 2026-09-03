@@ -10,6 +10,7 @@ from aiwebnovel.novel_structure.errors import (
     ChapterNotFound,
     ChapterPositionConflict,
     ChapterVolumeOwnershipMismatch,
+    InvalidManuscriptContent,
     InvalidNovelStructurePosition,
     InvalidNovelStructureSummary,
     InvalidNovelStructureTitle,
@@ -94,7 +95,14 @@ def unsupported_media_type() -> AppError:
 
 
 def raise_novel_structure_http_error(exc: Exception, *, resource: Resource) -> Never:
-    if isinstance(exc, InvalidNovelStructureTitle):
+    if isinstance(exc, InvalidManuscriptContent):
+        mapped = AppError(
+            code="INVALID_MANUSCRIPT_CONTENT",
+            message="The Chapter manuscript content is invalid.",
+            status_code=422,
+            details={"field": "content"},
+        )
+    elif isinstance(exc, InvalidNovelStructureTitle):
         mapped = AppError(
             code="INVALID_NOVEL_STRUCTURE_TITLE",
             message="The novel structure title is invalid.",

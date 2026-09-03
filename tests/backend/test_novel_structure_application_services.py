@@ -25,10 +25,12 @@ from aiwebnovel.novel_structure.application.commands import (
     CreateOutlineCommand,
     CreateVolumeCommand,
     UpdateChapterCommand,
+    UpdateChapterContentCommand,
     UpdateOutlineCommand,
     UpdateVolumeCommand,
 )
 from aiwebnovel.novel_structure.application.queries import (
+    GetChapterContentQuery,
     GetChapterQuery,
     GetOutlineForProjectQuery,
     GetOutlineQuery,
@@ -44,6 +46,7 @@ from aiwebnovel.novel_structure.entities import Volume, VolumeAggregate
 from aiwebnovel.novel_structure.errors import (
     ChapterNotFound,
     ChapterVolumeOwnershipMismatch,
+    InvalidManuscriptContent,
     InvalidNovelStructurePosition,
     InvalidNovelStructureSummary,
     InvalidNovelStructureTitle,
@@ -53,11 +56,13 @@ from aiwebnovel.novel_structure.errors import (
 )
 from aiwebnovel.novel_structure.repository import NovelStructureRepository
 from aiwebnovel.novel_structure.transitions import (
+    append_chapter_content_revision,
     append_chapter_revision,
     append_outline_revision,
     append_volume_revision,
 )
 from aiwebnovel.novel_structure.values import (
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
@@ -98,6 +103,116 @@ def _command_service(
         lambda: events.append("chapter-id") or chapter_id(),
         lambda: events.append("chapter-revision-id") or chapter_revision_id(),
     )
+
+
+def test_update_chapter_content_passes_transaction_dependencies_once_and_maps_authority() -> None:
+    repository = _structure_repository()
+    clock = Mock(return_value=BASE_TIME + timedelta(seconds=1))
+    revision_factory = Mock(return_value=chapter_revision_id(40))
+    authoritative = append_chapter_content_revision(
+        initial_chapter(),
+        expected_version=ConcurrencyVersion(1),
+        revision_id=chapter_revision_id(41),
+        content=ManuscriptContent("repository authority"),
+        now=BASE_TIME + timedelta(seconds=2),
+    )
+    repository.append_chapter_content_revision.return_value = authoritative
+    service = NovelStructureCommandService(
+        repository,
+        _project_repository(),
+        clock,
+        lambda: outline_id(),
+        lambda: outline_revision_id(),
+        lambda: volume_id(),
+        lambda: volume_revision_id(),
+        lambda: chapter_id(),
+        revision_factory,
+    )
+
+    snapshot = service.update_chapter_content(
+        UpdateChapterContentCommand(str(chapter_id()), 1, "first\r\ndraft")
+    )
+
+    repository.append_chapter_content_revision.assert_called_once_with(
+        chapter_id(),
+        expected_version=ConcurrencyVersion(1),
+        content=ManuscriptContent("first\ndraft"),
+        clock=clock,
+        revision_id_factory=revision_factory,
+    )
+    repository.get_chapter.assert_not_called()
+    clock.assert_not_called()
+    revision_factory.assert_not_called()
+    assert snapshot.content == "repository authority"
+    assert snapshot.concurrency_version == 2
+
+
+@pytest.mark.parametrize(
+    ("command", "error_type"),
+    [
+        (object(), TypeError),
+        (UpdateChapterContentCommand("bad", 1, "content"), Exception),
+        (UpdateChapterContentCommand(str(chapter_id()), True, "content"), Exception),
+        (
+            UpdateChapterContentCommand(
+                str(chapter_id()),
+                1,
+                "STORY_CONTENT_SECRET_CANARY\x00",
+            ),
+            InvalidManuscriptContent,
+        ),
+    ],
+)
+def test_update_chapter_content_rejects_invalid_input_without_repository_side_effect(
+    command: object,
+    error_type: type[BaseException],
+) -> None:
+    repository = _structure_repository()
+    service = _command_service(repository)
+
+    with pytest.raises(error_type) as captured:
+        service.update_chapter_content(command)  # type: ignore[arg-type]
+
+    repository.append_chapter_content_revision.assert_not_called()
+    assert "STORY_CONTENT_SECRET_CANARY" not in str(captured.value)
+
+
+def test_get_chapter_content_reads_once_and_propagates_not_found() -> None:
+    repository = _structure_repository()
+    service = NovelStructureQueryService(repository, _project_repository())
+    repository.get_chapter.return_value = initial_chapter()
+
+    snapshot = service.get_chapter_content(GetChapterContentQuery(str(chapter_id())))
+
+    repository.get_chapter.assert_called_once_with(chapter_id())
+
+    repository.get_chapter.reset_mock()
+    with pytest.raises(TypeError):
+        service.get_chapter_content(object())  # type: ignore[arg-type]
+    repository.get_chapter.assert_not_called()
+    assert snapshot.content == ""
+    repository.get_chapter.reset_mock()
+    repository.get_chapter.return_value = None
+    with pytest.raises(ChapterNotFound):
+        service.get_chapter_content(GetChapterContentQuery(str(chapter_id())))
+    repository.get_chapter.assert_called_once_with(chapter_id())
+
+
+def test_chapter_content_services_propagate_repository_failures() -> None:
+    repository = _structure_repository()
+    command_service = _command_service(repository)
+    query_service = NovelStructureQueryService(repository, _project_repository())
+    conflict = ConcurrencyConflict(expected_version=1, actual_version=2)
+    repository.append_chapter_content_revision.side_effect = conflict
+    repository.get_chapter.side_effect = NovelStructureRepositoryError
+
+    with pytest.raises(ConcurrencyConflict) as caught:
+        command_service.update_chapter_content(
+            UpdateChapterContentCommand(str(chapter_id()), 1, "draft")
+        )
+    assert caught.value is conflict
+    with pytest.raises(NovelStructureRepositoryError):
+        query_service.get_chapter_content(GetChapterContentQuery(str(chapter_id())))
 
 
 def test_create_outline_validates_project_and_maps_repository_result() -> None:

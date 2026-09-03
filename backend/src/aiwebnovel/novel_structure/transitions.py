@@ -30,6 +30,7 @@ from aiwebnovel.novel_structure.identifiers import (
     VolumeRevisionId,
 )
 from aiwebnovel.novel_structure.values import (
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
@@ -260,15 +261,63 @@ def append_chapter_revision(
     position: NovelStructurePosition,
     now: datetime,
 ) -> ChapterAggregate:
-    """Append one complete Chapter planning revision after a concurrency check."""
+    """Append one Chapter structure revision while preserving manuscript prose."""
     if type(aggregate) is not ChapterAggregate:
         raise InvalidNovelStructureState
+    return _append_chapter_revision(
+        aggregate,
+        expected_version=expected_version,
+        revision_id=revision_id,
+        title=title,
+        summary=summary,
+        position=position,
+        content=aggregate.current_revision.content,
+        now=now,
+    )
+
+
+def append_chapter_content_revision(
+    aggregate: ChapterAggregate,
+    *,
+    expected_version: ConcurrencyVersion,
+    revision_id: ChapterRevisionId,
+    content: ManuscriptContent,
+    now: datetime,
+) -> ChapterAggregate:
+    """Append one manuscript revision while preserving Chapter structure."""
+    if type(aggregate) is not ChapterAggregate:
+        raise InvalidNovelStructureState
+    return _append_chapter_revision(
+        aggregate,
+        expected_version=expected_version,
+        revision_id=revision_id,
+        title=aggregate.current_revision.title,
+        summary=aggregate.current_revision.summary,
+        position=aggregate.current_revision.position,
+        content=content,
+        now=now,
+    )
+
+
+def _append_chapter_revision(
+    aggregate: ChapterAggregate,
+    *,
+    expected_version: ConcurrencyVersion,
+    revision_id: ChapterRevisionId,
+    title: NovelStructureTitle,
+    summary: NovelStructureSummary,
+    position: NovelStructurePosition,
+    content: ManuscriptContent,
+    now: datetime,
+) -> ChapterAggregate:
+    """Build a complete immutable Chapter revision from validated domain values."""
     assert_expected_version(actual=aggregate.chapter.concurrency_version, expected=expected_version)
     if (
         type(revision_id) is not ChapterRevisionId
         or type(title) is not NovelStructureTitle
         or type(summary) is not NovelStructureSummary
         or type(position) is not NovelStructurePosition
+        or type(content) is not ManuscriptContent
     ):
         raise InvalidNovelStructureState
     normalized_now = normalize_novel_structure_time(now)
@@ -293,6 +342,7 @@ def append_chapter_revision(
         summary=summary,
         position=position,
         created_at=normalized_now,
+        content=content,
     )
     head = ChapterHead(chapter_id=chapter.id, revision_id=revision_id, updated_at=normalized_now)
     return ChapterAggregate(chapter=chapter, head=head, current_revision=revision)

@@ -22,9 +22,11 @@ from aiwebnovel.domain.errors import ConcurrencyConflict
 from aiwebnovel.domain.revisions import RevisionNumber
 from aiwebnovel.novel_structure import (
     InvalidNovelStructureState,
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
+    append_chapter_content_revision,
     append_chapter_revision,
     append_outline_revision,
     append_volume_revision,
@@ -66,7 +68,7 @@ def test_initial_chapter_inherits_exact_volume_and_project_ownership() -> None:
     assert aggregate.chapter.volume_id == volume.id
     assert aggregate.current_revision.id == chapter_revision_id()
     assert aggregate.current_revision.revision_number == RevisionNumber(1)
-    assert not hasattr(aggregate.current_revision, "content")
+    assert str(aggregate.current_revision.content) == ""
     assert not hasattr(aggregate.current_revision, "body")
     assert not hasattr(aggregate.current_revision, "draft")
 
@@ -232,6 +234,71 @@ def test_appends_are_complete_replacements_and_strictly_increment() -> None:
     assert int(new_volume.current_revision.position) == 2
     assert int(new_chapter.current_revision.position) == 2
     assert old_chapter.chapter.volume_id == new_chapter.chapter.volume_id
+
+
+def test_chapter_structure_and_content_transitions_preserve_the_other_fields() -> None:
+    initial = initial_chapter()
+    written = append_chapter_content_revision(
+        initial,
+        expected_version=ConcurrencyVersion(1),
+        revision_id=chapter_revision_id(31),
+        content=ManuscriptContent("first\r\ndraft"),
+        now=BASE_TIME + timedelta(seconds=1),
+    )
+    structured = append_chapter_revision(
+        written,
+        expected_version=ConcurrencyVersion(2),
+        revision_id=chapter_revision_id(32),
+        title=NovelStructureTitle("新标题"),
+        summary=NovelStructureSummary("新摘要"),
+        position=NovelStructurePosition(2),
+        now=BASE_TIME + timedelta(seconds=2),
+    )
+    rewritten = append_chapter_content_revision(
+        structured,
+        expected_version=ConcurrencyVersion(3),
+        revision_id=chapter_revision_id(33),
+        content=ManuscriptContent("second draft"),
+        now=BASE_TIME + timedelta(seconds=3),
+    )
+
+    assert str(written.current_revision.content) == "first\ndraft"
+    assert str(structured.current_revision.content) == "first\ndraft"
+    assert structured.current_revision.title == NovelStructureTitle("新标题")
+    assert rewritten.current_revision.title == structured.current_revision.title
+    assert rewritten.current_revision.summary == structured.current_revision.summary
+    assert rewritten.current_revision.position == structured.current_revision.position
+    assert str(rewritten.current_revision.content) == "second draft"
+    assert rewritten.current_revision.revision_number == RevisionNumber(4)
+    assert rewritten.chapter.concurrency_version == ConcurrencyVersion(4)
+
+
+def test_chapter_content_transition_rejects_stale_and_invalid_inputs() -> None:
+    initial = initial_chapter()
+    with pytest.raises(ConcurrencyConflict):
+        append_chapter_content_revision(
+            initial,
+            expected_version=ConcurrencyVersion(2),
+            revision_id=chapter_revision_id(31),
+            content=ManuscriptContent("draft"),
+            now=BASE_TIME + timedelta(seconds=1),
+        )
+    with pytest.raises(InvalidNovelStructureState):
+        append_chapter_content_revision(  # type: ignore[arg-type]
+            object(),
+            expected_version=ConcurrencyVersion(1),
+            revision_id=chapter_revision_id(31),
+            content=ManuscriptContent("draft"),
+            now=BASE_TIME + timedelta(seconds=1),
+        )
+    with pytest.raises(InvalidNovelStructureState):
+        append_chapter_content_revision(
+            initial,
+            expected_version=ConcurrencyVersion(1),
+            revision_id=chapter_revision_id(31),
+            content="draft",  # type: ignore[arg-type]
+            now=BASE_TIME + timedelta(seconds=1),
+        )
 
 
 @pytest.mark.parametrize(

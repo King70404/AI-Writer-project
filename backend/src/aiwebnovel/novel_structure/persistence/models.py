@@ -278,6 +278,7 @@ class ChapterRevisionRecord(Base):
     title: Mapped[str] = mapped_column(Text(120), nullable=False)
     summary: Mapped[str] = mapped_column(Text(2_000), nullable=False)
     position: Mapped[int] = mapped_column(nullable=False)
+    content: Mapped[str] = mapped_column(Text(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTimeType(), nullable=False)
 
     def __repr__(self) -> str:

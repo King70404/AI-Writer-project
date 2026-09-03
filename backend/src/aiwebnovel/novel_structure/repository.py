@@ -19,6 +19,7 @@ from aiwebnovel.novel_structure.identifiers import (
     VolumeRevisionId,
 )
 from aiwebnovel.novel_structure.values import (
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
@@ -78,6 +79,16 @@ class NovelStructureRepository(Protocol):
         title: NovelStructureTitle,
         summary: NovelStructureSummary,
         position: NovelStructurePosition,
+        clock: Clock,
+        revision_id_factory: Callable[[], ChapterRevisionId],
+    ) -> ChapterAggregate: ...
+
+    def append_chapter_content_revision(
+        self,
+        chapter_id: ChapterId,
+        *,
+        expected_version: ConcurrencyVersion,
+        content: ManuscriptContent,
         clock: Clock,
         revision_id_factory: Callable[[], ChapterRevisionId],
     ) -> ChapterAggregate: ...

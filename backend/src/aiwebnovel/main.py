@@ -39,7 +39,10 @@ from aiwebnovel.novel_structure.identifiers import (
     VolumeId,
     VolumeRevisionId,
 )
-from aiwebnovel.novel_structure.web import create_novel_structure_router
+from aiwebnovel.novel_structure.web import (
+    create_chapter_content_router,
+    create_novel_structure_router,
+)
 from aiwebnovel.project.application.services import (
     ProjectCommandService,
     ProjectListQueryService,
@@ -470,6 +473,7 @@ def create_app(
     application.include_router(create_character_router(api_prefix=api_prefix))
     application.include_router(create_character_history_router(api_prefix=api_prefix))
     application.include_router(create_novel_structure_router(api_prefix=api_prefix))
+    application.include_router(create_chapter_content_router(api_prefix=api_prefix))
 
     @application.get(f"{api_prefix}/health/live")
     async def live() -> dict[str, str]:

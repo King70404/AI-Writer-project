@@ -5,20 +5,24 @@ from aiwebnovel.novel_structure.application.commands import (
     CreateOutlineCommand,
     CreateVolumeCommand,
     UpdateChapterCommand,
+    UpdateChapterContentCommand,
     UpdateOutlineCommand,
     UpdateVolumeCommand,
 )
 from aiwebnovel.novel_structure.application.models import (
+    ChapterContentSnapshot,
     ChapterSnapshot,
     OutlineSnapshot,
     VolumeSnapshot,
 )
 from aiwebnovel.novel_structure.web.dto import (
+    ChapterContentResponse,
     ChapterResponse,
     CreateChapterRequest,
     CreateOutlineRequest,
     CreateVolumeRequest,
     OutlineResponse,
+    UpdateChapterContentRequest,
     UpdateChapterRequest,
     UpdateOutlineRequest,
     UpdateVolumeRequest,
@@ -107,6 +111,25 @@ def update_chapter_command(
     )
 
 
+def update_chapter_content_command(
+    chapter_id: str,
+    expected_version: int,
+    request: UpdateChapterContentRequest,
+) -> UpdateChapterContentCommand:
+    _require_exact(chapter_id, str, "chapter_id must be a string")
+    _require_exact(expected_version, int, "expected_version must be an integer")
+    _require_exact(
+        request,
+        UpdateChapterContentRequest,
+        "request must be an UpdateChapterContentRequest",
+    )
+    return UpdateChapterContentCommand(
+        chapter_id=chapter_id,
+        expected_version=expected_version,
+        content=request.content,
+    )
+
+
 def outline_response(snapshot: OutlineSnapshot) -> OutlineResponse:
     if type(snapshot) is not OutlineSnapshot:
         raise TypeError("snapshot must be an OutlineSnapshot")
@@ -161,13 +184,31 @@ def chapter_response(snapshot: ChapterSnapshot) -> ChapterResponse:
     )
 
 
+def chapter_content_response(snapshot: ChapterContentSnapshot) -> ChapterContentResponse:
+    if type(snapshot) is not ChapterContentSnapshot:
+        raise TypeError("snapshot must be a ChapterContentSnapshot")
+    return ChapterContentResponse(
+        chapter_id=snapshot.chapter_id,
+        project_id=snapshot.project_id,
+        volume_id=snapshot.volume_id,
+        current_revision_id=snapshot.current_revision_id,
+        revision_number=snapshot.revision_number,
+        concurrency_version=snapshot.concurrency_version,
+        content=snapshot.content,
+        updated_at=snapshot.updated_at,
+        revision_created_at=snapshot.revision_created_at,
+    )
+
+
 __all__ = [
+    "chapter_content_response",
     "chapter_response",
     "create_chapter_command",
     "create_outline_command",
     "create_volume_command",
     "outline_response",
     "update_chapter_command",
+    "update_chapter_content_command",
     "update_outline_command",
     "update_volume_command",
     "volume_response",

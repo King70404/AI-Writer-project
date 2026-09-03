@@ -69,3 +69,18 @@ def test_boundary_checker_accepts_http_application_contracts() -> None:
         )
         == ()
     )
+
+
+def test_chapter_content_adapter_uses_application_services_without_persistence() -> None:
+    source = WEB_ROOT / "content_router.py"
+    text = source.read_text(encoding="utf-8")
+
+    assert _forbidden_imports(text) == ()
+    tree = ast.parse(text)
+    imports = {
+        node.module
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.module is not None
+    }
+    assert "aiwebnovel.novel_structure.application.services" in imports
+    assert "aiwebnovel.novel_structure.application.queries" in imports

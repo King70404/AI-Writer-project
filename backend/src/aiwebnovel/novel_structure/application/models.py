@@ -16,6 +16,7 @@ from aiwebnovel.novel_structure.identifiers import (
     VolumeRevisionId,
 )
 from aiwebnovel.novel_structure.values import (
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
@@ -65,6 +66,12 @@ def _validated_position(value: object) -> int:
     if type(value) is not int:
         raise TypeError("position must be an integer")
     return int(NovelStructurePosition(value))
+
+
+def _validated_content(value: object) -> str:
+    if type(value) is not str:
+        raise TypeError("content must be a string")
+    return str(ManuscriptContent(value))
 
 
 def _utc_datetime(value: object, *, field: str) -> datetime:
@@ -247,6 +254,62 @@ class ChapterSnapshot:
         object.__setattr__(self, "position", position)
 
 
+@dataclass(frozen=True, slots=True)
+class ChapterContentSnapshot:
+    chapter_id: str
+    project_id: str
+    volume_id: str
+    current_revision_id: str
+    revision_number: int
+    concurrency_version: int
+    content: str
+    updated_at: datetime
+    revision_created_at: datetime
+
+    def __post_init__(self) -> None:
+        chapter_id = _canonical_identifier(
+            self.chapter_id,
+            field="chapter_id",
+            parser=ChapterId.parse,
+        )
+        project_id = _canonical_identifier(
+            self.project_id,
+            field="project_id",
+            parser=ProjectId.parse,
+        )
+        volume_id = _canonical_identifier(
+            self.volume_id,
+            field="volume_id",
+            parser=VolumeId.parse,
+        )
+        revision_id = _canonical_identifier(
+            self.current_revision_id,
+            field="current_revision_id",
+            parser=ChapterRevisionId.parse,
+        )
+        revision = _positive_revision_number(self.revision_number)
+        version = _positive_concurrency_version(self.concurrency_version)
+        if revision != version:
+            raise ValueError("revision and concurrency versions must match")
+        content = _validated_content(self.content)
+        updated = _utc_datetime(self.updated_at, field="updated_at")
+        revision_created = _utc_datetime(
+            self.revision_created_at,
+            field="revision_created_at",
+        )
+        if updated != revision_created:
+            raise ValueError("Chapter content snapshot timestamps are inconsistent")
+        object.__setattr__(self, "chapter_id", chapter_id)
+        object.__setattr__(self, "project_id", project_id)
+        object.__setattr__(self, "volume_id", volume_id)
+        object.__setattr__(self, "current_revision_id", revision_id)
+        object.__setattr__(self, "revision_number", revision)
+        object.__setattr__(self, "concurrency_version", version)
+        object.__setattr__(self, "content", content)
+        object.__setattr__(self, "updated_at", updated)
+        object.__setattr__(self, "revision_created_at", revision_created)
+
+
 def _set_common(
     snapshot: OutlineSnapshot | VolumeSnapshot | ChapterSnapshot,
     stable_id: str,
@@ -272,4 +335,4 @@ def _set_common(
     object.__setattr__(snapshot, "revision_created_at", revision_created)
 
 
-__all__ = ["ChapterSnapshot", "OutlineSnapshot", "VolumeSnapshot"]
+__all__ = ["ChapterContentSnapshot", "ChapterSnapshot", "OutlineSnapshot", "VolumeSnapshot"]

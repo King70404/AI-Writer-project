@@ -23,6 +23,7 @@ from tests.backend.novel_structure_repository_support import (
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.domain.errors import ConcurrencyConflict, InvalidDomainIdentifier
 from aiwebnovel.novel_structure.application.models import (
+    ChapterContentSnapshot,
     ChapterSnapshot,
     OutlineSnapshot,
     VolumeSnapshot,
@@ -33,6 +34,7 @@ from aiwebnovel.novel_structure.errors import (
     ChapterNotFound,
     ChapterPositionConflict,
     ChapterVolumeOwnershipMismatch,
+    InvalidManuscriptContent,
     InvalidNovelStructurePosition,
     InvalidNovelStructureSummary,
     InvalidNovelStructureTitle,
@@ -57,11 +59,13 @@ from aiwebnovel.novel_structure.web.dependencies import (
     require_json,
 )
 from aiwebnovel.novel_structure.web.dto import (
+    ChapterContentResponse,
     ChapterResponse,
     CreateChapterRequest,
     CreateOutlineRequest,
     CreateVolumeRequest,
     OutlineResponse,
+    UpdateChapterContentRequest,
     UpdateChapterRequest,
     UpdateOutlineRequest,
     UpdateVolumeRequest,
@@ -69,12 +73,14 @@ from aiwebnovel.novel_structure.web.dto import (
 )
 from aiwebnovel.novel_structure.web.errors import raise_novel_structure_http_error
 from aiwebnovel.novel_structure.web.mappers import (
+    chapter_content_response,
     chapter_response,
     create_chapter_command,
     create_outline_command,
     create_volume_command,
     outline_response,
     update_chapter_command,
+    update_chapter_content_command,
     update_outline_command,
     update_volume_command,
     volume_response,
@@ -142,6 +148,21 @@ def chapter_snapshot(*, version: int = 1) -> ChapterSnapshot:
     )
 
 
+def chapter_content_snapshot(*, version: int = 1) -> ChapterContentSnapshot:
+    updated = BASE_TIME + timedelta(seconds=version - 1)
+    return ChapterContentSnapshot(
+        chapter_id=CHAPTER_ID,
+        project_id=PROJECT_ID,
+        volume_id=VOLUME_ID,
+        current_revision_id=str(chapter_revision_id(300 + version)),
+        revision_number=version,
+        concurrency_version=version,
+        content=f"Draft {version}",
+        updated_at=updated,
+        revision_created_at=updated,
+    )
+
+
 class _CommandSpy:
     def create_outline(self, command):  # type: ignore[no-untyped-def]
         self.last = command
@@ -166,6 +187,10 @@ class _CommandSpy:
     def update_chapter(self, command):  # type: ignore[no-untyped-def]
         self.last = command
         return chapter_snapshot(version=2)
+
+    def update_chapter_content(self, command):  # type: ignore[no-untyped-def]
+        self.last = command
+        return chapter_content_snapshot(version=2)
 
 
 class _QuerySpy:
@@ -194,6 +219,10 @@ class _QuerySpy:
     def get_chapter(self, query):  # type: ignore[no-untyped-def]
         self.last = query
         return chapter_snapshot()
+
+    def get_chapter_content(self, query):  # type: ignore[no-untyped-def]
+        self.last = query
+        return chapter_content_snapshot()
 
 
 def _app(tmp_path: Path, command: object, query: object):  # type: ignore[no-untyped-def]
@@ -227,6 +256,7 @@ def test_strict_requests_and_explicit_mappers() -> None:
     revise_outline = UpdateOutlineRequest(title="Outline 2", summary="Summary 2")
     revise_volume = UpdateVolumeRequest(title="Volume 2", summary="Summary 2", position=2)
     revise_chapter = UpdateChapterRequest(title="Chapter 2", summary="Summary 2", position=2)
+    revise_content = UpdateChapterContentRequest(content="Draft")
 
     assert create_outline_command(PROJECT_ID, create_outline).project_id == PROJECT_ID
     assert create_volume_command(PROJECT_ID, create_volume).position == 1
@@ -234,9 +264,11 @@ def test_strict_requests_and_explicit_mappers() -> None:
     assert update_outline_command(OUTLINE_ID, 1, revise_outline).expected_version == 1
     assert update_volume_command(VOLUME_ID, 1, revise_volume).position == 2
     assert update_chapter_command(CHAPTER_ID, 1, revise_chapter).position == 2
+    assert update_chapter_content_command(CHAPTER_ID, 1, revise_content).content == "Draft"
     assert outline_response(outline_snapshot()).model_dump()["outline_id"] == OUTLINE_ID
     assert volume_response(volume_snapshot()).model_dump()["volume_id"] == VOLUME_ID
     assert chapter_response(chapter_snapshot()).model_dump()["chapter_id"] == CHAPTER_ID
+    assert chapter_content_response(chapter_content_snapshot()).model_dump()["content"] == "Draft 1"
 
     with pytest.raises(ValidationError):
         CreateOutlineRequest(title="Outline", summary="Summary", extra="no")
@@ -244,6 +276,8 @@ def test_strict_requests_and_explicit_mappers() -> None:
         CreateVolumeRequest(title="Volume", summary="Summary", position=True)
     with pytest.raises(ValidationError):
         UpdateChapterRequest(title=1, summary="Summary", position=1)
+    with pytest.raises(ValidationError):
+        UpdateChapterContentRequest(content="Draft", extra="no")
     with pytest.raises(ValidationError):
         OutlineResponse(
             **{**outline_response(outline_snapshot()).model_dump(), "outline_id": "bad"}
@@ -273,6 +307,25 @@ def test_response_dto_rejects_each_invalid_boundary(mutations: dict[str, object]
         OutlineResponse(**values)
 
 
+@pytest.mark.parametrize(
+    "mutations",
+    [
+        {"content": "secret\x00"},
+        {"content": "not\r\ncanonical"},
+        {"concurrency_version": 2},
+        {"revision_created_at": BASE_TIME + timedelta(seconds=1)},
+    ],
+)
+def test_chapter_content_response_rejects_invalid_or_noncanonical_state(
+    mutations: dict[str, object],
+) -> None:
+    values = chapter_content_response(chapter_content_snapshot()).model_dump()
+    values.update(mutations)
+    with pytest.raises(ValidationError) as caught:
+        ChapterContentResponse(**values)
+    assert "secret" not in str(caught.value)
+
+
 def test_dto_canonical_guard_rejects_normalizing_parser() -> None:
     with pytest.raises(ValueError, match="canonical"):
         dto_module._canonical("raw", lambda _: "normalized", "field")
@@ -290,9 +343,11 @@ def test_dto_canonical_guard_rejects_normalizing_parser() -> None:
         ),
         (create_chapter_command, (PROJECT_ID, VOLUME_ID, object())),
         (update_chapter_command, (CHAPTER_ID, 1, object())),
+        (update_chapter_content_command, (CHAPTER_ID, 1, object())),
         (outline_response, (object(),)),
         (volume_response, (object(),)),
         (chapter_response, (object(),)),
+        (chapter_content_response, (object(),)),
     ],
 )
 def test_mappers_reject_wrong_exact_types(call, arguments) -> None:  # type: ignore[no-untyped-def]
@@ -426,6 +481,31 @@ def test_all_eleven_routes_return_bounded_current_resources(tmp_path: Path) -> N
     assert "content" not in chapter_read.json() and "body" not in chapter_read.json()
 
 
+def test_chapter_content_routes_use_application_services_and_strong_etags(
+    tmp_path: Path,
+) -> None:
+    command = _CommandSpy()
+    query = _QuerySpy()
+    with TestClient(_app(tmp_path, command, query)) as client:
+        headers = issue_write_headers(client)
+        read = client.get(f"/api/v1/chapters/{CHAPTER_ID}/content")
+        updated = client.put(
+            f"/api/v1/chapters/{CHAPTER_ID}/content",
+            headers={**headers, "If-Match": '"1"'},
+            json={"content": "New draft"},
+        )
+
+    assert read.status_code == updated.status_code == 200
+    assert read.headers["ETag"] == '"1"'
+    assert updated.headers["ETag"] == '"2"'
+    assert read.json()["content"] == "Draft 1"
+    assert updated.json()["content"] == "Draft 2"
+    assert query.last.chapter_id == CHAPTER_ID
+    assert command.last.chapter_id == CHAPTER_ID
+    assert command.last.expected_version == 1
+    assert command.last.content == "New draft"
+
+
 def test_chapter_list_rejects_cross_project_volume_before_listing(tmp_path: Path) -> None:
     query = _QuerySpy(owner=SECOND_PROJECT_ID)
     with TestClient(_app(tmp_path, _CommandSpy(), query)) as client:
@@ -476,6 +556,7 @@ def _database_corruption() -> NovelStructureDataCorruption:
         (InvalidNovelStructureTitle(), "outline", 422, "INVALID_NOVEL_STRUCTURE_TITLE"),
         (InvalidNovelStructureSummary(), "outline", 422, "INVALID_NOVEL_STRUCTURE_SUMMARY"),
         (InvalidNovelStructurePosition(), "volume", 422, "INVALID_NOVEL_STRUCTURE_POSITION"),
+        (InvalidManuscriptContent(), "chapter", 422, "INVALID_MANUSCRIPT_CONTENT"),
         (ProjectNotFound(project_id(1)), "outline", 404, "PROJECT_NOT_FOUND"),
         (NovelStructureProjectNotFound(), "outline", 404, "PROJECT_NOT_FOUND"),
         (VolumeNotFound(), "volume", 404, "VOLUME_NOT_FOUND"),
@@ -577,12 +658,18 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
         ("GET", "/api/v1/chapters/{chapter_id}"),
         ("PUT", "/api/v1/chapters/{chapter_id}"),
     }
-    assert len(operations) == 32
+    assert len(operations) == 34
     assert {
         operation
         for operation in operations
         if any(word in operation[1] for word in ("outline", "volume", "chapter"))
+        and not operation[1].endswith("/content")
     } == expected
+    content_operations = {
+        ("GET", "/api/v1/chapters/{chapter_id}/content"),
+        ("PUT", "/api/v1/chapters/{chapter_id}/content"),
+    }
+    assert content_operations <= operations
     assert ("GET", "/api/v1/outlines/{outline_id}") not in operations
     assert not any(method in {"PATCH", "DELETE"} for method, _ in expected)
     components = schema["components"]["schemas"]
@@ -633,6 +720,31 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
             components["ChapterResponse"],
         )
     )
+    assert set(components["ChapterContentResponse"]["properties"]) == {
+        "chapter_id",
+        "project_id",
+        "volume_id",
+        "current_revision_id",
+        "revision_number",
+        "concurrency_version",
+        "content",
+        "updated_at",
+        "revision_created_at",
+    }
+    assert set(components["UpdateChapterContentRequest"]["properties"]) == {"content"}
+    assert components["UpdateChapterContentRequest"]["required"] == ["content"]
+    assert components["UpdateChapterContentRequest"]["additionalProperties"] is False
+    content_path = schema["paths"]["/api/v1/chapters/{chapter_id}/content"]
+    assert set(content_path) == {"get", "put"}
+    assert content_path["get"]["tags"] == ["Chapter Writing"]
+    assert content_path["put"]["tags"] == ["Chapter Writing"]
+    assert (
+        next(item for item in content_path["put"]["parameters"] if item["name"] == "If-Match")[
+            "required"
+        ]
+        is True
+    )
+    assert {"400", "404", "412", "422", "428"} <= set(content_path["put"]["responses"])
     for name, fields in {
         "CreateOutlineRequest": {"title", "summary"},
         "UpdateOutlineRequest": {"title", "summary"},

@@ -24,6 +24,13 @@ class InvalidNovelStructureSummary(NovelStructureDomainError):
     message = "The novel structure summary is invalid."
 
 
+class InvalidManuscriptContent(NovelStructureDomainError):
+    """Raised when Chapter manuscript content violates its value rules."""
+
+    code = "invalid_manuscript_content"
+    message = "The Chapter manuscript content is invalid."
+
+
 class InvalidNovelStructurePosition(NovelStructureDomainError):
     """Raised when a Volume or Chapter position is invalid."""
 

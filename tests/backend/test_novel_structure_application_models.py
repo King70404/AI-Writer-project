@@ -23,20 +23,24 @@ from aiwebnovel.novel_structure.application.commands import (
     CreateOutlineCommand,
     CreateVolumeCommand,
     UpdateChapterCommand,
+    UpdateChapterContentCommand,
     UpdateOutlineCommand,
     UpdateVolumeCommand,
 )
 from aiwebnovel.novel_structure.application.mappers import (
+    chapter_content_snapshot_from_aggregate,
     chapter_snapshot_from_aggregate,
     outline_snapshot_from_aggregate,
     volume_snapshot_from_aggregate,
 )
 from aiwebnovel.novel_structure.application.models import (
+    ChapterContentSnapshot,
     ChapterSnapshot,
     OutlineSnapshot,
     VolumeSnapshot,
 )
 from aiwebnovel.novel_structure.application.queries import (
+    GetChapterContentQuery,
     GetChapterQuery,
     GetOutlineForProjectQuery,
     GetOutlineQuery,
@@ -45,6 +49,7 @@ from aiwebnovel.novel_structure.application.queries import (
     ListVolumesQuery,
 )
 from aiwebnovel.novel_structure.errors import (
+    InvalidManuscriptContent,
     InvalidNovelStructurePosition,
     InvalidNovelStructureState,
     InvalidNovelStructureSummary,
@@ -79,11 +84,16 @@ from aiwebnovel.novel_structure.errors import (
             UpdateChapterCommand(str(chapter_id()), 1, "title", "summary", 1),
             ("chapter_id", "expected_version", "title", "summary", "position"),
         ),
+        (
+            UpdateChapterContentCommand(str(chapter_id()), 1, "content"),
+            ("chapter_id", "expected_version", "content"),
+        ),
         (GetOutlineQuery(str(outline_id())), ("outline_id",)),
         (GetOutlineForProjectQuery(str(project_id())), ("project_id",)),
         (GetVolumeQuery(str(volume_id())), ("volume_id",)),
         (ListVolumesQuery(str(project_id())), ("project_id",)),
         (GetChapterQuery(str(chapter_id())), ("chapter_id",)),
+        (GetChapterContentQuery(str(chapter_id())), ("chapter_id",)),
         (ListChaptersQuery(str(volume_id())), ("volume_id",)),
     ],
 )
@@ -143,6 +153,22 @@ def test_mappers_return_complete_detached_snapshots() -> None:
     assert not hasattr(chapter, "body")
     assert not hasattr(chapter, "content")
 
+    content = chapter_content_snapshot_from_aggregate(initial_chapter())
+    assert content == ChapterContentSnapshot(
+        str(chapter_id()),
+        str(project_id()),
+        str(volume_id()),
+        str(chapter_revision_id()),
+        1,
+        1,
+        "",
+        BASE_TIME,
+        BASE_TIME,
+    )
+    assert not hasattr(content, "title")
+    assert not hasattr(content, "summary")
+    assert not hasattr(content, "position")
+
 
 @pytest.mark.parametrize(
     "mapper",
@@ -150,6 +176,7 @@ def test_mappers_return_complete_detached_snapshots() -> None:
         outline_snapshot_from_aggregate,
         volume_snapshot_from_aggregate,
         chapter_snapshot_from_aggregate,
+        chapter_content_snapshot_from_aggregate,
     ],
 )
 def test_mappers_reject_non_aggregates(mapper) -> None:  # type: ignore[no-untyped-def]
@@ -228,3 +255,53 @@ def test_position_snapshots_reject_invalid_position(position: object) -> None:
             BASE_TIME,
             BASE_TIME,
         )
+
+
+def _valid_chapter_content(**changes: object) -> dict[str, object]:
+    values: dict[str, object] = {
+        "chapter_id": str(chapter_id()),
+        "project_id": str(project_id()),
+        "volume_id": str(volume_id()),
+        "current_revision_id": str(chapter_revision_id()),
+        "revision_number": 1,
+        "concurrency_version": 1,
+        "content": "正文\n第二行",
+        "updated_at": BASE_TIME,
+        "revision_created_at": BASE_TIME,
+    }
+    values.update(changes)
+    return values
+
+
+@pytest.mark.parametrize(
+    ("changes", "error_type"),
+    [
+        ({"chapter_id": 1}, TypeError),
+        ({"project_id": 1}, TypeError),
+        ({"volume_id": 1}, TypeError),
+        ({"current_revision_id": 1}, TypeError),
+        ({"revision_number": True}, TypeError),
+        ({"concurrency_version": True}, TypeError),
+        ({"revision_number": 2}, ValueError),
+        ({"content": 1}, TypeError),
+        ({"content": "secret\x00"}, InvalidManuscriptContent),
+        ({"updated_at": datetime(2026, 1, 1)}, ValueError),
+        ({"revision_created_at": BASE_TIME + timedelta(seconds=1)}, ValueError),
+    ],
+)
+def test_chapter_content_snapshot_rejects_invalid_state_without_leaking_content(
+    changes: dict[str, object],
+    error_type: type[BaseException],
+) -> None:
+    with pytest.raises(error_type) as captured:
+        ChapterContentSnapshot(**_valid_chapter_content(**changes))  # type: ignore[arg-type]
+    assert "secret" not in str(captured.value)
+
+
+def test_chapter_content_snapshot_normalizes_line_endings_and_is_immutable() -> None:
+    snapshot = ChapterContentSnapshot(
+        **_valid_chapter_content(content="first\r\nsecond")  # type: ignore[arg-type]
+    )
+    assert snapshot.content == "first\nsecond"
+    with pytest.raises(FrozenInstanceError):
+        snapshot.content = "changed"

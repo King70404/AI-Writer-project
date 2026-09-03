@@ -1,6 +1,6 @@
 """Immutable Outline, Volume, and Chapter entities and aggregate invariants."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
@@ -16,6 +16,7 @@ from aiwebnovel.novel_structure.identifiers import (
     VolumeRevisionId,
 )
 from aiwebnovel.novel_structure.values import (
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
@@ -237,7 +238,7 @@ class Chapter:
 
 @dataclass(frozen=True, slots=True)
 class ChapterRevision:
-    """One immutable complete Chapter planning snapshot, without prose."""
+    """One immutable complete Chapter structure and manuscript snapshot."""
 
     id: ChapterRevisionId
     chapter_id: ChapterId
@@ -246,6 +247,7 @@ class ChapterRevision:
     summary: NovelStructureSummary
     position: NovelStructurePosition
     created_at: datetime
+    content: ManuscriptContent = field(default_factory=ManuscriptContent)
 
     def __post_init__(self) -> None:
         if (
@@ -255,6 +257,7 @@ class ChapterRevision:
             or type(self.title) is not NovelStructureTitle
             or type(self.summary) is not NovelStructureSummary
             or type(self.position) is not NovelStructurePosition
+            or type(self.content) is not ManuscriptContent
         ):
             raise InvalidNovelStructureState
         object.__setattr__(self, "created_at", normalize_novel_structure_time(self.created_at))

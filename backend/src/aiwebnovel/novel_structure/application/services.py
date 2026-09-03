@@ -9,20 +9,24 @@ from aiwebnovel.novel_structure.application.commands import (
     CreateOutlineCommand,
     CreateVolumeCommand,
     UpdateChapterCommand,
+    UpdateChapterContentCommand,
     UpdateOutlineCommand,
     UpdateVolumeCommand,
 )
 from aiwebnovel.novel_structure.application.mappers import (
+    chapter_content_snapshot_from_aggregate,
     chapter_snapshot_from_aggregate,
     outline_snapshot_from_aggregate,
     volume_snapshot_from_aggregate,
 )
 from aiwebnovel.novel_structure.application.models import (
+    ChapterContentSnapshot,
     ChapterSnapshot,
     OutlineSnapshot,
     VolumeSnapshot,
 )
 from aiwebnovel.novel_structure.application.queries import (
+    GetChapterContentQuery,
     GetChapterQuery,
     GetOutlineForProjectQuery,
     GetOutlineQuery,
@@ -51,6 +55,7 @@ from aiwebnovel.novel_structure.transitions import (
     create_initial_volume,
 )
 from aiwebnovel.novel_structure.values import (
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
@@ -259,6 +264,24 @@ class NovelStructureCommandService:
         )
         return chapter_snapshot_from_aggregate(revised)
 
+    def update_chapter_content(
+        self,
+        command: UpdateChapterContentCommand,
+    ) -> ChapterContentSnapshot:
+        if type(command) is not UpdateChapterContentCommand:
+            raise TypeError("command must be an UpdateChapterContentCommand")
+        chapter_id = ChapterId.parse(command.chapter_id)
+        expected_version = ConcurrencyVersion(command.expected_version)
+        content = ManuscriptContent(command.content)
+        revised = self._repository.append_chapter_content_revision(
+            chapter_id,
+            expected_version=expected_version,
+            content=content,
+            clock=self._clock,
+            revision_id_factory=self._chapter_revision_id_factory,
+        )
+        return chapter_content_snapshot_from_aggregate(revised)
+
 
 class NovelStructureQueryService:
     """Read current novel structure without persistence details."""
@@ -325,6 +348,18 @@ class NovelStructureQueryService:
         if aggregate is None:
             raise ChapterNotFound
         return chapter_snapshot_from_aggregate(aggregate)
+
+    def get_chapter_content(
+        self,
+        query: GetChapterContentQuery,
+    ) -> ChapterContentSnapshot:
+        if type(query) is not GetChapterContentQuery:
+            raise TypeError("query must be a GetChapterContentQuery")
+        chapter_id = ChapterId.parse(query.chapter_id)
+        aggregate = self._repository.get_chapter(chapter_id)
+        if aggregate is None:
+            raise ChapterNotFound
+        return chapter_content_snapshot_from_aggregate(aggregate)
 
     def list_chapters(self, query: ListChaptersQuery) -> tuple[ChapterSnapshot, ...]:
         if type(query) is not ListChaptersQuery:

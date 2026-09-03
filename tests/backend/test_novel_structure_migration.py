@@ -22,6 +22,7 @@ pytestmark = pytest.mark.integration
 
 _PREVIOUS_REVISION = "0004_create_character_foundation"
 _NOVEL_STRUCTURE_REVISION = "0005_create_novel_structure_foundation"
+_CURRENT_NOVEL_STRUCTURE_REVISION = "0006_add_chapter_manuscript_content"
 _NEW_TABLES = {
     "outlines",
     "outline_revisions",
@@ -101,7 +102,7 @@ def migrated_novel_structure_database_context(
     tmp_path: Path,
 ) -> Iterator[MigratedNovelStructureDatabase]:
     path = tmp_path / "novel structure" / "structure.sqlite3"
-    upgrade = _run_alembic(path, "upgrade", _NOVEL_STRUCTURE_REVISION)
+    upgrade = _run_alembic(path, "upgrade", _CURRENT_NOVEL_STRUCTURE_REVISION)
     assert upgrade.returncode == 0, upgrade.stderr
     engine = create_database_engine(
         Settings(
@@ -176,6 +177,7 @@ def test_metadata_registers_exactly_eighteen_business_tables() -> None:
             "title",
             "summary",
             "position",
+            "content",
             "created_at",
         },
         "chapter_heads": {"chapter_id", "revision_id", "updated_at"},
@@ -224,6 +226,77 @@ def test_0005_offline_sql_has_no_file_side_effect(tmp_path: Path) -> None:
     assert not path.exists()
     assert not path.parent.exists()
     assert not _storage_root(path).exists()
+
+
+def test_0006_preserves_old_chapter_revisions_across_migration_cycle(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "manuscript migration" / "cycle.sqlite3"
+    old_row = (
+        "chv_00000000000000000000000001",
+        "chp_00000000000000000000000001",
+        1,
+        "Existing chapter",
+        "Existing summary",
+        2,
+        "2026-08-31 01:02:03.000000",
+    )
+    try:
+        previous = _run_alembic(path, "upgrade", _NOVEL_STRUCTURE_REVISION)
+        assert previous.returncode == 0, previous.stderr
+        with closing(sqlite3.connect(path)) as connection:
+            connection.execute(
+                "INSERT INTO chapter_revisions "
+                "(id, chapter_id, revision_number, title, summary, position, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                old_row,
+            )
+            connection.commit()
+
+        upgrade = _run_alembic(path, "upgrade", _CURRENT_NOVEL_STRUCTURE_REVISION)
+        assert upgrade.returncode == 0, upgrade.stderr
+        with closing(sqlite3.connect(path)) as connection:
+            columns = {
+                row[1] for row in connection.execute("PRAGMA table_info('chapter_revisions')")
+            }
+            migrated = connection.execute(
+                "SELECT id, chapter_id, revision_number, title, summary, position, "
+                "created_at, content FROM chapter_revisions"
+            ).fetchone()
+            with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+                connection.execute("UPDATE chapter_revisions SET content = 'changed'")
+        tables, triggers, version = _inventory(path)
+        assert len(tables) == 19
+        assert len(triggers) == 12
+        assert version == _CURRENT_NOVEL_STRUCTURE_REVISION
+        assert "content" in columns
+        assert migrated == (*old_row, "")
+
+        downgrade = _run_alembic(path, "downgrade", _NOVEL_STRUCTURE_REVISION)
+        assert downgrade.returncode == 0, downgrade.stderr
+        with closing(sqlite3.connect(path)) as connection:
+            columns = {
+                row[1] for row in connection.execute("PRAGMA table_info('chapter_revisions')")
+            }
+            restored = connection.execute(
+                "SELECT id, chapter_id, revision_number, title, summary, position, "
+                "created_at FROM chapter_revisions"
+            ).fetchone()
+        assert "content" not in columns
+        assert restored == old_row
+        assert _inventory(path)[1:] == (triggers, _NOVEL_STRUCTURE_REVISION)
+
+        reupgrade = _run_alembic(path, "upgrade", _CURRENT_NOVEL_STRUCTURE_REVISION)
+        assert reupgrade.returncode == 0, reupgrade.stderr
+        with closing(sqlite3.connect(path)) as connection:
+            remigrated = connection.execute(
+                "SELECT id, chapter_id, revision_number, title, summary, position, "
+                "created_at, content FROM chapter_revisions"
+            ).fetchone()
+        assert remigrated == (*old_row, "")
+        assert _inventory(path)[1:] == (triggers, _CURRENT_NOVEL_STRUCTURE_REVISION)
+    finally:
+        _cleanup(path, tmp_path)
 
 
 def test_0005_constraints_foreign_keys_indexes_and_wal(

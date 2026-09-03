@@ -31,6 +31,7 @@ from aiwebnovel.novel_structure.persistence.models import (
     VolumeRevisionRecord,
 )
 from aiwebnovel.novel_structure.values import (
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
@@ -221,6 +222,7 @@ def chapter_revision_to_record(revision: ChapterRevision) -> ChapterRevisionReco
         title=str(revision.title),
         summary=str(revision.summary),
         position=int(revision.position),
+        content=str(revision.content),
         created_at=revision.created_at,
     )
 
@@ -260,6 +262,7 @@ def chapter_aggregate_from_records(
                 summary=NovelStructureSummary(revision.summary),
                 position=NovelStructurePosition(revision.position),
                 created_at=revision.created_at,
+                content=ManuscriptContent(revision.content),
             ),
         )
     except (DomainError, TypeError, ValueError) as exc:

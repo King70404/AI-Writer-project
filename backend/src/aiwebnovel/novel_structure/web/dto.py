@@ -19,6 +19,7 @@ from aiwebnovel.novel_structure.identifiers import (
     VolumeRevisionId,
 )
 from aiwebnovel.novel_structure.values import (
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
@@ -67,6 +68,10 @@ class UpdateChapterRequest(_StrictNovelStructureModel):
     title: str
     summary: str
     position: int
+
+
+class UpdateChapterContentRequest(_StrictNovelStructureModel):
+    content: str
 
 
 def _canonical(value: str, parser: Callable[[str], object], field: str) -> str:
@@ -118,6 +123,16 @@ def _position(value: int) -> int:
         return int(NovelStructurePosition(value))
     except DomainError:
         raise ValueError("position must be positive") from None
+
+
+def _content(value: str) -> str:
+    try:
+        normalized = str(ManuscriptContent(value))
+    except DomainError:
+        raise ValueError("content must satisfy manuscript rules") from None
+    if normalized != value:
+        raise ValueError("content must use canonical LF line endings")
+    return value
 
 
 def _utc(value: datetime) -> datetime:
@@ -200,12 +215,51 @@ class ChapterResponse(_CurrentResponse):
     _position = field_validator("position")(_position)
 
 
+class ChapterContentResponse(_StrictNovelStructureModel):
+    chapter_id: str
+    project_id: str
+    volume_id: str
+    current_revision_id: str
+    revision_number: int
+    concurrency_version: int
+    content: str
+    updated_at: datetime
+    revision_created_at: datetime
+
+    _chapter_id = field_validator("chapter_id")(
+        lambda value: _canonical(value, ChapterId.parse, "chapter_id")
+    )
+    _project_id = field_validator("project_id")(
+        lambda value: _canonical(value, ProjectId.parse, "project_id")
+    )
+    _volume_id = field_validator("volume_id")(
+        lambda value: _canonical(value, VolumeId.parse, "volume_id")
+    )
+    _chapter_revision_id = field_validator("current_revision_id")(
+        lambda value: _canonical(value, ChapterRevisionId.parse, "current_revision_id")
+    )
+    _revision_number = field_validator("revision_number")(_revision)
+    _version = field_validator("concurrency_version")(_version)
+    _content = field_validator("content")(_content)
+    _timestamps = field_validator("updated_at", "revision_created_at")(_utc)
+
+    @model_validator(mode="after")
+    def require_consistent_state(self) -> Self:
+        if self.revision_number != self.concurrency_version:
+            raise ValueError("response versions must match")
+        if self.updated_at != self.revision_created_at:
+            raise ValueError("response timestamps are inconsistent")
+        return self
+
+
 __all__ = [
+    "ChapterContentResponse",
     "ChapterResponse",
     "CreateChapterRequest",
     "CreateOutlineRequest",
     "CreateVolumeRequest",
     "OutlineResponse",
+    "UpdateChapterContentRequest",
     "UpdateChapterRequest",
     "UpdateOutlineRequest",
     "UpdateVolumeRequest",

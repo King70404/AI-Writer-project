@@ -7,12 +7,15 @@ import pytest
 from aiwebnovel.domain.errors import InvalidRevisionNumber
 from aiwebnovel.domain.revisions import RevisionNumber
 from aiwebnovel.novel_structure import (
+    MAX_MANUSCRIPT_CONTENT_LENGTH,
     MAX_NOVEL_STRUCTURE_POSITION,
     MAX_NOVEL_STRUCTURE_SUMMARY_LENGTH,
     MAX_NOVEL_STRUCTURE_TITLE_LENGTH,
+    InvalidManuscriptContent,
     InvalidNovelStructurePosition,
     InvalidNovelStructureSummary,
     InvalidNovelStructureTitle,
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
@@ -52,6 +55,29 @@ def test_summary_rejects_invalid_values(value: object) -> None:
         NovelStructureSummary(value)  # type: ignore[arg-type]
 
 
+def test_manuscript_allows_long_plain_text_and_normalizes_line_endings() -> None:
+    assert str(ManuscriptContent()) == ""
+    assert str(ManuscriptContent("甲\r\n乙\r丙\n\t丁")) == "甲\n乙\n丙\n\t丁"
+    assert len(str(ManuscriptContent("文" * MAX_MANUSCRIPT_CONTENT_LENGTH))) == 2_000_000
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "文" * (MAX_MANUSCRIPT_CONTENT_LENGTH + 1),
+        "STORY_CONTENT_SECRET_CANARY\x00",
+        "正文\u2028分隔",
+        "正文\u2029分隔",
+        None,
+    ],
+    ids=["too-long", "control-canary", "line-separator", "paragraph-separator", "non-string"],
+)
+def test_manuscript_rejects_invalid_values_without_leaking_content(value: object) -> None:
+    with pytest.raises(InvalidManuscriptContent) as caught:
+        ManuscriptContent(value)  # type: ignore[arg-type]
+    assert "STORY_CONTENT_SECRET_CANARY" not in str(caught.value)
+
+
 @pytest.mark.parametrize("value", [1, 2, MAX_NOVEL_STRUCTURE_POSITION])
 def test_position_accepts_positive_signed_64_bit_integers(value: int) -> None:
     assert int(NovelStructurePosition(value)) == value
@@ -73,7 +99,12 @@ def test_revision_number_rejects_non_positive_or_non_integer_values(value: objec
 
 
 def test_values_are_frozen_slots_objects() -> None:
-    values = [NovelStructureTitle("标题"), NovelStructureSummary(), NovelStructurePosition(1)]
+    values = [
+        ManuscriptContent(),
+        NovelStructureTitle("标题"),
+        NovelStructureSummary(),
+        NovelStructurePosition(1),
+    ]
 
     assert all(not hasattr(value, "__dict__") for value in values)
     for value in values:

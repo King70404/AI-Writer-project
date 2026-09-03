@@ -29,11 +29,17 @@ class GetChapterQuery:
 
 
 @dataclass(frozen=True, slots=True)
+class GetChapterContentQuery:
+    chapter_id: str
+
+
+@dataclass(frozen=True, slots=True)
 class ListChaptersQuery:
     volume_id: str
 
 
 __all__ = [
+    "GetChapterContentQuery",
     "GetChapterQuery",
     "GetOutlineForProjectQuery",
     "GetOutlineQuery",

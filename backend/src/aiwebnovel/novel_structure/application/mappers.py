@@ -1,6 +1,7 @@
 """Explicit aggregate-to-snapshot mapping for novel structure."""
 
 from aiwebnovel.novel_structure.application.models import (
+    ChapterContentSnapshot,
     ChapterSnapshot,
     OutlineSnapshot,
     VolumeSnapshot,
@@ -67,7 +68,26 @@ def chapter_snapshot_from_aggregate(aggregate: ChapterAggregate) -> ChapterSnaps
     )
 
 
+def chapter_content_snapshot_from_aggregate(
+    aggregate: ChapterAggregate,
+) -> ChapterContentSnapshot:
+    if type(aggregate) is not ChapterAggregate:
+        raise InvalidNovelStructureState
+    return ChapterContentSnapshot(
+        chapter_id=str(aggregate.chapter.id),
+        project_id=str(aggregate.chapter.project_id),
+        volume_id=str(aggregate.chapter.volume_id),
+        current_revision_id=str(aggregate.current_revision.id),
+        revision_number=int(aggregate.current_revision.revision_number),
+        concurrency_version=int(aggregate.chapter.concurrency_version),
+        content=str(aggregate.current_revision.content),
+        updated_at=aggregate.chapter.updated_at,
+        revision_created_at=aggregate.current_revision.created_at,
+    )
+
+
 __all__ = [
+    "chapter_content_snapshot_from_aggregate",
     "chapter_snapshot_from_aggregate",
     "outline_snapshot_from_aggregate",
     "volume_snapshot_from_aggregate",

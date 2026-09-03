@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from aiwebnovel.novel_structure.errors import (
+    InvalidManuscriptContent,
     InvalidNovelStructurePosition,
     InvalidNovelStructureSummary,
     InvalidNovelStructureTitle,
@@ -10,6 +11,7 @@ from aiwebnovel.novel_structure.errors import (
 
 MAX_NOVEL_STRUCTURE_TITLE_LENGTH = 120
 MAX_NOVEL_STRUCTURE_SUMMARY_LENGTH = 2_000
+MAX_MANUSCRIPT_CONTENT_LENGTH = 2_000_000
 MAX_NOVEL_STRUCTURE_POSITION = (1 << 63) - 1
 _UNICODE_LINE_SEPARATORS = frozenset({"\u2028", "\u2029"})
 
@@ -56,6 +58,28 @@ class NovelStructureSummary:
             for character in normalized
         ):
             raise InvalidNovelStructureSummary
+        object.__setattr__(self, "value", normalized)
+
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True, slots=True)
+class ManuscriptContent:
+    """Bounded Chapter prose with canonical LF line endings."""
+
+    value: str = ""
+
+    def __post_init__(self) -> None:
+        if type(self.value) is not str:
+            raise InvalidManuscriptContent
+        normalized = self.value.replace("\r\n", "\n").replace("\r", "\n")
+        if len(normalized) > MAX_MANUSCRIPT_CONTENT_LENGTH or any(
+            (_is_c0_or_c1_control(character) and character not in {"\n", "\t"})
+            or character in _UNICODE_LINE_SEPARATORS
+            for character in normalized
+        ):
+            raise InvalidManuscriptContent
         object.__setattr__(self, "value", normalized)
 
     def __str__(self) -> str:

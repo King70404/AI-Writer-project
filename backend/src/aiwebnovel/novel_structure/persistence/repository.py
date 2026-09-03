@@ -73,11 +73,13 @@ from aiwebnovel.novel_structure.persistence.queries import (
 )
 from aiwebnovel.novel_structure.repository import NovelStructureRepository
 from aiwebnovel.novel_structure.transitions import (
+    append_chapter_content_revision,
     append_chapter_revision,
     append_outline_revision,
     append_volume_revision,
 )
 from aiwebnovel.novel_structure.values import (
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
@@ -391,6 +393,51 @@ class SqlAlchemyNovelStructureRepository(NovelStructureRepository):
                 title=title,
                 summary=summary,
                 position=position,
+                now=clock(),
+            )
+            session.add(chapter_revision_to_record(next_aggregate.current_revision))
+            session.flush()
+            self._move_chapter(session, current, next_aggregate)
+            session.commit()
+            return next_aggregate
+        except DomainError:
+            session.rollback()
+            raise
+        except Exception as exc:
+            session.rollback()
+            raise NovelStructureRepositoryError from exc
+        finally:
+            session.close()
+
+    def append_chapter_content_revision(
+        self,
+        chapter_id: ChapterId,
+        *,
+        expected_version: ConcurrencyVersion,
+        content: ManuscriptContent,
+        clock: Clock,
+        revision_id_factory: Callable[[], ChapterRevisionId],
+    ) -> ChapterAggregate:
+        if (
+            type(chapter_id) is not ChapterId
+            or type(expected_version) is not ConcurrencyVersion
+            or type(content) is not ManuscriptContent
+            or not callable(clock)
+            or not callable(revision_id_factory)
+        ):
+            raise InvalidNovelStructureState
+        session = self._new_session()
+        try:
+            self._begin_immediate(session)
+            current = self._load_chapter(session, chapter_id)
+            if current is None:
+                raise ChapterNotFound
+            assert_expected_version(current.chapter.concurrency_version, expected_version)
+            next_aggregate = append_chapter_content_revision(
+                current,
+                expected_version=expected_version,
+                revision_id=revision_id_factory(),
+                content=content,
                 now=clock(),
             )
             session.add(chapter_revision_to_record(next_aggregate.current_revision))

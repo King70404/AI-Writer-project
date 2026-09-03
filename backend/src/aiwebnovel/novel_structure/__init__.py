@@ -23,6 +23,7 @@ from aiwebnovel.novel_structure.errors import (
     ChapterNotFound,
     ChapterPositionConflict,
     ChapterVolumeOwnershipMismatch,
+    InvalidManuscriptContent,
     InvalidNovelStructurePosition,
     InvalidNovelStructureState,
     InvalidNovelStructureSummary,
@@ -47,6 +48,7 @@ from aiwebnovel.novel_structure.identifiers import (
 )
 from aiwebnovel.novel_structure.repository import NovelStructureRepository
 from aiwebnovel.novel_structure.transitions import (
+    append_chapter_content_revision,
     append_chapter_revision,
     append_outline_revision,
     append_volume_revision,
@@ -55,9 +57,11 @@ from aiwebnovel.novel_structure.transitions import (
     create_initial_volume,
 )
 from aiwebnovel.novel_structure.values import (
+    MAX_MANUSCRIPT_CONTENT_LENGTH,
     MAX_NOVEL_STRUCTURE_POSITION,
     MAX_NOVEL_STRUCTURE_SUMMARY_LENGTH,
     MAX_NOVEL_STRUCTURE_TITLE_LENGTH,
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureSummary,
     NovelStructureTitle,
@@ -65,6 +69,7 @@ from aiwebnovel.novel_structure.values import (
 from aiwebnovel.project.identifiers import ProjectId
 
 __all__ = [
+    "MAX_MANUSCRIPT_CONTENT_LENGTH",
     "MAX_NOVEL_STRUCTURE_POSITION",
     "MAX_NOVEL_STRUCTURE_SUMMARY_LENGTH",
     "MAX_NOVEL_STRUCTURE_TITLE_LENGTH",
@@ -81,10 +86,12 @@ __all__ = [
     "ConcurrencyConflict",
     "ConcurrencyVersion",
     "InvalidDomainIdentifier",
+    "InvalidManuscriptContent",
     "InvalidNovelStructurePosition",
     "InvalidNovelStructureState",
     "InvalidNovelStructureSummary",
     "InvalidNovelStructureTitle",
+    "ManuscriptContent",
     "NovelStructureDataCorruption",
     "NovelStructureDomainError",
     "NovelStructurePosition",
@@ -112,6 +119,7 @@ __all__ = [
     "VolumePositionConflict",
     "VolumeRevision",
     "VolumeRevisionId",
+    "append_chapter_content_revision",
     "append_chapter_revision",
     "append_outline_revision",
     "append_volume_revision",

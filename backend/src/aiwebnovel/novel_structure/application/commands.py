@@ -53,11 +53,19 @@ class UpdateChapterCommand:
     position: int
 
 
+@dataclass(frozen=True, slots=True)
+class UpdateChapterContentCommand:
+    chapter_id: str
+    expected_version: int
+    content: str
+
+
 __all__ = [
     "CreateChapterCommand",
     "CreateOutlineCommand",
     "CreateVolumeCommand",
     "UpdateChapterCommand",
+    "UpdateChapterContentCommand",
     "UpdateOutlineCommand",
     "UpdateVolumeCommand",
 ]

@@ -20,8 +20,11 @@ from tests.backend.novel_structure_repository_support import (
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
 from aiwebnovel.domain.errors import ConcurrencyConflict
 from aiwebnovel.novel_structure import (
+    ChapterNotFound,
     ChapterPositionConflict,
     ChapterVolumeOwnershipMismatch,
+    InvalidNovelStructureState,
+    ManuscriptContent,
     NovelStructurePosition,
     NovelStructureProjectNotFound,
     NovelStructureRepositoryError,
@@ -204,6 +207,125 @@ def test_chapter_order_current_uniqueness_history_owner_and_stale(tmp_path: Path
     assert revised.current_revision.position == NovelStructurePosition(2)
     assert [item.chapter.id for item in ordered] == [second.chapter.id, first.chapter.id]
     assert history.count(1) == 2
+
+
+def test_chapter_content_and_structure_updates_share_one_immutable_revision_sequence(
+    tmp_path: Path,
+) -> None:
+    with repository_database(tmp_path) as database:
+        create_project(database)
+        volume = volume_aggregate()
+        database.repository.create_volume(volume)
+        chapter = chapter_aggregate(volume, position=2)
+        database.repository.create_chapter(chapter)
+        written = database.repository.append_chapter_content_revision(
+            chapter.chapter.id,
+            expected_version=ConcurrencyVersion(1),
+            content=ManuscriptContent("正文一\r\n第二行"),
+            clock=lambda: later(1),
+            revision_id_factory=lambda: chapter_revision_id(20_311),
+        )
+        structured = database.repository.append_chapter_revision(
+            chapter.chapter.id,
+            expected_version=ConcurrencyVersion(2),
+            title=NovelStructureTitle("Revised structure"),
+            summary=NovelStructureSummary("Revised summary"),
+            position=NovelStructurePosition(3),
+            clock=lambda: later(2),
+            revision_id_factory=lambda: chapter_revision_id(20_312),
+        )
+        rewritten = database.repository.append_chapter_content_revision(
+            chapter.chapter.id,
+            expected_version=ConcurrencyVersion(3),
+            content=ManuscriptContent("正文二"),
+            clock=lambda: later(3),
+            revision_id_factory=lambda: chapter_revision_id(20_313),
+        )
+        current = database.repository.get_chapter(chapter.chapter.id)
+        with database.engine.connect() as connection:
+            rows = connection.exec_driver_sql(
+                "SELECT revision_number, title, summary, position, content "
+                "FROM chapter_revisions ORDER BY revision_number"
+            ).all()
+            head = connection.exec_driver_sql(
+                "SELECT revision_id FROM chapter_heads WHERE chapter_id = ?",
+                (str(chapter.chapter.id),),
+            ).scalar_one()
+
+    assert str(written.current_revision.content) == "正文一\n第二行"
+    assert str(structured.current_revision.content) == "正文一\n第二行"
+    assert rewritten.current_revision.title == structured.current_revision.title
+    assert rewritten.current_revision.summary == structured.current_revision.summary
+    assert rewritten.current_revision.position == structured.current_revision.position
+    assert current == rewritten
+    assert rows == [
+        (1, "Chapter 1", "Chapter summary 1", 2, ""),
+        (2, "Chapter 1", "Chapter summary 1", 2, "正文一\n第二行"),
+        (3, "Revised structure", "Revised summary", 3, "正文一\n第二行"),
+        (4, "Revised structure", "Revised summary", 3, "正文二"),
+    ]
+    assert head == str(rewritten.current_revision.id)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"chapter_id": object()},
+        {"expected_version": object()},
+        {"content": "not-a-value"},
+        {"clock": object()},
+        {"revision_id_factory": object()},
+    ],
+)
+def test_chapter_content_append_rejects_invalid_dependencies_without_opening_session(
+    tmp_path: Path,
+    changes: dict[str, object],
+) -> None:
+    with repository_database(tmp_path) as database:
+        arguments: dict[str, object] = {
+            "chapter_id": chapter_aggregate(volume_aggregate()).chapter.id,
+            "expected_version": ConcurrencyVersion(1),
+            "content": ManuscriptContent("draft"),
+            "clock": lambda: later(),
+            "revision_id_factory": lambda: chapter_revision_id(20_320),
+        }
+        arguments.update(changes)
+        with pytest.raises(InvalidNovelStructureState):
+            database.repository.append_chapter_content_revision(**arguments)  # type: ignore[arg-type]
+
+
+def test_chapter_content_append_maps_missing_and_unexpected_persistence_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with repository_database(tmp_path) as database:
+        with pytest.raises(ChapterNotFound):
+            database.repository.append_chapter_content_revision(
+                chapter_aggregate(volume_aggregate()).chapter.id,
+                expected_version=ConcurrencyVersion(1),
+                content=ManuscriptContent("draft"),
+                clock=lambda: later(),
+                revision_id_factory=lambda: chapter_revision_id(20_321),
+            )
+
+        create_project(database)
+        volume = volume_aggregate()
+        database.repository.create_volume(volume)
+        chapter = chapter_aggregate(volume)
+        database.repository.create_chapter(chapter)
+        monkeypatch.setattr(
+            "aiwebnovel.novel_structure.persistence.repository.chapter_revision_to_record",
+            lambda _revision: (_ for _ in ()).throw(RuntimeError("opaque")),
+        )
+        with pytest.raises(NovelStructureRepositoryError) as caught:
+            database.repository.append_chapter_content_revision(
+                chapter.chapter.id,
+                expected_version=ConcurrencyVersion(1),
+                content=ManuscriptContent("STORY_CONTENT_SECRET_CANARY"),
+                clock=lambda: later(),
+                revision_id_factory=lambda: chapter_revision_id(20_322),
+            )
+        assert "STORY_CONTENT_SECRET_CANARY" not in str(caught.value)
 
 
 def test_failed_mid_create_rolls_back_stable_revision_and_head(

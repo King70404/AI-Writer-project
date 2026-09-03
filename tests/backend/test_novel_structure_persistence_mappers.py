@@ -77,6 +77,7 @@ def test_chapter_records_round_trip_and_validate_current_position() -> None:
 
     assert chapter_aggregate_from_records(stable, head, revision) == aggregate
     assert repr(revision) == "<ChapterRevisionRecord>"
+    assert revision.content == ""
 
     stable.current_position = 2
     with pytest.raises(NovelStructureDataCorruption):
@@ -85,6 +86,11 @@ def test_chapter_records_round_trip_and_validate_current_position() -> None:
     revision.title = "\x00"
     with pytest.raises(NovelStructureDataCorruption):
         chapter_aggregate_from_records(stable, head, revision)
+    revision.title = "Chapter 1"
+    revision.content = "secret\x00"
+    with pytest.raises(NovelStructureDataCorruption) as captured:
+        chapter_aggregate_from_records(stable, head, revision)
+    assert "secret" not in str(captured.value)
 
 
 @pytest.mark.parametrize(
