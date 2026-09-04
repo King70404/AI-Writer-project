@@ -32,6 +32,7 @@ export function useChapterWriting(
   const current = useRef(state);
   const mounted = useRef(false);
   const inFlight = useRef(false);
+  const saveWaiters = useRef<(() => void)[]>([]);
   const operation = useRef<AbortController | null>(null);
   const publish = useCallback((next: WritingState) => {
     current.current = next;
@@ -89,8 +90,31 @@ export function useChapterWriting(
       });
     } finally {
       inFlight.current = false;
+      saveWaiters.current.splice(0).forEach((resolve) => resolve());
     }
   }, [client, publish]);
+
+  const flush = useCallback(async (): Promise<boolean> => {
+    while (mounted.current) {
+      const latest = current.current;
+      if (
+        latest.reloading ||
+        latest.status === "error" ||
+        latest.status === "conflict"
+      )
+        return false;
+      if (inFlight.current) {
+        await new Promise<void>((resolve) => saveWaiters.current.push(resolve));
+      } else if (latest.status === "saved") {
+        return true;
+      } else {
+        await save();
+      }
+    }
+    return false;
+  }, [save]);
+
+  const getContent = useCallback(() => current.current.content, []);
 
   const edit = useCallback(
     (value: string) => {
@@ -156,5 +180,5 @@ export function useChapterWriting(
     return () => window.removeEventListener("beforeunload", protect);
   }, [state.status]);
 
-  return { state, edit, save, reloadServer };
+  return { state, edit, save, reloadServer, flush, getContent };
 }

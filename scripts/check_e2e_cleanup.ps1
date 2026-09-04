@@ -59,7 +59,7 @@ function Test-ControlledRuntimeRootSafe {
 }
 
 function Test-E2ECleanupComplete {
-    foreach ($port in @(14173, 18120, 18121, 18122)) {
+    foreach ($port in @(14173, 18120, 18121, 18122, 18123)) {
         if (-not (Test-LoopbackPortAvailable -Port $port)) {
             return $false
         }
@@ -94,7 +94,7 @@ do {
 } while ([DateTime]::UtcNow -lt $deadline)
 
 $issues = [System.Collections.Generic.List[string]]::new()
-foreach ($port in @(14173, 18120, 18121, 18122)) {
+foreach ($port in @(14173, 18120, 18121, 18122, 18123)) {
     if (-not (Test-LoopbackPortAvailable -Port $port)) {
         $issues.Add("E2E port is still listening: $port")
     }

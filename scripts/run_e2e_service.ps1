@@ -10,6 +10,8 @@ param(
     [int]$BackendPort = 0,
     [ValidateRange(0, 65535)]
     [int]$CorsPort = 0,
+    [ValidateRange(0, 65535)]
+    [int]$AIProviderPort = 0,
     [string]$DataRoot = "",
     [switch]$ServeFrontend,
     [switch]$MigrateDatabase,
@@ -232,6 +234,13 @@ if ($Service -eq "Backend") {
     $env:AIWEBNOVEL_HOST = "127.0.0.1"
     $env:AIWEBNOVEL_PORT = $Port.ToString()
     $env:AIWEBNOVEL_LOG_LEVEL = "WARNING"
+    if ($AIProviderPort -gt 0) {
+        $env:AIWEBNOVEL_AI_BASE_URL = "http://127.0.0.1:$AIProviderPort"
+        $env:AIWEBNOVEL_AI_MODEL = "e2e-ai-model"
+    } else {
+        [Environment]::SetEnvironmentVariable("AIWEBNOVEL_AI_BASE_URL", $null, "Process")
+        [Environment]::SetEnvironmentVariable("AIWEBNOVEL_AI_MODEL", $null, "Process")
+    }
     $env:AIWEBNOVEL_DATA_ROOT = $dataRootFullPath
     [Environment]::SetEnvironmentVariable(
         "AIWEBNOVEL_DATABASE_URL",

@@ -16,6 +16,8 @@ import type {
   VolumeResponse,
 } from "../api/contracts";
 import { useChapterWriting, type SaveStatus } from "../hooks/useChapterWriting";
+import { AIWritingAssistant } from "../components/AIWritingAssistant";
+import type { SelectionSnapshot } from "../hooks/useAIWriting";
 
 const SAVE_LABELS: Record<SaveStatus, string> = {
   saved: "已保存",
@@ -36,10 +38,9 @@ function WritingEditor({
   readonly volume: VolumeResponse;
   readonly client: NovelStructureApiClient;
 }) {
-  const { state, edit, save, reloadServer } = useChapterWriting(
-    initial,
-    client,
-  );
+  const writing = useChapterWriting(initial, client);
+  const { state, edit, save, reloadServer } = writing;
+  const [selection, setSelection] = useState<SelectionSnapshot | null>(null);
   return (
     <section
       className="chapter-writing-workspace"
@@ -97,6 +98,14 @@ function WritingEditor({
         readOnly={state.reloading}
         spellCheck={false}
         onChange={(event) => edit(event.target.value)}
+        onSelect={(event) => {
+          const {
+            selectionStart: start,
+            selectionEnd: end,
+            value,
+          } = event.currentTarget;
+          setSelection({ start, end, text: value.slice(start, end) });
+        }}
         onKeyDown={(event) => {
           if (event.ctrlKey && event.key.toLowerCase() === "s") {
             event.preventDefault();
@@ -121,6 +130,11 @@ function WritingEditor({
         }}
       />
       <p aria-label="字符数">字符数：{state.content.length}</p>
+      <AIWritingAssistant
+        chapterId={chapter.chapter_id}
+        writing={writing}
+        selection={selection}
+      />
     </section>
   );
 }

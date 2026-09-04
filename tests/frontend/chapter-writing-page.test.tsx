@@ -63,6 +63,19 @@ async function show(
 }
 
 describe("Chapter writing workspace", () => {
+  it("captures the real textarea selection for AI rewrite without changing prose", async () => {
+    await show(
+      writingClient({
+        getChapterContent: vi.fn().mockResolvedValue(written("甲乙丙丁")),
+      }),
+    );
+    const editor = screen.getByLabelText<HTMLTextAreaElement>("章节正文");
+    expect(screen.getByRole("button", { name: "改写选中文本" })).toBeDisabled();
+    editor.setSelectionRange(1, 3);
+    fireEvent.select(editor);
+    expect(screen.getByRole("button", { name: "改写选中文本" })).toBeEnabled();
+    expect(editor).toHaveValue("甲乙丙丁");
+  });
   it("loads project, chapter, volume and empty content before exposing the editor", async () => {
     const client = writingClient();
     const project = detailClient();

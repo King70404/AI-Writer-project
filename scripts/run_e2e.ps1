@@ -1122,7 +1122,8 @@ function Start-OwnedService {
         [string]$DataRoot = "",
         [switch]$ServeFrontend,
         [switch]$MigrateDatabase,
-        [string]$FrontendDistPath = ""
+        [string]$FrontendDistPath = "",
+        [int]$AIProviderPort = 0
     )
 
     if ($Service -eq "Backend" -and [string]::IsNullOrWhiteSpace($DataRoot)) {
@@ -1154,6 +1155,9 @@ function Start-OwnedService {
     }
     if ($CorsPort -gt 0) {
         $arguments += @("-CorsPort", $CorsPort.ToString())
+    }
+    if ($AIProviderPort -gt 0) {
+        $arguments += @("-AIProviderPort", $AIProviderPort.ToString())
     }
     if (-not [string]::IsNullOrWhiteSpace($DataRoot)) {
         $arguments += @(
@@ -1693,6 +1697,7 @@ function Invoke-E2EScenario {
             "E2E-INT-016",
             "E2E-INT-017",
             "E2E-INT-018",
+            "E2E-INT-019",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -1718,7 +1723,8 @@ function Invoke-E2EScenario {
         "E2E-INT-015",
         "E2E-INT-016",
         "E2E-INT-017",
-        "E2E-INT-018"
+        "E2E-INT-018",
+        "E2E-INT-019"
     )
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
@@ -1857,6 +1863,12 @@ function Invoke-E2EScenario {
         } else {
             $integratedPort = 18121
             $frontendDist = Join-Path $script:FrontendRoot "dist"
+            $aiProviderPort = 0
+            if ($SelectedScenario -eq "E2E-INT-019") {
+                $aiProviderPort = 18123
+                Assert-PortAvailable -Port $aiProviderPort
+                $null = $script:OwnedPorts.Add($aiProviderPort)
+            }
 
             $integrated = Start-OwnedService `
                 -Service Backend `
@@ -1866,7 +1878,8 @@ function Invoke-E2EScenario {
                 -DataRoot $dataRoot `
                 -ServeFrontend `
                 -MigrateDatabase:$isBusinessApi `
-                -FrontendDistPath $frontendDist
+                -FrontendDistPath $frontendDist `
+                -AIProviderPort $aiProviderPort
             Wait-ServiceUrl `
                 -Name "integrated backend" `
                 -Url "http://127.0.0.1:$integratedPort/api/v1/health/ready" `
@@ -2046,6 +2059,7 @@ try {
         "E2E-INT-016" = "Integrated"
         "E2E-INT-017" = "Integrated"
         "E2E-INT-018" = "Integrated"
+        "E2E-INT-019" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -2068,6 +2082,7 @@ try {
         "E2E-INT-016",
         "E2E-INT-017",
         "E2E-INT-018",
+        "E2E-INT-019",
         "E2E-STARTUP-001"
     )
 
