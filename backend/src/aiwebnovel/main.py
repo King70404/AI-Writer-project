@@ -10,6 +10,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy import Engine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from aiwebnovel.ai_writing.composition import compose_ai_writing
+from aiwebnovel.ai_writing.web import create_ai_writing_router
 from aiwebnovel.character.application.history_service import (
     CharacterRevisionHistoryQueryService,
 )
@@ -362,6 +364,13 @@ def create_app(
                         novel_structure_repository,
                         project_repository,
                     )
+                    application.state.ai_writing_service = compose_ai_writing(
+                        resolved_settings,
+                        application.state.novel_structure_query_service,
+                        application.state.project_query_service,
+                        application.state.story_bible_query_service,
+                        application.state.character_query_service,
+                    )
 
         application.state.initialized = True
         try:
@@ -380,6 +389,7 @@ def create_app(
             application.state.character_revision_history_query_service = None
             application.state.novel_structure_command_service = None
             application.state.novel_structure_query_service = None
+            application.state.ai_writing_service = None
             application.state.database_session_factory = None
             session_manager.clear()
             if runtime_engine is not None:
@@ -413,6 +423,7 @@ def create_app(
     application.state.character_revision_history_query_service = None
     application.state.novel_structure_command_service = None
     application.state.novel_structure_query_service = None
+    application.state.ai_writing_service = None
     application.state.local_session_manager = session_manager
     application.state.proxy_headers_trusted = False
     frontend_service = FrontendStaticService(frontend_dist_path, api_prefix)
@@ -474,6 +485,7 @@ def create_app(
     application.include_router(create_character_history_router(api_prefix=api_prefix))
     application.include_router(create_novel_structure_router(api_prefix=api_prefix))
     application.include_router(create_chapter_content_router(api_prefix=api_prefix))
+    application.include_router(create_ai_writing_router(api_prefix=api_prefix))
 
     @application.get(f"{api_prefix}/health/live")
     async def live() -> dict[str, str]:

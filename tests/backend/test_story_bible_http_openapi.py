@@ -43,10 +43,12 @@ EXPECTED_ROUTES = {
     ("PUT", "/api/v1/chapters/{chapter_id}"),
     ("GET", "/api/v1/chapters/{chapter_id}/content"),
     ("PUT", "/api/v1/chapters/{chapter_id}/content"),
+    ("POST", "/api/v1/chapters/{chapter_id}/ai/continue"),
+    ("POST", "/api/v1/chapters/{chapter_id}/ai/rewrite"),
 }
 
 
-def test_production_api_inventory_has_exactly_thirty_four_routes(tmp_path: Path) -> None:
+def test_production_api_inventory_has_exactly_thirty_six_routes(tmp_path: Path) -> None:
     app = create_test_app(data_root=(tmp_path / "routes").resolve(), expose_api_docs=True)
     routes = {
         (method.upper(), path)

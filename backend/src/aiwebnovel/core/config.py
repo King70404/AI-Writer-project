@@ -73,6 +73,8 @@ class Settings(BaseSettings):
     data_root: Path = Field(default_factory=resolve_default_data_root)
     database_url: str | None = None
     database_echo: bool = False
+    ai_base_url: str | None = None
+    ai_model: str | None = None
     database_busy_timeout_ms: int = Field(default=5000, ge=1, le=600_000)
     serve_frontend: bool = False
     frontend_dist_path: Path = Path("frontend/dist")

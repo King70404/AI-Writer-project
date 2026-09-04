@@ -658,18 +658,23 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
         ("GET", "/api/v1/chapters/{chapter_id}"),
         ("PUT", "/api/v1/chapters/{chapter_id}"),
     }
-    assert len(operations) == 34
+    assert len(operations) == 36
     assert {
         operation
         for operation in operations
         if any(word in operation[1] for word in ("outline", "volume", "chapter"))
         and not operation[1].endswith("/content")
+        and "/ai/" not in operation[1]
     } == expected
     content_operations = {
         ("GET", "/api/v1/chapters/{chapter_id}/content"),
         ("PUT", "/api/v1/chapters/{chapter_id}/content"),
     }
     assert content_operations <= operations
+    assert {operation for operation in operations if "/ai/" in operation[1]} == {
+        ("POST", "/api/v1/chapters/{chapter_id}/ai/continue"),
+        ("POST", "/api/v1/chapters/{chapter_id}/ai/rewrite"),
+    }
     assert ("GET", "/api/v1/outlines/{outline_id}") not in operations
     assert not any(method in {"PATCH", "DELETE"} for method, _ in expected)
     components = schema["components"]["schemas"]
