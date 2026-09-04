@@ -1,0 +1,812 @@
+{
+  "milestone": "M6",
+  "task_id": "DEV-6.3",
+  "name": "AI Writing Foundation",
+  "implementation_head": "8036abe94f0ef430d7ec0874f2951d2c8770b79f",
+  "implementation_tree": "dec6965d02cd6354c41d4d1b6880f26df6c97f08",
+  "implementation_commit_count": 52,
+  "tracked_files": 695,
+  "tracked_files_semantics": "Implementation HEAD Git tracked file count, excluding the three acceptance documents and ignored artifacts.",
+  "implementation_commits": [
+    {
+      "commit": "322a9cb811dfa7065cd9d536010e498a284cf21c",
+      "subject": "feat(ai-writing): add local generation backend"
+    },
+    {
+      "commit": "8036abe94f0ef430d7ec0874f2951d2c8770b79f",
+      "subject": "feat(frontend): add ai writing assistance"
+    }
+  ],
+  "acceptance_contract": {
+    "subject": "docs(m6): accept ai writing foundation",
+    "commit_count": 53,
+    "tracked_files": 698,
+    "files": [
+      "docs/M6_ACCEPTANCE_REPORT.md",
+      "docs/M6_BASELINE_MANIFEST.json",
+      "docs/M6_ACCEPTANCE_CHECKLIST.md"
+    ],
+    "tag": "m6-ai-writing-foundation",
+    "tag_type": "tag",
+    "tag_message": "M6 ai writing foundation accepted",
+    "tag_target": "The acceptance commit containing only these three documents; resolved identities are recorded in the execution report to avoid self-referential hashes."
+  },
+  "quality_gates": {
+    "implementation_head": "8036abe94f0ef430d7ec0874f2951d2c8770b79f",
+    "before_acceptance_documents": true,
+    "default": {
+      "command": ".\\scripts\\quality_gate.ps1",
+      "runs": 1,
+      "status": "PASS",
+      "exit_code": 0
+    },
+    "include_e2e": {
+      "command": ".\\scripts\\quality_gate.ps1 -IncludeE2E",
+      "runs": 1,
+      "status": "PASS",
+      "exit_code": 0,
+      "e2e_passed": 23
+    },
+    "reruns": 0,
+    "post_document_full_gate_runs": 0,
+    "production_build": "PASS",
+    "static_tools": [
+      "Ruff format",
+      "Ruff",
+      "mypy",
+      "Prettier",
+      "ESLint",
+      "TypeScript"
+    ],
+    "dependency_integrity": "PASS",
+    "dependency_audit": {
+      "executed": false,
+      "reason": "No M6 changes to Python or npm third-party dependency manifests; no audit result claimed."
+    }
+  },
+  "backend": {
+    "test_inventory": {
+      "roots": [
+        "tests/backend",
+        "tests/architecture"
+      ],
+      "collected": 2755,
+      "passed": 2755,
+      "failed": 0,
+      "skipped": 0,
+      "ai_tests": [
+        "tests/backend/test_ai_writing_application.py",
+        "tests/backend/test_ai_writing_context.py",
+        "tests/backend/test_ai_writing_http.py",
+        "tests/backend/test_ai_writing_integration.py",
+        "tests/backend/test_ai_writing_provider.py",
+        "tests/architecture/test_ai_writing_boundaries.py"
+      ]
+    },
+    "coverage": {
+      "statements": {
+        "covered": 10260,
+        "total": 10523,
+        "percent": 97.5
+      },
+      "branches": {
+        "covered": 2101,
+        "total": 2240,
+        "percent": 93.79
+      }
+    },
+    "same_metrics_in_both_gates": true,
+    "deprecation_warnings": 5
+  },
+  "frontend": {
+    "test_inventory": {
+      "roots": [
+        "tests/frontend",
+        "frontend/tests"
+      ],
+      "files": 52,
+      "passed": 634,
+      "failed": 0,
+      "skipped": 0
+    },
+    "coverage": {
+      "statements": {
+        "covered": 3009,
+        "total": 3121,
+        "percent": 96.41
+      },
+      "branches": {
+        "covered": 2812,
+        "total": 3049,
+        "percent": 92.22
+      },
+      "functions": {
+        "covered": 721,
+        "total": 726,
+        "percent": 99.31
+      },
+      "lines": {
+        "covered": 2904,
+        "total": 2995,
+        "percent": 96.96
+      }
+    },
+    "same_metrics_in_both_gates": true
+  },
+  "e2e": {
+    "total": 23,
+    "passed": 23,
+    "classification": {
+      "development": {
+        "directory": "tests/e2e/development",
+        "count": 3,
+        "ids": [
+          "E2E-DEV-001",
+          "E2E-DEV-002",
+          "E2E-DEV-003"
+        ]
+      },
+      "integration": {
+        "directory": "tests/e2e/integrated",
+        "count": 19,
+        "ids": [
+          "E2E-INT-001",
+          "E2E-INT-002",
+          "E2E-INT-003",
+          "E2E-INT-004",
+          "E2E-INT-005",
+          "E2E-INT-006",
+          "E2E-INT-007",
+          "E2E-INT-008",
+          "E2E-INT-009",
+          "E2E-INT-010",
+          "E2E-INT-011",
+          "E2E-INT-012",
+          "E2E-INT-013",
+          "E2E-INT-014",
+          "E2E-INT-015",
+          "E2E-INT-016",
+          "E2E-INT-017",
+          "E2E-INT-018",
+          "E2E-INT-019"
+        ]
+      },
+      "startup-failure": {
+        "directory": "tests/e2e/startup-failure",
+        "count": 1,
+        "ids": [
+          "E2E-STARTUP-001"
+        ]
+      }
+    },
+    "m6_scenario": {
+      "id": "E2E-INT-019",
+      "name": "AI writing assistance flow",
+      "source": "tests/e2e/integrated/ai-writing-frontend.spec.ts",
+      "duration_seconds": 7.2,
+      "chain": [
+        "Production backend",
+        "LocalOpenAICompatibleProvider",
+        "controlled loopback OpenAI-compatible test server"
+      ],
+      "frontend_mock": false,
+      "assertions": [
+        "Continue candidate does not change textarea before explicit accept",
+        "Rewrite candidate does not change textarea before explicit replace",
+        "Adopted continuation and rewrite survive Autosave and reload",
+        "Browser console/API audit passes"
+      ],
+      "cleanup": "Owned ports free; runtime data absent"
+    },
+    "key_regressions": [
+      "E2E-DEV-001",
+      "E2E-INT-008",
+      "E2E-INT-010",
+      "E2E-INT-014",
+      "E2E-INT-015",
+      "E2E-INT-016",
+      "E2E-INT-017",
+      "E2E-INT-018",
+      "E2E-INT-019"
+    ]
+  },
+  "production_api_count": 36,
+  "production_api_operations": [
+    {
+      "method": "GET",
+      "path": "/api/v1/chapters/{chapter_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/chapters/{chapter_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/chapters/{chapter_id}/ai/continue"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/chapters/{chapter_id}/ai/rewrite"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/chapters/{chapter_id}/content"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/chapters/{chapter_id}/content"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/characters/{character_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/characters/{character_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/characters/{character_id}/revisions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/characters/{character_id}/revisions/{revision_number}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health/live"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health/ready"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/outlines/{outline_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{project_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/projects/{project_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{project_id}/characters"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{project_id}/characters"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{project_id}/outline"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{project_id}/outline"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{project_id}/revisions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{project_id}/revisions/{revision_number}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{project_id}/story-bible"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{project_id}/story-bible"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{project_id}/volumes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{project_id}/volumes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{project_id}/volumes/{volume_id}/chapters"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{project_id}/volumes/{volume_id}/chapters"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/security/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/story-bibles/{story_bible_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/story-bibles/{story_bible_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/story-bibles/{story_bible_id}/revisions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/story-bibles/{story_bible_id}/revisions/{revision_number}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/volumes/{volume_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/volumes/{volume_id}"
+    }
+  ],
+  "ai_api_count": 2,
+  "frontend_route_count": 12,
+  "frontend_routes": [
+    "/",
+    "/projects",
+    "/projects/:projectId",
+    "/projects/:projectId/history",
+    "/projects/:projectId/story-bible",
+    "/projects/:projectId/story-bible/history",
+    "/projects/:projectId/characters",
+    "/projects/:projectId/characters/:characterId",
+    "/projects/:projectId/characters/:characterId/history",
+    "/projects/:projectId/structure",
+    "/projects/:projectId/chapters/:chapterId/write",
+    "*"
+  ],
+  "new_frontend_routes": 0,
+  "database": {
+    "table_count": 18,
+    "tables": [
+      "chapter_heads",
+      "chapter_revisions",
+      "chapters",
+      "character_heads",
+      "character_revisions",
+      "characters",
+      "outline_heads",
+      "outline_revisions",
+      "outlines",
+      "project_heads",
+      "project_revisions",
+      "projects",
+      "story_bible_heads",
+      "story_bible_revisions",
+      "story_bibles",
+      "volume_heads",
+      "volume_revisions",
+      "volumes"
+    ],
+    "alembic_head": "0006_add_chapter_manuscript_content",
+    "migration_0007_present": false,
+    "migrations": [
+      {
+        "revision": "0001_initialize_database",
+        "path": "backend/alembic/versions/0001_initialize_database.py",
+        "blob_oid": "63112b9b7d4510decb9b38de07ceb867491f2e05"
+      },
+      {
+        "revision": "0002_create_project_foundation",
+        "path": "backend/alembic/versions/0002_create_project_foundation.py",
+        "blob_oid": "5aa10200b7290278000cc21951850960dc914089"
+      },
+      {
+        "revision": "0003_create_story_bible_foundation",
+        "path": "backend/alembic/versions/0003_create_story_bible_foundation.py",
+        "blob_oid": "deb9c9c05fa2af8dd78c701c1afe72fb26b7fc99"
+      },
+      {
+        "revision": "0004_create_character_foundation",
+        "path": "backend/alembic/versions/0004_create_character_foundation.py",
+        "blob_oid": "175044bfad61a4595000e4ec3dc01c5db6b3e641"
+      },
+      {
+        "revision": "0005_create_novel_structure_foundation",
+        "path": "backend/alembic/versions/0005_create_novel_structure_foundation.py",
+        "blob_oid": "2982c22e8406d74b9a913f2b468137484c7490dc"
+      },
+      {
+        "revision": "0006_add_chapter_manuscript_content",
+        "path": "backend/alembic/versions/0006_add_chapter_manuscript_content.py",
+        "blob_oid": "c230b40dbe955ccacbbf246f3596d1ee5cdb63c8"
+      }
+    ],
+    "revision_immutability_trigger_count": 12,
+    "revision_immutability_triggers": [
+      "trg_chapter_revisions_no_delete",
+      "trg_chapter_revisions_no_update",
+      "trg_character_revisions_no_delete",
+      "trg_character_revisions_no_update",
+      "trg_outline_revisions_no_delete",
+      "trg_outline_revisions_no_update",
+      "trg_project_revisions_no_delete",
+      "trg_project_revisions_no_update",
+      "trg_story_bible_revisions_no_delete",
+      "trg_story_bible_revisions_no_update",
+      "trg_volume_revisions_no_delete",
+      "trg_volume_revisions_no_update"
+    ],
+    "m6_schema_changes": 0,
+    "m6_migrations": 0,
+    "sqlite": {
+      "wal": true,
+      "foreign_keys": true
+    },
+    "verification": "Full backend migration suite verifies actual isolated SQLite inventory and 12 immutable revision triggers; metadata and Alembic heads also enumerated without accessing creative data."
+  },
+  "provider": {
+    "interface": "TextGenerationProvider",
+    "production": "LocalOpenAICompatibleProvider",
+    "configuration": [
+      "AIWEBNOVEL_AI_BASE_URL",
+      "AIWEBNOVEL_AI_MODEL"
+    ],
+    "api_key_required": false,
+    "cloud_credentials": false,
+    "allowed_hosts": [
+      "127.0.0.1",
+      "localhost",
+      "::1"
+    ],
+    "explicit_port_required": true,
+    "localhost_pinned_to": "127.0.0.1",
+    "rejects": [
+      "public IP",
+      "LAN IP",
+      "external domain",
+      "URL userinfo",
+      "query",
+      "fragment"
+    ],
+    "follows_redirects": false,
+    "uses_environment_proxies": false,
+    "protocol": {
+      "method": "POST",
+      "path_suffix": "/chat/completions",
+      "body_fields": [
+        "model",
+        "messages",
+        "stream"
+      ],
+      "stream": false,
+      "response_field": "choices[0].message.content"
+    },
+    "timeout_seconds": 30,
+    "max_response_bytes": 1048576,
+    "max_generated_characters": 50000,
+    "not_configured_prevents_startup": false,
+    "error_http_status": {
+      "not_configured": 503,
+      "invalid_configuration": 503,
+      "connection_failure": 502,
+      "invalid_response": 502,
+      "timeout": 504
+    },
+    "error_privacy": "No raw upstream body, traceback, local paths, or provider URL in HTTP errors."
+  },
+  "context": {
+    "builder": "ChapterWritingContextBuilder",
+    "read_boundary": "Existing public application query services only; no direct SQL/Repository access.",
+    "total_character_budget": 60000,
+    "count_includes_source_labels": true,
+    "source_order": [
+      "current_chapter",
+      "outline",
+      "story_bible",
+      "volume",
+      "previous_chapter",
+      "characters",
+      "project"
+    ],
+    "optional_sources": [
+      "outline",
+      "story_bible",
+      "previous_chapter",
+      "characters"
+    ],
+    "optional_absence_is_error": false,
+    "current_chapter": {
+      "fields": [
+        "id",
+        "project_id",
+        "volume_id",
+        "title",
+        "summary",
+        "position",
+        "content"
+      ],
+      "metadata_budget": 4000,
+      "content_budget": 24000,
+      "content_slice": "tail",
+      "checks_current_revision_and_ownership": true
+    },
+    "source_limits": {
+      "outline": 3000,
+      "story_bible": 16000,
+      "volume": 3000,
+      "project": 3000
+    },
+    "previous_chapter": {
+      "selection": "Nearest lower position in the same Volume and Project only",
+      "metadata_budget": 3000,
+      "content_budget": 8000,
+      "content_slice": "tail"
+    },
+    "characters": {
+      "scope": "Current Project list, first page only",
+      "max_items": 100,
+      "order": "created_at/id descending",
+      "fields": [
+        "name",
+        "role"
+      ],
+      "character_budget": 6000,
+      "profiles_or_history_loaded": false,
+      "relevance_retrieval": false,
+      "has_more_sets_truncated": true
+    },
+    "truncation": "Deterministic source order and per-source/global character limits; later sources can be omitted when budget is exhausted.",
+    "manifest_fields": [
+      "included_sources",
+      "omitted_sources",
+      "truncated",
+      "character_count"
+    ],
+    "http_excludes": [
+      "full prompt",
+      "system prompt",
+      "provider URL"
+    ],
+    "context_changed_http_status": 409
+  },
+  "ai_operations": {
+    "service": "AIWritingService",
+    "continue": {
+      "method": "continue_chapter",
+      "inputs": [
+        "chapter_id",
+        "instruction"
+      ],
+      "instruction_optional": true,
+      "instruction_trim": true,
+      "instruction_max_characters": 4000,
+      "intent": "Continue in existing language, POV and style while respecting setting; avoid long repetition; return appendable plain text."
+    },
+    "rewrite": {
+      "method": "rewrite_chapter_text",
+      "inputs": [
+        "chapter_id",
+        "text",
+        "instruction"
+      ],
+      "instruction_optional": true,
+      "instruction_trim": true,
+      "instruction_max_characters": 4000,
+      "text_nonempty": true,
+      "text_multiline": true,
+      "text_max_characters": 50000,
+      "intent": "Rewrite only selected text, preserve meaning by default, do not continue subsequent plot."
+    },
+    "candidate_fields": [
+      "operation",
+      "text",
+      "model",
+      "context"
+    ],
+    "candidate_ephemeral": true,
+    "writes_content": false,
+    "writes_head": false,
+    "changes_concurrency_version": false,
+    "adds_revision": false
+  },
+  "frontend_ai": {
+    "workspace": "Existing ChapterWritingPage textarea",
+    "controls": [
+      "额外要求（可选）",
+      "续写",
+      "改写选中文本",
+      "AI候选",
+      "追加到正文",
+      "替换选中文本",
+      "丢弃"
+    ],
+    "client": "Existing shared HTTP client and CSRF session",
+    "generation_states": [
+      "idle",
+      "generating",
+      "success",
+      "error"
+    ],
+    "max_concurrent_generations": 1,
+    "request_queue": false,
+    "save_before_generate": {
+      "saved": "generate",
+      "dirty": "save through existing pipeline then wait",
+      "saving": "wait and flush edits made during save until saved",
+      "error": "block generation",
+      "conflict": "block generation; never refresh ETag to overwrite"
+    },
+    "automatic_accept": false,
+    "continue_append_rules": {
+      "empty": "candidate",
+      "ends_with_newline": "current + candidate",
+      "otherwise": "current + two LF characters + candidate"
+    },
+    "rewrite_selection_snapshot": [
+      "selectionStart",
+      "selectionEnd",
+      "selectedText"
+    ],
+    "rewrite_guard": "currentContent.slice(start,end) == originalSelectedText",
+    "rewrite_on_changed_range": "Reject old candidate; require new selection and generation",
+    "rewrite_replace": "content[0:start] + candidate + content[end:]",
+    "adoption": "Edit draft to dirty only; existing Autosave performs persistence",
+    "discard": "Clear candidate, keep manuscript, no save request",
+    "max_candidates": 1,
+    "new_generation_replaces_old": true,
+    "candidate_storage": "React memory only; lost on reload",
+    "ui_errors": {
+      "502": "无法连接本地AI服务，或AI服务返回了无效响应",
+      "503": "本地AI尚未配置或配置无效",
+      "504": "本地AI生成超时"
+    },
+    "error_preserves": [
+      "manuscript",
+      "ETag",
+      "Autosave state",
+      "instruction"
+    ],
+    "automatic_retry": false,
+    "manual_retry": true,
+    "autosave_hook": "useChapterWriting",
+    "autosave_ms": 1000,
+    "same_save_pipeline": true,
+    "save_controls": [
+      "Autosave",
+      "立即保存",
+      "Ctrl+S"
+    ],
+    "concurrency_headers": [
+      "ETag",
+      "If-Match"
+    ],
+    "second_content_put_pipeline": false
+  },
+  "runtime_architecture": {
+    "os": "Windows 11",
+    "local_first": true,
+    "single_user": true,
+    "backend_bind": "127.0.0.1",
+    "python": "3.12.10",
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "backend_stack": [
+      "FastAPI",
+      "SQLAlchemy 2",
+      "Alembic",
+      "SQLite"
+    ],
+    "frontend_stack": [
+      "React",
+      "TypeScript",
+      "Vite"
+    ],
+    "react_router": "8.3.0",
+    "architecture": "modular monolith",
+    "identifiers": "typed prefixed ULID",
+    "persistence": "stable identity + immutable revision + current head + optimistic concurrency",
+    "official_creative_data_accessed": false,
+    "git_remote": false,
+    "m7_started": false
+  },
+  "dependencies": {
+    "third_party_added": 0,
+    "unchanged_since_m5": [
+      "backend/pyproject.toml",
+      "frontend/package.json",
+      "frontend/package-lock.json"
+    ],
+    "audit_executed": false
+  },
+  "baselines": {
+    "m0": {
+      "tag": "m0-engineering-foundation",
+      "tag_type": "tag",
+      "tag_object": "a017a9167aefe09b6ee4026a20dac4cc4ce33780",
+      "target": "a9a3a6ff361a610aac6ef66a98deed60efccd715",
+      "message": "M0 engineering foundation accepted"
+    },
+    "m1": {
+      "tag": "m1-project-foundation",
+      "tag_type": "tag",
+      "tag_object": "e7a21496565d57f59e34242770c9cc29131157da",
+      "target": "15bc7c559cd7021ab409e21bde93a7bf9853e7ce",
+      "message": "M1 project foundation accepted"
+    },
+    "m2": {
+      "tag": "m2-story-bible-foundation",
+      "tag_type": "tag",
+      "tag_object": "3b7a96c5ffcd1a2a4cd3dcd151358616ee1121d3",
+      "target": "e6262bcf42442012ba5d1a6795ee48649a8b64b7",
+      "message": "M2 story bible foundation accepted"
+    },
+    "m3": {
+      "tag": "m3-character-foundation",
+      "tag_type": "tag",
+      "tag_object": "a17e18808ece43e7f529c4616f4120d58bb21b57",
+      "target": "ee78a884ce0d97382f91e4cb1bb7531e80c3f494",
+      "message": "M3 character foundation accepted"
+    },
+    "m4": {
+      "tag": "m4-novel-structure-foundation",
+      "tag_type": "tag",
+      "tag_object": "4a7ff478f0c4e7c2f35213ca1f4c854ffbba7fef",
+      "target": "082b3d69fc06771809c846a7e7caac6374e738b4",
+      "message": "M4 novel structure foundation accepted"
+    },
+    "m5": {
+      "tag": "m5-chapter-writing-foundation",
+      "tag_type": "tag",
+      "tag_object": "c4f0cdef7f1d84ccac65cb16d969e761381e581a",
+      "target": "052c6f0e319dff323fdc4865c2a5996cfc1a0143",
+      "message": "M5 chapter writing foundation accepted"
+    }
+  },
+  "previous_freeze_documents": 18,
+  "previous_freeze_diff": "empty",
+  "scope_boundary_not_implemented": [
+    "Streaming",
+    "SSE",
+    "WebSocket",
+    "AI Chat",
+    "conversation history",
+    "Prompt CRUD",
+    "Prompt管理页面",
+    "Prompt数据库",
+    "Agent",
+    "Skills",
+    "Tool calling",
+    "function calling",
+    "JSON mode",
+    "模型选择器",
+    "模型下载器",
+    "模型启动器",
+    "云Provider",
+    "API key管理",
+    "Vector DB",
+    "Embeddings",
+    "RAG平台",
+    "知识图谱",
+    "长期记忆",
+    "AI候选历史",
+    "AI生成记录持久化",
+    "自动采用AI结果",
+    "AI自动写回正文",
+    "Markdown",
+    "富文本"
+  ],
+  "limitations": [
+    "Local model service must be configured separately; no model installation or startup management.",
+    "Controlled protocol E2E verifies integration and adoption safety, not any model's literary quality.",
+    "Existing 5 backend deprecation warnings and Node color-environment warning remain; no new dependency audit is claimed."
+  ]
+}
