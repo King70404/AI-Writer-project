@@ -5,7 +5,7 @@ from pathlib import Path
 from tests.backend.character_http_support import isolated_app
 
 
-def test_production_api_has_exactly_thirty_six_operations_and_six_character_routes(
+def test_production_api_has_exactly_thirty_seven_operations_and_six_character_routes(
     tmp_path: Path,
 ) -> None:
     app = isolated_app(tmp_path)
@@ -15,7 +15,7 @@ def test_production_api_has_exactly_thirty_six_operations_and_six_character_rout
         for method in path_operations
         if method in {"get", "post", "put", "patch", "delete"}
     }
-    assert len(operations) == 36
+    assert len(operations) == 37
     assert {
         ("GET", "/api/v1/projects/{project_id}/characters"),
         ("POST", "/api/v1/projects/{project_id}/characters"),

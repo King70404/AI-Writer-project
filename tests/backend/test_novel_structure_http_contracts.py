@@ -658,7 +658,7 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
         ("GET", "/api/v1/chapters/{chapter_id}"),
         ("PUT", "/api/v1/chapters/{chapter_id}"),
     }
-    assert len(operations) == 36
+    assert len(operations) == 37
     assert {
         operation
         for operation in operations

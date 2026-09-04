@@ -6,6 +6,7 @@ import type {
 } from "../api/client";
 import { projectApiClient } from "../api/client";
 import { ProjectConflictPanel } from "../components/ProjectConflictPanel";
+import { ExportManuscriptButton } from "../components/ExportManuscriptButton";
 import {
   ProjectDetailError,
   ProjectDetailInvalid,
@@ -39,6 +40,10 @@ function ReadyProjectDetails({
   return (
     <>
       <ProjectDetails project={revision.baseline.project} />
+      <ExportManuscriptButton
+        projectId={revision.baseline.project.project_id}
+        title={revision.baseline.project.title}
+      />
       <ProjectEditForm
         controller={revision}
         onReloadProject={onReloadProject}

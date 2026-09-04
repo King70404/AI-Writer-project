@@ -20,6 +20,7 @@ def test_route_inventory_contains_all_declared_business_routes(tmp_path: Path) -
         ("GET", "/api/v1/health/live"),
         ("GET", "/api/v1/health/ready"),
         ("GET", "/api/v1/security/session"),
+        ("GET", "/api/v1/projects/{project_id}/export.txt"),
         ("GET", "/api/v1/projects"),
         ("POST", "/api/v1/projects"),
         ("GET", "/api/v1/projects/{project_id}"),
@@ -57,7 +58,7 @@ def test_route_inventory_contains_all_declared_business_routes(tmp_path: Path) -
         ("POST", "/api/v1/chapters/{chapter_id}/ai/continue"),
         ("POST", "/api/v1/chapters/{chapter_id}/ai/rewrite"),
     }
-    assert len(routes) == 36
+    assert len(routes) == 37
     assert routes == expected_routes
     assert routes.isdisjoint(
         {

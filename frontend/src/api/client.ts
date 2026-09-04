@@ -125,12 +125,11 @@ interface JsonRequestOptions {
   readonly signal?: AbortSignal;
 }
 
-async function requestJson<T>(
+async function requestResponse(
   method: "GET" | "POST" | "PUT",
   path: string,
-  decode: JsonDecoder<T>,
   options: JsonRequestOptions,
-): Promise<ApiResponse<T>> {
+): Promise<Response> {
   const headers = new Headers(options.headers);
   if (!headers.has("Accept")) {
     headers.set("Accept", "application/json");
@@ -139,14 +138,22 @@ async function requestJson<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(joinApiPath(API_BASE_URL, path), {
+  return fetch(joinApiPath(API_BASE_URL, path), {
     method,
     credentials: "same-origin",
     headers,
     signal: options.signal,
     ...(method === "GET" ? {} : { body: JSON.stringify(options.body) }),
   });
+}
 
+async function requestJson<T>(
+  method: "GET" | "POST" | "PUT",
+  path: string,
+  decode: JsonDecoder<T>,
+  options: JsonRequestOptions,
+): Promise<ApiResponse<T>> {
+  const response = await requestResponse(method, path, options);
   const parsed = await readJson(response);
   const acceptedStatus =
     options.acceptedStatuses?.includes(response.status) === true;
@@ -199,6 +206,27 @@ export function getJson<T>(
   options: GetJsonOptions = {},
 ): Promise<ApiResponse<T>> {
   return requestJson("GET", path, decode, options);
+}
+
+export async function getText(path: string): Promise<string> {
+  const response = await requestResponse("GET", path, {
+    headers: { Accept: "text/plain" },
+  });
+  if (!response.ok) {
+    throw toApiError(response, await readJson(response));
+  }
+  if (response.headers.get("Content-Type") !== "text/plain; charset=utf-8") {
+    throw new ApiError({
+      status: response.status,
+      code: "INVALID_RESPONSE",
+      message: "服务返回了无法读取的数据。",
+      details: {},
+      retryable: false,
+      suggestedAction: null,
+      requestId: responseRequestId(response),
+    });
+  }
+  return response.text();
 }
 
 export function postJson<T>(

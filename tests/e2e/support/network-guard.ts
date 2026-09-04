@@ -40,6 +40,7 @@ export interface BrowserAudit {
   readonly allowOneExpectedHealthCancellation: () => void;
   readonly allowOneExpectedLocalCancellation: (path: string) => void;
   readonly allowOneExpectedSessionCookie: () => void;
+  readonly allowOneExpectedManuscriptDownload: (filename: string) => void;
   readonly allowExpectedConsoleHttpFailure: (
     path: string,
     status: number,
@@ -196,6 +197,7 @@ function addPageDiagnostics(
   audit: BrowserAudit,
   endpoint: LocalEndpoint,
   expectedConsoleHttpFailures: ExpectedConsoleHttpFailure[],
+  expectedDownloads: string[],
 ): void {
   if (INSTALLED_PAGE_GUARDS.has(page)) {
     return;
@@ -236,6 +238,14 @@ function addPageDiagnostics(
     }
   });
   page.on("download", (download) => {
+    if (
+      expectedDownloads.length === 1 &&
+      download.suggestedFilename() === expectedDownloads[0] &&
+      download.url().startsWith(`blob:${endpoint.origin}/`)
+    ) {
+      expectedDownloads.pop();
+      return;
+    }
     audit.unexpectedDownloads.push(
       `Unexpected download: ${sanitizeDiagnostic(download.suggestedFilename())}`,
     );
@@ -279,6 +289,8 @@ export async function installBrowserAudit(
   const expectedHealthCancellations = { count: 0 };
   const expectedLocalCancellationPaths: string[] = [];
   const expectedSessionCookies = { count: 0 };
+  const expectedDownloads: string[] = [];
+  let downloadAllowanceIssued = false;
   const audit: BrowserAudit = {
     allowedOrigin: endpoint.origin,
     events: [],
@@ -290,6 +302,22 @@ export async function installBrowserAudit(
     unexpectedRequestFailures: [],
     unexpectedDownloads: [],
     unexpectedCookies: [],
+    allowOneExpectedManuscriptDownload: (filename) => {
+      if (
+        !testInfo.title.startsWith("E2E-INT-020 ") ||
+        downloadAllowanceIssued ||
+        !filename.endsWith(".txt") ||
+        filename.length <= 4 ||
+        /[<>:"/\\|?*]/u.test(filename) ||
+        Array.from(filename).some((character) => character.charCodeAt(0) < 32)
+      ) {
+        throw new Error(
+          "Only INT-020 may permit one safe manuscript download.",
+        );
+      }
+      downloadAllowanceIssued = true;
+      expectedDownloads.push(filename);
+    },
     allowOneExpectedHealthCancellation: () => {
       expectedHealthCancellations.count += 1;
     },
@@ -345,10 +373,22 @@ export async function installBrowserAudit(
   });
 
   context.on("page", (page) =>
-    addPageDiagnostics(page, audit, endpoint, expectedConsoleHttpFailures),
+    addPageDiagnostics(
+      page,
+      audit,
+      endpoint,
+      expectedConsoleHttpFailures,
+      expectedDownloads,
+    ),
   );
   for (const page of context.pages()) {
-    addPageDiagnostics(page, audit, endpoint, expectedConsoleHttpFailures);
+    addPageDiagnostics(
+      page,
+      audit,
+      endpoint,
+      expectedConsoleHttpFailures,
+      expectedDownloads,
+    );
   }
 
   context.on("request", (request) => {
@@ -409,6 +449,11 @@ export async function installBrowserAudit(
   return {
     audit,
     finalize: async () => {
+      if (expectedDownloads.length > 0) {
+        audit.unexpectedDownloads.push(
+          "Expected manuscript download was not observed.",
+        );
+      }
       const cookies = await context.cookies();
       for (const cookie of cookies) {
         const isExpectedSessionCookie =

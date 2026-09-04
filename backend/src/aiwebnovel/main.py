@@ -29,6 +29,7 @@ from aiwebnovel.db.engine import create_database_engine, resolve_database_url
 from aiwebnovel.db.health import check_database_health
 from aiwebnovel.db.session import create_database_session_factory
 from aiwebnovel.domain.time import utc_now
+from aiwebnovel.export.web import create_export_router
 from aiwebnovel.novel_structure.application.services import (
     NovelStructureCommandService,
     NovelStructureQueryService,
@@ -486,6 +487,7 @@ def create_app(
     application.include_router(create_novel_structure_router(api_prefix=api_prefix))
     application.include_router(create_chapter_content_router(api_prefix=api_prefix))
     application.include_router(create_ai_writing_router(api_prefix=api_prefix))
+    application.include_router(create_export_router(api_prefix=api_prefix))
 
     @application.get(f"{api_prefix}/health/live")
     async def live() -> dict[str, str]:
