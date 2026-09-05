@@ -6,6 +6,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# Git emits UTF-8 paths even when Windows PowerShell has no attached console.
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 }

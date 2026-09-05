@@ -827,8 +827,11 @@ def test_integrated_without_data_root_reaches_tool_validation(tmp_path: Path) ->
 
 
 @pytest.mark.parametrize("name", ["check_security_baseline.ps1", "check_repository_hygiene.ps1"])
-def test_baseline_scripts_accept_default_repository_in_windows_powershell(name: str) -> None:
-    result = _run(
+@pytest.mark.parametrize("without_console", [False, True])
+def test_baseline_scripts_accept_default_repository_in_windows_powershell(
+    name: str, without_console: bool
+) -> None:
+    result = subprocess.run(
         [
             _require_command("powershell.exe"),
             "-NoProfile",
@@ -836,6 +839,12 @@ def test_baseline_scripts_accept_default_repository_in_windows_powershell(name: 
             str(_REPOSITORY_ROOT / "scripts" / name),
         ],
         cwd=_REPOSITORY_ROOT,
+        creationflags=subprocess.CREATE_NO_WINDOW if without_console else 0,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
     )
     assert result.returncode == 0, result.stderr
     assert "passed:" in result.stdout
