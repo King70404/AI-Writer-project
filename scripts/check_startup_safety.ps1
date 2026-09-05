@@ -489,7 +489,7 @@ function Invoke-StartupSafetyCheck {
     if ($asts.ContainsKey($integratedPath)) {
         if (-not (Test-HasStringConstant `
                 -Ast $asts[$integratedPath] `
-                -Value "AIWebNovel-Integrated-Development")) {
+                -Value "AIWebNovel")) {
             Add-StartupViolation `
                 -Violations $violations `
                 -Rule "missing-integrated-data-root" `

@@ -124,11 +124,13 @@ function Test-FullyQualifiedWindowsPath {
 function Resolve-IsolatedDataRoot {
     param(
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$Candidate,
         [Parameter(Mandatory = $true)]
         [string]$DefaultLeaf,
         [Parameter(Mandatory = $true)]
-        [string]$RepositoryRoot
+        [string]$RepositoryRoot,
+        [switch]$AllowFormalRoot
     )
 
     $localAppData = [Environment]::GetEnvironmentVariable("LOCALAPPDATA", "Process")
@@ -165,7 +167,7 @@ function Resolve-IsolatedDataRoot {
     $formalPrefix = "$formalRoot$([System.IO.Path]::DirectorySeparatorChar)"
     $resolvedPrefix = "$resolved$([System.IO.Path]::DirectorySeparatorChar)"
     if (
-        $resolved.Equals($formalRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+        (-not $AllowFormalRoot -and $resolved.Equals($formalRoot, [System.StringComparison]::OrdinalIgnoreCase)) -or
         $resolved.StartsWith($formalPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or
         $formalRoot.StartsWith($resolvedPrefix, [System.StringComparison]::OrdinalIgnoreCase)
     ) {

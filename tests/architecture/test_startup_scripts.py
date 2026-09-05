@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import base64
+import json
+import os
 import shutil
+import sqlite3
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -771,3 +775,116 @@ try {{
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_integrated_default_root_is_stable_outside_repository(tmp_path: Path) -> None:
+    command = f"""
+. '{_powershell_quote(_PROCESS_HELPER)}'
+$env:LOCALAPPDATA = '{_powershell_quote(tmp_path)}'
+$first = Resolve-IsolatedDataRoot -Candidate '' -DefaultLeaf 'AIWebNovel' `
+    -RepositoryRoot '{_powershell_quote(_REPOSITORY_ROOT)}' -AllowFormalRoot
+$second = Resolve-IsolatedDataRoot -Candidate '' -DefaultLeaf 'AIWebNovel' `
+    -RepositoryRoot '{_powershell_quote(_REPOSITORY_ROOT)}' -AllowFormalRoot
+if ($first -ne $second -or $first -ne (Join-Path $env:LOCALAPPDATA 'AIWebNovel')) {{
+    throw 'default root is not stable'
+}}
+if (Test-Path -LiteralPath $first) {{ throw 'resolution created user data' }}
+$rejected = 0
+foreach ($candidate in @($first, (Join-Path $first 'child'), $env:LOCALAPPDATA)) {{
+    try {{
+        $null = Resolve-IsolatedDataRoot -Candidate $candidate -DefaultLeaf 'unused' `
+            -RepositoryRoot '{_powershell_quote(_REPOSITORY_ROOT)}'
+    }} catch {{ $rejected += 1 }}
+}}
+if ($rejected -ne 3) {{ throw 'development isolation weakened' }}
+Write-Output 'stable-user-root'
+"""
+    result = _run(
+        [_require_command("powershell.exe"), "-NoProfile", "-Command", command],
+        cwd=_REPOSITORY_ROOT,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "stable-user-root" in result.stdout
+
+
+def test_integrated_without_data_root_reaches_tool_validation(tmp_path: Path) -> None:
+    repository = tmp_path / "startup-default"
+    _initialize_fixture(repository)
+    result = _run(
+        [
+            _require_command("powershell.exe"),
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(repository / "scripts/start_integrated.ps1"),
+        ],
+        cwd=repository,
+    )
+    assert result.returncode == 1
+    assert "root virtual environment is unavailable" in result.stderr
+    assert "Candidate" not in result.stderr
+
+
+@pytest.mark.parametrize("name", ["check_security_baseline.ps1", "check_repository_hygiene.ps1"])
+def test_baseline_scripts_accept_default_repository_in_windows_powershell(name: str) -> None:
+    result = _run(
+        [
+            _require_command("powershell.exe"),
+            "-NoProfile",
+            "-File",
+            str(_REPOSITORY_ROOT / "scripts" / name),
+        ],
+        cwd=_REPOSITORY_ROOT,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "passed:" in result.stdout
+
+
+def test_integrated_database_initialization_preserves_existing_database(tmp_path: Path) -> None:
+    root = tmp_path / "user-data"
+    environment = {
+        key: value for key, value in os.environ.items() if not key.startswith("AIWEBNOVEL_")
+    }
+    environment["AIWEBNOVEL_DATA_ROOT"] = str(root)
+    script = _REPOSITORY_ROOT / "scripts/initialize_integrated_database.py"
+    arguments = [sys.executable, str(script)]
+    first = subprocess.run(
+        arguments, cwd=_REPOSITORY_ROOT, env=environment, capture_output=True, check=False
+    )
+    assert first.returncode == 0
+    database = root / "data/aiwebnovel.sqlite3"
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("select version_num from alembic_version").fetchone() == (
+            "0006_add_chapter_manuscript_content",
+        )
+        assert connection.execute(
+            "select count(*) from sqlite_master where type='trigger'"
+        ).fetchone() == (12,)
+    before = database.read_bytes()
+    second = subprocess.run(
+        arguments, cwd=_REPOSITORY_ROOT, env=environment, capture_output=True, check=False
+    )
+    assert second.returncode == 0
+    assert database.read_bytes() == before
+
+
+def test_doctor_required_security_and_hygiene_use_real_commands() -> None:
+    result = _run(
+        [
+            _require_command("powershell.exe"),
+            "-NoProfile",
+            "-File",
+            str(_REPOSITORY_ROOT / "scripts/environment_doctor.ps1"),
+            "-Mode",
+            "Integrated",
+            "-Json",
+        ],
+        cwd=_REPOSITORY_ROOT,
+    )
+    assert result.returncode in (0, 1), result.stderr
+    report = json.loads(result.stdout)
+    checks = {check["check_id"]: check for check in report["checks"]}
+    for identity in ("ENV-007", "ENV-012"):
+        assert checks[identity]["required"] is True
+        assert checks[identity]["status"] == "pass"

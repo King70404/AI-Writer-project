@@ -1,12 +1,14 @@
 [CmdletBinding()]
 param(
-    [string]$RepositoryRoot = [System.IO.Path]::GetFullPath(
-        (Join-Path $PSScriptRoot "..")
-    )
+    [string]$RepositoryRoot = ""
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+    $RepositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
 
 function Stop-SecurityBaseline {
     param(

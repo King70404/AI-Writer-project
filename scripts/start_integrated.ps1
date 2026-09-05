@@ -137,8 +137,9 @@ try {
     Assert-RepositoryRootInvocation
     $resolvedDataRoot = Resolve-IsolatedDataRoot `
         -Candidate $DataRoot `
-        -DefaultLeaf "AIWebNovel-Integrated-Development" `
-        -RepositoryRoot $repositoryRoot
+        -DefaultLeaf "AIWebNovel" `
+        -RepositoryRoot $repositoryRoot `
+        -AllowFormalRoot
     $tools = Assert-IntegratedTools
     Assert-LoopbackPortAvailable -Port $Port
     $logDirectory = New-StartupLogDirectory
@@ -204,6 +205,27 @@ try {
         AIWEBNOVEL_SESSION_MAX_ENTRIES = "16"
         AIWEBNOVEL_CSRF_HEADER_NAME = "X-CSRF-Token"
     }
+    $databaseSetup = Start-OwnedProcess `
+        -Name "integrated-database-initialization" `
+        -FilePath $tools.Python `
+        -ArgumentList @("scripts/initialize_integrated_database.py") `
+        -WorkingDirectory $repositoryRoot `
+        -LogDirectory $logDirectory `
+        -EnvironmentOverrides $backendEnvironment
+    $ownedProcesses.Add($databaseSetup)
+    while (-not $databaseSetup.Process.HasExited) {
+        if (Test-StartupCancellationRequested) {
+            throw "database initialization was interrupted"
+        }
+        Start-Sleep -Milliseconds 100
+        $databaseSetup.Process.Refresh()
+    }
+    Complete-OwnedProcessCapture -Record $databaseSetup
+    if ($databaseSetup.Process.ExitCode -ne 0) {
+        throw "database initialization failed; existing data was not reset"
+    }
+    $null = $ownedProcesses.Remove($databaseSetup)
+
     $backend = Start-OwnedProcess `
         -Name "integrated-backend" `
         -FilePath $tools.Python `
