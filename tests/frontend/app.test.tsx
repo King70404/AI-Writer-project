@@ -6,7 +6,7 @@ import { AppRouter } from "../../frontend/src/app/AppRouter";
 import { LoadingState } from "../../frontend/src/components/LoadingState";
 
 describe("AIWebNovel frontend foundation", () => {
-  it("renders the truthful phase 2 foundation without business placeholders", () => {
+  it("renders the truthful V1 entry without business placeholders", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <AppRouter />
@@ -22,12 +22,14 @@ describe("AIWebNovel frontend foundation", () => {
         name: "AIWebNovel 前端基础已启动",
       }),
     ).toBeInTheDocument();
+    expect(screen.getByText("V1", { selector: ".phase-label" })).toBeVisible();
     expect(
-      screen.getByText("阶段 2", { selector: ".phase-label" }),
-    ).toBeVisible();
+      screen.getByRole("link", { name: "开始使用：进入项目" }),
+    ).toHaveAttribute("href", "/projects");
+    expect(screen.getByText(/手动写作、自动保存与导出仍可使用/)).toBeVisible();
     expect(
-      screen.getAllByText(/规划、章节写作与AI功能尚未实现/).length,
-    ).toBeGreaterThan(0);
+      screen.queryByText(/章节写作与AI功能尚未实现/),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "跳至主要内容" })).toHaveAttribute(
       "href",

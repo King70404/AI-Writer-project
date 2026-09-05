@@ -8,11 +8,11 @@ export function AppShell() {
       </a>
       <header className="app-shell__header">
         <div>
-          <p className="app-shell__eyebrow">本地长篇创作系统 · 工程基础</p>
+          <p className="app-shell__eyebrow">本地长篇创作系统 · V1</p>
           <h1 className="app-shell__title">AIWebNovel</h1>
         </div>
-        <p className="phase-label" aria-label="当前阶段：阶段 2">
-          阶段 2
+        <p className="phase-label" aria-label="当前版本：V1">
+          V1
         </p>
       </header>
 
@@ -29,8 +29,8 @@ export function AppShell() {
 
       <footer className="app-shell__footer">
         <p>
-          当前状态：Project、单份纯文本Story Bible与Character当前流程已实现；
-          规划、章节写作与AI功能尚未实现。
+          V1 支持项目、设定、人物、小说结构、章节写作与 TXT 导出。 AI
+          续写与改写需要另行配置本地 AI 服务。
         </p>
       </footer>
     </div>

@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 import { SystemStatus } from "../components/SystemStatus";
 
 export function FoundationPage() {
@@ -7,10 +9,13 @@ export function FoundationPage() {
       data-feature-id="FND-001"
       aria-labelledby="foundation-title"
     >
-      <p className="section-kicker">工程基础页</p>
+      <p className="section-kicker">V1 本地创作入口</p>
       <h2 id="foundation-title">AIWebNovel 前端基础已启动</h2>
       <p className="foundation-page__lead">
-        阶段 0 工程基础已冻结；当前页面继续展示可验证的本地系统状态。
+        从项目开始：建立设定与人物，创建卷和章节，写正文并自动保存，最后导出整本小说。
+      </p>
+      <p>
+        <Link to="/projects">开始使用：进入项目</Link>
       </p>
 
       <SystemStatus />
@@ -22,11 +27,13 @@ export function FoundationPage() {
         </div>
         <div>
           <dt>业务范围</dt>
-          <dd>Project列表与创建已提供独立页面；规划、写作与评审尚未实现。</dd>
+          <dd>
+            项目内可管理设定、人物与小说结构，进入章节写作工作台并导出 TXT。
+          </dd>
         </div>
         <div>
           <dt>集成范围</dt>
-          <dd>当前集成仅服务工程验收，不代表小说创作能力已经实现。</dd>
+          <dd>本地 AI 未配置时，手动写作、自动保存与导出仍可使用。</dd>
         </div>
       </dl>
     </section>

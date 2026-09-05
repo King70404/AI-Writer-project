@@ -29,6 +29,15 @@ describe("application routes", () => {
     expect(screen.getByTestId("location-path")).toHaveTextContent("/");
   });
 
+  it("opens Projects from the explicit V1 start link", async () => {
+    const user = userEvent.setup();
+    renderAt("/");
+    await user.click(screen.getByRole("link", { name: "开始使用：进入项目" }));
+    expect(screen.getByTestId("location-path")).toHaveTextContent("/projects");
+    expect(screen.getByRole("heading", { name: "创建项目" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "项目标题" })).toBeVisible();
+  });
+
   it("uses client-side routing to leave the not-found page", async () => {
     const user = userEvent.setup();
     renderAt("/missing-page");
