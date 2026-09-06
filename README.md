@@ -1,58 +1,80 @@
 # AIWebNovel
 
-AIWebNovel 是项目暂定名称，目标是开发一套面向中文男频网文作者、在 Windows 11 本地运行，并由 Codex 提供在线创作与语义评审能力的多 Agent 长篇小说创作系统。
+AIWebNovel 是面向中文网文作者、运行于 Windows 11 本地环境的单用户 AI 长篇小说创作应用。
 
-## 当前阶段与状态
+## 当前基线
 
-阶段 0——工程底座已通过 DEV-0.11 正式验收并冻结为 M0。阶段 1 的 DEV-1.1至DEV-1.9已经建立并验证通用领域原语、Project三表、事务Repository、应用服务、六个Project API，以及真实的列表/创建、当前详情/完整修订、显式412冲突和只读不可变Revision历史前端；DEV-1.10已完成M1正式验收并以`m1-project-foundation`冻结。阶段2的DEV-2.1至DEV-2.6建立Story Bible不可变领域模型、事务持久化、应用用例、四条当前HTTP操作、纯文本编辑流程、两条Revision历史GET及只读历史页面；DEV-2.7已完成M2正式验收并以`m2-story-bible-foundation`冻结。阶段3的DEV-3.1至DEV-3.6现已建立Character领域、迁移0004、三表持久化、事务Repository、应用命令/查询、六条本地HTTP操作，以及稳定列表/创建/当前完整修订和只读Revision历史前端；一个Project可拥有多个同名Character，历史按RevisionNumber降序，列表不返回或显示profile，profile只在选择Revision后读取，修订使用强ETag和If-Match并显式处理412冲突。当前仍没有Character关系、历史恢复/回滚/Diff/编辑/删除、归档或AI生成，也没有Story Bible回滚、恢复、Diff、历史编辑、删除或结构化实体，以及Project删除、归档、自动保存、搜索、筛选或小说正文创作。M0正式结果见[M0正式验收报告](docs/M0_ACCEPTANCE_REPORT.md)；M1正式范围、证据与限制见[M1正式验收报告](docs/M1_ACCEPTANCE_REPORT.md)、[M1验收清单](docs/M1_ACCEPTANCE_CHECKLIST.md)和[M1基线Manifest](docs/M1_BASELINE_MANIFEST.json)；M2正式范围、证据与限制见[M2正式验收报告](docs/M2_ACCEPTANCE_REPORT.md)、[M2验收清单](docs/M2_ACCEPTANCE_CHECKLIST.md)和[M2基线Manifest](docs/M2_BASELINE_MANIFEST.json)。
+M0 至 M7 已完成并以各自 annotated tag 冻结。当前 V1 usable foundation 已由 [M7 / V1 最终验收报告](docs/M7_ACCEPTANCE_REPORT.md)、[M7 验收清单](docs/M7_ACCEPTANCE_CHECKLIST.md)和 [M7 基线 Manifest](docs/M7_BASELINE_MANIFEST.json)正式确认。
 
-当前工程基础页会通过相对 `/api/v1` 请求真实检查本地 FastAPI、安全配置、存储目录访问能力与 SQLite 基础状态；Project与Story Bible页面均调用真实本地API，Story Bible历史页先解析归属对象、再使用不透明Keyset游标加载摘要，并仅在选择后读取正文。开发模式由 Vite 仅代理 `/api`，生产集成模式可由 FastAPI 提供本地 Vite 构建与受限 SPA 回退。默认用户数据根是 `%LOCALAPPDATA%\AIWebNovel`，正式数据不存放在 Git 仓库。应用启动不会自动执行迁移；未迁移数据库上的业务 API安全返回503。项目仍没有用户登录、小说正文创作、Agent、Skill、Prompt或工作流；Project与Story Bible基础不代表系统已经能够创作小说。
+V1 已成立的主闭环为：
 
-## 本地运行模式
+`Project → Story Bible → Characters → Outline / Volumes / Chapters → Chapter Writing Workspace → Autosave → Local AI Continue / Rewrite → User explicit accept → Autosave → TXT Export`
 
-先从仓库根目录运行只读环境诊断。诊断不会联网安装、升级或修复软件，也不会修改项目、Git 配置或正式用户数据：
+当前仍是 Windows 本地、单用户 V1；这不表示 production SaaS、多人协作、发布平台、完整 Agent/Skill 系统或 M8+ 高级能力已经完成。M0–M7 历史标签与验收记录保持冻结，后续缺陷和演进通过新任务与新提交处理。
+
+当前 [功能真实性矩阵](docs/FEATURE_REALITY_MATRIX.md) 已改为 M7/V1 能力索引；M0–M2 时期的旧细粒度矩阵原样保存在 `docs/history/FEATURE_REALITY_MATRIX_PRE_M7.md`。判断当前能力时，最终仍以最新已通过里程碑的 Acceptance Report 与 Baseline Manifest 为准。
+
+## 开发治理
+
+仓库级开发代理规则以 [AGENTS.md](AGENTS.md) 为统一入口。重要原则：
+
+- GitHub 当前状态是多个 ChatGPT 对话和 Codex 本地执行之间的唯一共同事实源；
+- 一次只执行一个编号任务，但当前任务内部的可逆步骤不需要逐项重新确认；
+- 普通开发检查失败应在授权范围内诊断、修复并重验；
+- 正式验收门失败采用 hard-stop，必须经新的恢复任务后才能修改候选并重新进入正式验收；
+- 正式用户数据、冻结 tag、安全边界和明确的发布/历史重写批准要求不得因为提高自主性而被放宽。
+
+详细开发纪律见 [Codex 全局开发说明](docs/CODEX_GLOBAL_INSTRUCTIONS.md)、[开发工作流](docs/DEVELOPMENT_WORKFLOW.md)和[架构边界](docs/ARCHITECTURE_BOUNDARIES.md)。M0–M7 期间逐项 DEV 授权记录已原样归档到 `docs/history/DEVELOPMENT_WORKFLOW_M0_M7.md`；如旧阶段文档与当前明确任务冲突，按 `AGENTS.md` 的优先级解释。
+
+## 本地运行
+
+先从仓库根目录运行只读环境诊断：
 
 ```powershell
 .\scripts\environment_doctor.ps1 -Mode Development
 ```
 
-开发模式由一个前台脚本启动 FastAPI 与 Vite，二者都只绑定 `127.0.0.1`：
+### 开发模式
 
 ```powershell
 .\scripts\start_development.ps1
 ```
 
-浏览器访问 `http://127.0.0.1:5173`。Vite 只把 `/api` 代理到本次启动的后端端口。默认数据根为 `%LOCALAPPDATA%\AIWebNovel-Development`，与正式 `%LOCALAPPDATA%\AIWebNovel` 隔离。
+FastAPI 与 Vite 都只绑定 `127.0.0.1`。默认开发数据根为 `%LOCALAPPDATA%\AIWebNovel-Development`，与正式创作数据隔离。
 
-生产集成模式默认使用已有 `frontend/dist`，只启动提供 API 和静态前端的 FastAPI：
+### 普通本地 V1 / 集成模式
 
 ```powershell
 .\scripts\start_integrated.ps1
 ```
 
-此时浏览器只访问 `http://127.0.0.1:8000`。默认集成数据根为 `%LOCALAPPDATA%\AIWebNovel-Integrated-Development`。只有显式传入 `-BuildFrontend` 才会运行本地构建；两个启动入口都不会安装依赖、运行迁移或自动打开浏览器。按 `Ctrl+C` 停止时，脚本只清理本次拥有且 PID 与启动时间均匹配的进程树，并检查端口释放。参数、失败行为和数据隔离规则见 [本地统一启动](docs/LOCAL_STARTUP.md)。
+默认使用已有 `frontend/dist`，FastAPI 同时提供 API 与静态前端，地址为 `http://127.0.0.1:8000`。无 `-DataRoot` 时使用正式 `%LOCALAPPDATA%\AIWebNovel`。
 
-## 计划技术栈
+如果数据库文件不存在，启动流程会独占创建新数据库并迁移到当前 Alembic head；如果数据库已经存在，初始化器不会迁移、替换或重置它。只有显式传入 `-BuildFrontend` 才运行本地前端构建。
+
+测试、E2E、smoke 和验收不得使用正式数据根，必须显式使用各自拥有的隔离 DataRoot。完整启动、数据隔离和停止规则见 [本地统一启动](docs/LOCAL_STARTUP.md)。
+
+## 当前技术栈
 
 - 后端：Python 3.12.10、FastAPI、Uvicorn、Pydantic、SQLAlchemy 2.x、Alembic；
 - 前端：React、TypeScript、Vite；
-- 数据库：SQLite，当前基础设施已启用 WAL 和外键；
-- 架构：Windows 11 本地优先、模块化单体、本地浏览器界面和持久化工作流；
-- 数据治理：候选数据、正式数据与分支数据严格隔离；
-- Codex：通过统一的 CodexExecutor 适配器接入。
-
-以上包含已冻结的 M0 工程基础、M1 Project真实闭环、M2 Story Bible真实闭环，以及阶段3的Character领域、持久化、应用用例、本地HTTP API和前端创建/列表/当前修订/只读历史流程。Character边界见[Character纯领域模型](docs/CHARACTER_DOMAIN.md)、[Character持久化基础](docs/CHARACTER_PERSISTENCE.md)、[Character应用用例](docs/CHARACTER_APPLICATION.md)、[Character HTTP API](docs/CHARACTER_HTTP_API.md)、[Character前端流程](docs/CHARACTER_FRONTEND.md)和[Character不可变Revision历史](docs/CHARACTER_REVISION_HISTORY.md)。Character历史仅提供降序摘要、稳定Keyset分页和按需profile，不提供关系、Diff、回滚、恢复、历史编辑、删除、归档或AI生成。Story Bible历史同样只读。现状也不表示备份、导出、模型管理、文件日志、小说正文创作或 Codex 能力已经实现。
+- 数据库：SQLite，启用 WAL 和外键；
+- 架构：Windows 11 本地优先、模块化单体、本地浏览器界面；
+- 默认正式数据根：`%LOCALAPPDATA%\AIWebNovel`；
+- 本地 AI：loopback-only OpenAI-compatible provider；不使用云 AI API 作为 V1 生产路径。
 
 ## 本地质量门禁
 
-在仓库根目录运行 `.\scripts\quality_gate.ps1` 可统一检查 Git 差异、仓库卫生、安全与启动脚本静态基线、Diagnostics 单元测试、后端格式、类型、测试和覆盖率，以及前端格式、lint、类型、测试、覆盖率和构建。默认门禁不依赖网络，也不启动长期服务；任一检查失败都不得开始下一编号任务。单项命令、覆盖率阈值和可选依赖审计见 [本地质量门禁](docs/QUALITY_GATES.md)。门禁通过只证明当前工程基线满足质量要求，不代表小说业务功能已实现。
+默认门禁：
 
-M0 预验收使用 `.\scripts\m0_preflight.ps1`，按固定顺序组合严格诊断、完整门禁、真实启动、存储与安全烟测以及清理检查，并在被 Git 忽略的 `.runtime/m0-preflight/` 生成证据。预验收本身仍只表示已准备好等待正式阶段验收；M0 的正式通过结论以 [M0 正式验收报告](docs/M0_ACCEPTANCE_REPORT.md) 和 [M0 验收清单](docs/M0_ACCEPTANCE_CHECKLIST.md) 为准。
+```powershell
+.\scripts\quality_gate.ps1
+```
 
-## 浏览器端到端测试
+需要真实浏览器验收时：
 
-在 `frontend` 目录运行 `npm run e2e:dev`、`npm run e2e:integrated` 或 `npm run e2e`，可用 Playwright 管理的无头 Chromium 验证开发与生产集成启动。浏览器只访问 E2E 专用的 `127.0.0.1` 端口，每个场景使用独立临时数据根，其 SQLite 位于 `data/`、运行数据位于 `runtime/`，并在结束后清理自有进程、端口和整个临时根。浏览器安装、失败诊断和 `-IncludeE2E` 可选门禁说明见 [浏览器端到端测试](docs/E2E_TESTING.md)。这些验收不代表已经存在小说业务功能。
+```powershell
+.\scripts\quality_gate.ps1 -IncludeE2E
+```
 
-## 开发规范
-
-所有开发工作必须遵守 [Codex 全局开发说明](docs/CODEX_GLOBAL_INSTRUCTIONS.md)，并按 [开发工作流](docs/DEVELOPMENT_WORKFLOW.md) 一次执行一个编号任务。模块所有权与交互限制见 [架构边界](docs/ARCHITECTURE_BOUNDARIES.md)。
+完整门禁、依赖审计、覆盖率和 E2E 规则见 [本地质量门禁](docs/QUALITY_GATES.md) 与 [浏览器端到端测试](docs/E2E_TESTING.md)。门禁通过证明对应工程检查通过；里程碑是否正式验收通过，以对应 Acceptance Report 为准。
