@@ -20,7 +20,7 @@ GitHub 当前仓库状态是多个 ChatGPT 对话、Codex 本地执行和审阅�
 
 如果冲突能由上述优先级唯一解决，应继续执行并在报告中记录解释。只有无法唯一解决，而且不同解释会实质改变产品范围、安全边界、不可逆操作、正式用户数据或验收标准时，才停止并请求澄清。
 
-`docs/FEATURE_REALITY_MATRIX.md` 当前包含早期阶段的细粒度历史记录；若其描述落后于最新已通过里程碑，以最新 Acceptance Report 与 Baseline Manifest 为当前能力事实，不得用旧矩阵否定已正式验收的能力。
+`docs/FEATURE_REALITY_MATRIX.md` 是当前能力索引；M0–M2 时期的旧细粒度矩阵已归档到 `docs/history/FEATURE_REALITY_MATRIX_PRE_M7.md`。若说明性矩阵与最新已通过里程碑冲突，仍以最新 Acceptance Report 与 Baseline Manifest 为当前能力事实。
 
 ## 2. 当前任务内的自主性
 

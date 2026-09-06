@@ -12,7 +12,7 @@ V1 已成立的主闭环为：
 
 当前仍是 Windows 本地、单用户 V1；这不表示 production SaaS、多人协作、发布平台、完整 Agent/Skill 系统或 M8+ 高级能力已经完成。M0–M7 历史标签与验收记录保持冻结，后续缺陷和演进通过新任务与新提交处理。
 
-`docs/FEATURE_REALITY_MATRIX.md` 保留了较早阶段的细粒度能力记录，尚未完整重生成到 M7。判断当前能力时，以最新已通过里程碑的 Acceptance Report 与 Baseline Manifest 为准，不用旧矩阵否定已经正式验收的 V1 能力。
+当前 [功能真实性矩阵](docs/FEATURE_REALITY_MATRIX.md) 已改为 M7/V1 能力索引；M0–M2 时期的旧细粒度矩阵原样保存在 `docs/history/FEATURE_REALITY_MATRIX_PRE_M7.md`。判断当前能力时，最终仍以最新已通过里程碑的 Acceptance Report 与 Baseline Manifest 为准。
 
 ## 开发治理
 
@@ -24,7 +24,7 @@ V1 已成立的主闭环为：
 - 正式验收门失败采用 hard-stop，必须经新的恢复任务后才能修改候选并重新进入正式验收；
 - 正式用户数据、冻结 tag、安全边界和明确的发布/历史重写批准要求不得因为提高自主性而被放宽。
 
-详细开发纪律见 [Codex 全局开发说明](docs/CODEX_GLOBAL_INSTRUCTIONS.md)、[开发工作流](docs/DEVELOPMENT_WORKFLOW.md)和[架构边界](docs/ARCHITECTURE_BOUNDARIES.md)。如旧阶段文档与当前明确任务冲突，按 `AGENTS.md` 的优先级解释。
+详细开发纪律见 [Codex 全局开发说明](docs/CODEX_GLOBAL_INSTRUCTIONS.md)、[开发工作流](docs/DEVELOPMENT_WORKFLOW.md)和[架构边界](docs/ARCHITECTURE_BOUNDARIES.md)。M0–M7 期间逐项 DEV 授权记录已原样归档到 `docs/history/DEVELOPMENT_WORKFLOW_M0_M7.md`；如旧阶段文档与当前明确任务冲突，按 `AGENTS.md` 的优先级解释。
 
 ## 本地运行
 
