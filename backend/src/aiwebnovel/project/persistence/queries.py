@@ -16,7 +16,7 @@ from aiwebnovel.project.persistence.models import (
 def current_project_query(
     project_id: ProjectId,
 ) -> Select[tuple[ProjectRecord, ProjectHeadRecord, ProjectRevisionRecord]]:
-    """Select one Project and its current pointer target without loading history."""
+    """Select one active Project and its current pointer target without loading history."""
     return (
         select(ProjectRecord, ProjectHeadRecord, ProjectRevisionRecord)
         .outerjoin(
@@ -27,7 +27,10 @@ def current_project_query(
             ProjectRevisionRecord,
             ProjectRevisionRecord.id == ProjectHeadRecord.revision_id,
         )
-        .where(ProjectRecord.id == project_id)
+        .where(
+            ProjectRecord.id == project_id,
+            ProjectRecord.deleted_at.is_(None),
+        )
     )
 
 
@@ -37,14 +40,36 @@ def project_compare_and_swap(
     new_version: ConcurrencyVersion,
     updated_at: datetime,
 ) -> Update:
-    """Update a stable Project only when its persisted version still matches."""
+    """Update an active stable Project only when its persisted version still matches."""
     return (
         update(ProjectRecord)
         .where(
             ProjectRecord.id == project_id,
             ProjectRecord.concurrency_version == expected_version,
+            ProjectRecord.deleted_at.is_(None),
         )
         .values(concurrency_version=new_version, updated_at=updated_at)
+    )
+
+
+def project_logical_delete(
+    project_id: ProjectId,
+    expected_version: ConcurrencyVersion,
+    deleted_at: datetime,
+) -> Update:
+    """Hide one active Project without deleting its immutable revision history."""
+    return (
+        update(ProjectRecord)
+        .where(
+            ProjectRecord.id == project_id,
+            ProjectRecord.concurrency_version == expected_version,
+            ProjectRecord.deleted_at.is_(None),
+        )
+        .values(
+            concurrency_version=ConcurrencyVersion(int(expected_version) + 1),
+            updated_at=deleted_at,
+            deleted_at=deleted_at,
+        )
     )
 
 
@@ -65,4 +90,9 @@ def head_compare_and_swap(
     )
 
 
-__all__ = ["current_project_query", "head_compare_and_swap", "project_compare_and_swap"]
+__all__ = [
+    "current_project_query",
+    "head_compare_and_swap",
+    "project_compare_and_swap",
+    "project_logical_delete",
+]
