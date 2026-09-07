@@ -19,17 +19,14 @@ export function ProjectsPage({ client = projectApiClient }: ProjectsPageProps) {
     >
       <ProjectPageHeader />
       <CreateProjectForm client={client} reloadProjects={projectList.reload} />
-      <section
-        className="projects-page__list"
-        aria-labelledby="project-list-title"
-      >
+      <section className="projects-page__list" aria-labelledby="project-list-title">
         <div className="projects-page__list-heading">
           <div>
-            <p className="section-kicker">当前 Revision 摘要</p>
-            <h3 id="project-list-title">项目列表</h3>
+            <p className="section-kicker">你的创作</p>
+            <h3 id="project-list-title">我的小说</h3>
           </div>
           <button type="button" onClick={() => void projectList.reload()}>
-            重新加载列表
+            刷新
           </button>
         </div>
         <ProjectList controller={projectList} />
