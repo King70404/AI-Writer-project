@@ -110,13 +110,42 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
         summary="List current Projects",
         description=(
             "Returns current-revision summaries ordered by immutable created_at DESC and "
-            "project_id DESC using keyset pagination. Logically deleted Projects are omitted."
+            "project_id DESC using keyset pagination. The opaque cursor is a transport token, "
+            "not a security credential. Description and total count are intentionally omitted; "
+            "search, filtering, and custom sorting are not supported. Logically deleted Projects "
+            "are omitted from ordinary author use."
         ),
+        openapi_extra={
+            "parameters": [
+                {
+                    "name": "limit",
+                    "in": "query",
+                    "required": False,
+                    "description": "Page size from 1 through 100; defaults to 20.",
+                    "schema": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": MAX_PROJECT_LIST_LIMIT,
+                        "default": DEFAULT_PROJECT_LIST_LIMIT,
+                    },
+                },
+                {
+                    "name": "cursor",
+                    "in": "query",
+                    "required": False,
+                    "description": "Opaque untrusted keyset cursor returned by the prior page.",
+                    "schema": {"type": "string", "nullable": True},
+                },
+            ]
+        },
     )
     def list_projects(
         response: Response,
         query: Annotated[ListProjectsQuery, Depends(get_project_list_query)],
-        service: Annotated[ProjectListQueryService, Depends(get_project_list_query_service)],
+        service: Annotated[
+            ProjectListQueryService,
+            Depends(get_project_list_query_service),
+        ],
     ) -> ProjectListResponse:
         try:
             page = service.list_projects(query)
@@ -132,6 +161,10 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
         status_code=status.HTTP_201_CREATED,
         responses={422: _ERROR_RESPONSES[422], 503: _ERROR_RESPONSES[503]},
         summary="Create a Project",
+        description=(
+            "Creates a Project and its initial revision. The strong ETag represents "
+            "ConcurrencyVersion. Immutable history is exposed separately as read-only data."
+        ),
     )
     def create_project(
         request: CreateProjectRequest,
@@ -154,10 +187,44 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
         response_model=ProjectRevisionHistoryResponse,
         responses=_REVISION_HISTORY_LIST_ERROR_RESPONSES,
         summary="List immutable Project revisions",
+        description=(
+            "Returns immutable revision summaries in RevisionNumber DESC order with a "
+            "Project-bound keyset cursor. List items omit description and no total count is "
+            "computed. The cursor is not a security credential or cross-request snapshot. "
+            "Historical revisions cannot be edited, restored, or rolled back."
+        ),
+        openapi_extra={
+            "parameters": [
+                {
+                    "name": "limit",
+                    "in": "query",
+                    "required": False,
+                    "description": "Page size from 1 through 100; defaults to 20.",
+                    "schema": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": MAX_PROJECT_REVISION_HISTORY_LIMIT,
+                        "default": DEFAULT_PROJECT_REVISION_HISTORY_LIMIT,
+                    },
+                },
+                {
+                    "name": "cursor",
+                    "in": "query",
+                    "required": False,
+                    "description": (
+                        "Opaque keyset cursor bound to the Project in this path."
+                    ),
+                    "schema": {"type": "string", "nullable": True},
+                },
+            ]
+        },
     )
     def list_project_revisions(
         response: Response,
-        query: Annotated[ListProjectRevisionsQuery, Depends(get_project_revision_history_query)],
+        query: Annotated[
+            ListProjectRevisionsQuery,
+            Depends(get_project_revision_history_query),
+        ],
         service: Annotated[
             ProjectRevisionHistoryQueryService,
             Depends(get_project_revision_history_query_service),
@@ -176,10 +243,17 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
         response_model=ProjectRevisionResponse,
         responses=_REVISION_ERROR_RESPONSES,
         summary="Get one immutable Project revision",
+        description=(
+            "Returns the original read-only title and description for one canonical positive "
+            "RevisionNumber. Historical content cannot be edited, restored, or rolled back."
+        ),
     )
     def get_project_revision(
         response: Response,
-        query: Annotated[GetProjectRevisionQuery, Depends(get_project_revision_query)],
+        query: Annotated[
+            GetProjectRevisionQuery,
+            Depends(get_project_revision_query),
+        ],
         service: Annotated[
             ProjectRevisionHistoryQueryService,
             Depends(get_project_revision_history_query_service),
@@ -207,6 +281,10 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
             503: _ERROR_RESPONSES[503],
         },
         summary="Get the current Project",
+        description=(
+            "Returns only the current Project snapshot. The strong ETag represents "
+            "ConcurrencyVersion; revision history is not exposed."
+        ),
     )
     def get_project(
         response: Response,
@@ -228,11 +306,29 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
         response_model=ProjectResponse,
         responses=_ERROR_RESPONSES,
         summary="Completely revise a Project",
+        description=(
+            "Completely replaces title and description; PATCH is intentionally unsupported. "
+            "If-Match must contain the strong ETag whose value is ConcurrencyVersion."
+        ),
+        openapi_extra={
+            "parameters": [
+                {
+                    "name": "If-Match",
+                    "in": "header",
+                    "required": True,
+                    "description": 'Required strong Project ETag, for example "1".',
+                    "schema": {"type": "string"},
+                }
+            ]
+        },
     )
     def revise_project(
         response: Response,
         project_id: Annotated[str, Depends(get_project_id)],
-        expected_version: Annotated[ConcurrencyVersion, Depends(get_required_project_version)],
+        expected_version: Annotated[
+            ConcurrencyVersion,
+            Depends(get_required_project_version),
+        ],
         service: Annotated[ProjectCommandService, Depends(get_project_command_service)],
         payload: ReviseProjectRequest,
     ) -> ProjectResponse:
@@ -257,13 +353,28 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
         responses=_ERROR_RESPONSES,
         summary="Logically delete a Project",
         description=(
-            "Removes the Project from ordinary author workflows while preserving immutable "
-            "revision history. If-Match is required to prevent deleting a stale Project view."
+            "Appends an internal immutable tombstone revision so the Project disappears from "
+            "ordinary author workflows without rewriting accepted revision history. If-Match "
+            "must contain the current strong Project ETag."
         ),
+        openapi_extra={
+            "parameters": [
+                {
+                    "name": "If-Match",
+                    "in": "header",
+                    "required": True,
+                    "description": 'Required strong Project ETag, for example "1".',
+                    "schema": {"type": "string"},
+                }
+            ]
+        },
     )
     def delete_project(
         project_id: Annotated[str, Depends(get_project_id)],
-        expected_version: Annotated[ConcurrencyVersion, Depends(get_required_project_version)],
+        expected_version: Annotated[
+            ConcurrencyVersion,
+            Depends(get_required_project_version),
+        ],
         service: Annotated[ProjectCommandService, Depends(get_project_command_service)],
     ) -> DeleteProjectResponse:
         try:
