@@ -7,6 +7,7 @@ from aiwebnovel.domain.revisions import RevisionNumber
 from aiwebnovel.domain.time import Clock, utc_now
 from aiwebnovel.project.application.commands import (
     CreateProjectCommand,
+    DeleteProjectCommand,
     ReviseProjectCommand,
 )
 from aiwebnovel.project.application.history import ProjectRevisionHistoryReader
@@ -52,7 +53,6 @@ class ProjectCommandService:
         self._revision_id_factory = revision_id_factory
 
     def create_project(self, command: CreateProjectCommand) -> ProjectSnapshot:
-        """Validate raw input, construct one aggregate, and persist it atomically."""
         if type(command) is not CreateProjectCommand:
             raise TypeError("command must be a CreateProjectCommand")
         aggregate = create_initial_project(
@@ -66,7 +66,6 @@ class ProjectCommandService:
         return project_snapshot_from_aggregate(created)
 
     def revise_project(self, command: ReviseProjectCommand) -> ProjectSnapshot:
-        """Validate all raw input before requesting one atomic revision append."""
         if type(command) is not ReviseProjectCommand:
             raise TypeError("command must be a ReviseProjectCommand")
         project_id = ProjectId.parse(command.project_id)
@@ -83,15 +82,22 @@ class ProjectCommandService:
         )
         return project_snapshot_from_aggregate(revised)
 
+    def delete_project(self, command: DeleteProjectCommand) -> None:
+        """Hide one Project from ordinary use without deleting immutable revisions."""
+        if type(command) is not DeleteProjectCommand:
+            raise TypeError("command must be a DeleteProjectCommand")
+        self._repository.logical_delete(
+            ProjectId.parse(command.project_id),
+            ConcurrencyVersion(command.expected_version),
+            clock=self._clock,
+        )
+
 
 class ProjectQueryService:
-    """Read detached current Project snapshots without application-side writes."""
-
     def __init__(self, repository: ProjectRepository) -> None:
         self._repository = repository
 
     def get_project(self, query: GetProjectQuery) -> ProjectSnapshot | None:
-        """Return one current snapshot, or None when the Project does not exist."""
         if type(query) is not GetProjectQuery:
             raise TypeError("query must be a GetProjectQuery")
         project_id = ProjectId.parse(query.project_id)
@@ -102,13 +108,10 @@ class ProjectQueryService:
 
 
 class ProjectListQueryService:
-    """Read one detached Project page through the dedicated list port."""
-
     def __init__(self, reader: ProjectListReader) -> None:
         self._reader = reader
 
     def list_projects(self, query: ListProjectsQuery) -> ProjectListPage:
-        """Validate one query and delegate to the list reader exactly once."""
         if type(query) is not ListProjectsQuery:
             raise TypeError("query must be a ListProjectsQuery")
         limit = validate_project_list_limit(query.limit)
@@ -116,19 +119,28 @@ class ProjectListQueryService:
 
 
 class ProjectRevisionHistoryQueryService:
-    """Read immutable Project revisions through the dedicated history port."""
-
-    def __init__(self, reader: ProjectRevisionHistoryReader) -> None:
+    def __init__(
+        self,
+        reader: ProjectRevisionHistoryReader,
+        repository: ProjectRepository | None = None,
+    ) -> None:
         self._reader = reader
+        self._repository = repository
+
+    def _require_active_project(self, project_id: ProjectId) -> None:
+        if self._repository is not None and self._repository.get(project_id) is None:
+            from aiwebnovel.project.errors import ProjectNotFound
+
+            raise ProjectNotFound(project_id)
 
     def list_revisions(
         self,
         query: ListProjectRevisionsQuery,
     ) -> ProjectRevisionHistoryPage:
-        """Validate one history query and call the reader exactly once."""
         if type(query) is not ListProjectRevisionsQuery:
             raise TypeError("query must be a ListProjectRevisionsQuery")
         project_id = ProjectId.parse(query.project_id)
+        self._require_active_project(project_id)
         limit = validate_project_revision_history_limit(query.limit)
         after: RevisionNumber | None = None
         if query.after is not None:
@@ -146,10 +158,10 @@ class ProjectRevisionHistoryQueryService:
         self,
         query: GetProjectRevisionQuery,
     ) -> ProjectRevisionHistorySnapshot | None:
-        """Validate one exact revision query and call the reader exactly once."""
         if type(query) is not GetProjectRevisionQuery:
             raise TypeError("query must be a GetProjectRevisionQuery")
         project_id = ProjectId.parse(query.project_id)
+        self._require_active_project(project_id)
         revision_number = RevisionNumber(query.revision_number)
         return self._reader.get_revision(
             project_id=project_id,
