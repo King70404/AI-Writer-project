@@ -15,6 +15,7 @@ from aiwebnovel.project import (
     ConcurrencyVersion,
     assert_expected_version,
 )
+from aiwebnovel.project.deletion import is_deleted_project_title
 from aiwebnovel.project.entities import ProjectAggregate
 from aiwebnovel.project.errors import (
     DomainError,
@@ -35,7 +36,6 @@ from aiwebnovel.project.persistence.queries import (
     current_project_query,
     head_compare_and_swap,
     project_compare_and_swap,
-    project_logical_delete,
 )
 from aiwebnovel.project.repository import ProjectRepository
 from aiwebnovel.project.transitions import create_next_project_revision
@@ -96,12 +96,16 @@ class SqlAlchemyProjectRepository(ProjectRepository):
             session.close()
 
     def get(self, project_id: ProjectId) -> ProjectAggregate | None:
-        """Restore the current active aggregate with one business SELECT and no writes."""
+        """Restore one active aggregate; tombstoned Projects behave as absent."""
         self._validate_project_id(project_id)
         session = self._new_session()
         try:
             aggregate = self._load_current(session, project_id)
             session.rollback()
+            if aggregate is not None and is_deleted_project_title(
+                str(aggregate.current_revision.title)
+            ):
+                return None
             return aggregate
         except ProjectDataCorruption:
             session.rollback()
@@ -132,7 +136,9 @@ class SqlAlchemyProjectRepository(ProjectRepository):
         try:
             self._begin_immediate(session)
             aggregate = self._load_current(session, project_id)
-            if aggregate is None:
+            if aggregate is None or is_deleted_project_title(
+                str(aggregate.current_revision.title)
+            ):
                 raise ProjectNotFound(project_id)
 
             assert_expected_version(
@@ -206,55 +212,6 @@ class SqlAlchemyProjectRepository(ProjectRepository):
             self._raise_project_cas_failure(project_id, expected_version)
         assert cas_failure == "head"
         self._raise_head_cas_failure(project_id)
-
-    def logical_delete(
-        self,
-        project_id: ProjectId,
-        expected_version: ConcurrencyVersion,
-        *,
-        clock: Clock,
-    ) -> None:
-        """Hide one Project atomically while retaining its immutable historical rows."""
-        self._validate_project_id(project_id)
-        if type(expected_version) is not ConcurrencyVersion or not callable(clock):
-            raise InvalidProjectState
-        session = self._new_session()
-        try:
-            self._begin_immediate(session)
-            aggregate = self._load_current(session, project_id)
-            if aggregate is None:
-                raise ProjectNotFound(project_id)
-            assert_expected_version(
-                actual=aggregate.project.concurrency_version,
-                expected=expected_version,
-            )
-            deleted_at = clock()
-            result = cast(
-                CursorResult[Any],
-                session.execute(project_logical_delete(project_id, expected_version, deleted_at)),
-            )
-            if result.rowcount != 1:
-                raise _ProjectCasMiss
-            session.flush()
-            session.commit()
-            return None
-        except _ProjectCasMiss:
-            session.rollback()
-            self._raise_project_cas_failure(project_id, expected_version)
-        except DomainError:
-            session.rollback()
-            raise
-        except IntegrityError as exc:
-            session.rollback()
-            raise ProjectPersistenceConflict from exc
-        except SQLAlchemyError as exc:
-            session.rollback()
-            raise ProjectRepositoryError from exc
-        except Exception as exc:
-            session.rollback()
-            raise ProjectRepositoryError from exc
-        finally:
-            session.close()
 
     def _new_session(self) -> Session:
         try:
