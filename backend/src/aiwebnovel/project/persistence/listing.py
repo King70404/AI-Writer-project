@@ -17,6 +17,7 @@ from aiwebnovel.project.application.models import (
     ProjectListPosition,
 )
 from aiwebnovel.project.application.queries import validate_project_list_limit
+from aiwebnovel.project.deletion import PROJECT_DELETION_TITLE_PREFIX
 from aiwebnovel.project.errors import (
     DomainError,
     ProjectDataCorruption,
@@ -52,7 +53,7 @@ def project_list_statement(
     limit: int,
     after: ProjectListPosition | None,
 ) -> Select[ProjectListRow]:
-    """Build the fixed active current-revision query with descending keyset semantics."""
+    """Build the fixed current-revision query with descending keyset semantics."""
     statement = (
         select(
             ProjectRecord.id,
@@ -76,7 +77,12 @@ def project_list_statement(
             ProjectRevisionRecord,
             ProjectRevisionRecord.id == ProjectHeadRecord.revision_id,
         )
-        .where(ProjectRecord.deleted_at.is_(None))
+        .where(
+            or_(
+                ProjectRevisionRecord.title.is_(None),
+                ~ProjectRevisionRecord.title.startswith(PROJECT_DELETION_TITLE_PREFIX),
+            )
+        )
     )
     if after is not None:
         after_project_id = ProjectId.parse(after.project_id)
@@ -96,6 +102,8 @@ def project_list_statement(
         ProjectRecord.created_at.desc(),
         ProjectRecord.id.desc(),
     ).suffix_with(
+        # SQLAlchemy's SQLite ``limit()`` compiler emits an explicit OFFSET 0.
+        # A fixed suffix retains a bound page-size parameter without OFFSET.
         limit_clause
     )
     return cast(Select[ProjectListRow], statement)
@@ -157,7 +165,7 @@ def _list_item_from_row(row: ProjectListRow) -> ProjectListItem:
 
 
 class SqlAlchemyProjectListReader:
-    """Read one current active Project page with one independent Session and SELECT."""
+    """Read one current Project page with one independent Session and SELECT."""
 
     def __init__(self, session_factory: SessionFactory) -> None:
         if not callable(session_factory):
@@ -170,6 +178,7 @@ class SqlAlchemyProjectListReader:
         limit: int,
         after: ProjectListPosition | None,
     ) -> ProjectListPage:
+        """Return at most ``limit`` summaries using an immutable descending keyset."""
         validated_limit = validate_project_list_limit(limit)
         if after is not None and type(after) is not ProjectListPosition:
             raise TypeError("after must be a ProjectListPosition or None")
