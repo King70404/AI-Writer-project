@@ -38,31 +38,24 @@ export interface ListProjectsOptions {
   readonly cursor?: string;
   readonly signal?: AbortSignal;
 }
-
-export interface CreateProjectOptions {
-  readonly signal?: AbortSignal;
-}
-
-export interface GetProjectOptions {
-  readonly signal?: AbortSignal;
-}
-
+export interface CreateProjectOptions { readonly signal?: AbortSignal; }
+export interface GetProjectOptions { readonly signal?: AbortSignal; }
 export interface ReviseProjectInput extends ReviseProjectRequest {
   readonly projectId: string;
   readonly etag: string;
 }
-
-export interface ReviseProjectOptions {
-  readonly signal?: AbortSignal;
+export interface ReviseProjectOptions { readonly signal?: AbortSignal; }
+export interface DeleteProjectInput {
+  readonly projectId: string;
+  readonly etag: string;
 }
-
+export interface DeleteProjectOptions { readonly signal?: AbortSignal; }
 export interface ListProjectRevisionsOptions {
   readonly projectId: string;
   readonly limit?: number;
   readonly cursor?: string;
   readonly signal?: AbortSignal;
 }
-
 export interface GetProjectRevisionOptions {
   readonly projectId: string;
   readonly revisionNumber: number;
@@ -70,29 +63,30 @@ export interface GetProjectRevisionOptions {
 }
 
 export interface ProjectApiClient {
-  readonly listProjects: (
-    options?: ListProjectsOptions,
-  ) => Promise<ProjectListResponse>;
+  readonly listProjects: (options?: ListProjectsOptions) => Promise<ProjectListResponse>;
   readonly createProject: (
     input: CreateProjectRequest,
     options?: CreateProjectOptions,
   ) => Promise<ProjectResponse>;
 }
-
 export interface ProjectDetailApiClient {
   readonly getProject: (
     projectId: string,
     options?: GetProjectOptions,
   ) => Promise<VersionedProjectResource>;
 }
-
 export interface ProjectRevisionApiClient {
   readonly reviseProject: (
     input: ReviseProjectInput,
     options?: ReviseProjectOptions,
   ) => Promise<VersionedProjectResource>;
 }
-
+export interface ProjectDeleteApiClient {
+  readonly deleteProject: (
+    input: DeleteProjectInput,
+    options?: DeleteProjectOptions,
+  ) => Promise<void>;
+}
 export interface ProjectRevisionHistoryApiClient {
   readonly listProjectRevisions: (
     options: ListProjectRevisionsOptions,
@@ -101,17 +95,17 @@ export interface ProjectRevisionHistoryApiClient {
     options: GetProjectRevisionOptions,
   ) => Promise<ProjectRevisionResponse>;
 }
-
 export type CompleteProjectApiClient = ProjectApiClient &
   ProjectDetailApiClient &
   ProjectRevisionApiClient &
+  ProjectDeleteApiClient &
   ProjectRevisionHistoryApiClient;
 
 function invalidProjectIdError(): ProjectApiError {
   return new ProjectApiError({
     kind: "validation",
     code: "INVALID_PROJECT_ID",
-    message: "项目地址中的编号无效。",
+    message: "小说地址中的编号无效。",
   });
 }
 
@@ -119,14 +113,11 @@ function validateRevisionInput(input: ReviseProjectInput): {
   readonly etag: string;
   readonly version: number;
 } {
-  if (
-    typeof input.title !== "string" ||
-    typeof input.description !== "string"
-  ) {
+  if (typeof input.title !== "string" || typeof input.description !== "string") {
     throw new ProjectApiError({
       kind: "validation",
       code: "INVALID_REVISE_PROJECT_INPUT",
-      message: "项目标题和简介必须是文本。",
+      message: "书名和简介必须是文本。",
     });
   }
   const fieldErrors = validateProjectInput(input.title, input.description);
@@ -134,11 +125,23 @@ function validateRevisionInput(input: ReviseProjectInput): {
     throw new ProjectApiError({
       kind: "validation",
       code: "INVALID_REVISE_PROJECT_INPUT",
-      message: "项目标题或简介未通过验证。",
+      message: "书名或简介未通过验证。",
       fieldErrors,
     });
   }
   return parseProjectEtag(input.etag);
+}
+
+function decodeDeleteResponse(value: unknown): { readonly deleted: true } {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("deleted" in value) ||
+    value.deleted !== true
+  ) {
+    throw new Error("invalid delete response");
+  }
+  return { deleted: true };
 }
 
 export function createProjectApiClient(
@@ -182,14 +185,11 @@ export function createProjectApiClient(
     input: CreateProjectRequest,
     options: CreateProjectOptions = {},
   ): Promise<ProjectResponse> => {
-    if (
-      typeof input.title !== "string" ||
-      typeof input.description !== "string"
-    ) {
+    if (typeof input.title !== "string" || typeof input.description !== "string") {
       throw new ProjectApiError({
         kind: "validation",
         code: "INVALID_CREATE_PROJECT_INPUT",
-        message: "项目标题和简介必须是文本。",
+        message: "书名和简介必须是文本。",
       });
     }
     try {
@@ -200,9 +200,7 @@ export function createProjectApiClient(
       });
       return response.data;
     } catch (error) {
-      if (shouldClearProjectSecuritySession(error)) {
-        securitySession.clear();
-      }
+      if (shouldClearProjectSecuritySession(error)) securitySession.clear();
       throw normalizeProjectApiError(error);
     }
   };
@@ -211,9 +209,7 @@ export function createProjectApiClient(
     projectId: string,
     options: GetProjectOptions = {},
   ): Promise<VersionedProjectResource> => {
-    if (!isCanonicalProjectId(projectId)) {
-      throw invalidProjectIdError();
-    }
+    if (!isCanonicalProjectId(projectId)) throw invalidProjectIdError();
     try {
       const response = await getJson(
         `projects/${encodeURIComponent(projectId)}`,
@@ -224,13 +220,10 @@ export function createProjectApiClient(
         throw new ProjectApiError({
           kind: "contract",
           code: "PROJECT_API_CONTRACT_ERROR",
-          message: "项目服务返回了无法安全读取的数据。",
+          message: "小说服务返回了无法安全读取的数据。",
         });
       }
-      return createVersionedProjectResource(
-        response.data,
-        response.etag ?? null,
-      );
+      return createVersionedProjectResource(response.data, response.etag ?? null);
     } catch (error) {
       throw normalizeProjectApiError(error);
     }
@@ -240,9 +233,7 @@ export function createProjectApiClient(
     input: ReviseProjectInput,
     options: ReviseProjectOptions = {},
   ): Promise<VersionedProjectResource> => {
-    if (!isCanonicalProjectId(input.projectId)) {
-      throw invalidProjectIdError();
-    }
+    if (!isCanonicalProjectId(input.projectId)) throw invalidProjectIdError();
     let submitted: { readonly etag: string; readonly version: number };
     try {
       submitted = validateRevisionInput(input);
@@ -265,10 +256,7 @@ export function createProjectApiClient(
           },
         },
       );
-      const resource = createVersionedProjectResource(
-        response.data,
-        response.etag ?? null,
-      );
+      const resource = createVersionedProjectResource(response.data, response.etag ?? null);
       if (
         resource.project.project_id !== input.projectId ||
         resource.version <= submitted.version
@@ -276,14 +264,12 @@ export function createProjectApiClient(
         throw new ProjectApiError({
           kind: "contract",
           code: "PROJECT_API_CONTRACT_ERROR",
-          message: "项目服务返回了无法安全读取的数据。",
+          message: "小说服务返回了无法安全读取的数据。",
         });
       }
       return resource;
     } catch (error) {
-      if (shouldClearProjectSecuritySession(error)) {
-        securitySession.clear();
-      }
+      if (shouldClearProjectSecuritySession(error)) securitySession.clear();
       if (
         putStarted &&
         ((error instanceof DOMException && error.name === "AbortError") ||
@@ -295,19 +281,43 @@ export function createProjectApiClient(
     }
   };
 
+  const deleteProject = async (
+    input: DeleteProjectInput,
+    options: DeleteProjectOptions = {},
+  ): Promise<void> => {
+    if (!isCanonicalProjectId(input.projectId)) throw invalidProjectIdError();
+    const submitted = parseProjectEtag(input.etag);
+    try {
+      const session = await securitySession.getValidSession(options.signal);
+      await postJson(
+        `projects/${encodeURIComponent(input.projectId)}/delete`,
+        {},
+        decodeDeleteResponse,
+        {
+          signal: options.signal,
+          headers: {
+            "X-CSRF-Token": session.csrfToken,
+            "If-Match": submitted.etag,
+          },
+        },
+      );
+    } catch (error) {
+      if (shouldClearProjectSecuritySession(error)) securitySession.clear();
+      throw normalizeProjectApiError(error, submitted.version);
+    }
+  };
+
   const listProjectRevisions = async (
     options: ListProjectRevisionsOptions,
   ): Promise<ProjectRevisionHistoryResponse> => {
-    if (!isCanonicalProjectId(options.projectId)) {
-      throw invalidProjectIdError();
-    }
+    if (!isCanonicalProjectId(options.projectId)) throw invalidProjectIdError();
     try {
       const limit = options.limit ?? PROJECT_REVISION_HISTORY_PAGE_SIZE;
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
         throw new ProjectApiError({
           kind: "validation",
           code: "INVALID_PROJECT_REVISION_HISTORY_LIMIT",
-          message: "修订历史页大小必须是1至100的整数。",
+          message: "历史版本页大小必须是1至100的整数。",
         });
       }
       const parameters = new URLSearchParams({ limit: String(limit) });
@@ -316,15 +326,14 @@ export function createProjectApiClient(
           throw new ProjectApiError({
             kind: "validation",
             code: "INVALID_PROJECT_REVISION_CURSOR",
-            message: "修订历史分页位置无效，请重新加载。",
+            message: "历史版本分页位置无效，请重新加载。",
           });
         }
         parameters.set("cursor", options.cursor);
       }
       const response = await getJson(
         `projects/${encodeURIComponent(options.projectId)}/revisions?${parameters.toString()}`,
-        (value) =>
-          parseProjectRevisionHistoryResponse(value, options.projectId),
+        (value) => parseProjectRevisionHistoryResponse(value, options.projectId),
         { signal: options.signal },
       );
       return response.data;
@@ -336,17 +345,12 @@ export function createProjectApiClient(
   const getProjectRevision = async (
     options: GetProjectRevisionOptions,
   ): Promise<ProjectRevisionResponse> => {
-    if (!isCanonicalProjectId(options.projectId)) {
-      throw invalidProjectIdError();
-    }
-    if (
-      !Number.isSafeInteger(options.revisionNumber) ||
-      options.revisionNumber < 1
-    ) {
+    if (!isCanonicalProjectId(options.projectId)) throw invalidProjectIdError();
+    if (!Number.isSafeInteger(options.revisionNumber) || options.revisionNumber < 1) {
       throw new ProjectApiError({
         kind: "validation",
         code: "INVALID_REVISION_NUMBER",
-        message: "修订号必须是正整数。",
+        message: "版本号必须是正整数。",
       });
     }
     try {
@@ -371,6 +375,7 @@ export function createProjectApiClient(
     createProject,
     getProject,
     reviseProject,
+    deleteProject,
     listProjectRevisions,
     getProjectRevision,
   };
