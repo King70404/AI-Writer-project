@@ -18,7 +18,7 @@ class ProjectRepository(Protocol):
         ...
 
     def get(self, project_id: ProjectId) -> ProjectAggregate | None:
-        """Return one consistent active aggregate, or None when unavailable/deleted."""
+        """Return one consistent active aggregate, or None when absent/deleted."""
         ...
 
     def append_revision(
@@ -32,16 +32,6 @@ class ProjectRepository(Protocol):
         revision_id_factory: Callable[[], ProjectRevisionId] = ProjectRevisionId.new,
     ) -> ProjectAggregate:
         """Atomically append one immutable revision using Project and Head CAS."""
-        ...
-
-    def logical_delete(
-        self,
-        project_id: ProjectId,
-        expected_version: ConcurrencyVersion,
-        *,
-        clock: Clock,
-    ) -> None:
-        """Hide one active Project while preserving immutable revision rows."""
         ...
 
 
