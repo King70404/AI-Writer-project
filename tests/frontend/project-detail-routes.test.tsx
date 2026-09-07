@@ -90,7 +90,7 @@ describe("Project detail routes and navigation", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderAt("/projects");
 
-    const link = await screen.findByRole("link", { name: "查看详情" });
+    const link = await screen.findByRole("link", { name: "打开小说" });
     expect(link).toHaveAttribute("href", `/projects/${projectId}`);
     await user.click(link);
     expect(

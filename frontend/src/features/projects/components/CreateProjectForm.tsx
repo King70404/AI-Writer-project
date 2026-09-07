@@ -17,10 +17,15 @@ interface CreateProjectFormProps {
   readonly reloadProjects: () => Promise<boolean>;
 }
 
-export function CreateProjectForm({ client, reloadProjects }: CreateProjectFormProps) {
+export function CreateProjectForm({
+  client,
+  reloadProjects,
+}: CreateProjectFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<readonly ProjectFieldError[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<readonly ProjectFieldError[]>(
+    [],
+  );
   const titleRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
@@ -29,7 +34,10 @@ export function CreateProjectForm({ client, reloadProjects }: CreateProjectFormP
   const descriptionError = errorForProjectField(fieldErrors, "description");
 
   useEffect(() => {
-    if (create.state.kind === "success" || create.state.kind === "partial_success") {
+    if (
+      create.state.kind === "success" ||
+      create.state.kind === "partial_success"
+    ) {
       feedbackRef.current?.focus();
     }
   }, [create.state.kind]);
@@ -42,7 +50,9 @@ export function CreateProjectForm({ client, reloadProjects }: CreateProjectFormP
   }, [create.state.kind, descriptionError, titleError]);
 
   const clearFieldError = (field: ProjectFieldName): void => {
-    setFieldErrors((current) => current.filter((error) => error.field !== field));
+    setFieldErrors((current) =>
+      current.filter((error) => error.field !== field),
+    );
     if (create.state.kind === "error") create.dismissFeedback();
   };
 
@@ -51,7 +61,10 @@ export function CreateProjectForm({ client, reloadProjects }: CreateProjectFormP
     const clientErrors = validateProjectInput(title, description);
     if (clientErrors.length > 0) {
       setFieldErrors(clientErrors);
-      (clientErrors[0]?.field === "description" ? descriptionRef : titleRef).current?.focus();
+      (clientErrors[0]?.field === "description"
+        ? descriptionRef
+        : titleRef
+      ).current?.focus();
       return;
     }
     setFieldErrors([]);
@@ -80,7 +93,11 @@ export function CreateProjectForm({ client, reloadProjects }: CreateProjectFormP
         <p className="section-kicker">开始一个新故事</p>
         <h3 id="create-project-title">新建小说</h3>
       </div>
-      <form onSubmit={(event) => void submit(event)} noValidate autoComplete="off">
+      <form
+        onSubmit={(event) => void submit(event)}
+        noValidate
+        autoComplete="off"
+      >
         <div className="form-field">
           <label htmlFor="project-title">书名</label>
           <input
@@ -99,9 +116,14 @@ export function CreateProjectForm({ client, reloadProjects }: CreateProjectFormP
             disabled={submitting}
           />
           <p id="project-title-count" className="field-count">
-            {countUnicodeCodePoints(title)} / {PROJECT_TITLE_MAX_CODE_POINTS} 字符
+            {countUnicodeCodePoints(title)} / {PROJECT_TITLE_MAX_CODE_POINTS}{" "}
+            字符
           </p>
-          {titleError === null ? null : <p id="project-title-error" className="field-error">{titleError}</p>}
+          {titleError === null ? null : (
+            <p id="project-title-error" className="field-error">
+              {titleError}
+            </p>
+          )}
         </div>
         <div className="form-field">
           <label htmlFor="project-description">一句话简介（可选）</label>
@@ -121,9 +143,14 @@ export function CreateProjectForm({ client, reloadProjects }: CreateProjectFormP
             disabled={submitting}
           />
           <p id="project-description-count" className="field-count">
-            {countUnicodeCodePoints(description)} / {PROJECT_DESCRIPTION_MAX_CODE_POINTS} 字符
+            {countUnicodeCodePoints(description)} /{" "}
+            {PROJECT_DESCRIPTION_MAX_CODE_POINTS} 字符
           </p>
-          {descriptionError === null ? null : <p id="project-description-error" className="field-error">{descriptionError}</p>}
+          {descriptionError === null ? null : (
+            <p id="project-description-error" className="field-error">
+              {descriptionError}
+            </p>
+          )}
         </div>
         <button type="submit" disabled={submitting}>
           {submitting ? "正在创建…" : "创建小说"}
@@ -138,14 +165,22 @@ export function CreateProjectForm({ client, reloadProjects }: CreateProjectFormP
           tabIndex={-1}
         >
           <p>{feedback}</p>
-          {create.state.kind === "success" || create.state.kind === "partial_success" ? (
-            <Link to={projectDetailsPath(create.state.project.project_id)}>打开这本小说</Link>
+          {create.state.kind === "success" ||
+          create.state.kind === "partial_success" ? (
+            <Link to={projectDetailsPath(create.state.project.project_id)}>
+              打开这本小说
+            </Link>
           ) : null}
-          {create.state.kind === "error" && create.state.error.requestId !== null ? (
-            <p className="request-id">请求编号：{create.state.error.requestId}</p>
+          {create.state.kind === "error" &&
+          create.state.error.requestId !== null ? (
+            <p className="request-id">
+              请求编号：{create.state.error.requestId}
+            </p>
           ) : null}
           {create.state.kind === "partial_success" ? (
-            <button type="button" onClick={() => void reloadProjects()}>重新加载列表</button>
+            <button type="button" onClick={() => void reloadProjects()}>
+              重新加载列表
+            </button>
           ) : null}
         </div>
       )}

@@ -211,9 +211,7 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
                     "name": "cursor",
                     "in": "query",
                     "required": False,
-                    "description": (
-                        "Opaque keyset cursor bound to the Project in this path."
-                    ),
+                    "description": ("Opaque keyset cursor bound to the Project in this path."),
                     "schema": {"type": "string", "nullable": True},
                 },
             ]

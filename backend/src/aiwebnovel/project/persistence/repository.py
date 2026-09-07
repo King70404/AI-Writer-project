@@ -136,9 +136,7 @@ class SqlAlchemyProjectRepository(ProjectRepository):
         try:
             self._begin_immediate(session)
             aggregate = self._load_current(session, project_id)
-            if aggregate is None or is_deleted_project_title(
-                str(aggregate.current_revision.title)
-            ):
+            if aggregate is None or is_deleted_project_title(str(aggregate.current_revision.title)):
                 raise ProjectNotFound(project_id)
 
             assert_expected_version(

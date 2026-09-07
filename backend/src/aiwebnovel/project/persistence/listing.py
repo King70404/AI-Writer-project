@@ -80,7 +80,9 @@ def project_list_statement(
         .where(
             or_(
                 ProjectRevisionRecord.title.is_(None),
-                ~ProjectRevisionRecord.title.startswith(PROJECT_DELETION_TITLE_PREFIX),
+                ~ProjectRevisionRecord.title.startswith(
+                    PROJECT_DELETION_TITLE_PREFIX, autoescape=True
+                ),
             )
         )
     )

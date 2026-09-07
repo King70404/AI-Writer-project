@@ -38,18 +38,26 @@ export interface ListProjectsOptions {
   readonly cursor?: string;
   readonly signal?: AbortSignal;
 }
-export interface CreateProjectOptions { readonly signal?: AbortSignal; }
-export interface GetProjectOptions { readonly signal?: AbortSignal; }
+export interface CreateProjectOptions {
+  readonly signal?: AbortSignal;
+}
+export interface GetProjectOptions {
+  readonly signal?: AbortSignal;
+}
 export interface ReviseProjectInput extends ReviseProjectRequest {
   readonly projectId: string;
   readonly etag: string;
 }
-export interface ReviseProjectOptions { readonly signal?: AbortSignal; }
+export interface ReviseProjectOptions {
+  readonly signal?: AbortSignal;
+}
 export interface DeleteProjectInput {
   readonly projectId: string;
   readonly etag: string;
 }
-export interface DeleteProjectOptions { readonly signal?: AbortSignal; }
+export interface DeleteProjectOptions {
+  readonly signal?: AbortSignal;
+}
 export interface ListProjectRevisionsOptions {
   readonly projectId: string;
   readonly limit?: number;
@@ -63,7 +71,9 @@ export interface GetProjectRevisionOptions {
 }
 
 export interface ProjectApiClient {
-  readonly listProjects: (options?: ListProjectsOptions) => Promise<ProjectListResponse>;
+  readonly listProjects: (
+    options?: ListProjectsOptions,
+  ) => Promise<ProjectListResponse>;
   readonly createProject: (
     input: CreateProjectRequest,
     options?: CreateProjectOptions,
@@ -113,7 +123,10 @@ function validateRevisionInput(input: ReviseProjectInput): {
   readonly etag: string;
   readonly version: number;
 } {
-  if (typeof input.title !== "string" || typeof input.description !== "string") {
+  if (
+    typeof input.title !== "string" ||
+    typeof input.description !== "string"
+  ) {
     throw new ProjectApiError({
       kind: "validation",
       code: "INVALID_REVISE_PROJECT_INPUT",
@@ -185,7 +198,10 @@ export function createProjectApiClient(
     input: CreateProjectRequest,
     options: CreateProjectOptions = {},
   ): Promise<ProjectResponse> => {
-    if (typeof input.title !== "string" || typeof input.description !== "string") {
+    if (
+      typeof input.title !== "string" ||
+      typeof input.description !== "string"
+    ) {
       throw new ProjectApiError({
         kind: "validation",
         code: "INVALID_CREATE_PROJECT_INPUT",
@@ -223,7 +239,10 @@ export function createProjectApiClient(
           message: "小说服务返回了无法安全读取的数据。",
         });
       }
-      return createVersionedProjectResource(response.data, response.etag ?? null);
+      return createVersionedProjectResource(
+        response.data,
+        response.etag ?? null,
+      );
     } catch (error) {
       throw normalizeProjectApiError(error);
     }
@@ -256,7 +275,10 @@ export function createProjectApiClient(
           },
         },
       );
-      const resource = createVersionedProjectResource(response.data, response.etag ?? null);
+      const resource = createVersionedProjectResource(
+        response.data,
+        response.etag ?? null,
+      );
       if (
         resource.project.project_id !== input.projectId ||
         resource.version <= submitted.version
@@ -333,7 +355,8 @@ export function createProjectApiClient(
       }
       const response = await getJson(
         `projects/${encodeURIComponent(options.projectId)}/revisions?${parameters.toString()}`,
-        (value) => parseProjectRevisionHistoryResponse(value, options.projectId),
+        (value) =>
+          parseProjectRevisionHistoryResponse(value, options.projectId),
         { signal: options.signal },
       );
       return response.data;
@@ -346,7 +369,10 @@ export function createProjectApiClient(
     options: GetProjectRevisionOptions,
   ): Promise<ProjectRevisionResponse> => {
     if (!isCanonicalProjectId(options.projectId)) throw invalidProjectIdError();
-    if (!Number.isSafeInteger(options.revisionNumber) || options.revisionNumber < 1) {
+    if (
+      !Number.isSafeInteger(options.revisionNumber) ||
+      options.revisionNumber < 1
+    ) {
       throw new ProjectApiError({
         kind: "validation",
         code: "INVALID_REVISION_NUMBER",

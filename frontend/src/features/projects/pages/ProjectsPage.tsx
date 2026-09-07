@@ -19,7 +19,10 @@ export function ProjectsPage({ client = projectApiClient }: ProjectsPageProps) {
     >
       <ProjectPageHeader />
       <CreateProjectForm client={client} reloadProjects={projectList.reload} />
-      <section className="projects-page__list" aria-labelledby="project-list-title">
+      <section
+        className="projects-page__list"
+        aria-labelledby="project-list-title"
+      >
         <div className="projects-page__list-heading">
           <div>
             <p className="section-kicker">你的创作</p>

@@ -59,7 +59,7 @@ describe("Novel Structure route", () => {
         <AppRouter />
       </MemoryRouter>,
     );
-    const link = await screen.findByRole("link", { name: "小说结构" });
+    const link = await screen.findByRole("link", { name: "大纲与章节" });
     expect(link).toHaveAttribute(
       "href",
       `/projects/${structureProjectId}/structure`,

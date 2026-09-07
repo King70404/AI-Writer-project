@@ -53,14 +53,20 @@ function ReadyProjectDetails({
           <Link to={projectStructurePath(revision.baseline.project.project_id)}>
             大纲与章节
           </Link>
-          <Link to={projectCharactersPath(revision.baseline.project.project_id)}>
+          <Link
+            to={projectCharactersPath(revision.baseline.project.project_id)}
+          >
             人物
           </Link>
-          <Link to={projectStoryBiblePath(revision.baseline.project.project_id)}>
+          <Link
+            to={projectStoryBiblePath(revision.baseline.project.project_id)}
+          >
             小说设定
           </Link>
           <Link
-            to={projectRevisionHistoryPath(revision.baseline.project.project_id)}
+            to={projectRevisionHistoryPath(
+              revision.baseline.project.project_id,
+            )}
           >
             历史版本
           </Link>
@@ -101,7 +107,9 @@ function ProjectDetailsRoute({
         <div>
           <p className="section-kicker">我的小说</p>
           <h2 id="project-details-page-title">
-            {state.status === "ready" ? state.resource.project.title : "小说详情"}
+            {state.status === "ready"
+              ? state.resource.project.title
+              : "小说详情"}
           </h2>
         </div>
         <div className="project-details-page__links">

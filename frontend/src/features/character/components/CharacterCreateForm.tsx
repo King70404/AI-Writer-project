@@ -66,7 +66,10 @@ export function CharacterCreateForm({
   };
 
   return (
-    <section className="character-form" aria-labelledby="character-create-title">
+    <section
+      className="character-form"
+      aria-labelledby="character-create-title"
+    >
       <h2 id="character-create-title">创建角色</h2>
       <form onSubmit={submit} noValidate autoComplete="off">
         <div className="form-field">
@@ -81,7 +84,9 @@ export function CharacterCreateForm({
               controller.setDraftField("name", event.target.value);
               clear("name");
             }}
-            aria-invalid={errorForCharacterField(effectiveErrors, "name") !== null}
+            aria-invalid={
+              errorForCharacterField(effectiveErrors, "name") !== null
+            }
             aria-describedby="character-create-name-error"
             disabled={create.status === "submitting"}
           />
@@ -101,7 +106,9 @@ export function CharacterCreateForm({
               controller.setDraftField("role", event.target.value);
               clear("role");
             }}
-            aria-invalid={errorForCharacterField(effectiveErrors, "role") !== null}
+            aria-invalid={
+              errorForCharacterField(effectiveErrors, "role") !== null
+            }
             aria-describedby="character-create-role-error"
             disabled={create.status === "submitting"}
           />
@@ -122,7 +129,9 @@ export function CharacterCreateForm({
               controller.setDraftField("profile", event.target.value);
               clear("profile");
             }}
-            aria-invalid={errorForCharacterField(effectiveErrors, "profile") !== null}
+            aria-invalid={
+              errorForCharacterField(effectiveErrors, "profile") !== null
+            }
             aria-describedby="character-create-profile-error"
             disabled={create.status === "submitting"}
           />
@@ -151,14 +160,19 @@ export function CharacterCreateForm({
           {create.status === "success" ? (
             <>
               <p>角色创建成功。</p>
-              <Link to={characterEditorPath(projectId, create.characterId)}>查看新角色</Link>
+              <Link to={characterEditorPath(projectId, create.characterId)}>
+                查看新角色
+              </Link>
             </>
           ) : create.status === "error" ? (
             <p>{create.error.message}</p>
           ) : (
             <>
               <p>{create.error.message}</p>
-              <button type="button" onClick={() => void controller.reloadFirstPage()}>
+              <button
+                type="button"
+                onClick={() => void controller.reloadFirstPage()}
+              >
                 重新读取角色列表
               </button>
               <p>再次提交可能创建重复角色，请先人工核对列表。</p>

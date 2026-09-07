@@ -13,7 +13,7 @@ from aiwebnovel.domain.concurrency import ConcurrencyVersion, assert_expected_ve
 from aiwebnovel.domain.errors import ConcurrencyConflict, DomainError
 from aiwebnovel.domain.time import Clock
 from aiwebnovel.project.identifiers import ProjectId
-from aiwebnovel.project.persistence.visibility import project_is_active
+from aiwebnovel.project.persistence.models import ProjectRecord
 from aiwebnovel.story_bible.entities import StoryBibleAggregate
 from aiwebnovel.story_bible.errors import (
     InvalidStoryBibleState,
@@ -30,6 +30,7 @@ from aiwebnovel.story_bible.persistence.mappers import (
     story_bible_aggregate_to_records,
     story_bible_revision_to_record,
 )
+from aiwebnovel.story_bible.persistence.models import StoryBibleRecord
 from aiwebnovel.story_bible.persistence.queries import (
     current_story_bible_query,
     story_bible_compare_and_swap,
@@ -66,7 +67,14 @@ class SqlAlchemyStoryBibleRepository(StoryBibleRepository):
         session = self._new_session()
         try:
             self._begin_immediate(session)
-            if not project_is_active(session, aggregate.story_bible.project_id):
+            if (
+                session.scalar(
+                    ProjectRecord.active_ids().where(
+                        ProjectRecord.id == aggregate.story_bible.project_id
+                    )
+                )
+                is None
+            ):
                 raise StoryBibleProjectNotFound(aggregate.story_bible.project_id)
             if session.scalar(story_bible_identity_query(aggregate.story_bible.id)) is not None:
                 raise StoryBibleAlreadyExists(aggregate.story_bible.id)
@@ -109,11 +117,7 @@ class SqlAlchemyStoryBibleRepository(StoryBibleRepository):
         self._validate_story_bible_id(story_bible_id)
         session = self._new_session()
         try:
-            aggregate = self._load_current(session, story_bible_id)
-            if aggregate is not None and not project_is_active(
-                session, aggregate.story_bible.project_id
-            ):
-                aggregate = None
+            aggregate = self._load_current(session, story_bible_id, active_only=True)
             session.rollback()
             return aggregate
         except StoryBibleDataCorruption:
@@ -132,8 +136,6 @@ class SqlAlchemyStoryBibleRepository(StoryBibleRepository):
         self._validate_project_id(project_id)
         session = self._new_session()
         try:
-            if not project_is_active(session, project_id):
-                raise StoryBibleProjectNotFound(project_id)
             aggregate = self._load_for_project(session, project_id)
             session.rollback()
             return aggregate
@@ -174,7 +176,14 @@ class SqlAlchemyStoryBibleRepository(StoryBibleRepository):
             aggregate = self._load_current(session, story_bible_id)
             if aggregate is None:
                 raise StoryBibleNotFound(story_bible_id)
-            if not project_is_active(session, aggregate.story_bible.project_id):
+            if (
+                session.scalar(
+                    ProjectRecord.active_ids().where(
+                        ProjectRecord.id == aggregate.story_bible.project_id
+                    )
+                )
+                is None
+            ):
                 raise StoryBibleProjectNotFound(aggregate.story_bible.project_id)
 
             assert_expected_version(
@@ -300,11 +309,16 @@ class SqlAlchemyStoryBibleRepository(StoryBibleRepository):
     def _load_current(
         session: Session,
         story_bible_id: StoryBibleId,
+        *,
+        active_only: bool = False,
     ) -> StoryBibleAggregate | None:
         try:
-            row = session.execute(
-                current_story_bible_query(story_bible_id),
-            ).one_or_none()
+            statement = current_story_bible_query(story_bible_id)
+            if active_only:
+                statement = statement.where(
+                    StoryBibleRecord.project_id.not_in(ProjectRecord.deleted_ids())
+                )
+            row = session.execute(statement).one_or_none()
             if row is None:
                 return None
             story_bible_record, head_record, revision_record = row
@@ -327,7 +341,9 @@ class SqlAlchemyStoryBibleRepository(StoryBibleRepository):
     ) -> StoryBibleAggregate | None:
         try:
             row = session.execute(
-                story_bible_for_project_query(project_id),
+                story_bible_for_project_query(project_id).where(
+                    ProjectRecord.id.in_(ProjectRecord.active_ids()),
+                ),
             ).one_or_none()
             if row is None:
                 raise StoryBibleProjectNotFound(project_id)

@@ -14,8 +14,13 @@ interface ProjectEditFormProps {
   readonly onReloadProject: () => void;
 }
 
-export function ProjectEditForm({ controller, onReloadProject }: ProjectEditFormProps) {
-  const [fieldErrors, setFieldErrors] = useState<readonly ProjectFieldError[]>([]);
+export function ProjectEditForm({
+  controller,
+  onReloadProject,
+}: ProjectEditFormProps) {
+  const [fieldErrors, setFieldErrors] = useState<readonly ProjectFieldError[]>(
+    [],
+  );
   const titleRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
@@ -23,7 +28,9 @@ export function ProjectEditForm({ controller, onReloadProject }: ProjectEditForm
   const descriptionError = errorForProjectField(fieldErrors, "description");
   const state = controller.state;
   const blocked =
-    state.kind === "saving" || state.kind === "conflict" || state.kind === "outcome_unknown";
+    state.kind === "saving" ||
+    state.kind === "conflict" ||
+    state.kind === "outcome_unknown";
 
   useEffect(() => {
     if (
@@ -43,7 +50,9 @@ export function ProjectEditForm({ controller, onReloadProject }: ProjectEditForm
   }, [descriptionError, state.kind, titleError]);
 
   const clearFieldError = (field: ProjectFieldName): void => {
-    setFieldErrors((current) => current.filter((error) => error.field !== field));
+    setFieldErrors((current) =>
+      current.filter((error) => error.field !== field),
+    );
     controller.dismissFeedback();
   };
 
@@ -55,7 +64,10 @@ export function ProjectEditForm({ controller, onReloadProject }: ProjectEditForm
     );
     if (clientErrors.length > 0) {
       setFieldErrors(clientErrors);
-      (clientErrors[0]?.field === "description" ? descriptionRef : titleRef).current?.focus();
+      (clientErrors[0]?.field === "description"
+        ? descriptionRef
+        : titleRef
+      ).current?.focus();
       return;
     }
     setFieldErrors([]);
@@ -87,7 +99,11 @@ export function ProjectEditForm({ controller, onReloadProject }: ProjectEditForm
           {controller.dirty ? "有未保存更改" : "已保存"}
         </p>
       </div>
-      <form onSubmit={(event) => void submit(event)} noValidate autoComplete="off">
+      <form
+        onSubmit={(event) => void submit(event)}
+        noValidate
+        autoComplete="off"
+      >
         <div className="form-field">
           <label htmlFor="project-edit-title-input">书名</label>
           <input
@@ -106,9 +122,14 @@ export function ProjectEditForm({ controller, onReloadProject }: ProjectEditForm
             disabled={blocked}
           />
           <p id="project-edit-title-count" className="field-count">
-            {countUnicodeCodePoints(controller.draft.title)} / {PROJECT_TITLE_MAX_CODE_POINTS} 字符
+            {countUnicodeCodePoints(controller.draft.title)} /{" "}
+            {PROJECT_TITLE_MAX_CODE_POINTS} 字符
           </p>
-          {titleError === null ? null : <p id="project-edit-title-error" className="field-error">{titleError}</p>}
+          {titleError === null ? null : (
+            <p id="project-edit-title-error" className="field-error">
+              {titleError}
+            </p>
+          )}
         </div>
         <div className="form-field">
           <label htmlFor="project-edit-description">简介</label>
@@ -128,9 +149,14 @@ export function ProjectEditForm({ controller, onReloadProject }: ProjectEditForm
             disabled={blocked}
           />
           <p id="project-edit-description-count" className="field-count">
-            {countUnicodeCodePoints(controller.draft.description)} / {PROJECT_DESCRIPTION_MAX_CODE_POINTS} 字符
+            {countUnicodeCodePoints(controller.draft.description)} /{" "}
+            {PROJECT_DESCRIPTION_MAX_CODE_POINTS} 字符
           </p>
-          {descriptionError === null ? null : <p id="project-edit-description-error" className="field-error">{descriptionError}</p>}
+          {descriptionError === null ? null : (
+            <p id="project-edit-description-error" className="field-error">
+              {descriptionError}
+            </p>
+          )}
         </div>
         <button type="submit" disabled={blocked || !controller.dirty}>
           {state.kind === "saving" ? "正在保存…" : "保存小说信息"}
@@ -140,8 +166,16 @@ export function ProjectEditForm({ controller, onReloadProject }: ProjectEditForm
         <div
           ref={feedbackRef}
           className={`project-edit__feedback project-edit__feedback--${state.kind}`}
-          role={state.kind === "save_error" || state.kind === "outcome_unknown" ? "alert" : "status"}
-          aria-live={state.kind === "save_error" || state.kind === "outcome_unknown" ? "assertive" : "polite"}
+          role={
+            state.kind === "save_error" || state.kind === "outcome_unknown"
+              ? "alert"
+              : "status"
+          }
+          aria-live={
+            state.kind === "save_error" || state.kind === "outcome_unknown"
+              ? "assertive"
+              : "polite"
+          }
           tabIndex={-1}
         >
           <p>{feedback}</p>
@@ -149,7 +183,9 @@ export function ProjectEditForm({ controller, onReloadProject }: ProjectEditForm
             <p className="request-id">请求编号：{state.error.requestId}</p>
           ) : null}
           {state.kind === "outcome_unknown" ? (
-            <button type="button" onClick={onReloadProject}>重新加载小说</button>
+            <button type="button" onClick={onReloadProject}>
+              重新加载小说
+            </button>
           ) : null}
         </div>
       )}

@@ -1,5 +1,6 @@
 """Project logical-deletion markers that reuse immutable revision history."""
 
+from aiwebnovel.domain.errors import InvalidDomainIdentifier
 from aiwebnovel.project.identifiers import ProjectId
 
 PROJECT_DELETION_TITLE_PREFIX = "__AIWEBNOVEL_DELETED__:"
@@ -19,7 +20,7 @@ def is_deleted_project_title(value: object) -> bool:
     raw_project_id = value[len(PROJECT_DELETION_TITLE_PREFIX) :]
     try:
         ProjectId.parse(raw_project_id)
-    except Exception:  # Domain parser owns exact validation details.
+    except InvalidDomainIdentifier:
         return False
     return True
 

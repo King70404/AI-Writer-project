@@ -53,12 +53,14 @@ describe("Create Project form", () => {
   it("associates labels and validates required title without side effects", async () => {
     const user = userEvent.setup();
     const { createProject, reloadProjects } = renderForm();
-    const title = screen.getByRole("textbox", { name: "项目标题" });
-    const description = screen.getByRole("textbox", { name: "项目简介" });
+    const title = screen.getByRole("textbox", { name: "书名" });
+    const description = screen.getByRole("textbox", {
+      name: "一句话简介（可选）",
+    });
 
     expect(title).toHaveAttribute("id", "project-title");
     expect(description).toHaveAttribute("id", "project-description");
-    await user.click(screen.getByRole("button", { name: "创建项目" }));
+    await user.click(screen.getByRole("button", { name: "创建小说" }));
 
     expect(await screen.findByText("请输入项目标题。")).toBeVisible();
     expect(title).toHaveFocus();
@@ -69,11 +71,13 @@ describe("Create Project form", () => {
   it("counts Unicode code points, including one per emoji", async () => {
     const user = userEvent.setup();
     renderForm();
-    const title = screen.getByRole("textbox", { name: "项目标题" });
+    const title = screen.getByRole("textbox", { name: "书名" });
     await user.type(title, "甲😀乙");
     expect(screen.getByText("3 / 120 字符")).toBeVisible();
 
-    const description = screen.getByRole("textbox", { name: "项目简介" });
+    const description = screen.getByRole("textbox", {
+      name: "一句话简介（可选）",
+    });
     await user.type(description, "😀😀");
     expect(screen.getByText("2 / 2000 字符")).toBeVisible();
   });
@@ -81,11 +85,13 @@ describe("Create Project form", () => {
   it("rejects overlong title and description before calling the client", async () => {
     const user = userEvent.setup();
     const { createProject } = renderForm();
-    const title = screen.getByRole("textbox", { name: "项目标题" });
-    const description = screen.getByRole("textbox", { name: "项目简介" });
+    const title = screen.getByRole("textbox", { name: "书名" });
+    const description = screen.getByRole("textbox", {
+      name: "一句话简介（可选）",
+    });
     fireEvent.change(title, { target: { value: "😀".repeat(121) } });
     fireEvent.change(description, { target: { value: "文".repeat(2_001) } });
-    await user.click(screen.getByRole("button", { name: "创建项目" }));
+    await user.click(screen.getByRole("button", { name: "创建小说" }));
 
     expect(screen.getByText("项目标题不能超过120个字符。")).toBeVisible();
     expect(screen.getByText("项目简介不能超过2000个字符。")).toBeVisible();
@@ -103,11 +109,11 @@ describe("Create Project form", () => {
     );
     const reloadProjects = vi.fn().mockResolvedValue(true);
     renderForm(createProject, reloadProjects);
-    const title = screen.getByRole("textbox", { name: "项目标题" });
+    const title = screen.getByRole("textbox", { name: "书名" });
     await user.type(title, "新项目");
 
-    await user.click(screen.getByRole("button", { name: "创建项目" }));
-    const submitting = screen.getByRole("button", { name: /正在创建项目/ });
+    await user.click(screen.getByRole("button", { name: "创建小说" }));
+    const submitting = screen.getByRole("button", { name: /正在创建/ });
     expect(submitting).toBeDisabled();
     await user.click(submitting);
     expect(createProject).toHaveBeenCalledOnce();
@@ -117,9 +123,16 @@ describe("Create Project form", () => {
 
     resolveCreate(createdProject());
     const successMessage = await screen.findByRole("status");
-    expect(successMessage).toHaveTextContent(projectId);
+    expect(successMessage).toHaveTextContent("小说《新项目》已创建。");
+    expect(successMessage).not.toHaveTextContent(projectId);
+    expect(screen.getByRole("link", { name: "打开这本小说" })).toHaveAttribute(
+      "href",
+      `/projects/${projectId}`,
+    );
     expect(title).toHaveValue("");
-    expect(screen.getByRole("textbox", { name: "项目简介" })).toHaveValue("");
+    expect(
+      screen.getByRole("textbox", { name: "一句话简介（可选）" }),
+    ).toHaveValue("");
     expect(reloadProjects).toHaveBeenCalledOnce();
     await waitFor(() => expect(successMessage).toHaveFocus());
     expect(
@@ -141,11 +154,13 @@ describe("Create Project form", () => {
       }),
     );
     const { reloadProjects } = renderForm(createProject);
-    const title = screen.getByRole("textbox", { name: "项目标题" });
-    const description = screen.getByRole("textbox", { name: "项目简介" });
+    const title = screen.getByRole("textbox", { name: "书名" });
+    const description = screen.getByRole("textbox", {
+      name: "一句话简介（可选）",
+    });
     await user.type(title, "保留标题");
     await user.type(description, "保留简介");
-    await user.click(screen.getByRole("button", { name: "创建项目" }));
+    await user.click(screen.getByRole("button", { name: "创建小说" }));
 
     expect(await screen.findByText("项目标题未通过服务端验证。")).toBeVisible();
     expect(screen.getByRole("alert")).toHaveTextContent("req_validation");
@@ -172,12 +187,17 @@ describe("Create Project form", () => {
         }),
       ),
     );
-    await user.type(screen.getByRole("textbox", { name: "项目标题" }), "项目");
-    await user.type(screen.getByRole("textbox", { name: "项目简介" }), "简介");
-    await user.click(screen.getByRole("button", { name: "创建项目" }));
+    await user.type(screen.getByRole("textbox", { name: "书名" }), "项目");
+    await user.type(
+      screen.getByRole("textbox", { name: "一句话简介（可选）" }),
+      "简介",
+    );
+    await user.click(screen.getByRole("button", { name: "创建小说" }));
 
     expect(await screen.findByText("项目简介未通过服务端验证。")).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "项目简介" })).toHaveFocus();
+    expect(
+      screen.getByRole("textbox", { name: "一句话简介（可选）" }),
+    ).toHaveFocus();
   });
 
   it.each([
@@ -201,11 +221,8 @@ describe("Create Project form", () => {
           }),
         ),
       );
-      await user.type(
-        screen.getByRole("textbox", { name: "项目标题" }),
-        "项目",
-      );
-      await user.click(screen.getByRole("button", { name: "创建项目" }));
+      await user.type(screen.getByRole("textbox", { name: "书名" }), "项目");
+      await user.click(screen.getByRole("button", { name: "创建小说" }));
 
       expect(await screen.findByRole("alert")).toHaveTextContent(message);
       expect(screen.getByRole("alert")).toHaveTextContent("req_form");
@@ -217,9 +234,9 @@ describe("Create Project form", () => {
   it("clears stale field feedback when the user edits the field", async () => {
     const user = userEvent.setup();
     renderForm();
-    await user.click(screen.getByRole("button", { name: "创建项目" }));
+    await user.click(screen.getByRole("button", { name: "创建小说" }));
     expect(await screen.findByText("请输入项目标题。")).toBeVisible();
-    await user.type(screen.getByRole("textbox", { name: "项目标题" }), "有效");
+    await user.type(screen.getByRole("textbox", { name: "书名" }), "有效");
     await waitFor(() =>
       expect(screen.queryByText("请输入项目标题。")).not.toBeInTheDocument(),
     );

@@ -13,9 +13,15 @@ import {
   type StoryBibleFieldName,
 } from "../validation";
 
-export function StoryBibleCreateForm({ controller }: { readonly controller: StoryBibleController }) {
+export function StoryBibleCreateForm({
+  controller,
+}: {
+  readonly controller: StoryBibleController;
+}) {
   const state = controller.state;
-  const [fieldErrors, setFieldErrors] = useState<readonly StoryBibleFieldError[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<
+    readonly StoryBibleFieldError[]
+  >([]);
   const titleRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
@@ -23,7 +29,10 @@ export function StoryBibleCreateForm({ controller }: { readonly controller: Stor
   const createKind = createState?.create.kind ?? "idle";
 
   useEffect(() => {
-    if (createState?.create.kind === "error" && createState.create.error !== null) {
+    if (
+      createState?.create.kind === "error" &&
+      createState.create.error !== null
+    ) {
       feedbackRef.current?.focus();
     }
     if (createKind === "outcome_unknown" || createKind === "already_exists") {
@@ -34,18 +43,30 @@ export function StoryBibleCreateForm({ controller }: { readonly controller: Stor
   if (createState === null) return null;
   const stateDraft = createState.draft;
   const stateCreate = createState.create;
-  const effectiveFieldErrors = fieldErrors.length > 0 ? fieldErrors : (stateCreate.error?.fieldErrors ?? []);
+  const effectiveFieldErrors =
+    fieldErrors.length > 0
+      ? fieldErrors
+      : (stateCreate.error?.fieldErrors ?? []);
   const titleError = errorForStoryBibleField(effectiveFieldErrors, "title");
   const contentError = errorForStoryBibleField(effectiveFieldErrors, "content");
-  const blocked = stateCreate.kind === "submitting" || stateCreate.kind === "outcome_unknown" || stateCreate.kind === "already_exists" || stateCreate.verifying;
+  const blocked =
+    stateCreate.kind === "submitting" ||
+    stateCreate.kind === "outcome_unknown" ||
+    stateCreate.kind === "already_exists" ||
+    stateCreate.verifying;
 
   const clearFieldError = (field: StoryBibleFieldName): void => {
-    setFieldErrors((current) => current.filter((error) => error.field !== field));
+    setFieldErrors((current) =>
+      current.filter((error) => error.field !== field),
+    );
   };
 
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    const errors = validateStoryBibleInput(stateDraft.title, stateDraft.content);
+    const errors = validateStoryBibleInput(
+      stateDraft.title,
+      stateDraft.content,
+    );
     if (errors.length > 0) {
       setFieldErrors(errors);
       (errors[0]?.field === "content" ? contentRef : titleRef).current?.focus();
@@ -56,7 +77,10 @@ export function StoryBibleCreateForm({ controller }: { readonly controller: Stor
   };
 
   return (
-    <section className="story-bible-create" aria-labelledby="story-bible-create-title">
+    <section
+      className="story-bible-create"
+      aria-labelledby="story-bible-create-title"
+    >
       <p className="section-kicker">小说设定</p>
       <h3 id="story-bible-create-title">创建小说设定</h3>
       <p>在这里记录世界观、力量体系、地点、主线和其他长期设定。</p>
@@ -79,9 +103,14 @@ export function StoryBibleCreateForm({ controller }: { readonly controller: Stor
             disabled={blocked}
           />
           <p id="story-bible-create-title-count" className="field-count">
-            {countStoryBibleCodePoints(stateDraft.title)} / {STORY_BIBLE_TITLE_MAX_CODE_POINTS} 字符
+            {countStoryBibleCodePoints(stateDraft.title)} /{" "}
+            {STORY_BIBLE_TITLE_MAX_CODE_POINTS} 字符
           </p>
-          {titleError === null ? null : <p id="story-bible-create-title-error" className="field-error">{titleError}</p>}
+          {titleError === null ? null : (
+            <p id="story-bible-create-title-error" className="field-error">
+              {titleError}
+            </p>
+          )}
         </div>
         <div className="form-field">
           <label htmlFor="story-bible-create-content">设定正文</label>
@@ -101,9 +130,14 @@ export function StoryBibleCreateForm({ controller }: { readonly controller: Stor
             disabled={blocked}
           />
           <p id="story-bible-create-content-count" className="field-count">
-            {countStoryBibleCodePoints(stateDraft.content)} / {STORY_BIBLE_CONTENT_MAX_CODE_POINTS} 字符
+            {countStoryBibleCodePoints(stateDraft.content)} /{" "}
+            {STORY_BIBLE_CONTENT_MAX_CODE_POINTS} 字符
           </p>
-          {contentError === null ? null : <p id="story-bible-create-content-error" className="field-error">{contentError}</p>}
+          {contentError === null ? null : (
+            <p id="story-bible-create-content-error" className="field-error">
+              {contentError}
+            </p>
+          )}
         </div>
         <button type="submit" disabled={blocked}>
           {stateCreate.kind === "submitting" ? "正在创建…" : "创建小说设定"}
@@ -118,13 +152,31 @@ export function StoryBibleCreateForm({ controller }: { readonly controller: Stor
           tabIndex={-1}
         >
           <p>{stateCreate.error.message}</p>
-          {stateCreate.error.requestId === null ? null : <p className="request-id">请求编号：{stateCreate.error.requestId}</p>}
-          {stateCreate.kind === "outcome_unknown" || stateCreate.kind === "already_exists" ? (
-            <button type="button" disabled={stateCreate.verifying} onClick={() => void controller.verifyCreateResult()}>
+          {stateCreate.error.requestId === null ? null : (
+            <p className="request-id">
+              请求编号：{stateCreate.error.requestId}
+            </p>
+          )}
+          {stateCreate.kind === "outcome_unknown" ||
+          stateCreate.kind === "already_exists" ? (
+            <button
+              type="button"
+              disabled={stateCreate.verifying}
+              onClick={() => void controller.verifyCreateResult()}
+            >
               {stateCreate.verifying ? "正在重新读取…" : "重新读取小说设定"}
             </button>
           ) : null}
-          {stateCreate.verificationError === null ? null : <p>{stateCreate.verificationError.message}</p>}
+          {stateCreate.verificationError === null ? null : (
+            <>
+              <p>{stateCreate.verificationError.message}</p>
+              {stateCreate.verificationError.requestId === null ? null : (
+                <p className="request-id">
+                  请求编号：{stateCreate.verificationError.requestId}
+                </p>
+              )}
+            </>
+          )}
         </div>
       )}
     </section>

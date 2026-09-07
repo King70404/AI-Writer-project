@@ -88,7 +88,7 @@ describe("Project revision history route", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     renderAt(`/projects/${projectId}`);
-    const link = await screen.findByRole("link", { name: "查看修订历史" });
+    const link = await screen.findByRole("link", { name: "历史版本" });
     expect(link).toHaveAttribute("href", `/projects/${projectId}/history`);
     await user.click(link);
     expect(await screen.findByText("可导航的修订")).toBeVisible();

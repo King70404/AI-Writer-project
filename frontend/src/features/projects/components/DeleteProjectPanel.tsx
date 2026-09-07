@@ -31,7 +31,7 @@ export function DeleteProjectPanel({
         projectId: resource.project.project_id,
         etag: resource.etag,
       });
-      navigate("/projects", { replace: true });
+      await navigate("/projects", { replace: true });
     } catch (reason) {
       setError(
         reason instanceof ProjectApiError

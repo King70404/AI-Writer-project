@@ -49,13 +49,13 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
 
   await page.goto("/projects");
   await expect(page.getByText("还没有项目")).toBeVisible();
-  await page.getByRole("textbox", { name: "项目标题" }).fill(projectTitle);
+  await page.getByRole("textbox", { name: "书名" }).fill(projectTitle);
   await page
-    .getByRole("textbox", { name: "项目简介" })
+    .getByRole("textbox", { name: "一句话简介（可选）" })
     .fill(projectDescription);
-  await page.getByRole("button", { name: "创建项目" }).click();
+  await page.getByRole("button", { name: "创建小说" }).click();
 
-  const projectLink = page.getByRole("link", { name: "查看新项目" });
+  const projectLink = page.getByRole("link", { name: "打开这本小说" });
   const projectPath = projectPathFromHref(
     await projectLink.getAttribute("href"),
   );
@@ -64,7 +64,7 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
   await expect(
     page.getByRole("heading", { level: 2, name: projectTitle }),
   ).toBeVisible();
-  const storyLink = page.getByRole("link", { name: "查看 Story Bible" });
+  const storyLink = page.getByRole("link", { name: "小说设定" });
   expect(await storyLink.getAttribute("href")).toBe(
     `${projectPath}/story-bible`,
   );
@@ -79,18 +79,14 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
   ).length;
   expect(initialGets).toBe(1);
 
-  await page
-    .getByRole("textbox", { name: "Story Bible标题" })
-    .fill(initialTitle);
-  await page
-    .getByRole("textbox", { name: "Story Bible正文" })
-    .fill(initialContent);
+  await page.getByRole("textbox", { name: "设定标题" }).fill(initialTitle);
+  await page.getByRole("textbox", { name: "设定正文" }).fill(initialContent);
   const createResponsePromise = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       new URL(response.url()).pathname === nestedApiPath,
   );
-  await page.getByRole("button", { name: "创建 Story Bible" }).click();
+  await page.getByRole("button", { name: "创建小说设定" }).click();
   const created = await createResponsePromise;
   expect(created.status()).toBe(201);
   expect(created.headers().etag).toBe('"1"');
@@ -129,7 +125,7 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
       response.request().method() === "PUT" &&
       new URL(response.url()).pathname === directApiPath,
   );
-  await page.getByRole("button", { name: "保存完整修订" }).click();
+  await page.getByRole("button", { name: "保存小说信息" }).click();
   const revisionTwo = await revisionTwoPromise;
   expect(revisionTwo.status()).toBe(200);
   expect(revisionTwo.headers().etag).toBe('"2"');
@@ -177,7 +173,7 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
     (request) => request.method === "PUT" && request.path === directApiPath,
   ).length;
   browserAudit.allowExpectedConsoleHttpFailure(directApiPath, 412);
-  await page.getByRole("button", { name: "保存完整修订" }).click();
+  await page.getByRole("button", { name: "保存小说信息" }).click();
   await expect(
     page.getByRole("heading", {
       name: "检测到 Story Bible 版本冲突",
@@ -221,7 +217,7 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
       new URL(response.url()).pathname === directApiPath &&
       response.status() === 200,
   );
-  await page.getByRole("button", { name: "保存完整修订" }).click();
+  await page.getByRole("button", { name: "保存小说信息" }).click();
   const finalSave = await finalSavePromise;
   expect(finalSave.headers().etag).toBe('"4"');
   await expect(page.getByText("Story Bible修订已保存。")).toBeVisible();

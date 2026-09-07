@@ -33,7 +33,7 @@ from aiwebnovel.domain.concurrency import ConcurrencyVersion
 from aiwebnovel.domain.errors import DomainError
 from aiwebnovel.domain.revisions import RevisionNumber
 from aiwebnovel.project.identifiers import ProjectId
-from aiwebnovel.project.persistence.visibility import project_is_active
+from aiwebnovel.project.persistence.models import ProjectRecord
 
 SessionFactory = Callable[[], Session]
 CharacterListRow = tuple[
@@ -200,7 +200,10 @@ class SqlAlchemyCharacterListReader:
             raise ValueError("after position must belong to the requested Project")
         session = self._new_session()
         try:
-            if not project_is_active(session, project_id):
+            if (
+                session.scalar(ProjectRecord.active_ids().where(ProjectRecord.id == project_id))
+                is None
+            ):
                 raise CharacterProjectNotFound(project_id)
             rows = (
                 session.execute(

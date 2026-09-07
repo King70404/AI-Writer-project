@@ -2,6 +2,7 @@ import { vi } from "vitest";
 
 import type {
   ProjectDetailApiClient,
+  ProjectDeleteApiClient,
   ProjectRevisionApiClient,
 } from "../../frontend/src/features/projects/api/client";
 import type {
@@ -52,8 +53,12 @@ export function versionedResource(
 export function detailClient(
   getProject = vi.fn().mockResolvedValue(versionedResource()),
   reviseProject = vi.fn().mockResolvedValue(versionedResource(2)),
-): ProjectDetailApiClient & ProjectRevisionApiClient {
-  return { getProject, reviseProject };
+): ProjectDetailApiClient & ProjectRevisionApiClient & ProjectDeleteApiClient {
+  return {
+    getProject,
+    reviseProject,
+    deleteProject: vi.fn().mockResolvedValue(undefined),
+  };
 }
 
 export function jsonResponse(

@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type {
   ProjectDetailApiClient,
+  ProjectDeleteApiClient,
   ProjectRevisionApiClient,
 } from "../../frontend/src/features/projects/api/client";
 import { ProjectApiError } from "../../frontend/src/features/projects/api/errors";
@@ -26,7 +27,9 @@ function conflictError(requestId: string | null = "req_conflict_safe") {
 }
 
 function renderConflict(
-  client: ProjectDetailApiClient & ProjectRevisionApiClient,
+  client: ProjectDetailApiClient &
+    ProjectRevisionApiClient &
+    ProjectDeleteApiClient,
 ) {
   return render(
     <MemoryRouter initialEntries={[`/projects/${projectId}`]}>
@@ -41,13 +44,13 @@ function renderConflict(
 }
 
 async function makeDraftAndSave(user: ReturnType<typeof userEvent.setup>) {
-  const title = await screen.findByRole("textbox", { name: "项目标题" });
-  const description = screen.getByRole("textbox", { name: "项目简介" });
+  const title = await screen.findByRole("textbox", { name: "书名" });
+  const description = screen.getByRole("textbox", { name: "简介" });
   await user.clear(title);
   await user.type(title, "我的冲突草稿");
   await user.clear(description);
   await user.type(description, "我的草稿简介\n第二行");
-  await user.click(screen.getByRole("button", { name: "保存完整修订" }));
+  await user.click(screen.getByRole("button", { name: "保存小说信息" }));
   return { title, description };
 }
 
@@ -68,7 +71,7 @@ describe("Project explicit conflict workflow", () => {
     expect(conflict).toHaveTextContent("req_conflict_safe");
     expect(controls.title).toHaveValue("我的冲突草稿");
     expect(controls.description).toHaveValue("我的草稿简介\n第二行");
-    expect(screen.getByRole("button", { name: "保存完整修订" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存小说信息" })).toBeDisabled();
     expect(getProject).toHaveBeenCalledOnce();
     expect(reviseProject).toHaveBeenCalledOnce();
     await Promise.resolve();
@@ -125,16 +128,16 @@ describe("Project explicit conflict workflow", () => {
       }),
     );
 
-    expect(screen.getByRole("textbox", { name: "项目标题" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "书名" })).toHaveValue(
       "采用的最新标题",
     );
-    expect(screen.getByRole("textbox", { name: "项目简介" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "简介" })).toHaveValue(
       "采用的最新简介",
     );
     expect(
-      screen.getByText("已放弃当前草稿并采用服务端最新版本。").parentElement,
+      screen.getByText("已采用最新保存版本。").parentElement,
     ).toHaveFocus();
-    expect(screen.getByRole("button", { name: "保存完整修订" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存小说信息" })).toBeDisabled();
     expect(reviseProject).toHaveBeenCalledOnce();
   });
 
@@ -172,23 +175,21 @@ describe("Project explicit conflict workflow", () => {
     expect(controls.title).toHaveValue("我的冲突草稿");
     expect(controls.description).toHaveValue("我的草稿简介\n第二行");
     expect(
-      screen.getByText("当前草稿将在下次手动保存时完整替换最新标题和简介。")
+      screen.getByText("当前编辑内容将在下次保存时应用到最新版本。")
         .parentElement,
     ).toHaveFocus();
     expect(reviseProject).toHaveBeenCalledOnce();
-    expect(screen.getByRole("button", { name: "保存完整修订" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "保存小说信息" })).toBeEnabled();
 
-    await user.click(screen.getByRole("button", { name: "保存完整修订" }));
+    await user.click(screen.getByRole("button", { name: "保存小说信息" }));
     await waitFor(() => expect(reviseProject).toHaveBeenCalledTimes(2));
     expect(reviseProject.mock.calls[1]?.[0]).toMatchObject({
       etag: '"2"',
       title: "我的冲突草稿",
       description: "我的草稿简介\n第二行",
     });
-    expect(await screen.findByText("项目修订已保存。")).toBeVisible();
-    expect(screen.getByText("并发版本").nextElementSibling).toHaveTextContent(
-      "3",
-    );
+    expect(await screen.findByText("小说信息已保存。")).toBeVisible();
+    expect(document.body).not.toHaveTextContent("并发版本");
   });
 
   it("keeps conflict and draft when latest GET fails or is older than actual", async () => {
@@ -243,12 +244,12 @@ describe("Project explicit conflict workflow", () => {
       );
     const reviseProject = vi.fn().mockRejectedValue(conflictError(null));
     renderConflict(detailClient(getProject, reviseProject));
-    const title = await screen.findByRole("textbox", { name: "项目标题" });
-    const description = screen.getByRole("textbox", { name: "项目简介" });
+    const title = await screen.findByRole("textbox", { name: "书名" });
+    const description = screen.getByRole("textbox", { name: "简介" });
     await user.clear(title);
     await user.type(title, "空简介本地草稿");
     await user.clear(description);
-    await user.click(screen.getByRole("button", { name: "保存完整修订" }));
+    await user.click(screen.getByRole("button", { name: "保存小说信息" }));
 
     const conflict = await screen.findByRole("alert");
     expect(conflict.querySelector(".request-id")).toBeNull();
@@ -267,8 +268,8 @@ describe("Project explicit conflict workflow", () => {
         name: "放弃当前草稿并采用最新版本",
       }),
     );
-    expect(screen.getByText("当前项目快照").parentElement).toHaveTextContent(
-      "暂无项目简介。",
+    expect(screen.getByText("小说简介").parentElement).toHaveTextContent(
+      "暂未填写简介。",
     );
   });
 });

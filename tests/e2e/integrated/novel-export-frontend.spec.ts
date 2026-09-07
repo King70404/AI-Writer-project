@@ -9,9 +9,9 @@ test("E2E-INT-020 Novel text export flow", async ({ page, browserAudit }) => {
   browserAudit.allowOneExpectedSessionCookie();
   await page.goto("/projects");
   const title = "归途：雨夜";
-  await page.getByRole("textbox", { name: "项目标题" }).fill(title);
-  await page.getByRole("button", { name: "创建项目" }).click();
-  const projectLink = page.getByRole("link", { name: "查看新项目" });
+  await page.getByRole("textbox", { name: "书名" }).fill(title);
+  await page.getByRole("button", { name: "创建小说" }).click();
+  const projectLink = page.getByRole("link", { name: "打开这本小说" });
   const projectPath = await projectLink.getAttribute("href");
   expect(projectPath).toMatch(/^\/projects\/prj_[0-9A-HJKMNP-TV-Z]{26}$/u);
   const projectId = projectPath!.split("/")[2];
@@ -20,7 +20,7 @@ test("E2E-INT-020 Novel text export flow", async ({ page, browserAudit }) => {
     `/api/v1/projects/${projectId}/outline`,
     404,
   );
-  await page.getByRole("link", { name: "小说结构" }).click();
+  await page.getByRole("link", { name: "大纲与章节" }).click();
   await expect(page.getByText("当前尚未创建大纲。")).toBeVisible();
   const outline = page
     .getByRole("heading", { name: "大纲", exact: true })

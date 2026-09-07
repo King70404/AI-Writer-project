@@ -12,11 +12,13 @@ if (rootElement === null) {
 }
 
 function suppressAuthoringAutocomplete(root: ParentNode): void {
-  root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-    'input[type="text"], input:not([type]), textarea',
-  ).forEach((field) => {
-    field.setAttribute("autocomplete", "off");
-  });
+  root
+    .querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+      'input[type="text"], input:not([type]), textarea',
+    )
+    .forEach((field) => {
+      field.setAttribute("autocomplete", "off");
+    });
 }
 
 const autocompleteObserver = new MutationObserver((records) => {

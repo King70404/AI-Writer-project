@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type {
   ProjectDetailApiClient,
+  ProjectDeleteApiClient,
   ProjectRevisionApiClient,
 } from "../../frontend/src/features/projects/api/client";
 import { ProjectApiError } from "../../frontend/src/features/projects/api/errors";
@@ -24,7 +25,9 @@ function deferred<T>() {
 }
 
 function renderEditor(
-  client: ProjectDetailApiClient & ProjectRevisionApiClient,
+  client: ProjectDetailApiClient &
+    ProjectRevisionApiClient &
+    ProjectDeleteApiClient,
 ) {
   return render(
     <MemoryRouter initialEntries={[`/projects/${projectId}`]}>
@@ -40,9 +43,9 @@ function renderEditor(
 
 async function inputs() {
   return {
-    title: await screen.findByRole("textbox", { name: "项目标题" }),
-    description: screen.getByRole("textbox", { name: "项目简介" }),
-    save: screen.getByRole("button", { name: "保存完整修订" }),
+    title: await screen.findByRole("textbox", { name: "书名" }),
+    description: screen.getByRole("textbox", { name: "简介" }),
+    save: screen.getByRole("button", { name: "保存小说信息" }),
   };
 }
 
@@ -54,7 +57,7 @@ describe("Project revision edit form", () => {
     expect(controls.title).toHaveValue("项目版本1");
     expect(controls.description).toHaveValue("简介版本1");
     expect(controls.save).toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent("没有未保存更改");
+    expect(screen.getByRole("status")).toHaveTextContent("已保存");
 
     await user.type(controls.title, "补充");
     expect(controls.save).toBeEnabled();
@@ -120,9 +123,7 @@ describe("Project revision edit form", () => {
       description: "本地草稿简介",
     });
     expect(options?.signal).toBeInstanceOf(AbortSignal);
-    expect(
-      screen.getByRole("button", { name: "正在保存修订…" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "正在保存…" })).toBeDisabled();
     pending.resolve(
       versionedResource(2, {
         title: "服务端规范标题",
@@ -130,16 +131,11 @@ describe("Project revision edit form", () => {
       }),
     );
 
-    expect(await screen.findByText("项目修订已保存。")).toBeVisible();
+    expect(await screen.findByText("小说信息已保存。")).toBeVisible();
     expect(controls.title).toHaveValue("服务端规范标题");
     expect(controls.description).toHaveValue("服务端规范简介");
-    expect(screen.getByText("并发版本").nextElementSibling).toHaveTextContent(
-      "2",
-    );
-    expect(screen.getByText("当前修订号").nextElementSibling).toHaveTextContent(
-      "2",
-    );
-    expect(screen.getByRole("button", { name: "保存完整修订" })).toBeDisabled();
+    expect(document.body).not.toHaveTextContent(/并发版本|当前修订号/u);
+    expect(screen.getByRole("button", { name: "保存小说信息" })).toBeDisabled();
   });
 
   it("retains the draft and safely shows a service or field failure", async () => {
@@ -184,9 +180,7 @@ describe("Project revision edit form", () => {
     await user.type(controls.title, "修订");
     await user.click(controls.save);
 
-    expect(
-      await screen.findByRole("textbox", { name: "项目简介" }),
-    ).toHaveFocus();
+    expect(await screen.findByRole("textbox", { name: "简介" })).toHaveFocus();
   });
 
   it("focuses generic feedback when the service names no field", async () => {
@@ -234,14 +228,14 @@ describe("Project revision edit form", () => {
     expect(alert).toHaveTextContent("保存结果未确认");
     expect(alert).not.toHaveTextContent(/保存成功|确定未保存/u);
     expect(controls.title).toHaveValue("未确认草稿");
-    expect(screen.getByRole("button", { name: "保存完整修订" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存小说信息" })).toBeDisabled();
     expect(reviseProject).toHaveBeenCalledOnce();
 
-    await user.click(screen.getByRole("button", { name: "重新加载项目" }));
+    await user.click(screen.getByRole("button", { name: "重新加载小说" }));
     expect(
       await screen.findByRole("heading", { name: "服务端实际状态" }),
     ).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "项目标题" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "书名" })).toHaveValue(
       "服务端实际状态",
     );
     expect(getProject).toHaveBeenCalledTimes(2);

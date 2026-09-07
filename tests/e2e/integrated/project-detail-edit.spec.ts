@@ -54,14 +54,12 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
   await page.goto("/projects");
   await expect(page.getByText("还没有项目")).toBeVisible();
 
+  await page.getByRole("textbox", { name: "书名" }).fill(directInitialTitle);
   await page
-    .getByRole("textbox", { name: "项目标题" })
-    .fill(directInitialTitle);
-  await page
-    .getByRole("textbox", { name: "项目简介" })
+    .getByRole("textbox", { name: "一句话简介（可选）" })
     .fill(directInitialDescription);
-  await page.getByRole("button", { name: "创建项目" }).click();
-  const directLink = page.getByRole("link", { name: "查看新项目" });
+  await page.getByRole("button", { name: "创建小说" }).click();
+  const directLink = page.getByRole("link", { name: "打开这本小说" });
   const directPath = projectPathFromHref(await directLink.getAttribute("href"));
   const directApiPath = `/api/v1${directPath}`;
   const directGetOne = page.waitForResponse(
@@ -76,35 +74,33 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
   await expect(
     page.getByRole("heading", { level: 2, name: directInitialTitle }),
   ).toBeVisible();
-  await expect(
-    page.getByText("并发版本").locator("xpath=following-sibling::dd"),
-  ).toHaveText("1");
-  await expect(
-    page.getByText("当前修订号").locator("xpath=following-sibling::dd"),
-  ).toHaveText("1");
+  await expect(page.getByText("并发版本")).toHaveCount(0);
+  await expect(page.getByText("当前修订号")).toHaveCount(0);
+  expect(await directInitialGet.json()).toMatchObject({
+    revision_number: 1,
+    concurrency_version: 1,
+  });
 
+  await page.getByRole("textbox", { name: "书名" }).fill(directRevisedTitle);
   await page
-    .getByRole("textbox", { name: "项目标题" })
-    .fill(directRevisedTitle);
-  await page
-    .getByRole("textbox", { name: "项目简介" })
+    .getByRole("textbox", { name: "简介", exact: true })
     .fill(directRevisedDescription);
   const directPutResponse = page.waitForResponse(
     (response) =>
       response.request().method() === "PUT" &&
       new URL(response.url()).pathname === directApiPath,
   );
-  await page.getByRole("button", { name: "保存完整修订" }).click();
+  await page.getByRole("button", { name: "保存小说信息" }).click();
   const directSaved = await directPutResponse;
   expect(directSaved.status()).toBe(200);
   expect(directSaved.headers().etag).toBe('"2"');
-  await expect(page.getByText("项目修订已保存。")).toBeVisible();
-  await expect(
-    page.getByText("并发版本").locator("xpath=following-sibling::dd"),
-  ).toHaveText("2");
-  await expect(
-    page.getByText("当前修订号").locator("xpath=following-sibling::dd"),
-  ).toHaveText("2");
+  await expect(page.getByText("小说信息已保存。")).toBeVisible();
+  await expect(page.getByText("并发版本")).toHaveCount(0);
+  await expect(page.getByText("当前修订号")).toHaveCount(0);
+  expect(await directSaved.json()).toMatchObject({
+    revision_number: 2,
+    concurrency_version: 2,
+  });
   const directPut = projectRequests.find(
     (request) => request.method === "PUT" && request.path === directApiPath,
   );
@@ -125,21 +121,21 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
   await expect(
     page.getByRole("heading", { level: 2, name: directRevisedTitle }),
   ).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "项目简介" })).toHaveValue(
-    directRevisedDescription,
-  );
+  await expect(
+    page.getByRole("textbox", { name: "简介", exact: true }),
+  ).toHaveValue(directRevisedDescription);
 
-  await page.getByRole("link", { name: "返回项目列表" }).click();
+  await page.getByRole("link", { name: "返回我的小说" }).click();
   await expect(page.getByText(directRevisedTitle)).toBeVisible();
-  const createProjectRegion = page.getByRole("region", { name: "创建项目" });
+  const createProjectRegion = page.getByRole("region", { name: "新建小说" });
   const conflictTitleInput = createProjectRegion.getByRole("textbox", {
-    name: "项目标题",
+    name: "书名",
   });
   const conflictDescriptionInput = createProjectRegion.getByRole("textbox", {
-    name: "项目简介",
+    name: "一句话简介（可选）",
   });
   await expect(
-    createProjectRegion.getByRole("button", { name: "创建项目" }),
+    createProjectRegion.getByRole("button", { name: "创建小说" }),
   ).toBeEnabled();
   await conflictTitleInput.fill(conflictInitialTitle);
   await conflictDescriptionInput.fill(conflictInitialDescription);
@@ -147,8 +143,8 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
   await expect(conflictDescriptionInput).toHaveValue(
     conflictInitialDescription,
   );
-  await createProjectRegion.getByRole("button", { name: "创建项目" }).click();
-  const conflictLink = page.getByRole("link", { name: "查看新项目" });
+  await createProjectRegion.getByRole("button", { name: "创建小说" }).click();
+  const conflictLink = page.getByRole("link", { name: "打开这本小说" });
   const conflictPath = projectPathFromHref(
     await conflictLink.getAttribute("href"),
   );
@@ -188,11 +184,9 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
     await external.dispose();
   }
 
+  await page.getByRole("textbox", { name: "书名" }).fill(localConflictTitle);
   await page
-    .getByRole("textbox", { name: "项目标题" })
-    .fill(localConflictTitle);
-  await page
-    .getByRole("textbox", { name: "项目简介" })
+    .getByRole("textbox", { name: "简介", exact: true })
     .fill(localConflictDescription);
   const getsBeforeConflict = projectRequests.filter(
     (request) => request.method === "GET" && request.path === conflictApiPath,
@@ -201,12 +195,12 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
     (request) => request.method === "PUT" && request.path === conflictApiPath,
   ).length;
   browserAudit.allowExpectedConsoleHttpFailure(conflictApiPath, 412);
-  await page.getByRole("button", { name: "保存完整修订" }).click();
+  await page.getByRole("button", { name: "保存小说信息" }).click();
   await expect(
     page.getByRole("heading", { name: "检测到版本冲突" }),
   ).toBeFocused();
   await expect(page.getByText(/当前草稿基于版本 1/u)).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "项目标题" })).toHaveValue(
+  await expect(page.getByRole("textbox", { name: "书名" })).toHaveValue(
     localConflictTitle,
   );
   expect(
@@ -240,7 +234,7 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
   await page.getByRole("button", { name: "读取最新版本" }).click();
   await expect(page.getByText(externalRevisedTitle)).toBeVisible();
   await expect(page.getByText(localConflictTitle)).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "项目标题" })).toHaveValue(
+  await expect(page.getByRole("textbox", { name: "书名" })).toHaveValue(
     localConflictTitle,
   );
   expect(
@@ -255,7 +249,7 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
     })
     .click();
   await expect(
-    page.getByText("当前草稿将在下次手动保存时完整替换最新标题和简介。"),
+    page.getByText("当前编辑内容将在下次保存时应用到最新版本。"),
   ).toBeVisible();
   expect(
     projectRequests.filter(
@@ -269,16 +263,16 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
       new URL(response.url()).pathname === conflictApiPath &&
       response.status() === 200,
   );
-  await page.getByRole("button", { name: "保存完整修订" }).click();
+  await page.getByRole("button", { name: "保存小说信息" }).click();
   const finalPut = await finalPutPromise;
   expect(finalPut.headers().etag).toBe('"3"');
-  await expect(page.getByText("项目修订已保存。")).toBeVisible();
-  await expect(
-    page.getByText("并发版本").locator("xpath=following-sibling::dd"),
-  ).toHaveText("3");
-  await expect(
-    page.getByText("当前修订号").locator("xpath=following-sibling::dd"),
-  ).toHaveText("3");
+  await expect(page.getByText("小说信息已保存。")).toBeVisible();
+  await expect(page.getByText("并发版本")).toHaveCount(0);
+  await expect(page.getByText("当前修订号")).toHaveCount(0);
+  expect(await finalPut.json()).toMatchObject({
+    revision_number: 3,
+    concurrency_version: 3,
+  });
   const conflictPuts = projectRequests.filter(
     (request) => request.method === "PUT" && request.path === conflictApiPath,
   );
@@ -292,7 +286,7 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
     () => `${JSON.stringify(localStorage)}${JSON.stringify(sessionStorage)}`,
   );
   expect(stored).not.toMatch(/csrf|token|etag|draft/iu);
-  await expect(page.getByRole("link", { name: "返回项目列表" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "返回我的小说" })).toBeVisible();
   await expect(
     page.getByRole("link", { name: /删除|归档|Character|Chapter/u }),
   ).toHaveCount(0);

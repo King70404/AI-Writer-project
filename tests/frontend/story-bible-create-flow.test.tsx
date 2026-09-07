@@ -47,12 +47,10 @@ describe("Story Bible initial and create flow", () => {
     );
     expect(
       await screen.findByRole("heading", {
-        name: "尚未创建 Story Bible",
+        name: "创建小说设定",
       }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "创建 Story Bible" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "创建小说设定" })).toBeEnabled();
     expect(client.createStoryBible).not.toHaveBeenCalled();
     first.unmount();
 
@@ -70,7 +68,7 @@ describe("Story Bible initial and create flow", () => {
       await screen.findByRole("heading", { name: "项目不存在" }),
     ).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "创建 Story Bible" }),
+      screen.queryByRole("button", { name: "创建小说设定" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("请求编号：req_project_missing")).toBeVisible();
     second.unmount();
@@ -99,7 +97,7 @@ describe("Story Bible initial and create flow", () => {
     await user.click(screen.getByRole("button", { name: "重新加载" }));
     expect(
       await screen.findByRole("heading", {
-        name: "尚未创建 Story Bible",
+        name: "创建小说设定",
       }),
     ).toBeVisible();
     expect(getStoryBibleForProject).toHaveBeenCalledTimes(2);
@@ -122,11 +120,9 @@ describe("Story Bible initial and create flow", () => {
     });
     renderStoryBible(client);
     await user.click(
-      await screen.findByRole("button", { name: "创建 Story Bible" }),
+      await screen.findByRole("button", { name: "创建小说设定" }),
     );
-    expect(
-      screen.getByRole("textbox", { name: "Story Bible标题" }),
-    ).toHaveFocus();
+    expect(screen.getByRole("textbox", { name: "设定标题" })).toHaveFocus();
     expect(screen.getByText("请输入Story Bible标题。")).toBeVisible();
     expect(client.createStoryBible).not.toHaveBeenCalled();
   });
@@ -145,14 +141,14 @@ describe("Story Bible initial and create flow", () => {
     });
     renderStoryBible(client);
     const title = await screen.findByRole("textbox", {
-      name: "Story Bible标题",
+      name: "设定标题",
     });
     const content = screen.getByRole("textbox", {
-      name: "Story Bible正文",
+      name: "设定正文",
     });
     await user.type(title, "创建草稿");
     await user.type(content, "草稿正文");
-    await user.click(screen.getByRole("button", { name: "创建 Story Bible" }));
+    await user.click(screen.getByRole("button", { name: "创建小说设定" }));
 
     expect(
       await screen.findByRole("heading", { name: "服务端规范标题" }),
@@ -199,12 +195,10 @@ describe("Story Bible initial and create flow", () => {
       });
       renderStoryBible(client);
       const title = await screen.findByRole("textbox", {
-        name: "Story Bible标题",
+        name: "设定标题",
       });
       await user.type(title, "必须保留的创建草稿");
-      await user.click(
-        screen.getByRole("button", { name: "创建 Story Bible" }),
-      );
+      await user.click(screen.getByRole("button", { name: "创建小说设定" }));
       expect(await screen.findByRole("alert")).toHaveTextContent(message);
       expect(title).toHaveValue("必须保留的创建草稿");
       expect(createStoryBible).toHaveBeenCalledOnce();
@@ -213,7 +207,7 @@ describe("Story Bible initial and create flow", () => {
       expect(getStoryBibleForProject).toHaveBeenCalledOnce();
 
       await user.click(
-        screen.getByRole("button", { name: "重新读取 Story Bible" }),
+        screen.getByRole("button", { name: "重新读取小说设定" }),
       );
       expect(
         await screen.findByRole("heading", { name: "已核实服务端设定" }),
@@ -239,21 +233,21 @@ describe("Story Bible initial and create flow", () => {
     });
     renderStoryBible(client);
     const title = await screen.findByRole("textbox", {
-      name: "Story Bible标题",
+      name: "设定标题",
     });
     await user.type(title, "核实后仍保留");
-    await user.click(screen.getByRole("button", { name: "创建 Story Bible" }));
+    await user.click(screen.getByRole("button", { name: "创建小说设定" }));
     await user.click(
-      await screen.findByRole("button", { name: "重新读取 Story Bible" }),
+      await screen.findByRole("button", { name: "重新读取小说设定" }),
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "创建 Story Bible" }),
+        screen.getByRole("button", { name: "创建小说设定" }),
       ).toBeEnabled(),
     );
-    expect(
-      screen.getByRole("textbox", { name: "Story Bible标题" }),
-    ).toHaveValue("核实后仍保留");
+    expect(screen.getByRole("textbox", { name: "设定标题" })).toHaveValue(
+      "核实后仍保留",
+    );
   });
 
   it("keeps the draft and exposes a safe verification error for manual retry", async () => {
@@ -277,12 +271,12 @@ describe("Story Bible initial and create flow", () => {
     });
     renderStoryBible(client);
     const title = await screen.findByRole("textbox", {
-      name: "Story Bible标题",
+      name: "设定标题",
     });
     await user.type(title, "核实失败仍保留");
-    await user.click(screen.getByRole("button", { name: "创建 Story Bible" }));
+    await user.click(screen.getByRole("button", { name: "创建小说设定" }));
     await user.click(
-      await screen.findByRole("button", { name: "重新读取 Story Bible" }),
+      await screen.findByRole("button", { name: "重新读取小说设定" }),
     );
 
     expect(

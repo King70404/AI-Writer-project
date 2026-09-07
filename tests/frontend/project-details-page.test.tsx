@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type {
   ProjectDetailApiClient,
+  ProjectDeleteApiClient,
   ProjectRevisionApiClient,
 } from "../../frontend/src/features/projects/api/client";
 import { ProjectApiError } from "../../frontend/src/features/projects/api/errors";
@@ -27,7 +28,9 @@ function deferred<T>() {
 }
 
 function renderDetails(
-  client: ProjectDetailApiClient & ProjectRevisionApiClient,
+  client: ProjectDetailApiClient &
+    ProjectRevisionApiClient &
+    ProjectDeleteApiClient,
   path = `/projects/${projectId}`,
   withNavigation = false,
 ) {
@@ -47,7 +50,7 @@ function renderDetails(
 }
 
 describe("Project details page", () => {
-  it("shows loading then every current snapshot field and GET-based form values", async () => {
+  it("shows author-facing fields with canonical IDs retained only in routes", async () => {
     const pending = deferred<ReturnType<typeof versionedResource>>();
     const getProject = vi.fn().mockReturnValue(pending.promise);
     renderDetails(detailClient(getProject));
@@ -66,33 +69,40 @@ describe("Project details page", () => {
     expect(
       document.querySelector(".project-details__description"),
     ).toHaveTextContent("第一行 第二行");
-    expect(screen.getByText(projectId)).toBeVisible();
-    expect(screen.getByText("prv_01ARZ3NDEKTSV4RRFFQ69G5FAV")).toBeVisible();
-    expect(screen.getByText("当前修订号").nextElementSibling).toHaveTextContent(
-      "1",
+    expect(document.body).not.toHaveTextContent(projectId);
+    expect(document.body).not.toHaveTextContent(
+      "prv_01ARZ3NDEKTSV4RRFFQ69G5FAV",
     );
-    expect(screen.getByText("并发版本").nextElementSibling).toHaveTextContent(
-      "1",
-    );
-    expect(screen.getAllByRole("time")).toHaveLength(4);
-    expect(screen.getByRole("textbox", { name: "项目标题" })).toHaveValue(
+    expect(document.body).not.toHaveTextContent(/当前修订号|并发版本/u);
+    expect(screen.getAllByRole("time")).toHaveLength(2);
+    expect(screen.getByRole("textbox", { name: "书名" })).toHaveValue(
       "真实详情标题",
     );
-    expect(screen.getByRole("textbox", { name: "项目简介" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "简介" })).toHaveValue(
       "第一行\n第二行",
     );
     expect(getProject).toHaveBeenCalledOnce();
-    expect(screen.getByRole("link", { name: "返回项目列表" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "返回我的小说" })).toHaveAttribute(
       "href",
       "/projects",
     );
-    expect(screen.getByRole("link", { name: "查看修订历史" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "历史版本" })).toHaveAttribute(
       "href",
       `/projects/${projectId}/history`,
     );
-    expect(
-      document.querySelector("main") ?? document.body,
-    ).not.toHaveTextContent(/删除|Character|Chapter/u);
+    expect(screen.getByRole("button", { name: "删除小说" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "人物" })).toHaveAttribute(
+      "href",
+      `/projects/${projectId}/characters`,
+    );
+    expect(screen.getByRole("link", { name: "小说设定" })).toHaveAttribute(
+      "href",
+      `/projects/${projectId}/story-bible`,
+    );
+    expect(screen.getByRole("link", { name: "大纲与章节" })).toHaveAttribute(
+      "href",
+      `/projects/${projectId}/structure`,
+    );
   });
 
   it("renders the explicit empty-description fallback", async () => {
@@ -102,7 +112,7 @@ describe("Project details page", () => {
       ),
     );
 
-    expect(await screen.findByText("暂无项目简介。")).toBeVisible();
+    expect(await screen.findByText("暂未填写简介。")).toBeVisible();
   });
 
   it("does not request an invalid Project route parameter or echo it", async () => {
@@ -152,7 +162,7 @@ describe("Project details page", () => {
     await user.click(
       await screen.findByRole("button", { name: "重新加载项目" }),
     );
-    expect(await screen.findByText("当前项目快照")).toBeVisible();
+    expect(await screen.findByText("小说简介")).toBeVisible();
     expect(getProject).toHaveBeenCalledTimes(2);
   });
 

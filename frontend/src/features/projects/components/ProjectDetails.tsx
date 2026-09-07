@@ -30,7 +30,9 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
     >
       <h3 id="project-current-title">小说简介</h3>
       <p className="project-details__description">
-        {project.description.length === 0 ? "暂未填写简介。" : project.description}
+        {project.description.length === 0
+          ? "暂未填写简介。"
+          : project.description}
       </p>
       <dl className="project-details__facts">
         <ProjectTime label="创建时间" value={project.created_at} />

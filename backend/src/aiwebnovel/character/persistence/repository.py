@@ -29,6 +29,7 @@ from aiwebnovel.character.persistence.mappers import (
     character_aggregate_to_records,
     character_revision_to_record,
 )
+from aiwebnovel.character.persistence.models import CharacterRecord
 from aiwebnovel.character.persistence.queries import (
     character_compare_and_swap,
     character_head_compare_and_swap,
@@ -41,7 +42,7 @@ from aiwebnovel.character.values import CharacterName, CharacterProfile, Charact
 from aiwebnovel.domain.concurrency import ConcurrencyVersion, assert_expected_version
 from aiwebnovel.domain.errors import ConcurrencyConflict, DomainError
 from aiwebnovel.domain.time import Clock
-from aiwebnovel.project.persistence.visibility import project_is_active
+from aiwebnovel.project.persistence.models import ProjectRecord
 
 SessionFactory = Callable[[], Session]
 
@@ -67,7 +68,14 @@ class SqlAlchemyCharacterRepository(CharacterRepository):
         session = self._new_session()
         try:
             self._begin_immediate(session)
-            if not project_is_active(session, aggregate.character.project_id):
+            if (
+                session.scalar(
+                    ProjectRecord.active_ids().where(
+                        ProjectRecord.id == aggregate.character.project_id
+                    )
+                )
+                is None
+            ):
                 raise CharacterProjectNotFound(aggregate.character.project_id)
             if session.scalar(character_identity_query(aggregate.character.id)) is not None:
                 raise CharacterAlreadyExists(aggregate.character.id)
@@ -99,11 +107,7 @@ class SqlAlchemyCharacterRepository(CharacterRepository):
         self._validate_character_id(character_id)
         session = self._new_session()
         try:
-            aggregate = self._load_current(session, character_id)
-            if aggregate is not None and not project_is_active(
-                session, aggregate.character.project_id
-            ):
-                aggregate = None
+            aggregate = self._load_current(session, character_id, active_only=True)
             session.rollback()
             return aggregate
         except CharacterDataCorruption:
@@ -145,7 +149,14 @@ class SqlAlchemyCharacterRepository(CharacterRepository):
             aggregate = self._load_current(session, character_id)
             if aggregate is None:
                 raise CharacterNotFound(character_id)
-            if not project_is_active(session, aggregate.character.project_id):
+            if (
+                session.scalar(
+                    ProjectRecord.active_ids().where(
+                        ProjectRecord.id == aggregate.character.project_id
+                    )
+                )
+                is None
+            ):
                 raise CharacterProjectNotFound(aggregate.character.project_id)
 
             assert_expected_version(
@@ -269,9 +280,16 @@ class SqlAlchemyCharacterRepository(CharacterRepository):
     def _load_current(
         session: Session,
         character_id: CharacterId,
+        *,
+        active_only: bool = False,
     ) -> CharacterAggregate | None:
         try:
-            row = session.execute(current_character_query(character_id)).one_or_none()
+            statement = current_character_query(character_id)
+            if active_only:
+                statement = statement.where(
+                    CharacterRecord.project_id.not_in(ProjectRecord.deleted_ids())
+                )
+            row = session.execute(statement).one_or_none()
             if row is None:
                 return None
             character_record, stored_project_id, head_record, revision_record = row

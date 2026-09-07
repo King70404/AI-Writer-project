@@ -89,7 +89,7 @@ describe("Story Bible route and navigation", () => {
     renderAt(`/projects/${storyProjectId}`);
 
     const link = await screen.findByRole("link", {
-      name: "查看 Story Bible",
+      name: "小说设定",
     });
     expect(link).toHaveAttribute(
       "href",

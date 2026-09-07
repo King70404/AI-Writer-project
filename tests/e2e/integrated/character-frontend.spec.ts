@@ -36,10 +36,10 @@ test("E2E-INT-015 exercises Character frontend creation, stable listing, and ETa
   });
 
   await page.goto("/projects");
-  await page.getByRole("textbox", { name: "项目标题" }).fill(projectTitle);
-  await page.getByRole("button", { name: "创建项目" }).click();
-  await page.getByRole("link", { name: "查看新项目" }).click();
-  const characterLink = page.getByRole("link", { name: "查看角色" });
+  await page.getByRole("textbox", { name: "书名" }).fill(projectTitle);
+  await page.getByRole("button", { name: "创建小说" }).click();
+  await page.getByRole("link", { name: "打开这本小说" }).click();
+  const characterLink = page.getByRole("link", { name: "人物" });
   await expect(characterLink).toBeVisible();
   const listPath = await characterLink.getAttribute("href");
   expect(listPath).toMatch(

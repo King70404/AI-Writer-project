@@ -196,9 +196,10 @@ test("E2E-INT-011 exercises the Story Bible HTTP chain independently of its UI",
 
   const projectPage = await page.goto(`/projects/${projectBody.project_id}`);
   expect(projectPage?.status()).toBe(200);
-  await expect(
-    page.getByRole("link", { name: "查看 Story Bible" }),
-  ).toHaveAttribute("href", `/projects/${projectBody.project_id}/story-bible`);
+  await expect(page.getByRole("link", { name: "小说设定" })).toHaveAttribute(
+    "href",
+    `/projects/${projectBody.project_id}/story-bible`,
+  );
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
   expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
   expect(
