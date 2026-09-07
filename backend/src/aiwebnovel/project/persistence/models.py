@@ -46,6 +46,7 @@ class ProjectRecord(Base):
             "updated_at >= created_at",
             name="ck_projects_updated_at_not_before_created_at",
         ),
+        Index("ix_projects_deleted_at", "deleted_at"),
     )
 
     id: Mapped[ProjectId] = mapped_column(
@@ -58,6 +59,7 @@ class ProjectRecord(Base):
     )
     created_at: Mapped[datetime] = mapped_column(UtcDateTimeType(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTimeType(), nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(UtcDateTimeType(), nullable=True)
 
 
 class ProjectRevisionRecord(Base):
