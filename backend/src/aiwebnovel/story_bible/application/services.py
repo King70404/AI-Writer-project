@@ -5,6 +5,7 @@ from collections.abc import Callable
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
 from aiwebnovel.domain.time import Clock
 from aiwebnovel.project.identifiers import ProjectId
+from aiwebnovel.project.repository import ProjectRepository
 from aiwebnovel.story_bible.application.commands import (
     CreateStoryBibleCommand,
     ReviseStoryBibleCommand,
@@ -20,7 +21,10 @@ from aiwebnovel.story_bible.application.queries import (
     GetStoryBibleForProjectQuery,
     GetStoryBibleQuery,
 )
-from aiwebnovel.story_bible.errors import StoryBibleNotFound
+from aiwebnovel.story_bible.errors import (
+    StoryBibleNotFound,
+    StoryBibleProjectNotFound,
+)
 from aiwebnovel.story_bible.identifiers import StoryBibleId, StoryBibleRevisionId
 from aiwebnovel.story_bible.repository import StoryBibleRepository
 from aiwebnovel.story_bible.transitions import create_initial_story_bible
@@ -46,7 +50,15 @@ def _revision_id_from_factory(
     return identifier
 
 
-class StoryBibleCommandService:
+class _ProjectVisibilityMixin:
+    _project_repository: ProjectRepository | None
+
+    def _require_active_project(self, project_id: ProjectId) -> None:
+        if self._project_repository is not None and self._project_repository.get(project_id) is None:
+            raise StoryBibleProjectNotFound(project_id)
+
+
+class StoryBibleCommandService(_ProjectVisibilityMixin):
     """Execute one atomic repository write for each Story Bible command."""
 
     def __init__(
@@ -55,20 +67,22 @@ class StoryBibleCommandService:
         clock: Clock,
         story_bible_id_factory: StoryBibleIdFactory,
         revision_id_factory: StoryBibleRevisionIdFactory,
+        project_repository: ProjectRepository | None = None,
     ) -> None:
         self._repository = repository
         self._clock = clock
         self._story_bible_id_factory = story_bible_id_factory
         self._revision_id_factory = revision_id_factory
+        self._project_repository = project_repository
 
     def create_story_bible(
         self,
         command: CreateStoryBibleCommand,
     ) -> StoryBibleSnapshot:
-        """Validate, create, persist once, and map the authoritative result."""
         if type(command) is not CreateStoryBibleCommand:
             raise TypeError("command must be a CreateStoryBibleCommand")
         project_id = ProjectId.parse(command.project_id)
+        self._require_active_project(project_id)
         title = StoryBibleTitle(command.title)
         content = StoryBibleContent(command.content)
         now = self._clock()
@@ -91,10 +105,14 @@ class StoryBibleCommandService:
         self,
         command: ReviseStoryBibleCommand,
     ) -> StoryBibleSnapshot:
-        """Validate complete replacement input and request one transactional append."""
         if type(command) is not ReviseStoryBibleCommand:
             raise TypeError("command must be a ReviseStoryBibleCommand")
         story_bible_id = StoryBibleId.parse(command.story_bible_id)
+        if self._project_repository is not None:
+            current = self._repository.get(story_bible_id)
+            if current is None:
+                raise StoryBibleNotFound(story_bible_id)
+            self._require_active_project(current.story_bible.project_id)
         expected_version = ConcurrencyVersion(command.expected_version)
         title = StoryBibleTitle(command.title)
         content = StoryBibleContent(command.content)
@@ -109,33 +127,38 @@ class StoryBibleCommandService:
         return story_bible_snapshot_from_aggregate(revised)
 
 
-class StoryBibleQueryService:
+class StoryBibleQueryService(_ProjectVisibilityMixin):
     """Read detached current Story Bible snapshots without side effects."""
 
-    def __init__(self, repository: StoryBibleRepository) -> None:
+    def __init__(
+        self,
+        repository: StoryBibleRepository,
+        project_repository: ProjectRepository | None = None,
+    ) -> None:
         self._repository = repository
+        self._project_repository = project_repository
 
     def get_story_bible(
         self,
         query: GetStoryBibleQuery,
     ) -> StoryBibleSnapshot:
-        """Read by Story Bible ID exactly once or raise a precise absence error."""
         if type(query) is not GetStoryBibleQuery:
             raise TypeError("query must be a GetStoryBibleQuery")
         story_bible_id = StoryBibleId.parse(query.story_bible_id)
         aggregate = self._repository.get(story_bible_id)
         if aggregate is None:
             raise StoryBibleNotFound(story_bible_id)
+        self._require_active_project(aggregate.story_bible.project_id)
         return story_bible_snapshot_from_aggregate(aggregate)
 
     def get_story_bible_for_project(
         self,
         query: GetStoryBibleForProjectQuery,
     ) -> StoryBibleSnapshot:
-        """Read by owning Project exactly once and distinguish both absence cases."""
         if type(query) is not GetStoryBibleForProjectQuery:
             raise TypeError("query must be a GetStoryBibleForProjectQuery")
         project_id = ProjectId.parse(query.project_id)
+        self._require_active_project(project_id)
         aggregate = self._repository.get_for_project(project_id)
         if aggregate is None:
             raise StoryBibleForProjectNotFound(project_id)
