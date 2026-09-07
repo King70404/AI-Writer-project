@@ -13,6 +13,7 @@ from aiwebnovel.domain.concurrency import ConcurrencyVersion, assert_expected_ve
 from aiwebnovel.domain.errors import ConcurrencyConflict, DomainError
 from aiwebnovel.domain.time import Clock
 from aiwebnovel.project.identifiers import ProjectId
+from aiwebnovel.project.persistence.visibility import project_is_active
 from aiwebnovel.story_bible.entities import StoryBibleAggregate
 from aiwebnovel.story_bible.errors import (
     InvalidStoryBibleState,
@@ -31,7 +32,6 @@ from aiwebnovel.story_bible.persistence.mappers import (
 )
 from aiwebnovel.story_bible.persistence.queries import (
     current_story_bible_query,
-    project_exists_query,
     story_bible_compare_and_swap,
     story_bible_for_project_identity_query,
     story_bible_for_project_query,
@@ -62,12 +62,11 @@ class SqlAlchemyStoryBibleRepository(StoryBibleRepository):
         self._session_factory = session_factory
 
     def create(self, aggregate: StoryBibleAggregate) -> StoryBibleAggregate:
-        """Atomically persist stable identity, revision one, and its head."""
         self._validate_initial_aggregate(aggregate)
         session = self._new_session()
         try:
             self._begin_immediate(session)
-            if session.scalar(project_exists_query(aggregate.story_bible.project_id)) is None:
+            if not project_is_active(session, aggregate.story_bible.project_id):
                 raise StoryBibleProjectNotFound(aggregate.story_bible.project_id)
             if session.scalar(story_bible_identity_query(aggregate.story_bible.id)) is not None:
                 raise StoryBibleAlreadyExists(aggregate.story_bible.id)
@@ -107,11 +106,14 @@ class SqlAlchemyStoryBibleRepository(StoryBibleRepository):
             session.close()
 
     def get(self, story_bible_id: StoryBibleId) -> StoryBibleAggregate | None:
-        """Read one consistent current aggregate with one business query."""
         self._validate_story_bible_id(story_bible_id)
         session = self._new_session()
         try:
             aggregate = self._load_current(session, story_bible_id)
+            if aggregate is not None and not project_is_active(
+                session, aggregate.story_bible.project_id
+            ):
+                aggregate = None
             session.rollback()
             return aggregate
         except StoryBibleDataCorruption:
@@ -127,10 +129,11 @@ class SqlAlchemyStoryBibleRepository(StoryBibleRepository):
             session.close()
 
     def get_for_project(self, project_id: ProjectId) -> StoryBibleAggregate | None:
-        """Read a Project's unique Story Bible with one fixed query."""
         self._validate_project_id(project_id)
         session = self._new_session()
         try:
+            if not project_is_active(session, project_id):
+                raise StoryBibleProjectNotFound(project_id)
             aggregate = self._load_for_project(session, project_id)
             session.rollback()
             return aggregate
@@ -156,7 +159,6 @@ class SqlAlchemyStoryBibleRepository(StoryBibleRepository):
         clock: Clock,
         revision_id_factory: Callable[[], StoryBibleRevisionId],
     ) -> StoryBibleAggregate:
-        """Append a complete revision and compare-and-swap stable object and head."""
         self._validate_append_input(
             story_bible_id,
             expected_version,
@@ -172,6 +174,8 @@ class SqlAlchemyStoryBibleRepository(StoryBibleRepository):
             aggregate = self._load_current(session, story_bible_id)
             if aggregate is None:
                 raise StoryBibleNotFound(story_bible_id)
+            if not project_is_active(session, aggregate.story_bible.project_id):
+                raise StoryBibleProjectNotFound(aggregate.story_bible.project_id)
 
             assert_expected_version(
                 actual=aggregate.story_bible.concurrency_version,
