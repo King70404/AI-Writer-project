@@ -22,6 +22,7 @@ from aiwebnovel.project.application.models import (
 from aiwebnovel.project.application.queries import (
     validate_project_revision_history_limit,
 )
+from aiwebnovel.project.deletion import is_deleted_project_title
 from aiwebnovel.project.errors import (
     DomainError,
     ProjectDataCorruption,
@@ -177,7 +178,6 @@ class SqlAlchemyProjectRevisionHistoryReader:
         limit: int,
         after: RevisionNumber | None,
     ) -> ProjectRevisionHistoryPage:
-        """Return at most one validated descending keyset page."""
         self._validate_project_id(project_id)
         validated_limit = validate_project_revision_history_limit(limit)
         if after is not None and type(after) is not RevisionNumber:
@@ -243,7 +243,6 @@ class SqlAlchemyProjectRevisionHistoryReader:
         project_id: ProjectId,
         revision_number: RevisionNumber,
     ) -> ProjectRevisionHistorySnapshot | None:
-        """Return one exact immutable revision after validating current state."""
         self._validate_project_id(project_id)
         if type(revision_number) is not RevisionNumber:
             raise TypeError("revision_number must be a RevisionNumber")
@@ -302,6 +301,8 @@ class SqlAlchemyProjectRevisionHistoryReader:
                 head_record,
                 revision_record,
             )
+            if is_deleted_project_title(str(aggregate.current_revision.title)):
+                raise ProjectNotFound(project_id)
             if (
                 type(aggregate.project.concurrency_version) is not ConcurrencyVersion
                 or str(aggregate.current_revision.title) != revision_record.title
