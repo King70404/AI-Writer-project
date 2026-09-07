@@ -66,25 +66,22 @@ export function CharacterCreateForm({
   };
 
   return (
-    <section
-      className="character-form"
-      aria-labelledby="character-create-title"
-    >
+    <section className="character-form" aria-labelledby="character-create-title">
       <h2 id="character-create-title">创建角色</h2>
-      <form onSubmit={submit} noValidate>
+      <form onSubmit={submit} noValidate autoComplete="off">
         <div className="form-field">
           <label htmlFor="character-create-name">角色名称</label>
           <input
             ref={nameRef}
             id="character-create-name"
+            name="new-character-name"
+            autoComplete="off"
             value={controller.draft.name}
             onChange={(event) => {
               controller.setDraftField("name", event.target.value);
               clear("name");
             }}
-            aria-invalid={
-              errorForCharacterField(effectiveErrors, "name") !== null
-            }
+            aria-invalid={errorForCharacterField(effectiveErrors, "name") !== null}
             aria-describedby="character-create-name-error"
             disabled={create.status === "submitting"}
           />
@@ -97,14 +94,14 @@ export function CharacterCreateForm({
           <input
             ref={roleRef}
             id="character-create-role"
+            name="new-character-role"
+            autoComplete="off"
             value={controller.draft.role}
             onChange={(event) => {
               controller.setDraftField("role", event.target.value);
               clear("role");
             }}
-            aria-invalid={
-              errorForCharacterField(effectiveErrors, "role") !== null
-            }
+            aria-invalid={errorForCharacterField(effectiveErrors, "role") !== null}
             aria-describedby="character-create-role-error"
             disabled={create.status === "submitting"}
           />
@@ -117,15 +114,15 @@ export function CharacterCreateForm({
           <textarea
             ref={profileRef}
             id="character-create-profile"
+            name="new-character-profile"
+            autoComplete="off"
             rows={8}
             value={controller.draft.profile}
             onChange={(event) => {
               controller.setDraftField("profile", event.target.value);
               clear("profile");
             }}
-            aria-invalid={
-              errorForCharacterField(effectiveErrors, "profile") !== null
-            }
+            aria-invalid={errorForCharacterField(effectiveErrors, "profile") !== null}
             aria-describedby="character-create-profile-error"
             disabled={create.status === "submitting"}
           />
@@ -154,22 +151,17 @@ export function CharacterCreateForm({
           {create.status === "success" ? (
             <>
               <p>角色创建成功。</p>
-              <Link to={characterEditorPath(projectId, create.characterId)}>
-                查看新角色
-              </Link>
+              <Link to={characterEditorPath(projectId, create.characterId)}>查看新角色</Link>
             </>
           ) : create.status === "error" ? (
             <p>{create.error.message}</p>
           ) : (
             <>
               <p>{create.error.message}</p>
-              <button
-                type="button"
-                onClick={() => void controller.reloadFirstPage()}
-              >
+              <button type="button" onClick={() => void controller.reloadFirstPage()}>
                 重新读取角色列表
               </button>
-              <p>再次提交可能创建重复Character，请先人工核对列表。</p>
+              <p>再次提交可能创建重复角色，请先人工核对列表。</p>
               <button type="button" onClick={controller.confirmResubmit}>
                 我已确认需要再次提交
               </button>
