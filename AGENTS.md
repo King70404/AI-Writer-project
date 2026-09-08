@@ -85,3 +85,32 @@ M0–M7 冻结标签与验收历史保持不可移动、不可覆盖、不可改
 执行者必须以当前任务的完成定义为终点，而不是以某个中间步骤为终点。无法满足完成定义时，明确列出失败项、已完成证据、未完成原因和下一恢复入口，不伪造完成。
 
 重要需求、方向、架构决策、代码变化、验收结果和最终任务状态必须最终同步到 Git/GitHub，供其他工作线程复用。
+
+## 8. 跨对话项目接力与 `PLAN.md`
+
+根目录 `PLAN.md` 是跨 ChatGPT 对话、Codex 本地执行与 GitHub 审阅之间的当前项目接力页，专门回答：之前做了什么、现在是什么状态、卡在哪里、下一步做什么。
+
+每次开始仓库任务时，按以下顺序读取并确认：
+
+1. GitHub 当前 `main`、相关分支、Issue 与 PR；
+2. 根目录 `AGENTS.md`；
+3. 根目录 `PLAN.md`；
+4. 当前编号任务的 Issue / PR / formal acceptance 或 recovery 记录；
+5. 该任务需要的模块、架构与操作文档。
+
+`PLAN.md` 是状态接力页，不替代 Issue、PR、Acceptance Report 或 Baseline Manifest 的证据效力。若它与更高优先级的 GitHub 事实冲突，以第 1 节优先级为准，并在当前协调或任务收尾中同步修正 `PLAN.md`。
+
+以下事件发生后必须同步 `PLAN.md`：
+
+- 新编号任务开始、完成、取消或被恢复任务阻塞；
+- PR 创建、候选 SHA 改变、合并或关闭；
+- formal acceptance PASS / FAIL；
+- 发现新的真实 blocker 或创建 recovery task；
+- 正式基线、当前阶段或下一任务顺序改变；
+- 用户批准新的重要产品/架构方向。
+
+`PLAN.md` 至少应保持这些区块可读：当前阶段、已完成的重要历史、当前活动工作、当前 blocker / recovery、下一步顺序、当前禁止事项。它应保持简洁并链接到精确 Issue / PR，而不是复制全部验收日志。
+
+正式验收一旦失败，必须把 FAIL、首个真实 blocker 和“下一步必须是新的 recovery task”同步到 GitHub 与 `PLAN.md`；不得在同一 formal acceptance 任务中悄悄修改候选后重跑。
+
+不得在 `PLAN.md`、`AGENTS.md` 或其他协调文档中写入 API Key、密码、Cookie、令牌、私钥、作者正式创作内容或其他秘密/正式用户数据。
