@@ -21,6 +21,7 @@
 - TXT 导出浏览器差异已通过独立 Playwright/Chromium 交叉验证，未发现产品导出缺陷。
 - DOC-GOV-1 已完成，根 `AGENTS.md` 已明确 GitHub 唯一事实源、任务自主性、正式验收 hard-stop、数据根与冻结边界。
 - V1-UX-1 开发候选已形成 PR #9；候选 `5cb13a549d46d53c2bfc1d166d980ef750e5d112` 的 Default Quality Gate 已通过，但这不等于正式验收通过。
+- V1-UX-1-Q1（Issue #10）已完成一次 formal acceptance，结果为 FAIL，并已关闭作为失败验收记录。
 
 ## 当前活动工作
 
@@ -36,7 +37,7 @@
 
 ### V1-UX-1 — Issue #8 / PR #9
 
-PR #9 当前候选：
+PR #9 失败验收候选：
 
 `5cb13a549d46d53c2bfc1d166d980ef750e5d112`
 
@@ -51,7 +52,7 @@ PR #9 当前候选：
 
 PR #9 尚未合并。
 
-### 已失败的正式验收 — Issue #10
+### 已失败的正式验收 — Issue #10（已关闭）
 
 `V1-UX-1-Q1` 在精确候选 `5cb13a549d46d53c2bfc1d166d980ef750e5d112` 上执行 formal `IncludeE2E` 时失败，并按 hard-stop 停止。
 
@@ -67,7 +68,9 @@ PR #9 尚未合并。
 
 ## 当前 blocker 与恢复入口
 
-当前必须先完成独立恢复任务：**V1-UX-1-R1**（以 GitHub 最新恢复 Issue 为准）。
+当前唯一允许的下一代码任务是：
+
+**Issue #12 — `V1-UX-1-R1: Fix E2E-INT-009 exact book-title locator`**
 
 恢复任务只能修复 E2E-INT-009 的 locator 歧义及同一测试中同类明确歧义；首选通过精确 accessible-name / 合理作用域定位，例如 `exact: true`，不得改变产品行为来迁就测试。
 
@@ -75,9 +78,9 @@ Development 恢复任务完成后必须产生新的 candidate SHA；旧候选 `5
 
 ## 下一步顺序
 
-1. 完成 V1-UX-1-R1 开发修复并运行规定的开发检查。
+1. 完成 Issue #12 / V1-UX-1-R1 开发修复并运行规定的开发检查。
 2. 更新 PR #9，记录新的精确 candidate SHA。
-3. 创建新的 formal acceptance Issue；不要重跑已经失败的 #10 作为同一轮验收。
+3. 创建新的 formal acceptance Issue；不要重开或重跑已经失败的 #10 作为同一轮验收。
 4. 新正式验收必须重新运行规定的 `IncludeE2E`，随后执行 Windows launcher smoke 与隔离 author UX/delete smoke。
 5. 若新候选 PASS：ChatGPT 重新读取 GitHub，按既有授权合并 PR #9，关闭 V1-UX-1 相关 Issue，并在 RF-00 #11 记录最终 merge 后 `main` 作为重构起点。
 6. 只有 RF-00 关闭后才能开始 RF-01。
