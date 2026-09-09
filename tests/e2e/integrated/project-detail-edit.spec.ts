@@ -81,7 +81,9 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
     concurrency_version: 1,
   });
 
-  await page.getByRole("textbox", { name: "书名" }).fill(directRevisedTitle);
+  await page
+    .getByRole("textbox", { name: "书名", exact: true })
+    .fill(directRevisedTitle);
   await page
     .getByRole("textbox", { name: "简介", exact: true })
     .fill(directRevisedDescription);
@@ -126,7 +128,11 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
   ).toHaveValue(directRevisedDescription);
 
   await page.getByRole("link", { name: "返回我的小说" }).click();
-  await expect(page.getByText(directRevisedTitle)).toBeVisible();
+  await expect(
+    page
+      .getByRole("list", { name: "项目列表", exact: true })
+      .getByRole("heading", { name: directRevisedTitle, exact: true }),
+  ).toBeVisible();
   const createProjectRegion = page.getByRole("region", { name: "新建小说" });
   const conflictTitleInput = createProjectRegion.getByRole("textbox", {
     name: "书名",
@@ -184,7 +190,9 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
     await external.dispose();
   }
 
-  await page.getByRole("textbox", { name: "书名" }).fill(localConflictTitle);
+  await page
+    .getByRole("textbox", { name: "书名", exact: true })
+    .fill(localConflictTitle);
   await page
     .getByRole("textbox", { name: "简介", exact: true })
     .fill(localConflictDescription);
@@ -200,9 +208,9 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
     page.getByRole("heading", { name: "检测到版本冲突" }),
   ).toBeFocused();
   await expect(page.getByText(/当前草稿基于版本 1/u)).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "书名" })).toHaveValue(
-    localConflictTitle,
-  );
+  await expect(
+    page.getByRole("textbox", { name: "书名", exact: true }),
+  ).toHaveValue(localConflictTitle);
   expect(
     projectRequests.filter(
       (request) => request.method === "GET" && request.path === conflictApiPath,
@@ -234,9 +242,9 @@ test("E2E-INT-009 exercises Project detail editing and explicit conflict handlin
   await page.getByRole("button", { name: "读取最新版本" }).click();
   await expect(page.getByText(externalRevisedTitle)).toBeVisible();
   await expect(page.getByText(localConflictTitle)).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "书名" })).toHaveValue(
-    localConflictTitle,
-  );
+  await expect(
+    page.getByRole("textbox", { name: "书名", exact: true }),
+  ).toHaveValue(localConflictTitle);
   expect(
     projectRequests.filter(
       (request) => request.method === "GET" && request.path === conflictApiPath,

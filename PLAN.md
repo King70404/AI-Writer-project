@@ -52,6 +52,8 @@ PR #9 失败验收候选：
 
 PR #9 尚未合并。
 
+Issue #12 的 locator-only recovery 与 Development 验证已完成。新的 candidate 为本次恢复提交后的 UX 分支 HEAD；精确 SHA 与执行证据记录在 [PR #9](https://github.com/King70404/AI-Writer-project/pull/9) 和 [Issue #12](https://github.com/King70404/AI-Writer-project/issues/12)，不能继续使用上述失败候选作为当前候选。
+
 ### 已失败的正式验收 — Issue #10（已关闭）
 
 `V1-UX-1-Q1` 在精确候选 `5cb13a549d46d53c2bfc1d166d980ef750e5d112` 上执行 formal `IncludeE2E` 时失败，并按 hard-stop 停止。
@@ -66,21 +68,24 @@ PR #9 尚未合并。
 
 正式验收没有继续执行 Windows launcher smoke 或 isolated author UX/delete smoke，因此这些项目仍未验收。
 
-## 当前 blocker 与恢复入口
+## 当前恢复状态与下一验收入口
 
-当前唯一允许的下一代码任务是：
+**Issue #12 — `V1-UX-1-R1`：Development recovery 完成，等待新一轮 formal acceptance。**
 
-**Issue #12 — `V1-UX-1-R1: Fix E2E-INT-009 exact book-title locator`**
+- 已将协调 main `21edc508a02ee72591451b7650ec0396d5453ac0` 正常合入 UX 分支；merge commit 为 `c875edf670a7f732acf65964c1fe9b7c6ced8e50`，没有 rebase 或历史重写。
+- 仅修改 E2E-INT-009：四处详情页“书名”输入框使用 `exact: true`；返回列表后的书名断言限定到“项目列表”中的精确标题，避免导航期间匹配详情页与删除确认说明中的同名文本。
+- 首次 Development 专项越过原输入框 blocker 后，在返回列表的书名断言发现上述同名文本歧义（exit 1）；完成 locator-only 修正后，E2E-INT-009 PASS（exit 0）。
+- 直接相关 E2E-INT-008、E2E-INT-010 均 PASS（exit 0）；未修改其他 spec、生产代码、API、Schema、迁移、timeout、retry 或 browser audit。
+- Default Quality Gate PASS（exit 0）：后端 2776 项，statements 97.45%、branches 93.65%；前端 55 文件 / 666 项，statements 96.02%、branches 91.97%、functions 99.05%、lines 96.65%。
+- 未运行新的 Formal IncludeE2E，未执行 Windows launcher 或隔离 author UX/delete 正式 Smoke，未合并 PR #9。
 
-恢复任务只能修复 E2E-INT-009 的 locator 歧义及同一测试中同类明确歧义；首选通过精确 accessible-name / 合理作用域定位，例如 `exact: true`，不得改变产品行为来迁就测试。
-
-Development 恢复任务完成后必须产生新的 candidate SHA；旧候选 `5cb13a...` 的失败验收不能覆盖新提交。
+当前 blocker 不再是 Issue #12 开发恢复，而是新 candidate 尚待新的 formal acceptance Issue 验收。下一步由 ChatGPT 创建该 Issue；旧 #10 仍保留为失败历史，不重新使用。
 
 ## 下一步顺序
 
-1. 完成 Issue #12 / V1-UX-1-R1 开发修复并运行规定的开发检查。
-2. 更新 PR #9，记录新的精确 candidate SHA。
-3. 创建新的 formal acceptance Issue；不要重开或重跑已经失败的 #10 作为同一轮验收。
+1. Issue #12 / V1-UX-1-R1 开发修复与规定开发检查已完成；以 PR #9 / Issue #12 回写的新 candidate SHA 接力。
+2. ChatGPT 重新读取 GitHub，确认 PR #9 最新 HEAD 与 recovery 执行记录一致。
+3. 由 ChatGPT 创建绑定新 SHA 的 formal acceptance Issue；不要重开或重跑已经失败的 #10 作为同一轮验收。
 4. 新正式验收必须重新运行规定的 `IncludeE2E`，随后执行 Windows launcher smoke 与隔离 author UX/delete smoke。
 5. 若新候选 PASS：ChatGPT 重新读取 GitHub，按既有授权合并 PR #9，关闭 V1-UX-1 相关 Issue，并在 RF-00 #11 记录最终 merge 后 `main` 作为重构起点。
 6. 只有 RF-00 关闭后才能开始 RF-01。
