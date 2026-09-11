@@ -6,105 +6,137 @@
 
 ## 当前阶段
 
-当前处于 **RF-00：锁定重构基线**，不得开始 RF-01 或 RF-03+ 开发。
+当前仍处于 **RF-00：锁定重构基线**，不得开始 RF-01 或 RF-03+ 开发。
 
-重构总路线来自已批准的《AIWebNovel 重构总设计与执行路线 v1.0（提案）》：
+在 RF-00 内插入 QA 稳定化阶段，原因是 V1-UX-1 已连续两次在 formal acceptance 中暴露此前未被 Development 完整预检发现的 blocker。新的目标是让 formal acceptance 只复核已经反复绿过的冻结 SHA，而不是继续承担“第一次完整发现问题”的职责。
+
+重构总路线保持：
 
 `RF-00 基线 → RF-01 产品规格/模块契约 → RF-02 测试契约 → RF-03 场景 → RF-04 Story Assets → RF-05 Skills → RF-06 Model Gateway/API Key → RF-07 ContextPack → RF-08 单段任务 → RF-09 安全采纳 → RF-10 200–300 字连续生成 → RF-11 Story Memory → RF-12 一致性评审 → RF-13 跨章召回/失效 → RF-14 作者工作台 → RF-15 升级备份恢复 → RF-16 长篇评测 → RF-17 发布验收`。
 
-旧的 `V1-AI-1` 不再作为当前下一任务直接启动；云端模型/API Key 能力纳入 RF-06，必须在 RF-00～RF-05 的前置契约与资料/Skills 基础完成后实施。
+旧的 `V1-AI-1` 不再作为当前下一任务直接启动；云端模型/API Key 能力纳入 RF-06。
 
 ## 已完成的重要历史
 
 - M0–M7 / V1 已完成并冻结；M0–M7 tag 与历史验收文件不可移动、不可改写。
 - V1-OPS-1R 已完成正式恢复验收。
 - TXT 导出浏览器差异已通过独立 Playwright/Chromium 交叉验证，未发现产品导出缺陷。
-- DOC-GOV-1 已完成，根 `AGENTS.md` 已明确 GitHub 唯一事实源、任务自主性、正式验收 hard-stop、数据根与冻结边界。
-- V1-UX-1 开发候选已形成 PR #9；候选 `5cb13a549d46d53c2bfc1d166d980ef750e5d112` 的 Default Quality Gate 已通过，但这不等于正式验收通过。
-- V1-UX-1-Q1（Issue #10）已完成一次 formal acceptance，结果为 FAIL，并已关闭作为失败验收记录。
+- DOC-GOV-1 已完成，根 `AGENTS.md` 已明确 GitHub 唯一事实源、任务自主性、formal hard-stop、数据根与冻结边界。
+- V1-UX-1 PR #9 已形成，但尚未通过 formal acceptance，也尚未合并。
+- Issue #10 / V1-UX-1-Q1：formal FAIL，首个 blocker 为 E2E-INT-009 `书名` / `确认书名` locator 歧义。
+- Issue #12 / V1-UX-1-R1：Development recovery PASS；生成候选 `553d28988fe1c182cbb95fffe50965a7391879d8`。
+- Issue #14 / V1-UX-1-Q2：formal FAIL。`quality_gate.ps1 -IncludeE2E` 在 frontend coverage 阶段失败；`tests/frontend/novel-structure-workspace.test.tsx` 的 `loads an empty workspace, avoids invalid Chapter reads, and creates each level` 超过 Vitest 5000ms 默认 timeout（5068ms），同一运行出现 `Received NaN for the value attribute`。正式 Playwright E2E、launcher smoke、isolated author smoke 均未进入。
 
 ## 当前活动工作
 
 ### RF-00 — Issue #11
 
-目标：在任何重构开发之前锁定唯一、可验证的 `main` 起点。
-
-当前产品代码基线快照（RF-00 建立时）：
-
-`main = 286a106d9805c07ef3c6825b6ef58811ee910103`
-
-协调/计划文档可能在 RF-00 期间继续追加到 `main`；任何执行者必须重新读取 GitHub 当前 `main`，不要把上述快照当作永远不变的分支头。
+目标：锁定唯一、可验证的最终 `main` 重构起点。PR #9 与 QA hardening 完成前保持 OPEN。
 
 ### V1-UX-1 — Issue #8 / PR #9
 
-PR #9 失败验收候选：
+PR #9 尚未合并。最近失败 formal candidate：
 
-`5cb13a549d46d53c2bfc1d166d980ef750e5d112`
+`553d28988fe1c182cbb95fffe50965a7391879d8`
 
-主要内容：
+该 SHA 不再允许直接进入新的 formal acceptance；必须先经过新的 Green Candidate Protocol。
 
-- 普通作者界面隐藏内部 Project / Revision / concurrency 工程字段；
-- 作者化中文术语；
-- 创作表单 autocomplete 抑制；
-- 安全“删除小说”逻辑删除；
-- Windows 双击启动器；
-- 相关测试与文档同步。
+### QA-HARDEN-1 — Issue #15
 
-PR #9 尚未合并。
+目标：停止“修一个 blocker → 立刻再开正式验收”的打地鼠流程。
 
-### 已失败的正式验收 — Issue #10（已关闭）
+正式规则已写入：
 
-`V1-UX-1-Q1` 在精确候选 `5cb13a549d46d53c2bfc1d166d980ef750e5d112` 上执行 formal `IncludeE2E` 时失败，并按 hard-stop 停止。
+- `docs/ACCEPTANCE_STABILITY.md`
+- `AGENTS.md` Green Candidate 入口条件
 
-首个真实 blocker：
+新的 formal acceptance 只能针对已经在 Development / RC preflight 中证明稳定的精确 SHA。
 
-`tests/e2e/integrated/project-detail-edit.spec.ts` 的 E2E-INT-009 使用：
+### V1-UX-1-R2 — Issue #16
 
-`getByRole("textbox", { name: "书名" })`
+当前唯一允许的下一代码恢复任务。
 
-在项目详情页同时匹配“书名”和“确认书名”，触发 Playwright strict mode violation。不是 timeout，不允许通过增加等待、retry、skip 或降低断言解决。
+目标：
 
-正式验收没有继续执行 Windows launcher smoke 或 isolated author UX/delete smoke，因此这些项目仍未验收。
+- 修复 novel-structure number input 清空时 `valueAsNumber -> NaN` 进入受控 `value` 的非法中间状态；
+- 消除 React `Received NaN for the value attribute` warning，而不是静音 warning；
+- 拆分/优化当前接近 5 秒上限的 mega-test，保持语义覆盖，不提高 timeout；
+- 精确失败测试修复后独立稳定运行至少 20 次；
+- 所属测试文件独立稳定运行至少 5 次；
+- full frontend coverage + Default gate PASS。
 
-## 当前 blocker 与恢复入口
+### QA-HARDEN-2 — Issue #17
 
-当前唯一允许的下一代码任务是：
+在 RF-01 之前必须完成 GitHub-visible Windows CI / latest-SHA checks：
 
-**Issue #12 — `V1-UX-1-R1: Fix E2E-INT-009 exact book-title locator`**
+- PR 更新自动跑 Default gate；
+- merge-ready / RC 跑 IncludeE2E；
+- 失败保留日志/产物；
+- CI 只用隔离数据；
+- main 最终配置 required status checks / up-to-date rule（若管理权限需要仓库 owner 操作，则明确记录 owner action）。
 
-恢复任务只能修复 E2E-INT-009 的 locator 歧义及同一测试中同类明确歧义；首选通过精确 accessible-name / 合理作用域定位，例如 `exact: true`，不得改变产品行为来迁就测试。
+## 为什么之前会反复失败
 
-Development 恢复任务完成后必须产生新的 candidate SHA；旧候选 `5cb13a...` 的失败验收不能覆盖新提交。
+当前证据显示不是同一个 bug 反复出现，而是多个类别的问题被推迟到 formal acceptance 才首次完整暴露：
+
+1. UI 文案变化后 locator 未系统审计，出现 substring accessible-name 歧义；
+2. Recovery 只跑窄范围 + Default，没有让完整 IncludeE2E 在 Development 阶段先跑绿；
+3. 存在一个包含多个独立业务步骤的大型 jsdom 单测，大量 `userEvent.type`，运行时间已经靠近 Vitest 默认 5000ms 边界；
+4. React warning 没被当作候选 blocker，导致 `NaN` 非法受控输入状态被带进 formal；
+5. GitHub 当前没有 server-side required CI / branch protection，最新 SHA 的完整测试证据主要靠人工复制本地结果；
+6. PR #9 规模较大、提交历史长，增加了交互回归面。
+
+## 新的 Green Candidate Protocol
+
+完整规则见 `docs/ACCEPTANCE_STABILITY.md`。
+
+在新的 formal acceptance Issue 创建前，精确 candidate SHA 至少必须：
+
+1. Default gate PASS；
+2. `quality_gate.ps1 -IncludeE2E` 在 Development / RC-preflight 模式下对同一未修改 SHA 连续 PASS 两次；
+3. Windows launcher smoke PASS；
+4. 隔离 author UX/delete smoke PASS；
+5. 已知 timing-sensitive 测试完成重复稳定性验证；
+6. 无未解释 React warning / console error / pageerror / requestfailed；
+7. Git / migration / tag / frozen history / formal data 边界全部干净。
+
+候选有任何新 commit，连续绿色计数清零。
 
 ## 下一步顺序
 
-1. 完成 Issue #12 / V1-UX-1-R1 开发修复并运行规定的开发检查。
-2. 更新 PR #9，记录新的精确 candidate SHA。
-3. 创建新的 formal acceptance Issue；不要重开或重跑已经失败的 #10 作为同一轮验收。
-4. 新正式验收必须重新运行规定的 `IncludeE2E`，随后执行 Windows launcher smoke 与隔离 author UX/delete smoke。
-5. 若新候选 PASS：ChatGPT 重新读取 GitHub，按既有授权合并 PR #9，关闭 V1-UX-1 相关 Issue，并在 RF-00 #11 记录最终 merge 后 `main` 作为重构起点。
-6. 只有 RF-00 关闭后才能开始 RF-01。
-7. RF-01 完成并验收后才按 RF 路线逐项继续；不一次性开发 RF-03～RF-17。
+1. 完成 #16 / V1-UX-1-R2 Development recovery。
+2. 继续 #15 / QA-HARDEN-1，把 Green Candidate preflight 落到 PR #9 实际候选。
+3. 完成 #17 / QA-HARDEN-2 的 Windows CI / latest-SHA checks；最迟必须在 RF-01 前完成。
+4. 对最终 PR #9 candidate 执行 RC preflight：Default → IncludeE2E #1 → IncludeE2E #2 → launcher smoke → isolated author smoke。
+5. 只有上述全部 PASS 且 SHA 冻结后，才创建新的 formal acceptance Issue。
+6. formal PASS 后才允许合并 PR #9、关闭 V1-UX-1，并在 RF-00 #11 记录最终 main SHA。
+7. RF-00 关闭后才开始 RF-01。
 
 ## 当前禁止事项
 
-- 不合并尚未通过 formal acceptance 的 PR #9。
+- 不合并 PR #9。
+- 不创建新的 formal acceptance，直到 Green Candidate Protocol 满足。
+- 不通过提高 timeout、sleep、retry、skip、降低 coverage、删除测试或弱化断言解决稳定性问题。
 - 不开始 RF-01、RF-03+ 或 RF-06 Model Gateway。
-- 不开始旧 `V1-AI-1` 旁路任务。
+- 不开始旧 V1-AI-1 旁路任务。
 - 不移动 M0–M7 tags，不改写冻结验收历史。
 - 不用正式 `%LOCALAPPDATA%\AIWebNovel` 数据做测试/Smoke。
-- 不在 formal acceptance 失败后直接修改候选并在同一验收任务里重跑。
+
+## RC 协调冻结规则
+
+在最终 RC preflight 开始前，先同步本文件与活动 Issue/PR。RC preflight 开始后，不再仅为了状态说明向 `main` 追加协调 commit；动态状态写入当前 Issue/PR。candidate PASS/FAIL 后再同步 `PLAN.md`，避免纯文档 commit 使冻结 candidate 无故落后于 base。
 
 ## 接力维护规则
 
-每当出现以下事件，当前负责人必须同步更新本文件：
+每当出现以下事件，当前负责人必须同步本文件：
 
 - 新编号任务开始或完成；
 - PR 创建、合并、关闭或 candidate SHA 改变；
 - formal acceptance PASS / FAIL；
 - 新 blocker 或 recovery task；
+- QA preflight / CI 策略变化；
 - `main` 基线被正式锁定或改变；
 - 下一任务顺序发生改变；
 - 重要产品/架构方向被批准并写入 GitHub。
 
-不要把聊天记录当作项目状态库；聊天里产生的重要事实必须进入 GitHub Issue、PR、`PLAN.md` 或相应正式文档。不要在本文件记录密码、API Key、Cookie、私钥或作者正式创作内容。
+不要把聊天记录当作项目状态库；重要事实进入 GitHub Issue、PR、`PLAN.md` 或正式文档。不得在这些文档中记录 API Key、密码、Cookie、令牌、私钥或作者正式创作内容。
