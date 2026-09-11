@@ -114,3 +114,25 @@ M0–M7 冻结标签与验收历史保持不可移动、不可覆盖、不可改
 正式验收一旦失败，必须把 FAIL、首个真实 blocker 和“下一步必须是新的 recovery task”同步到 GitHub 与 `PLAN.md`；不得在同一 formal acceptance 任务中悄悄修改候选后重跑。
 
 不得在 `PLAN.md`、`AGENTS.md` 或其他协调文档中写入 API Key、密码、Cookie、令牌、私钥、作者正式创作内容或其他秘密/正式用户数据。
+
+## 9. Green Candidate / formal acceptance 入口条件
+
+完整规则见 `docs/ACCEPTANCE_STABILITY.md`。
+
+新的 formal acceptance 不得成为候选第一次运行完整门禁的地方。创建 formal acceptance Issue 前，精确 candidate SHA 必须先完成 Development / RC preflight：
+
+1. Default quality gate PASS；
+2. 同一未修改 SHA 的 `quality_gate.ps1 -IncludeE2E` 连续 PASS 两次；
+3. 当前任务要求的 Windows launcher smoke PASS；
+4. 当前任务要求的隔离真实作者 smoke PASS；
+5. 已知 timing/flaky 测试完成专门重复稳定性验证；
+6. 前端/浏览器测试没有未解释的 React warning、console error、pageerror 或 requestfailed；
+7. Git、migration、tag、frozen-history 与正式用户数据边界全部满足任务要求。
+
+candidate 在 preflight 期间有任何新 commit，连续绿色计数清零，必须从新 SHA 重新开始。
+
+不得用 timeout inflation、sleep、retry、skip、删除测试、降低 coverage 或弱化断言来满足 Green Candidate 条件。
+
+发生晚期失败时，除了修复当前 blocker，还必须把能前移的检查补到 Development / CI / RC preflight，避免同类问题下一次仍然只在 formal acceptance 才被发现。
+
+开始最终 RC preflight 前，应先同步 `PLAN.md` 与活动 Issue/PR，然后冻结 candidate。冻结期间不要仅为了协调状态而向 `main` 追加 commit；动态状态写入当前 Issue/PR，待 candidate 最终 PASS/FAIL 后再同步 `PLAN.md`。
