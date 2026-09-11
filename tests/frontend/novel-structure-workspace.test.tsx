@@ -57,18 +57,57 @@ describe("Novel Structure workspace", () => {
     expect(client.listVolumes).not.toHaveBeenCalled();
   });
 
-  it("loads an empty workspace, avoids invalid Chapter reads, and creates each level", async () => {
-    const user = userEvent.setup();
-    const client = structureClient({
-      getOutline: vi
-        .fn()
-        .mockRejectedValue(
-          structureError("outline_not_found", "该项目尚未创建大纲。"),
-        ),
-      listVolumes: vi.fn().mockResolvedValue([]),
-      createOutline: vi.fn().mockResolvedValue(versionedOutline()),
-      createVolume: vi
-        .fn()
+  describe("creation behaviors", () => {
+    function emptyClient() {
+      return structureClient({
+        getOutline: vi
+          .fn()
+          .mockRejectedValue(
+            structureError("outline_not_found", "该项目尚未创建大纲。"),
+          ),
+        listVolumes: vi.fn().mockResolvedValue([]),
+      });
+    }
+
+    it("loads an empty workspace without invalid Chapter reads", async () => {
+      const client = emptyClient();
+      renderWorkspace(client);
+      expect(await screen.findByText("当前尚未创建大纲。")).toBeVisible();
+      expect(screen.getByText("请先创建卷")).toBeVisible();
+      expect(client.listChapters).not.toHaveBeenCalled();
+      expect(client.getChapter).not.toHaveBeenCalled();
+    });
+
+    it("creates an outline while preserving title spacing and summary newlines", async () => {
+      const user = userEvent.setup();
+      const client = emptyClient();
+      renderWorkspace(client);
+      await screen.findByText("当前尚未创建大纲。");
+      const outline = screen
+        .getByRole("heading", { name: "大纲" })
+        .closest("section")!;
+      await user.type(within(outline).getByLabelText("标题"), " 新总纲 ");
+      await user.type(
+        within(outline).getByLabelText("梗概"),
+        "第一行{enter}第二行",
+      );
+      await user.click(
+        within(outline).getByRole("button", { name: "创建大纲" }),
+      );
+      expect(await screen.findByText("大纲已创建。")).toBeVisible();
+      expect(client.createOutline).toHaveBeenCalledExactlyOnceWith(
+        structureProjectId,
+        {
+          title: " 新总纲 ",
+          summary: "第一行\n第二行",
+        },
+      );
+    });
+
+    it("creates volumes with initial and edited order, selecting each new volume", async () => {
+      const user = userEvent.setup();
+      const client = emptyClient();
+      vi.mocked(client.createVolume)
         .mockResolvedValueOnce(versionedVolume())
         .mockResolvedValueOnce(
           versionedVolume(1, {
@@ -76,83 +115,171 @@ describe("Novel Structure workspace", () => {
             title: "第二卷",
             position: 2,
           }),
-        ),
-      createChapter: vi
-        .fn()
-        .mockResolvedValueOnce(versionedChapter())
-        .mockResolvedValueOnce(
-          versionedChapter(1, {
-            chapter_id: secondChapterId,
+        );
+      renderWorkspace(client);
+      await screen.findByText("请先创建卷");
+      const volumeForm = form("创建卷");
+      const fields = within(volumeForm);
+      await user.type(fields.getByLabelText("标题"), "第一卷");
+      await user.type(fields.getByLabelText("梗概"), "卷梗概");
+      expect(fields.getByLabelText("顺序")).toHaveValue(1);
+      await user.click(fields.getByRole("button", { name: "创建卷" }));
+      expect(await screen.findByText("卷已创建。已选中新卷。")).toBeVisible();
+      expect(client.createVolume).toHaveBeenCalledExactlyOnceWith(
+        structureProjectId,
+        {
+          title: "第一卷",
+          summary: "卷梗概",
+          position: 1,
+        },
+      );
+      expect(screen.queryByText("请先创建卷")).not.toBeInTheDocument();
+      expect(fields.getByLabelText("标题")).toHaveValue("");
+      expect(fields.getByLabelText("顺序")).toHaveValue(2);
+      await user.type(fields.getByLabelText("标题"), "第二卷");
+      await user.type(fields.getByLabelText("梗概"), "第二卷梗概");
+      await user.clear(fields.getByLabelText("顺序"));
+      expect(fields.getByLabelText("顺序")).toHaveValue(null);
+      await user.type(fields.getByLabelText("顺序"), "2");
+      await user.click(fields.getByRole("button", { name: "创建卷" }));
+      expect(await screen.findByText("当前卷：第二卷")).toBeVisible();
+      expect(client.createVolume).toHaveBeenCalledTimes(2);
+      expect(client.createVolume).toHaveBeenLastCalledWith(structureProjectId, {
+        title: "第二卷",
+        summary: "第二卷梗概",
+        position: 2,
+      });
+      expect(screen.getByRole("button", { name: "2. 第二卷" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(fields.getByLabelText("顺序")).toHaveValue(3);
+    });
+
+    it("creates chapters in the selected volume with initial and edited order", async () => {
+      const user = userEvent.setup();
+      const client = structureClient({
+        listVolumes: vi.fn().mockResolvedValue([
+          volumeResponse(1, {
             volume_id: secondVolumeId,
-            title: "第二章",
+            title: "第二卷",
+            position: 2,
+          }),
+        ]),
+        getVolume: vi.fn().mockResolvedValue(
+          versionedVolume(1, {
+            volume_id: secondVolumeId,
+            title: "第二卷",
             position: 2,
           }),
         ),
+        listChapters: vi.fn().mockResolvedValue([]),
+        createChapter: vi
+          .fn()
+          .mockResolvedValueOnce(
+            versionedChapter(1, { volume_id: secondVolumeId }),
+          )
+          .mockResolvedValueOnce(
+            versionedChapter(1, {
+              chapter_id: secondChapterId,
+              volume_id: secondVolumeId,
+              title: "第二章",
+              position: 2,
+            }),
+          ),
+      });
+      renderWorkspace(client);
+      await screen.findByText("当前卷：第二卷");
+      const fields = within(form("创建章"));
+      expect(client.getChapter).not.toHaveBeenCalled();
+      await user.type(fields.getByLabelText("标题"), "第一章");
+      await user.type(fields.getByLabelText("梗概"), "章梗概");
+      expect(fields.getByLabelText("顺序")).toHaveValue(1);
+      await user.click(fields.getByRole("button", { name: "创建章" }));
+      expect(await screen.findByText("章已创建。已选中新章。")).toBeVisible();
+      expect(client.createChapter).toHaveBeenCalledExactlyOnceWith(
+        structureProjectId,
+        secondVolumeId,
+        {
+          title: "第一章",
+          summary: "章梗概",
+          position: 1,
+        },
+      );
+      expect(fields.getByLabelText("标题")).toHaveValue("");
+      expect(fields.getByLabelText("顺序")).toHaveValue(2);
+      await user.type(fields.getByLabelText("标题"), "第二章");
+      await user.type(fields.getByLabelText("梗概"), "第二章梗概");
+      await user.clear(fields.getByLabelText("顺序"));
+      expect(fields.getByLabelText("顺序")).toHaveValue(null);
+      await user.type(fields.getByLabelText("顺序"), "2");
+      await user.click(fields.getByRole("button", { name: "创建章" }));
+      expect(
+        await screen.findByRole("button", { name: "2. 第二章" }),
+      ).toHaveAttribute("aria-pressed", "true");
+      expect(client.createChapter).toHaveBeenCalledTimes(2);
+      expect(client.createChapter).toHaveBeenLastCalledWith(
+        structureProjectId,
+        secondVolumeId,
+        {
+          title: "第二章",
+          summary: "第二章梗概",
+          position: 2,
+        },
+      );
+      expect(fields.getByLabelText("顺序")).toHaveValue(3);
     });
-    renderWorkspace(client);
-    expect(await screen.findByText("当前尚未创建大纲。")).toBeVisible();
-    expect(screen.getByText("请先创建卷")).toBeVisible();
-    expect(client.listChapters).not.toHaveBeenCalled();
-    expect(client.getChapter).not.toHaveBeenCalled();
-
-    const outline = screen
-      .getByRole("heading", { name: "大纲" })
-      .closest("section")!;
-    await user.type(within(outline).getByLabelText("标题"), " 新总纲 ");
-    await user.type(
-      within(outline).getByLabelText("梗概"),
-      "第一行{enter}第二行",
-    );
-    await user.click(within(outline).getByRole("button", { name: "创建大纲" }));
-    expect(await screen.findByText("大纲已创建。")).toBeVisible();
-    expect(client.createOutline).toHaveBeenCalledWith(structureProjectId, {
-      title: " 新总纲 ",
-      summary: "第一行\n第二行",
-    });
-
-    const volumeForm = form("创建卷");
-    await user.type(within(volumeForm).getByLabelText("标题"), "第一卷");
-    await user.type(within(volumeForm).getByLabelText("梗概"), "卷梗概");
-    expect(within(volumeForm).getByLabelText("顺序")).toHaveValue(1);
-    await user.click(
-      within(volumeForm).getByRole("button", { name: "创建卷" }),
-    );
-    expect(await screen.findByText("卷已创建。已选中新卷。")).toBeVisible();
-    expect(client.createVolume).toHaveBeenCalledOnce();
-    expect(screen.queryByText("请先创建卷")).not.toBeInTheDocument();
-
-    await user.type(within(volumeForm).getByLabelText("标题"), "第二卷");
-    await user.type(within(volumeForm).getByLabelText("梗概"), "第二卷梗概");
-    await user.clear(within(volumeForm).getByLabelText("顺序"));
-    await user.type(within(volumeForm).getByLabelText("顺序"), "2");
-    await user.click(
-      within(volumeForm).getByRole("button", { name: "创建卷" }),
-    );
-    await waitFor(() => expect(client.createVolume).toHaveBeenCalledTimes(2));
-
-    const chapterForm = form("创建章");
-    await user.type(within(chapterForm).getByLabelText("标题"), "第一章");
-    await user.type(within(chapterForm).getByLabelText("梗概"), "章梗概");
-    await user.click(
-      within(chapterForm).getByRole("button", { name: "创建章" }),
-    );
-    expect(await screen.findByText("章已创建。已选中新章。")).toBeVisible();
-    expect(client.createChapter).toHaveBeenCalledWith(
-      structureProjectId,
-      secondVolumeId,
-      expect.objectContaining({ title: "第一章", position: 1 }),
-    );
-    await user.type(within(chapterForm).getByLabelText("标题"), "第二章");
-    await user.type(within(chapterForm).getByLabelText("梗概"), "第二章梗概");
-    await user.clear(within(chapterForm).getByLabelText("顺序"));
-    await user.type(within(chapterForm).getByLabelText("顺序"), "2");
-    await user.click(
-      within(chapterForm).getByRole("button", { name: "创建章" }),
-    );
-    await waitFor(() => expect(client.createChapter).toHaveBeenCalledTimes(2));
   });
 
-  it("loads sorted resources, selects items, and updates with the exact ETags", async () => {
+  it.each([
+    ["创建卷", "createVolume"],
+    ["编辑所选卷", "updateVolume"],
+    ["创建章", "createChapter"],
+    ["编辑所选章", "updateChapter"],
+  ] as const)(
+    "keeps a cleared position empty and rejects submission in %s",
+    async (heading, operation) => {
+      const user = userEvent.setup();
+      const client = structureClient({
+        createVolume: vi.fn().mockResolvedValue(
+          versionedVolume(1, {
+            volume_id: secondVolumeId,
+            position: 3,
+          }),
+        ),
+        createChapter: vi.fn().mockResolvedValue(
+          versionedChapter(1, {
+            chapter_id: secondChapterId,
+            position: 3,
+          }),
+        ),
+      });
+      renderWorkspace(client);
+      await screen.findByRole("heading", { name: "编辑所选章" });
+      const target = form(heading);
+      const fields = within(target);
+      const title = fields.getByLabelText("标题");
+      if ((title as HTMLInputElement).value === "")
+        await user.type(title, "测试");
+      const position = fields.getByLabelText("顺序");
+      await user.clear(position);
+      expect(position).toHaveValue(null);
+      expect(position).not.toHaveAttribute("value", "NaN");
+      // Exercise application validation independently of native number constraints.
+      fireEvent.submit(target);
+      expect(fields.getByText("顺序必须是正整数。")).toBeVisible();
+      expect(client[operation]).not.toHaveBeenCalled();
+      await user.type(position, "3");
+      expect(position).toHaveValue(3);
+      await user.click(fields.getByRole("button"));
+      await waitFor(() => expect(client[operation]).toHaveBeenCalledOnce());
+      expect(vi.mocked(client[operation]).mock.calls[0]).toContainEqual(
+        expect.objectContaining({ position: 3 }),
+      );
+    },
+  );
+
+  it("loads sorted resources and selects chapters and volumes", async () => {
     const user = userEvent.setup();
     const secondVolume = volumeResponse(1, {
       volume_id: secondVolumeId,
@@ -179,23 +306,11 @@ describe("Novel Structure workspace", () => {
       .mockResolvedValueOnce([chapterResponse(), secondChapter])
       .mockResolvedValueOnce([]);
     const getChapter = vi.fn().mockResolvedValue(versionedChapter());
-    const updateOutline = vi
-      .fn()
-      .mockResolvedValue(versionedOutline(2, { title: "更新总纲" }));
-    const updateVolume = vi
-      .fn()
-      .mockResolvedValue(versionedVolume(2, { title: "更新第一卷" }));
-    const updateChapter = vi
-      .fn()
-      .mockResolvedValue(versionedChapter(2, { title: "更新第一章" }));
     const client = structureClient({
       listVolumes: vi.fn().mockResolvedValue([volumeResponse(), secondVolume]),
       getVolume,
       listChapters,
       getChapter,
-      updateOutline,
-      updateVolume,
-      updateChapter,
     });
     renderWorkspace(client);
     expect(
@@ -208,7 +323,21 @@ describe("Novel Structure workspace", () => {
     );
     await user.click(screen.getByRole("button", { name: "2. 第二章" }));
     await waitFor(() => expect(getChapter).toHaveBeenCalledTimes(2));
+    await user.click(screen.getByRole("button", { name: "2. 第二卷" }));
+    await waitFor(() => expect(getVolume).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("当前卷：第二卷")).toBeVisible();
+    expect(screen.getByText("当前卷尚未创建章。")).toBeVisible();
+  });
 
+  it("updates the outline with its exact ETag", async () => {
+    const user = userEvent.setup();
+    const client = structureClient({
+      updateOutline: vi
+        .fn()
+        .mockResolvedValue(versionedOutline(2, { title: "更新总纲" })),
+    });
+    renderWorkspace(client);
+    await screen.findByRole("heading", { name: "编辑所选章" });
     const outline = screen
       .getByRole("heading", { name: "大纲" })
       .closest("section")!;
@@ -216,48 +345,59 @@ describe("Novel Structure workspace", () => {
     await user.type(within(outline).getByLabelText("标题"), "更新总纲");
     await user.click(within(outline).getByRole("button", { name: "保存大纲" }));
     expect(await screen.findByText("大纲已更新。")).toBeVisible();
-    expect(updateOutline).toHaveBeenCalledWith(
+    expect(client.updateOutline).toHaveBeenCalledExactlyOnceWith(
       outlineIdMatcher(),
       structureProjectId,
       expect.objectContaining({ title: "更新总纲" }),
       '"1"',
     );
+  });
 
-    const volumeEdit = form("编辑所选卷");
-    await user.clear(within(volumeEdit).getByLabelText("标题"));
-    await user.type(within(volumeEdit).getByLabelText("标题"), "更新第一卷");
-    await user.click(
-      within(volumeEdit).getByRole("button", { name: "保存卷" }),
-    );
+  it("updates the selected volume with its exact ETag", async () => {
+    const user = userEvent.setup();
+    const client = structureClient({
+      updateVolume: vi
+        .fn()
+        .mockResolvedValue(versionedVolume(2, { title: "更新第一卷" })),
+    });
+    renderWorkspace(client);
+    await screen.findByRole("heading", { name: "编辑所选章" });
+    const fields = within(form("编辑所选卷"));
+    await user.clear(fields.getByLabelText("标题"));
+    await user.type(fields.getByLabelText("标题"), "更新第一卷");
+    await user.click(fields.getByRole("button", { name: "保存卷" }));
     expect(await screen.findByText("卷已更新。")).toBeVisible();
-    expect(updateVolume).toHaveBeenCalledWith(
-      expect.any(String),
+    expect(client.updateVolume).toHaveBeenCalledExactlyOnceWith(
+      versionedVolume().resource.volume_id,
       structureProjectId,
       expect.objectContaining({ title: "更新第一卷" }),
       '"1"',
     );
+  });
 
-    const chapterEdit = form("编辑所选章");
-    await user.clear(within(chapterEdit).getByLabelText("标题"));
-    await user.type(within(chapterEdit).getByLabelText("标题"), "更新第一章");
-    await user.clear(within(chapterEdit).getByLabelText("顺序"));
-    await user.type(within(chapterEdit).getByLabelText("顺序"), "1");
-    await user.click(
-      within(chapterEdit).getByRole("button", { name: "保存章" }),
-    );
+  it("updates the selected chapter and edited order with its exact ETag", async () => {
+    const user = userEvent.setup();
+    const client = structureClient({
+      updateChapter: vi
+        .fn()
+        .mockResolvedValue(versionedChapter(2, { title: "更新第一章" })),
+    });
+    renderWorkspace(client);
+    await screen.findByRole("heading", { name: "编辑所选章" });
+    const fields = within(form("编辑所选章"));
+    await user.clear(fields.getByLabelText("标题"));
+    await user.type(fields.getByLabelText("标题"), "更新第一章");
+    await user.clear(fields.getByLabelText("顺序"));
+    await user.type(fields.getByLabelText("顺序"), "1");
+    await user.click(fields.getByRole("button", { name: "保存章" }));
     expect(await screen.findByText("章已更新。")).toBeVisible();
-    expect(updateChapter).toHaveBeenCalledWith(
-      expect.any(String),
+    expect(client.updateChapter).toHaveBeenCalledExactlyOnceWith(
+      versionedChapter().resource.chapter_id,
       structureProjectId,
-      expect.any(String),
-      expect.objectContaining({ title: "更新第一章" }),
+      versionedChapter().resource.volume_id,
+      expect.objectContaining({ title: "更新第一章", position: 1 }),
       '"1"',
     );
-
-    await user.click(screen.getByRole("button", { name: "2. 第二卷" }));
-    await waitFor(() => expect(getVolume).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText("当前卷：第二卷")).toBeVisible();
-    expect(screen.getByText("当前卷尚未创建章。")).toBeVisible();
   });
 
   it("keeps drafts and surfaces 409 and 412 errors without automatic retry", async () => {

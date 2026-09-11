@@ -50,6 +50,11 @@ type BusyAction =
 
 const EMPTY_TEXT: StructureTextInput = { title: "", summary: "" };
 
+// Empty numeric fields are a valid editing state, never an API position.
+interface PositionedStructureDraft extends StructureTextInput {
+  readonly position: number | "";
+}
+
 function safeError(error: unknown): NovelStructureApiError {
   return error instanceof NovelStructureApiError
     ? error
@@ -107,8 +112,8 @@ function StructureFields({
   readonly value: StructureTextInput;
   readonly onChange: (value: StructureTextInput) => void;
   readonly errors: readonly StructureFieldError[];
-  readonly position?: number;
-  readonly onPositionChange?: (value: number) => void;
+  readonly position?: number | "";
+  readonly onPositionChange?: (value: number | "") => void;
 }) {
   const titleError = fieldError(errors, "title");
   const summaryError = fieldError(errors, "summary");
@@ -152,7 +157,10 @@ function StructureFields({
             min="1"
             step="1"
             value={position}
-            onChange={(event) => onPositionChange(event.target.valueAsNumber)}
+            onChange={(event) => {
+              const next = event.target.valueAsNumber;
+              onPositionChange(Number.isFinite(next) ? next : "");
+            }}
             aria-invalid={positionError !== null}
             aria-describedby={
               positionError === null ? undefined : `${prefix}-position-error`
@@ -190,19 +198,19 @@ function NovelStructureWorkspace({
   );
   const [outlineDraft, setOutlineDraft] =
     useState<StructureTextInput>(EMPTY_TEXT);
-  const [newVolume, setNewVolume] = useState<PositionedStructureInput>({
+  const [newVolume, setNewVolume] = useState<PositionedStructureDraft>({
     ...EMPTY_TEXT,
     position: 1,
   });
-  const [volumeDraft, setVolumeDraft] = useState<PositionedStructureInput>({
+  const [volumeDraft, setVolumeDraft] = useState<PositionedStructureDraft>({
     ...EMPTY_TEXT,
     position: 1,
   });
-  const [newChapter, setNewChapter] = useState<PositionedStructureInput>({
+  const [newChapter, setNewChapter] = useState<PositionedStructureDraft>({
     ...EMPTY_TEXT,
     position: 1,
   });
-  const [chapterDraft, setChapterDraft] = useState<PositionedStructureInput>({
+  const [chapterDraft, setChapterDraft] = useState<PositionedStructureDraft>({
     ...EMPTY_TEXT,
     position: 1,
   });
@@ -341,7 +349,7 @@ function NovelStructureWorkspace({
   };
 
   const validate = (
-    input: StructureTextInput | PositionedStructureInput,
+    input: StructureTextInput | PositionedStructureDraft,
   ): boolean => {
     const errors = validateStructureInput(
       input.title,
@@ -374,9 +382,13 @@ function NovelStructureWorkspace({
   };
 
   const submitNewVolume = () => {
-    if (!validate(newVolume)) return;
+    if (!validate(newVolume) || newVolume.position === "") return;
+    const input: PositionedStructureInput = {
+      ...newVolume,
+      position: newVolume.position,
+    };
     void run("volume-create", async () => {
-      const next = await client.createVolume(projectId, newVolume);
+      const next = await client.createVolume(projectId, input);
       setState((current) => ({
         ...current,
         volumes: [...current.volumes, next.resource].sort(
@@ -391,22 +403,31 @@ function NovelStructureWorkspace({
         summary: next.resource.summary,
         position: next.resource.position,
       });
-      setNewVolume((current) => ({
+      setNewVolume({
         ...EMPTY_TEXT,
-        position: current.position + 1,
-      }));
+        position: input.position + 1,
+      });
       setNewChapter({ ...EMPTY_TEXT, position: 1 });
       setFeedback("卷已创建。已选中新卷。");
     });
   };
 
   const submitVolume = () => {
-    if (state.selectedVolume === null || !validate(volumeDraft)) return;
+    if (
+      state.selectedVolume === null ||
+      !validate(volumeDraft) ||
+      volumeDraft.position === ""
+    )
+      return;
+    const input: PositionedStructureInput = {
+      ...volumeDraft,
+      position: volumeDraft.position,
+    };
     void run("volume-update", async () => {
       const next = await client.updateVolume(
         state.selectedVolume!.resource.volume_id,
         projectId,
-        volumeDraft,
+        input,
         state.selectedVolume!.etag,
       );
       setState((current) => ({
@@ -428,10 +449,19 @@ function NovelStructureWorkspace({
   };
 
   const submitNewChapter = () => {
-    if (state.selectedVolume === null || !validate(newChapter)) return;
+    if (
+      state.selectedVolume === null ||
+      !validate(newChapter) ||
+      newChapter.position === ""
+    )
+      return;
+    const input: PositionedStructureInput = {
+      ...newChapter,
+      position: newChapter.position,
+    };
     void run("chapter-create", async () => {
       const volumeId = state.selectedVolume!.resource.volume_id;
-      const next = await client.createChapter(projectId, volumeId, newChapter);
+      const next = await client.createChapter(projectId, volumeId, input);
       setState((current) => ({
         ...current,
         chapters: [...current.chapters, next.resource].sort(
@@ -444,10 +474,10 @@ function NovelStructureWorkspace({
         summary: next.resource.summary,
         position: next.resource.position,
       });
-      setNewChapter((current) => ({
+      setNewChapter({
         ...EMPTY_TEXT,
-        position: current.position + 1,
-      }));
+        position: input.position + 1,
+      });
       setFeedback("章已创建。已选中新章。");
     });
   };
@@ -471,13 +501,22 @@ function NovelStructureWorkspace({
   };
 
   const submitChapter = () => {
-    if (state.selectedChapter === null || !validate(chapterDraft)) return;
+    if (
+      state.selectedChapter === null ||
+      !validate(chapterDraft) ||
+      chapterDraft.position === ""
+    )
+      return;
+    const input: PositionedStructureInput = {
+      ...chapterDraft,
+      position: chapterDraft.position,
+    };
     void run("chapter-update", async () => {
       const next = await client.updateChapter(
         state.selectedChapter!.resource.chapter_id,
         projectId,
         state.selectedChapter!.resource.volume_id,
-        chapterDraft,
+        input,
         state.selectedChapter!.etag,
       );
       setState((current) => ({
