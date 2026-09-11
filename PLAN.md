@@ -26,6 +26,7 @@
 - Issue #10 / V1-UX-1-Q1：formal FAIL，首个 blocker 为 E2E-INT-009 `书名` / `确认书名` locator 歧义。
 - Issue #12 / V1-UX-1-R1：Development recovery PASS；生成候选 `553d28988fe1c182cbb95fffe50965a7391879d8`。
 - Issue #14 / V1-UX-1-Q2：formal FAIL。`quality_gate.ps1 -IncludeE2E` 在 frontend coverage 阶段失败；`tests/frontend/novel-structure-workspace.test.tsx` 的 `loads an empty workspace, avoids invalid Chapter reads, and creates each level` 超过 Vitest 5000ms 默认 timeout（5068ms），同一运行出现 `Received NaN for the value attribute`。正式 Playwright E2E、launcher smoke、isolated author smoke 均未进入。
+- [Issue #16 / V1-UX-1-R2](https://github.com/King70404/AI-Writer-project/issues/16)：Development recovery PASS。代码候选 `49620ce9c0ea5f74c549842cb9f11f40f59309fb` 消除空序号的 NaN 状态，并拆分结构工作区大型测试；专项独立 20/20、完整文件独立 5/5、完整 frontend coverage 与一次 Default 全部通过。该结果不是 formal PASS。
 
 ## 当前活动工作
 
@@ -41,6 +42,8 @@ PR #9 尚未合并。最近失败 formal candidate：
 
 该 SHA 不再允许直接进入新的 formal acceptance；必须先经过新的 Green Candidate Protocol。
 
+新的代码候选为 `49620ce9c0ea5f74c549842cb9f11f40f59309fb`。已正常合入 main `fc8d5acb6d54eb7d5407b912bc56435d9c2e2ba2`，merge commit 为 `90c76e7b9a5b95f5233a01b5d2cbe8ccf88a7eab`。本页后续协调提交不改变代码；包含本页的最终 branch HEAD 精确值记录在 [Issue #16](https://github.com/King70404/AI-Writer-project/issues/16) 与 [PR #9](https://github.com/King70404/AI-Writer-project/pull/9) 的 R2 收尾证据中。下一次 preflight 必须重新锁定该最终 HEAD，不沿用代码候选或旧 formal 的计数。
+
 ### QA-HARDEN-1 — Issue #15
 
 目标：停止“修一个 blocker → 立刻再开正式验收”的打地鼠流程。
@@ -54,16 +57,15 @@ PR #9 尚未合并。最近失败 formal candidate：
 
 ### V1-UX-1-R2 — Issue #16
 
-当前唯一允许的下一代码恢复任务。
+Development recovery 已完成，尚未 formal PASS；下一步为 #15 Green Candidate preflight，不能直接重开 formal acceptance。
 
-目标：
-
-- 修复 novel-structure number input 清空时 `valueAsNumber -> NaN` 进入受控 `value` 的非法中间状态；
-- 消除 React `Received NaN for the value attribute` warning，而不是静音 warning；
-- 拆分/优化当前接近 5 秒上限的 mega-test，保持语义覆盖，不提高 timeout；
-- 精确失败测试修复后独立稳定运行至少 20 次；
-- 所属测试文件独立稳定运行至少 5 次；
-- full frontend coverage + Default gate PASS。
+- 旧实现通过 number input 清空直接复现 NaN React warning；修复后以 `number | ""` 表达编辑状态，提交前保留正整数校验，仅合法数值进入 API。
+- 原创建 mega-test 拆为 4 项独立行为；相邻读取/更新 mega-test 同样按职责拆分；新增卷/章创建与编辑共 4 种清空序号回归。仍使用 user-event，不提高 timeout、不添加 retry/sleep/skip、不静音 warning。
+- 最后一次代码修改后，专项 20 次独立运行全部通过（每轮 8 项，3.03–3.31 秒）；完整文件 5 次全部通过（每轮 17 项，4.51–4.68 秒）。目标测试最长 530ms；verbose 输出未出现 unexpected warning 或 console.error。
+- 完整 frontend coverage 与 Default 内 frontend 均为 55 files / 676 tests；statements 96.08% (3069/3194)、branches 92.06% (2853/3099)、functions 98.91% (731/739)、lines 96.62% (2950/3053)，未修改覆盖率阈值。
+- Default `quality_gate.ps1` 仅执行一次，exit 0；后端 2776 tests，statements 97.45%、branches 93.65%；格式、lint、类型、构建及依赖完整性通过。后端 5 条已识别的 Starlette/httpx 与 SQLite datetime 弃用警告如实保留；前端无 NaN 或其他 warning。
+- migration、24 份冻结文档和 M0–M7 tag 对象/目标不变；未访问正式作者数据。精确运行记录与最终 candidate SHA 见 Issue #16 / PR #9。
+- 本任务没有运行 IncludeE2E、launcher 或 author smoke，没有执行 #15/#17 的下一阶段，也没有合并 PR #9。
 
 ### QA-HARDEN-2 — Issue #17
 
@@ -104,8 +106,8 @@ PR #9 尚未合并。最近失败 formal candidate：
 
 ## 下一步顺序
 
-1. 完成 #16 / V1-UX-1-R2 Development recovery。
-2. 继续 #15 / QA-HARDEN-1，把 Green Candidate preflight 落到 PR #9 实际候选。
+1. #16 / V1-UX-1-R2 Development recovery 已完成；保留 #14 formal FAIL 历史，不宣称新的 formal PASS。
+2. 下一任务由 ChatGPT 重新读取 GitHub 后调度 #15 / QA-HARDEN-1，把 Green Candidate preflight 落到 PR #9 最终精确候选。
 3. 完成 #17 / QA-HARDEN-2 的 Windows CI / latest-SHA checks；最迟必须在 RF-01 前完成。
 4. 对最终 PR #9 candidate 执行 RC preflight：Default → IncludeE2E #1 → IncludeE2E #2 → launcher smoke → isolated author smoke。
 5. 只有上述全部 PASS 且 SHA 冻结后，才创建新的 formal acceptance Issue。
