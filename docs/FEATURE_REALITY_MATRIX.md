@@ -6,16 +6,16 @@ M0–M2 时期的旧细粒度 feature_id 矩阵已原样归档到 [`history/FEAT
 
 ## 当前 V1 能力索引
 
-| 能力组 | 首次冻结/最终状态 | 当前成立的能力 | 明确限制 |
-| --- | --- | --- | --- |
-| Engineering foundation | M0，M7继续保留 | Windows 本地基础设施、SQLite WAL/FK、安全/诊断/启动/质量门基础；普通作者可使用根目录双击启动入口 | 不代表 SaaS、多人或公网服务 |
-| Project | M1，M7继续保留；V1-UX-1 增强 | 创建、列表、读取、完整修订、不可变 Revision 历史、乐观并发；普通作者界面隐藏内部 ID/并发字段；支持带书名确认的逻辑删除 | 删除为不可逆的普通界面移除，不暴力擦除冻结的不可变 Revision 历史；归档/恢复未实现 |
-| Story Bible | M2，M7继续保留；V1-UX-1 文案增强 | 单 Project 小说设定创建、读取、修订、不可变历史、冲突处理 | V1 仍以已验收文本能力为准 |
-| Characters | M3，M7继续保留；V1-UX-1 输入体验增强 | 多 Character 创建、列表、读取、完整修订、不可变历史；创作文本框关闭浏览器历史自动提示 | 无 Character relations / World graph |
-| Novel Structure | M4，M7继续保留 | Outline、Volumes、Chapters，稳定对象 + immutable revisions + heads | 以 M4/M7 冻结范围为准 |
-| Chapter Writing | M5，M7继续保留 | Writing Workspace、正文完整替换、Autosave、保存/冲突状态 | 无未经确认的自动覆盖 |
-| Local AI Writing | M6，M7继续保留 | loopback-only OpenAI-compatible Provider、最小上下文组装、Continue / Rewrite、显式采用候选 | 当前冻结 V1 无云 AI API；云 Provider 属于后续 V1-AI-1 |
-| TXT Export / V1 loop | M7 accepted | 当前服务器已保存正文按结构导出 UTF-8 TXT；完整 V1 主闭环通过正式验收 | 不导出未保存浏览器草稿或 AI 候选；M8+ 未开始即不由 M7 授权 |
+| 能力组                 | 首次冻结/最终状态                    | 当前成立的能力                                                                                                         | 明确限制                                                                          |
+| ---------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Engineering foundation | M0，M7继续保留                       | Windows 本地基础设施、SQLite WAL/FK、安全/诊断/启动/质量门基础；普通作者可使用根目录双击启动入口                       | 不代表 SaaS、多人或公网服务                                                       |
+| Project                | M1，M7继续保留；V1-UX-1 增强         | 创建、列表、读取、完整修订、不可变 Revision 历史、乐观并发；普通作者界面隐藏内部 ID/并发字段；支持带书名确认的逻辑删除 | 删除为不可逆的普通界面移除，不暴力擦除冻结的不可变 Revision 历史；归档/恢复未实现 |
+| Story Bible            | M2，M7继续保留；V1-UX-1 文案增强     | 单 Project 小说设定创建、读取、修订、不可变历史、冲突处理                                                              | V1 仍以已验收文本能力为准                                                         |
+| Characters             | M3，M7继续保留；V1-UX-1 输入体验增强 | 多 Character 创建、列表、读取、完整修订、不可变历史；创作文本框关闭浏览器历史自动提示                                  | 无 Character relations / World graph                                              |
+| Novel Structure        | M4，M7继续保留                       | Outline、Volumes、Chapters，稳定对象 + immutable revisions + heads                                                     | 以 M4/M7 冻结范围为准                                                             |
+| Chapter Writing        | M5，M7继续保留                       | Writing Workspace、正文完整替换、Autosave、保存/冲突状态                                                               | 无未经确认的自动覆盖                                                              |
+| Local AI Writing       | M6，M7继续保留                       | loopback-only OpenAI-compatible Provider、最小上下文组装、Continue / Rewrite、显式采用候选                             | 当前冻结 V1 无云 AI API；云 Provider 属于后续 RF-06 Model Gateway/API Key         |
+| TXT Export / V1 loop   | M7 accepted                          | 当前服务器已保存正文按结构导出 UTF-8 TXT；完整 V1 主闭环通过正式验收                                                   | 不导出未保存浏览器草稿或 AI 候选；M8+ 未开始即不由 M7 授权                        |
 
 ## V1 主闭环
 
