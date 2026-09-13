@@ -90,6 +90,10 @@ Vitest Node/jsdom 默认 test timeout 为 5000ms。测试接近或越过该边�
 
 新增或修改作者文案时，必须检查同页是否出现同前缀 accessible name，例如 `书名` / `确认书名`。不得依赖宽泛 substring locator。
 
+作者文案变化还需按页面逐项核对创建态、编辑态、保存反馈和冲突处理的真实可访问名称。不同模块的保存按钮不能靠全局文字替换同步；例如小说信息与小说设定具有各自独立的编辑契约。修正首个失败 locator 后，仍须执行该场景直到最终请求、持久化及浏览器审计断言，不能把“越过首个失败点”当成整个场景通过。
+
+PR 涉及作者界面时，Development 交接前先运行受影响的独立 E2E，再运行完整 `npm run e2e` 浏览器集，并保留真实结果。Default gate 没有运行浏览器，不能作为文案/定位契约已验证的证据；新的 RC 两次 IncludeE2E 和正式验收要求保持不变。RC1 的 INT-012 陈旧标题断言失败见 [#18](https://github.com/King70404/AI-Writer-project/issues/18#issuecomment-5646556594)，其独立恢复见 [#19](https://github.com/King70404/AI-Writer-project/issues/19)。
+
 ## 7. CI / GitHub merge readiness
 
 在 RF-01 之前完成 QA-HARDEN-2：

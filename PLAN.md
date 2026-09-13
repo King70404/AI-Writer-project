@@ -28,6 +28,7 @@ M0–M7 / V1 的正式冻结基线已经成立；当前阻塞不是 V1 基础能
 - #14 / V1-UX-1-Q2：formal FAIL；frontend coverage 阶段出现 5000ms timeout（5068ms）与 React `Received NaN for the value attribute` warning，formal Playwright / launcher / isolated author smoke 未进入。
 - #16 / V1-UX-1-R2：Development recovery PASS，已关闭 completed。代码修复提交 `49620ce9c0ea5f74c549842cb9f11f40f59309fb`；PR #9 在本次协调前 head 为 `956b9e9f63dbd4ef04cad82869967e8b3a57cd86`。目标测试独立 20/20、完整文件 5/5、frontend coverage 与 Default gate 均通过，且无对应 React warning / console.error。
 - #13 是未执行的旧 Q2 草案，已关闭 `not_planned`；实际 Q2 formal 历史只保留 #14。
+- #18 / V1-UX-1-RC1：Green Candidate FAIL。冻结候选 `00e569740f880510d54a0c2ef8c90746f984602a` 的 Default PASS，首次 IncludeE2E 在 INT-012 陈旧 Story Bible 标题断言处失败；后续第二次完整门及两项 smoke 未运行。失败证据保留于 [#18 结果](https://github.com/King70404/AI-Writer-project/issues/18#issuecomment-5646556594)，不重跑该轮。
 
 ## 当前活动工作
 
@@ -41,11 +42,11 @@ M0–M7 / V1 的正式冻结基线已经成立；当前阻塞不是 V1 基础能
 
 PR #9 仍 OPEN、未合并。R2 已完成，但 **Development recovery PASS 不等于 merge readiness**。
 
-本次 GitHub 协调前 PR #9 head：
+本次 R3 开始时 GitHub PR #9 head：
 
-`956b9e9f63dbd4ef04cad82869967e8b3a57cd86`
+`00e569740f880510d54a0c2ef8c90746f984602a`
 
-最终 RC candidate 尚未冻结。#18 开始时必须先重新读取 GitHub，并把最新 `main` 正常同步到 PR #9；同步完成后的新 head 才能作为 Green Candidate 预验收 SHA。
+GitHub `main` 为 `0939e3a0a753dc819ab0f5bc6f4496198c3290dd`，已包含在该候选中。RC1 已失败。R3 已修复测试契约，但补充作者验证发现 #20 的真实产品缺口；完成 R4 后才能独立进入 RC2。不能把开发检查或 RC1 的部分通过当成 Green Candidate PASS。
 
 ### QA-HARDEN-1 — #15
 
@@ -54,29 +55,42 @@ Green Candidate 规则已写入：
 - `AGENTS.md`
 - `docs/ACCEPTANCE_STABILITY.md`
 
-新的 formal acceptance 不能再成为第一次完整运行；必须先由 #18 对同一个冻结 SHA 完成完整 RC preflight。
+新的 formal acceptance 不能再成为第一次完整运行；必须先由新的 RC 轮对同一个冻结 SHA 完成完整 preflight。
 
-### V1-UX-1-RC1 — #18
+### V1-UX-1-R3 — [#19](https://github.com/King70404/AI-Writer-project/issues/19)
 
-**当前唯一下一执行任务。**
+**Development recovery PASS。** 用户已要求解决当前问题并按顺序继续开发；最终提交身份及同步状态记录于 #19 / PR #9。
 
-模式：Development / RC preflight，不是 formal acceptance。
+模式：Development recovery，不是 RC1 重跑或 formal acceptance。
 
-任务开始顺序：
+本任务范围：
 
-1. 读取最新 `main`、PR #9、#15、#18、`AGENTS.md`、本 `PLAN.md`、`docs/ACCEPTANCE_STABILITY.md`。
-2. 如果 PR #9 落后于最新 `main`，正常 merge 最新 `main` 到 `feat/v1-ux-1-author-usability`；禁止 rebase / 历史重写。
-3. 只允许机械处理协调文档同步；出现实质产品/测试冲突则停止，不在该验收任务内修产品。
-4. 同步后 push 原 PR 分支，重新读取 GitHub，记录新 head，并冻结为 RC candidate。
-5. 冻结后不得再有 source/docs/tests commit；任何新 commit 都使绿色计数清零。
+1. 保留 RC1 screenshot、trace 和错误上下文，再执行新的开发测试。
+2. 修复 INT-012 与已批准作者界面的陈旧文案/定位契约，检查创建、编辑、冲突、持久化等后续断言。
+3. 审查 PR #9 其余受影响 E2E，修复可证实的同类问题；保留行为、ETag、请求次数和浏览器安全审计。
+4. 独立运行 INT-012、相关场景、完整浏览器集与 Default gate；开发失败在本范围内诊断修复，不冒充 RC/formal 证据。
+5. 同步开发证据，核对 migration、冻结历史、tag 和隔离数据清理，再交接新的精确候选。
 
-冻结 SHA 上依次要求：
+实际结果：INT-012 独立 PASS；完整浏览器集 24/24 PASS（真实 exit 0）；Default PASS（真实 exit 0），后端 2776、前端 55 文件 / 676 测试。后端覆盖率 statements 97.45%、branches 93.65%；前端 statements 96.08%、branches 92.06%、functions 98.91%、lines 96.62%。保留 5 条已知后端依赖弃用警告及 Playwright 的颜色环境变量提示；没有观察到对应 React warning。迁移、冻结历史和 tag 未变化，测试自有端口和数据已清理。
+
+### V1-UX-1-R4 — [#20](https://github.com/King70404/AI-Writer-project/issues/20)
+
+**当前下一开发任务。** R3 补充作者 smoke 未宣告 PASS，发现两个进入新 RC 前应解决的问题：
+
+- 删除临时小说后，旧 Character history 页面仍能列出修订并打开角色档案；其他已检查普通详情及 Project/Story Bible 历史入口已拒绝访问。修复必须关闭普通读取路径，同时保留不可变历史。
+- 设定与人物普通页面仍展示内部 ID / 并发信息。#8 对隐藏元数据的显式范围是 Project 详情（已满足），#18 的普通作者 smoke 范围更广；R4 明确补齐子页展示及同一路径中文化，不伪造过去验收事实。
+
+真实浏览器已确认文本 autocomplete 为 off；卷序号清空被拒绝、重新输入可保存；删除要求精确书名。第一次补充 smoke 因会话中断触发自有期限并清理；续跑使用全新隔离根完成上述观察后清理。临时验证脚本的整张修订表相等检查不适用于会追加删除标记修订的逻辑删除，不能据此声称历史改写或历史完整性已验证；R4 回归需逐条比较删除前已存在的修订。
+
+### 新 RC / formal 入口
+
+R4 完成后再记录独立 RC2，先同步协调记录、锁定新候选与 GitHub head/base。冻结 SHA 上依次要求：
 
 `git diff --check / clean → Default PASS → IncludeE2E PASS #1 → IncludeE2E PASS #2 → isolated launcher smoke → isolated author UX/delete smoke → migration/tag/frozen-history/Git clean`。
 
 launcher smoke 必须实际走根目录 `启动 AI 网文助手.cmd`，但启动该 `.cmd` 的进程需把 `LOCALAPPDATA` 临时覆盖到任务自有的仓库外目录，使无参数 launcher 的默认 `AIWebNovel` 数据根落在隔离位置；不得读取或枚举作者真实 `%LOCALAPPDATA%\AIWebNovel`。
 
-#18 PASS 后停止，由 ChatGPT 重新读取 GitHub 并创建新的 formal acceptance；#18 FAIL 则停止在第一个真实 blocker，由 ChatGPT 创建窄恢复任务。
+RC2 PASS 后才能创建绑定该 SHA 的新 formal acceptance；正式门失败须保留证据并停止该轮，经新的恢复任务后再修改候选。旧 #18 FAIL 保持不变。
 
 ### QA-HARDEN-2 — #17
 
@@ -106,8 +120,8 @@ Windows GitHub-visible CI / latest-SHA checks 最迟必须在 RF-01 前完成：
 
 ## 下一步顺序
 
-1. 执行 #18 / V1-UX-1-RC1 Green Candidate preflight。
-2. #18 PASS 后，由 ChatGPT 重新读取 GitHub，创建绑定该精确 SHA 的新 formal acceptance Issue。
+1. #19 / R3 开发恢复已通过；完成 #20 / V1-UX-1-R4，再交接新的候选。
+2. 创建独立 RC2 并完成 Green Candidate preflight；PASS 后重新读取 GitHub，创建绑定该精确 SHA 的新 formal acceptance Issue。
 3. 新 formal acceptance PASS 后，才允许合并 PR #9、关闭 V1-UX-1，并在 #11 记录最终 `main` SHA。
 4. 完成 #17 Windows CI / latest-SHA checks；required repository rule 按实际 GitHub 套餐/owner 权限落地或记录唯一管理限制。
 5. PR #9 处理完成且 #17 满足 RF-01 前置条件后，关闭 RF-00。
@@ -115,7 +129,7 @@ Windows GitHub-visible CI / latest-SHA checks 最迟必须在 RF-01 前完成：
 
 ## 当前禁止事项
 
-- 不直接重开 formal acceptance；先完成 #18。
+- 不重跑旧 #18；不直接重开 formal acceptance，先完成 R4 和新的 Green Candidate。
 - 不合并 PR #9。
 - 不在 RC validation 内顺手修产品；失败必须形成新的 recovery task。
 - 不通过 timeout inflation、sleep、retry、skip、降低 coverage、删除测试、静音 warning 或弱化断言制造绿色。
@@ -126,7 +140,7 @@ Windows GitHub-visible CI / latest-SHA checks 最迟必须在 RF-01 前完成：
 
 ## RC 协调冻结规则
 
-本次更新是 #18 启动前的最后一轮 `main` 状态协调。#18 开始后，先把本 `main` 同步进 PR #9，然后冻结 candidate。preflight 进行期间不再仅为了状态说明向 `main` 追加协调 commit；动态结果写入 #18 / PR #9。candidate PASS/FAIL 后再同步本文件。
+R3 是 RC1 失败后的独立恢复，不再受旧候选冻结期间的文件禁止修改约束。新的 RC preflight 前先同步本文件与活动 Issue/PR，再冻结新 candidate。preflight 进行期间不再仅为了状态说明向 `main` 追加协调 commit；动态结果写入新的 RC Issue / PR #9。candidate PASS/FAIL 后再同步本文件。
 
 ## 接力维护规则
 

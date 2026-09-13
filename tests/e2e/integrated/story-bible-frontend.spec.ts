@@ -72,7 +72,11 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
   await storyLink.click();
 
   await expect(
-    page.getByRole("heading", { name: "尚未创建 Story Bible" }),
+    page.getByRole("heading", {
+      level: 3,
+      name: "创建小说设定",
+      exact: true,
+    }),
   ).toBeVisible();
   const initialGets = storyRequests.filter(
     (request) => request.method === "GET" && request.path === nestedApiPath,
@@ -125,7 +129,7 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
       response.request().method() === "PUT" &&
       new URL(response.url()).pathname === directApiPath,
   );
-  await page.getByRole("button", { name: "保存小说信息" }).click();
+  await page.getByRole("button", { name: "保存完整修订", exact: true }).click();
   const revisionTwo = await revisionTwoPromise;
   expect(revisionTwo.status()).toBe(200);
   expect(revisionTwo.headers().etag).toBe('"2"');
@@ -173,7 +177,7 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
     (request) => request.method === "PUT" && request.path === directApiPath,
   ).length;
   browserAudit.allowExpectedConsoleHttpFailure(directApiPath, 412);
-  await page.getByRole("button", { name: "保存小说信息" }).click();
+  await page.getByRole("button", { name: "保存完整修订", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: "检测到 Story Bible 版本冲突",
@@ -195,8 +199,18 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
   ).toHaveLength(putsBeforeConflict + 1);
 
   await page.getByRole("button", { name: "读取最新版本" }).click();
-  await expect(page.getByText(externalTitle)).toBeVisible();
-  await expect(page.getByText(localTitle)).toBeVisible();
+  const latestVersion = page.getByRole("region", {
+    name: "服务器最新版本",
+    exact: true,
+  });
+  const localDraft = page.getByRole("region", {
+    name: "当前本地草稿",
+    exact: true,
+  });
+  await expect(
+    latestVersion.getByText(externalTitle, { exact: true }),
+  ).toBeVisible();
+  await expect(localDraft.getByText(localTitle, { exact: true })).toBeVisible();
   expect(
     storyRequests.filter(
       (request) => request.method === "GET" && request.path === directApiPath,
@@ -217,7 +231,7 @@ test("E2E-INT-012 exercises Story Bible creation, editing, and explicit conflict
       new URL(response.url()).pathname === directApiPath &&
       response.status() === 200,
   );
-  await page.getByRole("button", { name: "保存小说信息" }).click();
+  await page.getByRole("button", { name: "保存完整修订", exact: true }).click();
   const finalSave = await finalSavePromise;
   expect(finalSave.headers().etag).toBe('"4"');
   await expect(page.getByText("Story Bible修订已保存。")).toBeVisible();
