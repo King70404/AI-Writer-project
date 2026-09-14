@@ -1,6 +1,9 @@
 import { request as playwrightRequest } from "@playwright/test";
 
-import { expectCleanBrowserAudit } from "../support/assertions";
+import {
+  expectCleanBrowserAudit,
+  expectNoEngineeringMetadata,
+} from "../support/assertions";
 import { expect, test } from "../support/fixture";
 
 const projectTitle = "E2E Character Frontend Owner 015";
@@ -48,7 +51,8 @@ test("E2E-INT-015 exercises Character frontend creation, stable listing, and ETa
   const projectId = listPath?.split("/")[2] ?? "invalid-project";
   const listApiPath = `/api/v1/projects/${projectId}/characters`;
   await characterLink.click();
-  await expect(page.getByText("该Project尚未创建角色。")).toBeVisible();
+  await expect(page.getByText("这部小说尚未创建角色。")).toBeVisible();
+  await expectNoEngineeringMetadata(page);
   expect(
     requests.filter(
       (request) => request.method === "GET" && request.path === listApiPath,
@@ -85,18 +89,33 @@ test("E2E-INT-015 exercises Character frontend creation, stable listing, and ETa
   ).toHaveLength(1);
   const second = await createCharacter("Rival", profileB);
   expect(second.character_id).not.toBe(first.character_id);
-  await expect(
-    page.getByRole("link", { name: new RegExp(first.character_id, "u") }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: new RegExp(second.character_id, "u") }),
-  ).toBeVisible();
+  const firstCard = page.locator(".character-card").filter({
+    has: page.getByText("Lead", { exact: true }),
+  });
+  const secondCard = page.locator(".character-card").filter({
+    has: page.getByText("Rival", { exact: true }),
+  });
+  const firstLink = firstCard.getByRole("link", {
+    name: `查看角色：${sharedName}`,
+    exact: true,
+  });
+  const secondLink = secondCard.getByRole("link", {
+    name: `查看角色：${sharedName}`,
+    exact: true,
+  });
+  await expect(firstLink).toHaveAttribute(
+    "href",
+    `${listPath}/${first.character_id}`,
+  );
+  await expect(secondLink).toHaveAttribute(
+    "href",
+    `${listPath}/${second.character_id}`,
+  );
+  await expectNoEngineeringMetadata(page);
   await expect(page.getByText(profileB)).toHaveCount(0);
 
   const editorPath = `${listPath}/${first.character_id}`;
-  await page
-    .getByRole("link", { name: new RegExp(first.character_id, "u") })
-    .click();
+  await firstLink.click();
   await expect(
     page.getByRole("textbox", { name: "角色档案（纯文本）" }),
   ).toHaveValue(profileA);
@@ -104,11 +123,25 @@ test("E2E-INT-015 exercises Character frontend creation, stable listing, and ETa
   await page
     .getByRole("textbox", { name: "角色档案（纯文本）" })
     .fill(revisedProfile);
+  const firstSavePromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" &&
+      new URL(response.url()).pathname === directApiPath,
+  );
   await page.getByRole("button", { name: "保存", exact: true }).click();
+  const firstSave = await firstSavePromise;
+  expect(firstSave.status()).toBe(200);
+  expect(firstSave.headers().etag).toBe('"2"');
+  expect(await firstSave.json()).toMatchObject({
+    revision_number: 2,
+    concurrency_version: 2,
+  });
   await expect(page.getByText("角色修订已保存。")).toBeVisible();
+  await expectNoEngineeringMetadata(page);
   await expect(
-    page.getByText("ConcurrencyVersion").locator("xpath=following-sibling::dd"),
-  ).toHaveText("2");
+    page.getByRole("heading", { name: "角色保存信息" }),
+  ).toBeVisible();
+  await expect(page.locator(".character-metadata time")).toHaveCount(2);
   await page.reload();
   await expect(
     page.getByRole("textbox", { name: "角色档案（纯文本）" }),
@@ -160,7 +193,19 @@ test("E2E-INT-015 exercises Character frontend creation, stable listing, and ETa
   const putsBeforeFinal = requests.filter(
     (request) => request.method === "PUT" && request.path === directApiPath,
   ).length;
+  const finalSavePromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" &&
+      new URL(response.url()).pathname === directApiPath,
+  );
   await page.getByRole("button", { name: "保存", exact: true }).click();
+  const finalSave = await finalSavePromise;
+  expect(finalSave.status()).toBe(200);
+  expect(finalSave.headers().etag).toBe('"4"');
+  expect(await finalSave.json()).toMatchObject({
+    revision_number: 4,
+    concurrency_version: 4,
+  });
   await expect(page.getByText("角色修订已保存。")).toBeVisible();
   const characterPuts = requests.filter(
     (request) => request.method === "PUT" && request.path === directApiPath,
@@ -171,9 +216,7 @@ test("E2E-INT-015 exercises Character frontend creation, stable listing, and ETa
     '"2"',
     '"3"',
   ]);
-  await expect(
-    page.getByText("ConcurrencyVersion").locator("xpath=following-sibling::dd"),
-  ).toHaveText("4");
+  await expectNoEngineeringMetadata(page);
   await page.reload();
   await expect(
     page.getByRole("textbox", { name: "角色档案（纯文本）" }),

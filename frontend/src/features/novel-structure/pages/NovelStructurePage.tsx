@@ -554,7 +554,7 @@ function NovelStructureWorkspace({
       <section className="novel-structure-state">
         <h3>项目不存在</h3>
         <p>无法为不存在的Project打开小说结构。</p>
-        <Link to="/projects">返回项目列表</Link>
+        <Link to="/projects">返回小说列表</Link>
       </section>
     );
   if (state.status === "error")
@@ -792,9 +792,9 @@ export function NovelStructurePage({
         </div>
         <div className="novel-structure-page__links">
           {validProjectId ? (
-            <Link to={projectDetailsPath(projectId)}>返回Project详情</Link>
+            <Link to={projectDetailsPath(projectId)}>返回小说详情</Link>
           ) : null}
-          <Link to="/projects">返回项目列表</Link>
+          <Link to="/projects">返回小说列表</Link>
         </div>
       </header>
       {validProjectId ? (

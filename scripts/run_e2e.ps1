@@ -950,7 +950,7 @@ try:
     assert counts == {
         'projects': 1,
         'project_heads': 1,
-        'project_revisions': 1,
+        'project_revisions': 2,
         'story_bibles': 0,
         'story_bible_heads': 0,
         'story_bible_revisions': 0,
@@ -958,9 +958,27 @@ try:
         'character_heads': 1,
         'character_revisions': 21,
     }
+    project_id, project_version = connection.execute(
+        'SELECT id, concurrency_version FROM projects'
+    ).fetchone()
+    assert project_version == 2
+    project_revisions = connection.execute(
+        '''
+        SELECT id, revision_number, title, description
+        FROM project_revisions WHERE project_id = ? ORDER BY revision_number
+        ''',
+        (project_id,),
+    ).fetchall()
+    assert project_revisions[0][1:] == (
+        1, 'E2E Character History Owner 016', 'History owner',
+    )
+    assert project_revisions[1][1:] == (
+        2, '__AIWEBNOVEL_DELETED__:' + project_id, '',
+    )
     assert connection.execute(
-        'SELECT concurrency_version FROM projects'
-    ).fetchone()[0] == 1
+        'SELECT revision_id FROM project_heads WHERE project_id = ?',
+        (project_id,),
+    ).fetchone()[0] == project_revisions[1][0]
     character_id, version = connection.execute(
         'SELECT id, concurrency_version FROM characters'
     ).fetchone()

@@ -59,7 +59,7 @@ Green Candidate 规则已写入：
 
 ### V1-UX-1-R3 — [#19](https://github.com/King70404/AI-Writer-project/issues/19)
 
-**Development recovery PASS。** 用户已要求解决当前问题并按顺序继续开发；最终提交身份及同步状态记录于 #19 / PR #9。
+**Development recovery PASS，#19 已关闭 completed。** 已正常推送提交 `ce435479e99658325f9660205fa6fe22c8760075` 到 PR #9 原分支；完整证据见 [R3 结果](https://github.com/King70404/AI-Writer-project/issues/19#issuecomment-5658478079)。
 
 模式：Development recovery，不是 RC1 重跑或 formal acceptance。
 
@@ -75,12 +75,17 @@ Green Candidate 规则已写入：
 
 ### V1-UX-1-R4 — [#20](https://github.com/King70404/AI-Writer-project/issues/20)
 
-**当前下一开发任务。** R3 补充作者 smoke 未宣告 PASS，发现两个进入新 RC 前应解决的问题：
+**开发修复与规定开发检查 PASS；GitHub Issue 收尾待同步。** 从已同步的 R3 提交 `ce435479e99658325f9660205fa6fe22c8760075` 开始；模式为 Development recovery。完整证据见 [R4 开发报告](docs/V1-UX-1-R4_DEVELOPMENT_REPORT.md)。R3 补充作者 smoke 未宣告 PASS，发现进入新 RC 前应解决的问题：
 
 - 删除临时小说后，旧 Character history 页面仍能列出修订并打开角色档案；其他已检查普通详情及 Project/Story Bible 历史入口已拒绝访问。修复必须关闭普通读取路径，同时保留不可变历史。
+- R4 真实迁移数据库红测进一步证实 Story Bible 历史 API 也有相同遗漏：两个模块的列表、旧 cursor 页及旧/当前修订正文共 8 条路径在删除后仍返回 200。此前设定历史页面的 404 来自前置当前状态读取，不能作为其历史 API 已封闭的证据；R4 同时修复两个历史状态查询。
 - 设定与人物普通页面仍展示内部 ID / 并发信息。#8 对隐藏元数据的显式范围是 Project 详情（已满足），#18 的普通作者 smoke 范围更广；R4 明确补齐子页展示及同一路径中文化，不伪造过去验收事实。
 
 真实浏览器已确认文本 autocomplete 为 off；卷序号清空被拒绝、重新输入可保存；删除要求精确书名。第一次补充 smoke 因会话中断触发自有期限并清理；续跑使用全新隔离根完成上述观察后清理。临时验证脚本的整张修订表相等检查不适用于会追加删除标记修订的逻辑删除，不能据此声称历史改写或历史完整性已验证；R4 回归需逐条比较删除前已存在的修订。
+
+R4 最终结果（2026-09-15）：两个历史 reader 已修复；数据库回归验证删除后 8 条历史路径 404、旧记录逐条不变；作者页面隐藏内部元数据并同步中文文案。Default 真实 exit 0，后端 2778 / 前端 676 PASS；完整浏览器 24/24 PASS；已知 structure 测试完成独立 20+5 次稳定性验证。此前 Windows 应用程序控制导致依赖加载失败的开发证据保留；续跑时环境恢复，未修改安全策略，完整门已通过。
+
+当前协调 blocker：GitHub connector 的 Issue/PR 接口返回 transport error，#20 尚未关闭，RC2 Issue 尚未创建；Git heads 读取正常，先把 R4 代码、报告和本接力页同步到 PR 原分支。恢复后先补发 R4 结果并结束 #20，再记录独立 RC2。8 个本地冻结 tag 未变化；远端 tag 查询 exit 0 但返回空清单，尚不能声称远端冻结标签已核验，不擅自补推标签。
 
 ### 新 RC / formal 入口
 
@@ -120,7 +125,7 @@ Windows GitHub-visible CI / latest-SHA checks 最迟必须在 RF-01 前完成：
 
 ## 下一步顺序
 
-1. #19 / R3 开发恢复已通过；完成 #20 / V1-UX-1-R4，再交接新的候选。
+1. #19 / R3 已完成；#20 / R4 开发检查已通过，先恢复 Issue/PR 协调并同步结果，再交接新的候选。
 2. 创建独立 RC2 并完成 Green Candidate preflight；PASS 后重新读取 GitHub，创建绑定该精确 SHA 的新 formal acceptance Issue。
 3. 新 formal acceptance PASS 后，才允许合并 PR #9、关闭 V1-UX-1，并在 #11 记录最终 `main` SHA。
 4. 完成 #17 Windows CI / latest-SHA checks；required repository rule 按实际 GitHub 套餐/owner 权限落地或记录唯一管理限制。

@@ -80,7 +80,7 @@ export function StoryBibleEditor({
 
   const feedback =
     ready.save.kind === "success"
-      ? "Story Bible修订已保存。"
+      ? "小说设定修订已保存。"
       : ready.save.kind === "save_error"
         ? ready.save.error.message
         : ready.save.kind === "adopted_latest"
@@ -99,7 +99,7 @@ export function StoryBibleEditor({
       <div className="story-bible-editor__heading">
         <div>
           <p className="section-kicker">完整纯文本替换</p>
-          <h3 id="story-bible-editor-title">编辑 Story Bible</h3>
+          <h3 id="story-bible-editor-title">编辑小说设定</h3>
         </div>
         <p className="story-bible-editor__dirty" role="status">
           {controller.dirty ? "有未保存更改" : "当前没有未保存更改"}
@@ -107,7 +107,7 @@ export function StoryBibleEditor({
       </div>
       <form onSubmit={submit} noValidate>
         <div className="form-field">
-          <label htmlFor="story-bible-edit-title">Story Bible标题</label>
+          <label htmlFor="story-bible-edit-title">小说设定标题</label>
           <input
             ref={titleRef}
             id="story-bible-edit-title"
@@ -133,7 +133,7 @@ export function StoryBibleEditor({
           )}
         </div>
         <div className="form-field">
-          <label htmlFor="story-bible-edit-content">Story Bible正文</label>
+          <label htmlFor="story-bible-edit-content">小说设定正文</label>
           <textarea
             ref={contentRef}
             id="story-bible-edit-content"

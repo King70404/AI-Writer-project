@@ -55,10 +55,6 @@ export function ProjectRevisionViewer({
           </h3>
           <dl>
             <div>
-              <dt>修订编号</dt>
-              <dd>{state.revision.revision_id}</dd>
-            </div>
-            <div>
               <dt>状态</dt>
               <dd>{state.revision.is_current ? "当前修订" : "历史修订"}</dd>
             </div>

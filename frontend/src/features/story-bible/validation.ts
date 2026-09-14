@@ -54,7 +54,7 @@ export function validateStoryBibleInput(
     return [
       {
         field: typeof title === "string" ? "content" : "title",
-        message: "Story Bible标题和正文必须是文本。",
+        message: "小说设定标题和正文必须是文本。",
       },
     ];
   }
@@ -65,8 +65,8 @@ export function validateStoryBibleInput(
       field: "title",
       message:
         normalizedTitle.length === 0
-          ? "请输入Story Bible标题。"
-          : "Story Bible标题包含不允许的控制字符。",
+          ? "请输入小说设定标题。"
+          : "小说设定标题包含不允许的控制字符。",
     });
   } else if (
     countStoryBibleCodePoints(normalizedTitle) >
@@ -74,14 +74,14 @@ export function validateStoryBibleInput(
   ) {
     errors.push({
       field: "title",
-      message: "Story Bible标题不能超过120个字符。",
+      message: "小说设定标题不能超过120个字符。",
     });
   }
   const normalizedContent = normalizeStoryBibleContent(content);
   if (isForbiddenControl(normalizedContent, true)) {
     errors.push({
       field: "content",
-      message: "Story Bible正文包含不允许的控制字符。",
+      message: "小说设定正文包含不允许的控制字符。",
     });
   } else if (
     countStoryBibleCodePoints(normalizedContent) >
@@ -89,7 +89,7 @@ export function validateStoryBibleInput(
   ) {
     errors.push({
       field: "content",
-      message: "Story Bible正文不能超过50000个字符。",
+      message: "小说设定正文不能超过50000个字符。",
     });
   }
   return errors;

@@ -98,7 +98,10 @@ def character_history_state_statement(
                 CharacterRevisionRecord.id == CharacterHeadRecord.revision_id,
             ),
         )
-        .where(CharacterRecord.id == character_id),
+        .where(
+            CharacterRecord.id == character_id,
+            CharacterRecord.project_id.not_in(ProjectRecord.deleted_ids()),
+        ),
     )
 
 

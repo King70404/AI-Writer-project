@@ -30,8 +30,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Story Bible route and navigation", () => {
-  it("builds only a canonical Project-scoped Story Bible path", () => {
+describe("小说设定 route and navigation", () => {
+  it("builds only a canonical Project-scoped小说设定path", () => {
     expect(projectStoryBiblePath(storyProjectId)).toBe(
       `/projects/${storyProjectId}/story-bible`,
     );
@@ -40,7 +40,7 @@ describe("Story Bible route and navigation", () => {
     );
   });
 
-  it("supports direct route loading with exactly one Story Bible GET", async () => {
+  it("supports direct route loading with exactly one小说设定GET", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValue(
@@ -61,7 +61,7 @@ describe("Story Bible route and navigation", () => {
     );
   });
 
-  it("navigates from Project detail through the semantic Story Bible link", async () => {
+  it("navigates from Project detail through the semantic小说设定link", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn<typeof fetch>((input) => {
       const url =
@@ -110,7 +110,7 @@ describe("Story Bible route and navigation", () => {
     `/story-bibles/sbl_01ARZ3NDEKTSV4RRFFQ69G5FAV`,
     `/projects/${storyProjectId}/story-bible/edit`,
     `/projects/${storyProjectId}/story-bible/settings`,
-  ])("keeps unsupported Story Bible route %s on the React 404", (path) => {
+  ])("keeps unsupported小说设定route %s on the React 404", (path) => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);
     renderAt(path);

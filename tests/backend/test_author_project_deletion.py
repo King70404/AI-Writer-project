@@ -28,7 +28,6 @@ def test_delete_hides_project_and_children_without_rewriting_revisions(tmp_path:
             )
             assert created.status_code == 201
             project = created.json()["project_id"]
-            revision = created.json()["current_revision_id"]
             bible = client.post(
                 f"/api/v1/projects/{project}/story-bible",
                 headers=headers,
@@ -45,6 +44,42 @@ def test_delete_hides_project_and_children_without_rewriting_revisions(tmp_path:
                 },
             )
             assert character.status_code == 201
+            history_paths: list[str] = []
+            for child, child_path, replacement in (
+                (
+                    bible,
+                    f"/api/v1/story-bibles/{bible.json()['story_bible_id']}",
+                    {"title": "Updated setting", "content": "Updated setting body"},
+                ),
+                (
+                    character,
+                    f"/api/v1/characters/{character.json()['character_id']}",
+                    {
+                        "name": "Updated name",
+                        "role": "Protagonist",
+                        "profile": "Updated profile",
+                    },
+                ),
+            ):
+                revised = client.put(
+                    child_path,
+                    headers={**headers, "If-Match": child.headers["etag"]},
+                    json=replacement,
+                )
+                assert revised.status_code == 200
+                history = client.get(f"{child_path}/revisions?limit=1")
+                assert history.status_code == 200
+                cursor = history.json()["next_cursor"]
+                assert cursor is not None
+                paths = (
+                    f"{child_path}/revisions",
+                    f"{child_path}/revisions?limit=1&cursor={cursor}",
+                    f"{child_path}/revisions/1",
+                    f"{child_path}/revisions/2",
+                )
+                for path in paths:
+                    assert client.get(path).status_code == 200, path
+                history_paths.extend(paths)
             with closing(sqlite3.connect(database.engine.url.database)) as connection:
                 before = {
                     table: connection.execute(f"SELECT * FROM {table}").fetchall()
@@ -60,7 +95,7 @@ def test_delete_hides_project_and_children_without_rewriting_revisions(tmp_path:
             deleted = client.post(url, headers={**headers, "If-Match": created.headers["etag"]})
             assert deleted.status_code == 200
             assert deleted.json() == {"deleted": True}
-            for path in (
+            blocked_paths = (
                 f"/api/v1/projects/{project}",
                 f"/api/v1/projects/{project}/revisions",
                 f"/api/v1/projects/{project}/revisions/1",
@@ -68,25 +103,47 @@ def test_delete_hides_project_and_children_without_rewriting_revisions(tmp_path:
                 f"/api/v1/projects/{project}/characters",
                 f"/api/v1/story-bibles/{bible.json()['story_bible_id']}",
                 f"/api/v1/characters/{character.json()['character_id']}",
-            ):
-                assert client.get(path).status_code == 404, path
+                *history_paths,
+            )
+            responses = {path: client.get(path) for path in blocked_paths}
+            assert {path: response.status_code for path, response in responses.items()} == {
+                path: 404 for path in blocked_paths
+            }
+            for path in history_paths:
+                response = responses[path]
+                expected_code = (
+                    "CHARACTER_NOT_FOUND" if "/characters/" in path else "STORY_BIBLE_NOT_FOUND"
+                )
+                assert response.json()["error"]["code"] == expected_code
+                assert "ETag" not in response.headers
+                assert all(
+                    text not in response.text
+                    for text in (
+                        "Original name",
+                        "Original profile",
+                        "Original setting",
+                        "Updated name",
+                        "Updated profile",
+                        "Updated setting",
+                    )
+                )
             listing = client.get("/api/v1/projects")
             assert listing.status_code == 200
             assert project not in {item["project_id"] for item in listing.json()["items"]}
             assert client.post(url, headers={**headers, "If-Match": '"2"'}).status_code == 404
             with closing(sqlite3.connect(database.engine.url.database)) as connection:
-                for table in ("story_bible_revisions", "character_revisions"):
-                    assert connection.execute(f"SELECT * FROM {table}").fetchall() == before[table]
-                assert (
-                    connection.execute(
-                        "SELECT * FROM project_revisions WHERE id = ?",
-                        (revision,),
-                    ).fetchall()
-                    == before["project_revisions"]
-                )
-                assert connection.execute("SELECT COUNT(*) FROM project_revisions").fetchone() == (
-                    2,
-                )
+                for table, rows in before.items():
+                    for row in rows:
+                        assert (
+                            connection.execute(
+                                f"SELECT * FROM {table} WHERE id = ?", (row[0],)
+                            ).fetchone()
+                            == row
+                        )
+                    expected_count = len(rows) + (1 if table == "project_revisions" else 0)
+                    assert connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone() == (
+                        expected_count,
+                    )
                 assert connection.execute("SELECT COUNT(*) FROM projects").fetchone() == (1,)
 
 

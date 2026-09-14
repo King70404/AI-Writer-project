@@ -90,7 +90,7 @@ describe("Character list and create flow", () => {
     });
     renderList(client);
     expect(screen.getByRole("status")).toHaveTextContent("正在读取角色");
-    expect(await screen.findByText("该Project尚未创建角色。")).toBeVisible();
+    expect(await screen.findByText("这部小说尚未创建角色。")).toBeVisible();
     expect(screen.getByLabelText("角色名称")).toBeVisible();
     expect(client.listCharacters).toHaveBeenCalledOnce();
   });
@@ -115,6 +115,11 @@ describe("Character list and create flow", () => {
     expect(await screen.findAllByText("同名角色")).toHaveLength(2);
     expect(screen.getByText("未填写角色定位")).toBeVisible();
     expect(screen.queryByText("秘密档案")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/修订号|并发版本/u);
+    for (const entry of items) {
+      expect(document.body).not.toHaveTextContent(entry.character_id);
+      expect(document.body).not.toHaveTextContent(entry.current_revision_id);
+    }
     const links = screen.getAllByRole("link", { name: /查看角色：同名角色/u });
     expect(links[0]).toHaveAttribute(
       "href",

@@ -31,7 +31,7 @@ function CharacterEditorRoute({
     <section className="character-page" aria-labelledby="character-page-title">
       <header className="character-page__header">
         <div>
-          <p className="section-kicker">Character · 当前版本</p>
+          <p className="section-kicker">角色 · 当前版本</p>
           <h1 id="character-page-title">
             {state.status === "ready"
               ? state.baseline.resource.name

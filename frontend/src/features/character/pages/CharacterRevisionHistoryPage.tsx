@@ -40,13 +40,8 @@ function CharacterRevisionHistoryRoute({
     >
       <header className="project-revision-history__header">
         <div>
-          <p className="section-kicker">Character · 只读历史</p>
+          <p className="section-kicker">角色 · 只读历史</p>
           <h1 id="character-revision-history-title">角色修订历史</h1>
-          {validNavigation ? (
-            <p className="project-revision-history__id">
-              角色编号：{characterId}
-            </p>
-          ) : null}
         </div>
         <nav aria-label="角色历史导航">
           {validNavigation ? (
@@ -57,7 +52,7 @@ function CharacterRevisionHistoryRoute({
               <Link to={projectCharactersPath(projectId)}>返回角色列表</Link>
             </>
           ) : (
-            <Link to="/projects">返回项目列表</Link>
+            <Link to="/projects">返回小说列表</Link>
           )}
         </nav>
       </header>

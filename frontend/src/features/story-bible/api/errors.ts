@@ -77,8 +77,8 @@ function fixedFieldError(field: StoryBibleFieldName): StoryBibleFieldError {
     field,
     message:
       field === "title"
-        ? "Story Bible标题未通过服务端验证。"
-        : "Story Bible正文未通过服务端验证。",
+        ? "小说设定标题未通过服务端验证。"
+        : "小说设定正文未通过服务端验证。",
   };
 }
 
@@ -111,7 +111,7 @@ function contractError(requestId: string | null = null): StoryBibleApiError {
   return new StoryBibleApiError({
     kind: "contract",
     code: "STORY_BIBLE_API_CONTRACT_ERROR",
-    message: "Story Bible服务返回了无法安全读取的数据。",
+    message: "小说设定服务返回了无法安全读取的数据。",
     requestId,
   });
 }
@@ -143,7 +143,7 @@ function normalizeVersionConflict(
     kind: "conflict",
     code: error.code,
     message:
-      "Story Bible已被其他操作修订。草稿已保留，请读取最新版本后选择处理方式。",
+      "小说设定已被其他操作修订。草稿已保留，请读取最新版本后选择处理方式。",
     requestId: safeRequestId(error.requestId),
     conflict: {
       expectedVersion: details.expected_version,
@@ -206,29 +206,29 @@ function safeMessage(kind: StoryBibleApiErrorKind, code: string): string {
     return "指定项目不存在。";
   }
   if (kind === "story_bible_not_found") {
-    return "指定Story Bible不存在。";
+    return "指定小说设定不存在。";
   }
   if (kind === "story_bible_revision_not_found") {
-    return "指定的 Story Bible 修订不存在。";
+    return "指定的小说设定修订不存在。";
   }
   if (kind === "story_bible_for_project_not_found") {
-    return "该项目尚未创建Story Bible。";
+    return "该项目尚未创建小说设定。";
   }
   if (kind === "already_exists") {
-    return "该项目已经存在 Story Bible，请重新读取。";
+    return "该项目已经存在小说设定，请重新读取。";
   }
   if (kind === "validation") {
     return code === "REQUEST_TOO_LARGE"
       ? "提交内容超过服务允许的大小。"
-      : "Story Bible内容未通过服务端验证。";
+      : "小说设定内容未通过服务端验证。";
   }
   if (kind === "unavailable") {
-    return "Story Bible服务暂时不可用，请稍后手动重试。";
+    return "小说设定服务暂时不可用，请稍后手动重试。";
   }
   if (kind === "contract") {
-    return "Story Bible服务返回了无法安全读取的数据。";
+    return "小说设定服务返回了无法安全读取的数据。";
   }
-  return "Story Bible请求未能完成，请稍后手动重试。";
+  return "小说设定请求未能完成，请稍后手动重试。";
 }
 
 export function normalizeStoryBibleApiError(
@@ -265,13 +265,13 @@ export function normalizeStoryBibleApiError(
     return new StoryBibleApiError({
       kind: "network",
       code: "NETWORK_ERROR",
-      message: "无法连接本地Story Bible服务，请检查后手动重试。",
+      message: "无法连接本地小说设定服务，请检查后手动重试。",
     });
   }
   return new StoryBibleApiError({
     kind: "unknown",
     code: "UNKNOWN_STORY_BIBLE_ERROR",
-    message: "Story Bible请求未能完成，请稍后手动重试。",
+    message: "小说设定请求未能完成，请稍后手动重试。",
   });
 }
 
@@ -286,8 +286,8 @@ export function storyBibleOutcomeUnknownError(
         : "STORY_BIBLE_SAVE_OUTCOME_UNKNOWN",
     message:
       operation === "create"
-        ? "创建结果未确认，请重新读取 Story Bible 核实。"
-        : "保存结果未确认，请重新读取 Story Bible 核实。",
+        ? "创建结果未确认，请重新读取小说设定核实。"
+        : "保存结果未确认，请重新读取小说设定核实。",
   });
 }
 

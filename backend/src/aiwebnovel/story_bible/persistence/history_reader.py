@@ -101,7 +101,10 @@ def story_bible_history_state_statement(
                 StoryBibleRevisionRecord.id == StoryBibleHeadRecord.revision_id,
             ),
         )
-        .where(StoryBibleRecord.id == story_bible_id),
+        .where(
+            StoryBibleRecord.id == story_bible_id,
+            StoryBibleRecord.project_id.not_in(ProjectRecord.deleted_ids()),
+        ),
     )
 
 

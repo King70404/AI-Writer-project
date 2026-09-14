@@ -24,7 +24,7 @@ function CharacterListRoute({
     <section className="character-page" aria-labelledby="character-page-title">
       <header className="character-page__header">
         <div>
-          <p className="section-kicker">Project · Character</p>
+          <p className="section-kicker">小说人物</p>
           <h1 id="character-page-title">角色管理</h1>
         </div>
         {projectId === undefined ? null : (
@@ -35,7 +35,7 @@ function CharacterListRoute({
                 : projectDetailsPath(projectId)
             }
           >
-            返回Project详情
+            返回小说详情
           </Link>
         )}
       </header>

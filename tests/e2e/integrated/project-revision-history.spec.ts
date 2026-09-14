@@ -1,6 +1,9 @@
 import { request as playwrightRequest } from "@playwright/test";
 
-import { expectCleanBrowserAudit } from "../support/assertions";
+import {
+  expectCleanBrowserAudit,
+  expectNoEngineeringMetadata,
+} from "../support/assertions";
 import { expect, test } from "../support/fixture";
 
 const titles = {
@@ -91,6 +94,7 @@ test("E2E-INT-010 views immutable Project revision history and keyset pages", as
   const securityRequestsBeforeHistory = pageSecurityRequests.length;
   await page.getByRole("link", { name: "历史版本" }).click();
   await expect(page.locator(".project-revision-card")).toHaveCount(3);
+  await expectNoEngineeringMetadata(page);
   await expect(page.locator(".project-revision-card h3")).toHaveText([
     "修订 3",
     "修订 2",
@@ -120,6 +124,7 @@ test("E2E-INT-010 views immutable Project revision history and keyset pages", as
     await expect(
       page.locator(".project-revision-viewer__description"),
     ).toHaveText(descriptions[revisionNumber]);
+    await expectNoEngineeringMetadata(page);
   }
   expect(pageSecurityRequests).toHaveLength(securityRequestsBeforeHistory);
   await expect(
@@ -188,7 +193,7 @@ test("E2E-INT-010 views immutable Project revision history and keyset pages", as
 
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "项目修订历史" }),
+    page.getByRole("heading", { name: "小说修订历史" }),
   ).toBeVisible();
   await expect(page.locator(".project-revision-card")).toHaveCount(20);
   const unknown = await page.goto("/not-a-real-route");

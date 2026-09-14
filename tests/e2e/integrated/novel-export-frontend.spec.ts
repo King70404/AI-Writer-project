@@ -80,7 +80,7 @@ test("E2E-INT-020 Novel text export flow", async ({ page, browserAudit }) => {
       page.getByRole("button", { name: `2. 灯火`, exact: true }),
     ).toBeVisible();
   }
-  await page.getByRole("link", { name: "返回Project详情" }).click();
+  await page.getByRole("link", { name: "返回小说详情" }).click();
   const downloadEvent = page.waitForEvent("download");
   browserAudit.allowOneExpectedManuscriptDownload(`${title}.txt`);
   await page.getByRole("button", { name: "导出小说" }).click();

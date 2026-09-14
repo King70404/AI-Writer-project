@@ -94,6 +94,8 @@ Vitest Node/jsdom 默认 test timeout 为 5000ms。测试接近或越过该边�
 
 PR 涉及作者界面时，Development 交接前先运行受影响的独立 E2E，再运行完整 `npm run e2e` 浏览器集，并保留真实结果。Default gate 没有运行浏览器，不能作为文案/定位契约已验证的证据；新的 RC 两次 IncludeE2E 和正式验收要求保持不变。RC1 的 INT-012 陈旧标题断言失败见 [#18](https://github.com/King70404/AI-Writer-project/issues/18#issuecomment-5646556594)，其独立恢复见 [#19](https://github.com/King70404/AI-Writer-project/issues/19)。
 
+删除小说的开发回归必须覆盖已捕获的子内容历史链接及历史列表/正文 API，不能只验证列表消失或父页面返回 404。逻辑删除保留旧修订并追加删除标记；真实迁移数据库测试应逐条比较删除前已存在的修订内容，允许本次删除追加的修订。普通作者页面还应检查内部 ID/并发信息不可见，同时保留作者需要的历史版本、保存时间及冲突处理信息。上述检查由 [R4 #20](https://github.com/King70404/AI-Writer-project/issues/20) 前移到 Development 回归。
+
 ## 7. CI / GitHub merge readiness
 
 在 RF-01 之前完成 QA-HARDEN-2：

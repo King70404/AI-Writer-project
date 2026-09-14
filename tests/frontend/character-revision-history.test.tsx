@@ -168,6 +168,12 @@ describe("Character revision history contracts and page", () => {
     renderHistory(historyClient(list, get));
 
     expect(await screen.findByText("设定修订 3")).toBeVisible();
+    expect(screen.getByRole("link", { name: "返回当前角色" })).toHaveAttribute(
+      "href",
+      `/projects/${characterProjectId}/characters/${characterId}`,
+    );
+    for (const id of [characterId, characterProjectId, ...revisionIds])
+      expect(document.body).not.toHaveTextContent(id);
     expect(list).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         characterId,
@@ -179,6 +185,12 @@ describe("Character revision history contracts and page", () => {
     expect(document.body).not.toHaveTextContent("只读正文 2");
     await user.click(screen.getAllByRole("button", { name: "查看此修订" })[1]);
     expect(await screen.findByText("只读正文 2")).toBeVisible();
+    for (const id of [characterId, characterProjectId, ...revisionIds])
+      expect(document.body).not.toHaveTextContent(id);
+    expect(screen.getAllByRole("time").at(-1)).toHaveAttribute(
+      "datetime",
+      characterTimestamp,
+    );
     expect(get).toHaveBeenCalledWith(
       expect.objectContaining({ characterId, revisionNumber: 2 }),
     );
