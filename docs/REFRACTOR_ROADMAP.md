@@ -1,30 +1,62 @@
-# AIWebNovel refactor roadmap
+# 开发路线：按完整成果交付
 
-This document is the repository copy of the approved RF execution order. `PLAN.md` tracks current status; this file tracks the long-term order.
+目标是让作者在 Windows 本地可控地写完长篇小说：先规划故事，再让 AI 按可靠上下文写作，逐步建立长篇记忆、评审和恢复能力。
 
-## Ordered tasks
+本路线按 [DOC-GOV-2 / #21](https://github.com/King70404/AI-Writer-project/issues/21) 将原 RF-00–RF-17 归并为五个交付阶段。当前状态只看根目录 [PLAN.md](../PLAN.md)，已有能力看 [功能真实性矩阵](FEATURE_REALITY_MATRIX.md)。本次只整理规划，不启动下列产品实现或验收。
 
-1. RF-00 — lock the single verified GitHub baseline.
-2. RF-01 — freeze the new product specification and module contracts.
-3. RF-02 — refactor test contracts and global inventories.
-4. RF-03 — add scenes and plot progression points.
-5. RF-04 — add structured Story Assets.
-6. RF-05 — add a versioned Skills library.
-7. RF-06 — add a secure Model Gateway and API Key settings while preserving local models.
-8. RF-07 — rebuild explainable ContextPack assembly.
-9. RF-08 — persist single-step AI writing runs and candidates.
-10. RF-09 — implement author-safe, idempotent candidate adoption.
-11. RF-10 — add resumable 200–300-character continuous generation.
-12. RF-11 — add Story Memory and fact confirmation.
-13. RF-12 — add consistency review and targeted rewrite candidates.
-14. RF-13 — add cross-chapter recall and invalidation propagation.
-15. RF-14 — consolidate the author workspace.
-16. RF-15 — finish upgrade, backup and restore safety.
-17. RF-16 — perform writing-quality, cost and long-form evaluation.
-18. RF-17 — perform formal release acceptance.
+## 执行方式
 
-## Execution rule
+- 一次推进一个完整交付阶段。该阶段获准实施后，自主完成其中的设计、代码、测试、失败修复、文档和交付验证，不把每个 RF 清单项变成新的确认停点。
+- RF 编号保留作内部依赖与证据索引；同阶段内按表中顺序推进，可以分提交、分模块开发，不能跳过前置能力或将全部五阶段一次实施。
+- 每个阶段以其完成定义收尾。开发检查失败应在授权范围内修复；需要正式冻结验收时，另行记录精确候选，遵守 [验收稳定性规则](ACCEPTANCE_STABILITY.md) 的入口条件和失败停止规则。
+- 正文采纳、正式故事事实和风格规则仍由作者确认。阶段粒度调整不放宽正式数据隔离、安全门、质量阈值、外部发布授权或 M0–M7 冻结历史保护。
 
-Only one numbered RF task may be active for implementation at a time. Do not implement RF-03 through RF-17 as one repository-wide change. Every code task owns its applicable implementation, tests, errors and documentation, followed by a candidate-bound validation round.
+## 五个交付阶段
 
-The current detailed status and blocker are maintained in root `PLAN.md` and the active GitHub Issues.
+| 阶段                  | 作者获得的完整成果                                                                              | 内部依赖顺序                                                                                                       |
+| --------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 1. 稳定现有 V1        | 当前创作闭环、删除与启动体验可作为后续开发的可靠基线                                            | UX 收尾及正式验收 → PR #9 合并 → Windows CI #17 → RF-00 最终基线                                                   |
+| 2. 建立故事规划基础   | 设定、人物和章节规划进一步形成可供写作使用的场景、故事资产与写作规则                            | RF-01 产品规格/模块契约 → RF-02 测试契约 → RF-03 场景/情节推进点 → RF-04 结构化 Story Assets → RF-05 版本化 Skills |
+| 3. 完成 AI 写作闭环   | 能选用本地或云模型，查看上下文依据，保留候选，确认采纳，并按每次 200–300 字持续生成、暂停和恢复 | RF-06 Model Gateway/API Key → RF-07 ContextPack → RF-08 单段任务/候选持久化 → RF-09 安全幂等采纳 → RF-10 连续生成  |
+| 4. 支持长篇记忆与评审 | 能确认故事事实、发现前后矛盾、追踪前文修改影响，并在统一工作台处理修改建议                      | RF-11 Story Memory/事实确认 → RF-12 一致性评审/定向改写候选 → RF-13 跨章召回/失效传播 → RF-14 作者工作台           |
+| 5. 完成长篇验证与发布 | 可验证升级、备份恢复、长篇写作质量和费用，并交付经过正式验收的版本                              | RF-15 升级/备份/恢复 → RF-16 质量/成本/长篇评测 → RF-17 发布验收                                                   |
+
+### 阶段 1：稳定现有 V1
+
+完成当前 [V1-UX-1 / PR #9](https://github.com/King70404/AI-Writer-project/pull/9) 的收尾。R4 开发通过是本阶段输入，不能代替新的 Green Candidate 或正式验收。
+
+完成定义：
+
+- 新候选完成规定的 Default、两次 IncludeE2E、隔离真实启动器和作者创作/删除 smoke，随后正式验收通过并按授权合并 PR #9。
+- [Windows CI / #17](https://github.com/King70404/AI-Writer-project/issues/17) 提供可核验的最新 SHA 检查与失败产物，使用隔离数据。仓库套餐或 owner 权限造成的 required-rule 管理限制须按该 Issue 如实记录，不能伪装已配置或降低门槛。
+- [RF-00 / #11](https://github.com/King70404/AI-Writer-project/issues/11) 记录唯一 GitHub `main` 基线及仍适用的边界；满足 RF-01 前置条件后再进入阶段 2。
+
+### 阶段 2：建立故事规划基础
+
+把当前文本设定和卷章结构发展为可持续维护的故事规划。先统一产品规格、模块责任和测试契约，再实现场景、情节推进点、结构化故事资产与版本化写作规则。
+
+完成定义：作者能在一部小说内维护上述规划，重新打开后仍可读取，并追溯适用的版本与归属；既有小说、设定、人物、正文和导出闭环不退化。各模块有明确输入输出、错误与兼容约束，并通过该阶段开发检查和交付验证。
+
+### 阶段 3：完成 AI 写作闭环
+
+在现有本地续写/改写基础上增加云模型接入和安全 Key 管理，重建可解释的上下文，持久保存单段任务及候选，再接通幂等采纳与连续生成。
+
+完成定义：作者能够完成“配置模型 → 准备上下文 → 生成候选 → 查看并确认采纳 → 保存”的流程；候选和任务可在重启后读取。连续生成以每次 200–300 字为受控步骤，可暂停、恢复、处理失败；重复操作、旧候选和正文冲突不能造成重复追加或覆盖。云端发送内容和费用控制按阶段 2 的产品契约实现，Key 不进入仓库、普通日志或小说正文。
+
+RF-09 必须先于 RF-10。持续生成不等于自动把未经作者确认的内容写入正式正文，也不赋予模型正式事实提交权。
+
+### 阶段 4：支持长篇记忆与评审
+
+建立带来源和作者确认状态的故事记忆，再实现一致性评审、定向改写、跨章召回和修改影响追踪，最后将这些动作整合到作者工作台。
+
+完成定义：用跨章样例证明已确认事实能够被召回，候选事实与正式事实可区分；修改前文后能够识别相关后文或记忆需要复核；评审建议产生可检查的修改候选，由作者决定是否采用。统一工作台能够完成这一整条流程，不依靠人工在零散页面之间补齐关键步骤。
+
+此阶段是现有章节编辑工作区的整合与增强；当前并非没有正文编辑器，也不能把当前有限上下文拼接称为长篇记忆已完成。
+
+### 阶段 5：完成长篇验证与发布
+
+完成升级、备份与恢复，再用持续写作评估检查质量、稳定性、费用与规模限制，最后进入正式发布验收。
+
+长篇验证先以 10 万字为节点，百万字支持作为长期目标；具体样本与资源预算在产品契约中确定，不能把目标规模写成已通过的能力。
+
+完成定义：在自有隔离数据上验证升级和备份恢复，证明已有正文与确认事实受到保护；长篇评测按事先确定的样本、长度、质量与成本标准输出证据及限制；候选满足发布验收和交付要求。测试通过不等于已经证明小说质量，发布验收通过也不自动授权未批准的外部发布动作。

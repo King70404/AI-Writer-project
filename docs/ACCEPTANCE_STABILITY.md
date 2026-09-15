@@ -1,140 +1,64 @@
-# Acceptance Stability / Green Candidate Protocol
+# 验收稳定性与 Green Candidate
 
-本文件定义 AIWebNovel 在进入 formal acceptance 之前必须满足的稳定性条件。目标不是声称“软件永远不可能失败”，而是把可发现的代码、测试、环境和 UX 问题尽量前移到 Development / CI / RC preflight，避免 formal acceptance 成为第一次完整运行。
+本文件只定义候选进入正式验收的条件。开发范围与阶段顺序见根目录 `AGENTS.md`、`PLAN.md` 和当前任务；已授权的大交付阶段可以连续完成相邻开发步骤，正式验收仍须独立记录。
 
-## 1. 为什么新增本协议
+## 执行模式与失败处理
 
-项目历史中已经出现多次“开发检查绿，但正式验收才第一次发现新 blocker”的情况：
+- **Development / CI**：失败是开发反馈；在已授权范围内诊断、修复并重跑适用检查，直到阶段完成定义满足。
+- **RC preflight**：验证已冻结的精确候选。规定检查失败时保留首个失败证据并停止本轮；修复进入独立的 Development recovery 记录，形成新候选后重新验证，不修改冻结候选后悄悄续算通过次数。
+- **Formal acceptance**：只能验证已完成全部 RC preflight 的精确 SHA，并独立记录候选、检查与结果。正式门失败立即保留证据并停止该轮；不得在同一验收任务中修改候选或擅自重跑失败正式门。修改与再次验收须有新的、明确的恢复任务授权。
 
-- V1-OPS locator 歧义：作者入口文案变化后，Playwright 宽泛 accessible-name locator 同时匹配多个元素。
-- V1-UX Q1：`书名` 同时匹配 `书名` 与 `确认书名`，formal IncludeE2E 首次暴露 strict-mode violation。
-- V1-UX Q2：在修复 locator 后直接再次进入 formal acceptance，结果 frontend coverage 阶段才首次暴露 `novel-structure-workspace.test.tsx` 5000ms 边界超时；同一运行还出现 `Received NaN for the value attribute`。
-- TXT export smoke 曾出现浏览器观察环境差异，需要独立 Playwright/Chromium 交叉验证才能确认产品本身无缺陷。
+不得用 timeout inflation、sleep、retry、skip、删除测试、降低 coverage、静音 warning 或弱化断言制造绿色。普通单测和开发检查不会因失败自动变成正式验收。
 
-共同模式：**正式验收太早，完整候选稳定性没有在 Development 阶段被重复证明。**
+## Green Candidate 最低条件
 
-## 2. 核心原则
-
-### Formal acceptance 不是发现问题的首轮测试
-
-formal acceptance 只能验证一个已经完成 RC preflight 的精确 SHA。若候选从未完整跑过与正式门等价的测试链，则不得创建 formal acceptance Issue。
-
-### 失败要前移，不要隐藏
-
-允许 Development / CI / RC preflight 失败，并要求在这些阶段发现问题。禁止通过增加 timeout、sleep、retry、skip、降低 coverage、删测试或弱化断言来制造绿色。
-
-### 精确 SHA
-
-所有稳定性证据都绑定精确 candidate SHA。候选有任何新 commit，连续绿色计数清零，必须从新的 SHA 重新开始。
-
-## 3. Green Candidate 进入 formal acceptance 的最低条件
-
-候选必须同时满足：
+创建 formal acceptance Issue 前，同一冻结 candidate 必须全部满足：
 
 1. Default `scripts/quality_gate.ps1` PASS。
-2. `scripts/quality_gate.ps1 -IncludeE2E` 在 **Development / RC-preflight 模式**下对同一 SHA 连续 PASS 两次。
-3. Windows `启动 AI 网文助手.cmd` launcher smoke PASS 一次。
+2. `scripts/quality_gate.ps1 -IncludeE2E` 在 Development / RC preflight 模式下连续 PASS 两次。
+3. Windows 根目录 `启动 AI 网文助手.cmd` launcher smoke PASS 一次。
 4. 当前任务要求的隔离真实作者 smoke PASS 一次。
-5. Git worktree/staging clean；candidate SHA、PR head、base 均已锁定。
-6. 无 migration/schema/tag/frozen-history 非授权漂移。
-7. 不读取或修改正式 `%LOCALAPPDATA%\AIWebNovel` 作者数据。
-8. 前端/浏览器测试无未解释的 `console.error`、React warning、pageerror 或 requestfailed。确有预期 warning/error 时必须在测试契约中明确 allowlist 与原因。
-9. 已知 timing-sensitive 测试已完成专门的重复稳定性验证。
+5. Git worktree / staging clean；candidate SHA、PR head 与 base 均已锁定。
+6. 无 migration / schema / tag / frozen-history 非授权漂移。
+7. 不读取、枚举或修改正式 `%LOCALAPPDATA%\AIWebNovel` 作者数据；测试只使用并清理各自拥有的隔离根。
+8. 前端与浏览器测试没有未解释的 React warning、`console.error`、pageerror 或 requestfailed；预期 warning/error 必须按测试契约明确 allowlist 与原因。
+9. 已知 timing-sensitive 测试完成下述专门稳定性验证。
 
-只有上述全部满足，才创建 formal acceptance Issue。
+launcher smoke 必须实际走上述 `.cmd`。启动进程需把 `LOCALAPPDATA` 临时指向任务自有的仓库外目录，使其默认 `AIWebNovel` 数据根落入隔离位置；不得使用作者真实数据根完成烟测。
 
-## 4. Timing / flaky 测试处理
+任何新 commit 都会清零连续绿色计数。已有 Development PASS、单次 IncludeE2E PASS 或旧候选结果不能替代本候选的完整证据；Default 没有运行浏览器。
 
-### 不先加 timeout
+## 开发期稳定性检查
 
-Vitest Node/jsdom 默认 test timeout 为 5000ms。测试接近或越过该边界时，先判断是否属于：
+- timing/flaky failure 先排查过大的单测、重复逐字符输入、不必要的异步等待、非法受控输入状态、资源争用、环境污染及共享状态。不要先把 5 秒 timeout 改为 10 秒。
+- 可独立验证的行为拆成单测；保留需要 `user-event` 的真实交互语义，不全局换成 `fireEvent`。完整流程由少量 E2E 覆盖。
+- 修复曾失败的 timing-sensitive 测试后，精确测试独立运行 **20 次**，所属文件独立运行 **5 次**，均须 0 failure、0 unexpected warning。任一次失败即表明仍不稳定，修复后重新计数。
+- React warning / `console.error` 必须解释或修复，例如数字框清空时向受控 `value` 写入 `NaN`。逐步让前端测试环境直接拒绝未 allowlist 的 warning/error，不靠静音通过。
 
-- 单个测试包含过多独立业务行为；
-- 重复使用 `user-event` 模拟大量逐字符输入；
-- 不必要的异步等待；
-- 受控输入出现非法中间状态；
-- 资源争用或环境污染；
-- 测试之间存在共享状态。
+## 作者界面与删除回归
 
-不得把“把 timeout 从 5 秒改成 10 秒”作为第一修复手段。
+- 优先使用 `getByRole` / `getByLabel`，配合 `exact: true`、region/form scope 或 chaining/filtering；只有明确测试契约需要时才用 test id。不得依赖宽泛 substring 定位同页的 `书名` / `确认书名` 等名称。
+- 修改作者文案时，逐项核对创建、编辑、保存反馈和冲突处理的真实可访问名称；不同模块的按钮不能靠全局替换同步。场景必须运行到最终请求、持久化和浏览器安全审计，越过首个失败点不代表 PASS。
+- 涉及作者界面的 PR，Development 交接前先跑受影响的独立 E2E，再跑完整 `npm run e2e`，保留真实结果；这不替代 RC 两次 IncludeE2E 与正式验收。
+- 删除小说必须验证捕获的子内容旧历史链接，以及历史列表、旧 cursor 页、旧/当前修订正文 API 均拒绝普通读取；父页面 404 或小说从列表消失不足以证明通过。
+- 逻辑删除保留原修订并允许追加删除标记。真实迁移数据库回归逐条比较删除前已存在的修订内容，不要求删除前后整张修订表完全相同。
+- 普通作者页面必须隐藏内部 ID / 并发信息，保留有用的历史版本、保存时间和冲突处理信息。
 
-### 拆分 mega-test
+## CI 与合并准备
 
-一个 jsdom 单测如果同时测试多个可独立验证的行为，应拆成更小的测试，使失败信号更精确、运行更快、重现更稳定。
+[QA-HARDEN-2 #17](https://github.com/King70404/AI-Writer-project/issues/17) 必须在 RF-01 前完成：
 
-保留真正需要 `user-event` 的用户交互语义；不要为了速度全局替换为 `fireEvent`。但不要用一个单测重复模拟整个端到端写作流程——这类完整流程应由少量 E2E 覆盖。
+- Windows GitHub Actions 或等价 GitHub-visible CI；PR 每次更新跑唯一名称的 Default check，merge-ready / RC 跑 IncludeE2E。
+- 失败保留日志/产物；CI 仅使用 ephemeral / isolated data，不以复制本地日志冒充服务器上的最新 SHA check。
+- 提供可重复执行已知 timing-sensitive 测试或候选 preflight 的稳定性入口，首次失败即停止，不用 retry 隐藏失败。
+- main 的 required status checks 绑定最新 SHA，并要求分支 up to date。须由 owner 配置或受账户套餐限制时，记录精确待办与限制，不宣称已经启用，也不降低检查要求。
 
-### 重复稳定性验证
+## 冻结与交接顺序
 
-曾发生 timing/flaky failure 的测试在修复后至少：
+1. 完成开发修复、适用测试与稳定性检查，同步 `PLAN.md` 和活动 Issue / PR。
+2. 明确 main、PR head、base 与 candidate 状态，**在 RC preflight 前冻结 SHA**。
+3. 对同一冻结 SHA 执行：`Default → IncludeE2E #1 → IncludeE2E #2 → launcher smoke → isolated author smoke → Git / migration / tag / frozen-history / cleanup 复核`。
+4. 冻结期间动态结果写入活动 Issue / PR，不仅为协调状态向 main 追加 commit；candidate 最终 PASS/FAIL 后再同步 `PLAN.md`。
+5. 全部 PASS 后创建绑定该 SHA 的独立 formal acceptance；正式验收 PASS 且满足当前任务的合并授权后才 merge。
 
-- 精确失败测试独立运行 20 次，0 failure，0 unexpected warning；
-- 所属测试文件独立运行 5 次，0 failure，0 unexpected warning。
-
-任何一次失败都表明仍不稳定；修复后重新计数。
-
-## 5. React / console warning policy
-
-开发测试中出现未解释 warning 不能当成“只是日志”。例如 number input 在 clear 时把 `valueAsNumber` 的 `NaN` 写入受控 `value`，会产生 React warning；这类非法中间状态必须修复，而不是静音 console。
-
-逐步把 frontend 测试环境改造成：未 allowlist 的 React warning / console.error 直接导致测试失败。
-
-## 6. Playwright locator policy
-
-优先：
-
-1. user-facing `getByRole` / `getByLabel`；
-2. `exact: true` 或稳定的 region/form scope；
-3. chaining/filtering；
-4. 只有明确测试契约需要时才使用 test id。
-
-新增或修改作者文案时，必须检查同页是否出现同前缀 accessible name，例如 `书名` / `确认书名`。不得依赖宽泛 substring locator。
-
-作者文案变化还需按页面逐项核对创建态、编辑态、保存反馈和冲突处理的真实可访问名称。不同模块的保存按钮不能靠全局文字替换同步；例如小说信息与小说设定具有各自独立的编辑契约。修正首个失败 locator 后，仍须执行该场景直到最终请求、持久化及浏览器审计断言，不能把“越过首个失败点”当成整个场景通过。
-
-PR 涉及作者界面时，Development 交接前先运行受影响的独立 E2E，再运行完整 `npm run e2e` 浏览器集，并保留真实结果。Default gate 没有运行浏览器，不能作为文案/定位契约已验证的证据；新的 RC 两次 IncludeE2E 和正式验收要求保持不变。RC1 的 INT-012 陈旧标题断言失败见 [#18](https://github.com/King70404/AI-Writer-project/issues/18#issuecomment-5646556594)，其独立恢复见 [#19](https://github.com/King70404/AI-Writer-project/issues/19)。
-
-删除小说的开发回归必须覆盖已捕获的子内容历史链接及历史列表/正文 API，不能只验证列表消失或父页面返回 404。逻辑删除保留旧修订并追加删除标记；真实迁移数据库测试应逐条比较删除前已存在的修订内容，允许本次删除追加的修订。普通作者页面还应检查内部 ID/并发信息不可见，同时保留作者需要的历史版本、保存时间及冲突处理信息。上述检查由 [R4 #20](https://github.com/King70404/AI-Writer-project/issues/20) 前移到 Development 回归。
-
-## 7. CI / GitHub merge readiness
-
-在 RF-01 之前完成 QA-HARDEN-2：
-
-- Windows GitHub Actions（或等价 GitHub-visible CI）；
-- PR 每次更新跑 Default gate；
-- merge-ready / RC 跑 IncludeE2E；
-- 失败保留日志/产物；
-- CI 仅使用 ephemeral / isolated data；
-- main 的 required status checks 绑定最新 SHA；
-- main 需要 up-to-date branch 才能 merge。
-
-若 GitHub 管理权限需要仓库 owner 手工设置，必须明确记录 owner action，不能假装已经开启。
-
-## 8. RC freeze / 协调文档规则
-
-开始最终 RC preflight 前：
-
-1. 先同步 `PLAN.md`、活动 Issue / PR；
-2. 将 main 与 candidate 同步到明确状态；
-3. 冻结 candidate SHA；
-4. preflight 期间不要仅为了状态说明而向 `main` 追加协调 commit；动态状态写到活动 Issue/PR；
-5. candidate 最终 PASS/FAIL 后再同步 `PLAN.md`。
-
-这样避免因为纯文档 commit 让已经验证的 candidate 无故落后于 base。
-
-## 9. 分阶段 Pipeline
-
-建议固定为：
-
-`开发期窄测试 → Default gate → timing/flaky stress → RC IncludeE2E #1 → RC IncludeE2E #2 → launcher smoke → isolated author smoke → SHA freeze → formal acceptance → merge`
-
-正式验收阶段如果仍失败，必须保留 hard-stop；但每一次晚期失败都要把对应检查前移到更早门禁，避免同类问题再次只在 formal 阶段出现。
-
-## 10. 当前 V1-UX 恢复顺序
-
-1. #14 已作为失败 formal acceptance 关闭保存。
-2. #16 `V1-UX-1-R2`：修复 novel-structure NaN / timeout instability，并执行重复稳定性验证。
-3. #15 `QA-HARDEN-1`：落实 Green Candidate Protocol 到当前 PR #9。
-4. #17 `QA-HARDEN-2`：建立 Windows CI / latest-SHA checks，最迟在 RF-01 前完成。
-5. PR #9 的新 candidate 必须完成两次连续 Development IncludeE2E + launcher + isolated smoke，之后才允许创建新的 formal acceptance。
-6. RF-00 #11 在 PR #9 最终处理前保持 OPEN；RF-01 继续阻塞。
+晚期失败必须把可前移的检查补到 Development / CI / RC preflight。历史证据按需查阅：[Q1 #10](https://github.com/King70404/AI-Writer-project/issues/10)、[Q2 #14](https://github.com/King70404/AI-Writer-project/issues/14)、[RC1 #18](https://github.com/King70404/AI-Writer-project/issues/18)、[R3 #19](https://github.com/King70404/AI-Writer-project/issues/19)、[R4 #20](https://github.com/King70404/AI-Writer-project/issues/20)；这些已完成或失败的轮次不作为当前任务顺序。
