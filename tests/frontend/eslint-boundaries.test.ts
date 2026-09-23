@@ -6,7 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { ESLint, Linter } from "eslint";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const repositoryRoot = path.resolve(process.cwd(), "..");
 const frontendRoot = path.join(repositoryRoot, "frontend");
@@ -642,6 +642,17 @@ function expectedArchitectureDiagnostics(
 }
 
 describe("frontend import boundaries", () => {
+  beforeAll(() => {
+    // These fixtures replace source in memory and add files during the session.
+    // CI's immutable single-run Programs would instead lint stale disk contents.
+    // Keep the production rules/config intact; only declare this harness's lifecycle.
+    vi.stubEnv("TSESTREE_SINGLE_RUN", "false");
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("rejects controlled illegal imports without polluting production source", () => {
     const configurationBlobsBefore = configurationBlobSnapshot();
     const repositoryBefore = frontendSourceRepositorySnapshot();
@@ -783,6 +794,7 @@ describe("frontend import boundaries", () => {
         overrideConfigFile: "frontend/eslint.config.js",
       });
       const [result] = await eslint.lintFiles([fixturePath]);
+      expect(result?.messages).toEqual([]);
       expect(result?.errorCount).toBe(0);
     } finally {
       try {
@@ -816,6 +828,7 @@ describe("frontend import boundaries", () => {
         overrideConfigFile: "frontend/eslint.config.js",
       });
       const [result] = await eslint.lintFiles([fixturePath]);
+      expect(result?.messages).toEqual([]);
       expect(result?.errorCount).toBe(0);
     } finally {
       try {

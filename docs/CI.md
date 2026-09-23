@@ -16,12 +16,14 @@ PR 检查显式 checkout `github.event.pull_request.head.sha`；push / 手动执
 
 - Python 固定为 **3.12.10 x64**，Node.js 固定为 **24 x64**；Actions 本身固定到不可变 commit SHA。
 - `setup-python` 后只在临时 runner 的 HKCU 按 PEP 514 注册该解释器，再验证真实 `py -3.12` 与 `pythonLocation` 指向同一文件。这样诊断脚本仍执行原有精确版本规则。引导脚本拒绝普通本机和 self-hosted runner，不修改作者电脑的 Python 注册。
-- 从零创建根 `.venv`，运行 `pip install -e "./backend[dev]"`、`npm ci`；Full 显式运行 `npm run e2e:install`。Default / Full 在质量门前真实运行 `npm run build`，使后端架构测试调用的 Integrated 诊断拥有前端构建产物；质量门本身仍完整运行其前端步骤。前端使用已提交 lockfile；后端沿用现有 pyproject 依赖范围，当前没有独立后端锁文件。
+- 从零创建根 `.venv`，运行 `pip install -e "./backend[dev]"`、`npm ci`；Default / Full 均显式运行 `npm run e2e:install`，因为两种模式的末尾环境诊断都检查 Chromium，且各 job 使用全新浏览器缓存。Default / Full 在质量门前真实运行 `npm run build`，使后端架构测试调用的 Integrated 诊断拥有前端构建产物；质量门本身仍完整运行其前端步骤。前端使用已提交 lockfile；后端沿用现有 pyproject 依赖范围，当前没有独立后端锁文件。
 - 每个 job 在 `RUNNER_TEMP` 创建自己的随机目录，显式设置 `TEMP`、`TMP`、`LOCALAPPDATA`、`AIWEBNOVEL_DATA_ROOT` 和外置 Chromium 缓存。E2E 继续使用现有脚本创建、校验、清理的场景独占根。
 - token 权限只有 `contents: read`；checkout 不保留凭据。不注入 secrets，不使用 `pull_request_target`，不写分支、tag、release、正式数据库或备份。
 - 同一事件分支的新运行会取消旧运行；Default 和 Full 在不同临时机器独立执行，一个失败不会取消另一个的证据收集。任何一个失败都不满足合并条件。
 
 默认和 Full 门禁成功后还执行环境诊断（分别 Development / M0）并检查跟踪文件未变化。任一步失败即停止该 job 后续检查，保留首个 blocker。安装失败也会使 job 失败，不自动重试。
+
+前端边界测试在同一会话中替换内存源码并新增合法样例，因此该测试套件局部设置 `TSESTREE_SINGLE_RUN=false`，结束时恢复环境。否则 `CI=true` 会让 TypeScript 解析器使用不可变的磁盘程序缓存，漏读内存样例并拒绝新文件。此设置只声明动态测试的解析生命周期；生产 ESLint 配置、类型检查、27 个非法样例的精确诊断均保留。排查同类问题时使用 `$env:CI='true'; npm.cmd run quality` 复现 CI 行为，不能仅凭普通本地运行通过判定恢复完成。解析器行为见 [官方说明](https://typescript-eslint.io/packages/parser/#disallowautomaticsingleruninference)。
 
 ## 稳定性与产物
 

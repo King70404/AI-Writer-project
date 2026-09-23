@@ -18,7 +18,9 @@
 
 ## 当前 blocker 与下一步
 
-GitHub 连接已恢复，R4 收尾已同步。Windows CI 接线与 9 项新增架构测试、PowerShell/格式检查已通过开发验证。真实根启动器和完整隔离作者 smoke 已通过；创建、正文保存、序号清空、删除保护、9 个旧页面拒绝访问及 7 条原修订不变均已核对。开发 smoke 中断与诊断保留在 #22 的准备记录，不作为 RC PASS。CI 首轮因 `runner.temp` 误放 job env 零任务失败；修复后真实 Windows Default / Full 已运行，但均因全新 runner 尚无前端构建产物，在集成诊断测试返回码 2。#23 正补齐测试前构建准备，不改测试或质量门。
+R4 产品修复、历史整理和 Windows CI 接线已同步。真实根启动器和完整隔离作者 smoke 已在开发环境通过；创建、正文保存、序号清空、删除保护、9 个旧页面拒绝访问及 7 条原修订不变均已核对。这些开发证据不替代冻结验收。
+
+当前恢复入口为 #23。CI 的环境表达式及首次构建顺序已修正，随后发现的动态 TypeScript 测试缓存问题也已用 `CI=true` 复现并修复：仅在该测试套件内声明可更新的解析会话，结束后恢复环境，27 个非法样例及生产规则保持完整。同步补齐 Default 环境诊断必需的 Chromium 安装。本地 CI 模式完整前端质量门已 PASS（676 项，覆盖率 statements 96.11%、branches 92.13%），CI 架构测试 9 项和 PowerShell 解析通过；待新 SHA 的真实 hosted Default / Full 均 PASS 后进入新 RC。
 
 **下一步一次交付“可放心继续开发的 V1 基线”**，按以下依赖连续完成：
 
@@ -26,7 +28,7 @@ GitHub 连接已恢复，R4 收尾已同步。Windows CI 接线与 9 项新增�
 2. 全部通过后创建独立 formal acceptance；正式 PASS 后合并 PR #9、结束 UX，记录最终 main SHA。
 3. 核实 #17 的 GitHub 最新提交检查与管理限制，关闭 [RF-00 #11](https://github.com/King70404/AI-Writer-project/issues/11)，随即实施 AI 闭环；不再要求用户逐步“继续”。
 
-已核实：本地 8 个冻结 tag 未变，Git 与 GitHub API 均确认远端未公布 tag；验收记录起止清单和原对象/祖先关系，不擅自补推。GitHub required rules 曾受套餐/owner 权限限制，CI 实际运行与管理设置分别记录。RC2 当前处于冻结前开发准备，不存在新正式 PASS。
+已核实：本地 8 个冻结 tag 未变，Git 与 GitHub API 均确认远端未公布 tag；验收记录起止清单和原对象/祖先关系，不擅自补推。GitHub required rules 受套餐/owner 权限限制，CI 实际运行与管理设置分别记录。RC2 已 FAIL 并关闭，新 RC 尚未冻结，不存在新正式 PASS。
 
 ## 再下一步与后续
 

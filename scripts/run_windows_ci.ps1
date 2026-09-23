@@ -96,7 +96,8 @@ try {
     Push-Location (Join-Path $repositoryRoot "frontend")
     try {
         Invoke-CIStep "Install locked frontend dependencies" { & npm.cmd ci }
-        if ($Mode -eq "Full") {
+        # Development diagnostics also require a browser in this job's empty cache.
+        if ($Mode -ne "Stability") {
             Invoke-CIStep "Install Chromium" { & npm.cmd run e2e:install }
         }
     } finally {
