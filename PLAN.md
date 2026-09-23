@@ -9,7 +9,7 @@
 - M7/V1 已正式验收：小说/设定/人物管理，大纲/卷/章，正文编辑与自动保存，本地 AI 续写/改写、作者确认采用、TXT 导出。实际前提与限制见 [功能索引](docs/FEATURE_REALITY_MATRIX.md)。
 - [PR #9](https://github.com/King70404/AI-Writer-project/pull/9) 仍 OPEN、未合并。UX 产品修复提交 `014205985d5e3acfe5cd38cc60d108df495ed42d`；[R4 #20](https://github.com/King70404/AI-Writer-project/issues/20#issuecomment-5677994354) 已关闭 completed。
 - R4 开发证据：Default PASS；后端 2778、前端 676、完整浏览器 24 项通过；已知 structure 测试完成 20+5 次稳定性验证。**这是开发结果，尚无新 RC/formal PASS。**
-- 最近核实的远端 `main`：`0939e3a0a753dc819ab0f5bc6f4496198c3290dd`。本次 CI 与路线调整形成最终候选，精确 PR head 与冻结结果记录于 [RC2 #22](https://github.com/King70404/AI-Writer-project/issues/22)，不复用 R4 开发日志作为新 SHA 验收。
+- 最近核实的远端 `main`：`0939e3a0a753dc819ab0f5bc6f4496198c3290dd`。[RC2 #22](https://github.com/King70404/AI-Writer-project/issues/22) 冻结候选 `e81754ed` 因 GitHub CI 在分配任何 job 前失败，已保留 FAIL。当前进入 [CI 恢复 #23](https://github.com/King70404/AI-Writer-project/issues/23)，修复后将形成新候选，不能复用 RC2 的计数。
 - 旧失败仅作追溯：[Q1 #10](https://github.com/King70404/AI-Writer-project/issues/10)、[Q2 #14](https://github.com/King70404/AI-Writer-project/issues/14)、[RC1 #18](https://github.com/King70404/AI-Writer-project/issues/18#issuecomment-5646556594)；不重开这些轮次。
 
 ## 最近完成的整理
@@ -18,11 +18,11 @@
 
 ## 当前 blocker 与下一步
 
-GitHub 连接已恢复，R4 收尾已同步。Windows CI 接线与 9 项新增架构测试、PowerShell/格式检查已通过开发验证。真实根启动器和完整隔离作者 smoke 已通过；创建、正文保存、序号清空、删除保护、9 个旧页面拒绝访问及 7 条原修订不变均已核对。开发 smoke 中断与诊断保留在 #22 的准备记录，不作为 RC PASS。
+GitHub 连接已恢复，R4 收尾已同步。Windows CI 接线与 9 项新增架构测试、PowerShell/格式检查已通过开发验证。真实根启动器和完整隔离作者 smoke 已通过；创建、正文保存、序号清空、删除保护、9 个旧页面拒绝访问及 7 条原修订不变均已核对。开发 smoke 中断与诊断保留在 #22 的准备记录，不作为 RC PASS。CI 的首轮远端 push run 无 job 直接失败；官方上下文表确认 `runner.temp` 不允许出现在 job 级 `env`，正在 #23 将其移到 step 级并重新开发验证。
 
 **下一步一次交付“可放心继续开发的 V1 基线”**，按以下依赖连续完成：
 
-1. 推送已完成开发预检查的 [Windows CI #17](https://github.com/King70404/AI-Writer-project/issues/17) 候选；同步 PR head/main 后在 [RC2 #22](https://github.com/King70404/AI-Writer-project/issues/22) 记录精确 SHA。按 [稳定性协议](docs/ACCEPTANCE_STABILITY.md) 完成 Default、两次 IncludeE2E、真实根 launcher 隔离 smoke、完整作者 UX/delete smoke 及边界验证，并核对 GitHub 最新 SHA 的 Default / Full 真实检查。
+1. 完成 [CI 恢复 #23](https://github.com/King70404/AI-Writer-project/issues/23)，在新 SHA 上核对真实 `Windows Default` / `Windows Full` 能启动并得到结果；另建 RC，在同一冻结 SHA 按 [稳定性协议](docs/ACCEPTANCE_STABILITY.md) 完成 Default、两次 IncludeE2E、真实根 launcher、完整作者 UX/delete smoke 及边界验证。
 2. 全部通过后创建独立 formal acceptance；正式 PASS 后合并 PR #9、结束 UX，记录最终 main SHA。
 3. 核实 #17 的 GitHub 最新提交检查与管理限制，关闭 [RF-00 #11](https://github.com/King70404/AI-Writer-project/issues/11)，随即实施 AI 闭环；不再要求用户逐步“继续”。
 
