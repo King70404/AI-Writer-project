@@ -16,7 +16,7 @@ PR 检查显式 checkout `github.event.pull_request.head.sha`；push / 手动执
 
 - Python 固定为 **3.12.10 x64**，Node.js 固定为 **24 x64**；Actions 本身固定到不可变 commit SHA。
 - `setup-python` 后只在临时 runner 的 HKCU 按 PEP 514 注册该解释器，再验证真实 `py -3.12` 与 `pythonLocation` 指向同一文件。这样诊断脚本仍执行原有精确版本规则。引导脚本拒绝普通本机和 self-hosted runner，不修改作者电脑的 Python 注册。
-- 从零创建根 `.venv`，运行 `pip install -e "./backend[dev]"`、`npm ci`；Full 显式运行 `npm run e2e:install`。前端使用已提交 lockfile；后端沿用现有 pyproject 依赖范围，当前没有独立后端锁文件。
+- 从零创建根 `.venv`，运行 `pip install -e "./backend[dev]"`、`npm ci`；Full 显式运行 `npm run e2e:install`。Default / Full 在质量门前真实运行 `npm run build`，使后端架构测试调用的 Integrated 诊断拥有前端构建产物；质量门本身仍完整运行其前端步骤。前端使用已提交 lockfile；后端沿用现有 pyproject 依赖范围，当前没有独立后端锁文件。
 - 每个 job 在 `RUNNER_TEMP` 创建自己的随机目录，显式设置 `TEMP`、`TMP`、`LOCALAPPDATA`、`AIWEBNOVEL_DATA_ROOT` 和外置 Chromium 缓存。E2E 继续使用现有脚本创建、校验、清理的场景独占根。
 - token 权限只有 `contents: read`；checkout 不保留凭据。不注入 secrets，不使用 `pull_request_target`，不写分支、tag、release、正式数据库或备份。
 - 同一事件分支的新运行会取消旧运行；Default 和 Full 在不同临时机器独立执行，一个失败不会取消另一个的证据收集。任何一个失败都不满足合并条件。

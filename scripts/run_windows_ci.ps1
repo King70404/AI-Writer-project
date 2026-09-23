@@ -110,6 +110,14 @@ try {
                 -OutputDirectory (Join-Path $evidenceRoot "stability")
         }
     } else {
+        # The backend architecture suite invokes Integrated diagnostics before
+        # the frontend quality step. A fresh checkout needs real built assets.
+        Push-Location (Join-Path $repositoryRoot "frontend")
+        try {
+            Invoke-CIStep "Prepare frontend assets for integrated diagnostics" { & npm.cmd run build }
+        } finally {
+            Pop-Location
+        }
         $gateArguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/quality_gate.ps1")
         if ($Mode -eq "Full") { $gateArguments += "-IncludeE2E" }
         Invoke-CIStep "$Mode quality gate" { & powershell.exe @gateArguments }
