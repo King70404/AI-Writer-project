@@ -1,6 +1,6 @@
 # 当前接力：现在在哪里，下一步交付什么
 
-更新：2026-09-23。先按 [AGENTS.md](AGENTS.md) 核对 GitHub；本页只保存当前有效状态。
+更新：2026-09-24。先按 [AGENTS.md](AGENTS.md) 核对 GitHub；本页只保存当前有效状态。
 
 ## 当前阶段与已完成成果
 
@@ -20,7 +20,9 @@
 
 R4 产品修复、历史整理和 Windows CI 接线已同步。真实根启动器和完整隔离作者 smoke 已在开发环境通过；创建、正文保存、序号清空、删除保护、9 个旧页面拒绝访问及 7 条原修订不变均已核对。这些开发证据不替代冻结验收。
 
-当前恢复入口为 #23。CI 的环境表达式及首次构建顺序已修正，随后发现的动态 TypeScript 测试缓存问题也已用 `CI=true` 复现并修复：仅在该测试套件内声明可更新的解析会话，结束后恢复环境，27 个非法样例及生产规则保持完整。同步补齐 Default 环境诊断必需的 Chromium 安装。本地 CI 模式完整前端质量门已 PASS（676 项，覆盖率 statements 96.11%、branches 92.13%），CI 架构测试 9 项和 PowerShell 解析通过；待新 SHA 的真实 hosted Default / Full 均 PASS 后进入新 RC。
+当前恢复入口为 #23。CI 的环境表达式、首次构建顺序、动态 TypeScript 测试缓存和 Default 所需 Chromium 安装均已修正。`8c81d314` 的真实 GitHub Windows Default / Full 已全部 PASS（[运行记录](https://github.com/King70404/AI-Writer-project/actions/runs/35875839092)）。本地 CI 模式完整前端质量门 PASS（676 项，覆盖率 statements 96.11%、branches 92.13%），CI 架构测试 9 项通过。
+
+最后补齐稳定性脚本对 UTF-8 中文报告的显式读取，并将编排测试改为真实编码的中文样例；9 项回归及实际 20 次指定测试、5 次完整文件测试全部通过。发布该修复后的精确 SHA 将成为新候选；新 SHA 的 hosted Default / Full 通过后，连续完成独立 RC 和 formal，动态结果只写 Issue / PR，不在冻结期间追加状态提交。
 
 **下一步一次交付“可放心继续开发的 V1 基线”**，按以下依赖连续完成：
 

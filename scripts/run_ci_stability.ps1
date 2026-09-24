@@ -57,7 +57,7 @@ function Invoke-StabilityRun {
     if ($plainLog -match '(?im)^stderr\s*\||Warning:|React does not recognize|not wrapped in act|Received NaN') {
         throw "$Name emitted unexpected diagnostics; see $Name.log."
     }
-    $report = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
+    $report = Get-Content -LiteralPath $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
     if (
         -not $report.success -or
         $report.numFailedTests -ne 0 -or

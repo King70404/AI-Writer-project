@@ -34,6 +34,8 @@ PR 检查显式 checkout `github.event.pull_request.head.sha`；push / 手动执
 
 每轮保存文本与 JSON 报告，检查非零退出、非空测试选择、失败数量及 stderr / React warning 等非预期诊断；首次失败即停止，不补跑、不覆盖旧输出。固定 20+5 是稳定性验证次数，不是失败重试。具备依赖的本机也可以把 `-OutputDirectory` 指向新的自有临时目录运行这个独立脚本；它不注册 Python、不启动产品服务、不访问正式数据。
 
+Vitest 的无 BOM JSON 报告按 UTF-8 显式读取，支持中文测试名称及仓库路径，不依赖 Windows PowerShell 的系统默认代码页。编排回归测试也使用这种编码的中文报告。
+
 每个 job 始终尝试上传 `windows-<mode>-<sha>-<attempt>`，保留 14 天：完整执行 transcript、`run.json` 首个 blocker、环境诊断、稳定性逐轮报告、前端覆盖率摘要，以及原 E2E 保留的失败 HTML / trace / screenshot。运行早于引导脚本失败时，以 GitHub job 日志为准。不会上传整个临时数据根、SQLite、模型或备份；E2E 自有运行根清理后，现有脚本输出的有限服务诊断保留在 transcript。
 
 ## Required checks 与验收边界

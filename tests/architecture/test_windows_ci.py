@@ -59,20 +59,26 @@ function node {
         $passed = 16
         $pending = 1
     }
-    @{
+    $report = @{
         success = $true
         numTotalTests = 17
         numPassedTests = $passed
         numPendingTests = $pending
         numFailedTests = 0
         numTodoTests = 0
-    } | ConvertTo-Json | Set-Content -LiteralPath $jsonPath
+        testResults = @(@{ name = '创建卷'; status = 'passed' })
+    }
+    # Vitest emits BOM-free UTF-8, including Chinese test titles and paths.
+    [System.IO.File]::WriteAllText(
+        $jsonPath, ($report | ConvertTo-Json -Depth 4),
+        (New-Object System.Text.UTF8Encoding($false))
+    )
     Write-Output 'Controlled command fixture completed.'
 }
 & (Join-Path $PSScriptRoot 'scripts/run_ci_stability.ps1') `
     -OutputDirectory (Join-Path $PSScriptRoot 'evidence')
 """,
-        encoding="utf-8",
+        encoding="utf-8-sig",
     )
     environment = os.environ.copy()
     environment["CI_FIXTURE_ROOT"] = str(tmp_path)
@@ -105,6 +111,8 @@ def test_stability_completes_exactly_twenty_targeted_and_five_full_runs(tmp_path
     ]
     assert len(invocations) == 25
     assert [item["filtered"] for item in invocations] == [True] * 20 + [False] * 5
+    report = json.loads((tmp_path / "evidence" / "targeted-01.json").read_text(encoding="utf-8"))
+    assert report["testResults"][0]["name"] == "创建卷"
 
 
 @pytest.mark.parametrize(
