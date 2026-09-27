@@ -1,6 +1,6 @@
 # 开发路线：按完整成果交付
 
-目标是让作者在 Windows 本地可控地写完长篇小说：先完成当前 V1 收尾，直接接通完整 AI 协作流程，再扩展故事规划、长篇记忆、评审和恢复能力。
+目标是让作者在 Windows 本地可控地写完长篇小说。依 2026-09-27 用户最新指令，V1 必要修复与完整 AI 协作实现并行，取消重复审查及协调停点；之后扩展故事规划、长篇记忆、评审和恢复能力。
 
 本路线在 [DOC-GOV-2 / #21](https://github.com/King70404/AI-Writer-project/issues/21) 整理后，依用户最新明确指令调整：**V1 收尾后立即实施 RF-06–10，原 RF-01–05 故事规划阶段后移**。当前状态见 [PLAN.md](../PLAN.md)，已有能力见 [功能真实性矩阵](FEATURE_REALITY_MATRIX.md)。V1 收尾及接续 AI 实现已获授权，不再停在规划交接。
 
@@ -27,7 +27,7 @@
 
 完成定义：
 
-- 新候选完成规定的 Default、两次 IncludeE2E、隔离真实启动器和作者创作/删除 smoke，随后正式验收通过并按授权合并 PR #9。
+- 新候选完成一次完整 IncludeE2E（含 Default），结合隔离真实启动器和作者创作/删除流程证据，最终结果独立记录通过后按授权合并 PR #9；不重复 RC 轮次。
 - [Windows CI / #17](https://github.com/King70404/AI-Writer-project/issues/17) 提供可核验的最新 SHA 检查与失败产物，使用隔离数据。仓库套餐或 owner 权限造成的 required-rule 管理限制须按该 Issue 如实记录，不能伪装已配置或降低门槛。
 - [RF-00 / #11](https://github.com/King70404/AI-Writer-project/issues/11) 记录唯一 GitHub `main` 基线及仍适用的边界；完成后立即进入 AI 阶段。
 

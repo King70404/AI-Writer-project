@@ -92,7 +92,14 @@ try {
     }
     Invoke-CIStep "Create repository virtual environment" { & $pythonExecutable -m venv .venv }
     $venvPython = Join-Path $repositoryRoot ".venv/Scripts/python.exe"
-    Invoke-CIStep "Install backend development dependencies" { & $venvPython -m pip install -e "./backend[dev]" }
+    $backendConstraints = Join-Path $repositoryRoot "backend/constraints-windows-py312.txt"
+    Invoke-CIStep "Install pinned package installer" {
+        & $venvPython -m pip install --constraint $backendConstraints pip
+    }
+    Invoke-CIStep "Install locked backend development dependencies" {
+        & $venvPython -m pip install --constraint $backendConstraints `
+            --build-constraint $backendConstraints -e "./backend[dev]"
+    }
     Push-Location (Join-Path $repositoryRoot "frontend")
     try {
         Invoke-CIStep "Install locked frontend dependencies" { & npm.cmd ci }

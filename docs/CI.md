@@ -16,7 +16,7 @@ PR 检查显式 checkout `github.event.pull_request.head.sha`；push / 手动执
 
 - Python 固定为 **3.12.10 x64**，Node.js 固定为 **24 x64**；Actions 本身固定到不可变 commit SHA。
 - `setup-python` 后只在临时 runner 的 HKCU 按 PEP 514 注册该解释器，再验证真实 `py -3.12` 与 `pythonLocation` 指向同一文件。这样诊断脚本仍执行原有精确版本规则。引导脚本拒绝普通本机和 self-hosted runner，不修改作者电脑的 Python 注册。
-- 从零创建根 `.venv`，运行 `pip install -e "./backend[dev]"`、`npm ci`；Default / Full 均显式运行 `npm run e2e:install`，因为两种模式的末尾环境诊断都检查 Chromium，且各 job 使用全新浏览器缓存。Default / Full 在质量门前真实运行 `npm run build`，使后端架构测试调用的 Integrated 诊断拥有前端构建产物；质量门本身仍完整运行其前端步骤。前端使用已提交 lockfile；后端沿用现有 pyproject 依赖范围，当前没有独立后端锁文件。
+- 从零创建根 `.venv`；先按 `backend/constraints-windows-py312.txt` 固定 pip，再对 `./backend[dev]` 同时使用 `--constraint` 和 `--build-constraint`，锁定 Windows / Python 3.12 的运行、开发及构建依赖（包含传递依赖），SQLAlchemy 固定为已兼容的 2.0.54。前端运行 `npm ci` 使用已提交 lockfile。Default / Full 均显式运行 `npm run e2e:install`，因为两种模式的末尾环境诊断都检查 Chromium，且各 job 使用全新浏览器缓存。Default / Full 在质量门前真实运行 `npm run build`，使后端架构测试调用的 Integrated 诊断拥有前端构建产物；质量门本身仍完整运行其前端步骤。
 - 每个 job 在 `RUNNER_TEMP` 创建自己的随机目录，显式设置 `TEMP`、`TMP`、`LOCALAPPDATA`、`AIWEBNOVEL_DATA_ROOT` 和外置 Chromium 缓存。E2E 继续使用现有脚本创建、校验、清理的场景独占根。
 - token 权限只有 `contents: read`；checkout 不保留凭据。不注入 secrets，不使用 `pull_request_target`，不写分支、tag、release、正式数据库或备份。
 - 同一事件分支的新运行会取消旧运行；Default 和 Full 在不同临时机器独立执行，一个失败不会取消另一个的证据收集。任何一个失败都不满足合并条件。
@@ -42,6 +42,6 @@ Vitest 的无 BOM JSON 报告按 UTF-8 显式读取，支持中文测试名称�
 
 仓库 owner 应在 main 的 branch protection / ruleset 中要求 `Windows Default` 和 `Windows Full`，来源选择 GitHub Actions，并启用 **Require branches to be up to date before merging**。必须核对最新 PR head 的两项检查都成功。若权限或套餐阻止设置，活动 Issue #17 必须记录具体 API 结果、缺少的能力及 owner 待办；工作流文件本身不代表规则已启用。
 
-CI 是开发证据。单次 Full 不能替代同一冻结 SHA 连续两次 IncludeE2E、真实根 launcher、隔离作者 smoke、边界复核和独立 formal acceptance。完整流程仍按 [稳定性协议](ACCEPTANCE_STABILITY.md) 执行，未正式 PASS 不合并 PR #9。
+依 2026-09-27 用户最新指令，交付使用一次完整 Full（已包含 Default）及任务实际需要的隔离启动/作者验证，取消重复 RC 和连续全门计数。hosted 最新 SHA Full 可作为独立执行证据；在活动 Issue/PR 记录最终结果，未最终 PASS 不合并 PR #9。具体边界见 [稳定性协议](ACCEPTANCE_STABILITY.md)。
 
 参考：[GitHub PR 事件与 head SHA](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)、[手动执行条件](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch)、[Python Windows 注册规范](https://peps.python.org/pep-0514/)。
