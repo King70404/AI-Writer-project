@@ -11,6 +11,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "invoke_owned_process.ps1")
 
 $script:RepositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $script:FrontendRoot = Join-Path $script:RepositoryRoot "frontend"
@@ -1112,18 +1113,6 @@ function Assert-ServiceOwnsPort {
     }
 }
 
-function ConvertTo-QuotedArgument {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Value
-    )
-
-    if ($Value.Contains('"')) {
-        throw "service argument contains an unsupported quote character"
-    }
-    return '"{0}"' -f $Value
-}
-
 function Start-OwnedService {
     param(
         [Parameter(Mandatory = $true)]
@@ -1160,13 +1149,13 @@ function Start-OwnedService {
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        (ConvertTo-QuotedArgument -Value $script:ServiceLauncher),
+        $script:ServiceLauncher,
         "-Service",
         $Service,
         "-Port",
         $Port.ToString(),
         "-ProcessManifestPath",
-        (ConvertTo-QuotedArgument -Value $manifestPath)
+        $manifestPath
     )
     if ($BackendPort -gt 0) {
         $arguments += @("-BackendPort", $BackendPort.ToString())
@@ -1180,28 +1169,27 @@ function Start-OwnedService {
     if (-not [string]::IsNullOrWhiteSpace($DataRoot)) {
         $arguments += @(
             "-DataRoot",
-            (ConvertTo-QuotedArgument -Value $DataRoot)
+            $DataRoot
         )
     }
     if ($ServeFrontend) {
         $arguments += "-ServeFrontend"
         $arguments += @(
             "-FrontendDistPath",
-            (ConvertTo-QuotedArgument -Value $FrontendDistPath)
+            $FrontendDistPath
         )
     }
     if ($MigrateDatabase) {
         $arguments += "-MigrateDatabase"
     }
 
-    $process = Start-Process `
-        -FilePath "powershell.exe" `
+    $capture = Start-OwnedProcess `
+        -Name $Name `
+        -FilePath (Get-Command powershell.exe).Source `
         -ArgumentList $arguments `
         -WorkingDirectory $script:RepositoryRoot `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput $stdoutPath `
-        -RedirectStandardError $stderrPath `
-        -PassThru
+        -LogDirectory $RunDirectory
+    $process = $capture.Process
 
     $record = [pscustomobject]@{
         Name = $Name
@@ -1214,6 +1202,7 @@ function Start-OwnedService {
         StderrPath = $stderrPath
         ManifestPath = $manifestPath
         DataRoot = $DataRoot
+        Capture = $capture
     }
     $script:OwnedProcesses.Add($record)
     $null = $script:OwnedPorts.Add($Port)
@@ -1425,33 +1414,9 @@ function Stop-OwnedServiceTree {
         }
     }
 
-    $Record.Process.Refresh()
-    if ($Record.Process.HasExited) {
-        return
-    }
-    $currentProcess = Get-Process -Id $Record.Process.Id -ErrorAction SilentlyContinue
-    if ($null -eq $currentProcess) {
-        return
-    }
-    $currentStartedAt = $currentProcess.StartTime.ToUniversalTime()
-    if ($currentStartedAt -ne $Record.StartedAt) {
-        throw "refusing to stop a reused process identifier"
-    }
-
-    try {
-        & taskkill.exe /PID $Record.Process.Id /T /F 2>$null | Out-Null
-        $taskkillExitCode = $LASTEXITCODE
-    } catch {
-        $taskkillExitCode = 1
-    }
-    $Record.Process.WaitForExit(5000) | Out-Null
-    $Record.Process.Refresh()
-    if (-not $Record.Process.HasExited) {
-        throw (
-            "failed to stop owned service tree: $($Record.Name) " +
-            "(taskkill exit code $taskkillExitCode)"
-        )
-    }
+    # The parent can exit before PowerShell's implicit redirection callbacks close
+    # their files. Own and drain both capture tasks before removing the run root.
+    Stop-OwnedProcessTree -Record $Record.Capture -TimeoutSeconds 5
 }
 
 function Remove-ValidatedRunDirectory {
