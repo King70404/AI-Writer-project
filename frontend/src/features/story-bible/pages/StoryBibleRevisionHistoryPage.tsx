@@ -45,20 +45,13 @@ function StoryBibleRevisionHistoryRoute({
     >
       <header className="project-revision-history__header">
         <div>
-          <p className="section-kicker">Story Bible · 只读历史</p>
-          <h2 id="story-bible-revision-history-title">Story Bible 修订历史</h2>
-          {history.storyBibleId === null ? null : (
-            <p className="project-revision-history__id">
-              Story Bible 编号：{history.storyBibleId}
-            </p>
-          )}
+          <p className="section-kicker">小说设定 · 只读历史</p>
+          <h2 id="story-bible-revision-history-title">小说设定修订历史</h2>
         </div>
         {projectId === undefined || history.status === "invalid" ? (
-          <Link to="/projects">返回项目列表</Link>
+          <Link to="/projects">返回小说列表</Link>
         ) : (
-          <Link to={projectStoryBiblePath(projectId)}>
-            返回 Story Bible 编辑页
-          </Link>
+          <Link to={projectStoryBiblePath(projectId)}>返回小说设定编辑页</Link>
         )}
       </header>
       {history.status === "invalid" ? (

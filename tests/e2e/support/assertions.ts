@@ -141,6 +141,16 @@ export function expectCleanBrowserAudit(audit: BrowserAudit): void {
   expect(audit.unexpectedCookies).toEqual([]);
 }
 
+export async function expectNoEngineeringMetadata(page: Page): Promise<void> {
+  const internalId =
+    /\b(?:prj|prv|sbl|sbr|sbv|chr|crv)_[0-9A-HJKMNP-TV-Z]{26}\b/u;
+  await expect(page.locator("body")).not.toContainText(internalId);
+  await expect(page.getByRole("link", { name: internalId })).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(
+    /ConcurrencyVersion|RevisionNumber|CurrentRevisionId|RevisionId|StoryBibleId|ProjectId|CharacterId|并发版本|当前修订号|项目编号|角色编号|设定编号/u,
+  );
+}
+
 export function expectNoAbsoluteLocalPath(value: unknown): void {
   const serialized = typeof value === "string" ? value : JSON.stringify(value);
   expect(serialized).not.toMatch(WINDOWS_PATH_PATTERN);

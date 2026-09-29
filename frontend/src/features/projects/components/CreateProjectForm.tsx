@@ -43,25 +43,17 @@ export function CreateProjectForm({
   }, [create.state.kind]);
 
   useEffect(() => {
-    if (create.state.kind !== "error") {
-      return;
-    }
-    if (titleError !== null) {
-      titleRef.current?.focus();
-    } else if (descriptionError !== null) {
-      descriptionRef.current?.focus();
-    } else {
-      feedbackRef.current?.focus();
-    }
+    if (create.state.kind !== "error") return;
+    if (titleError !== null) titleRef.current?.focus();
+    else if (descriptionError !== null) descriptionRef.current?.focus();
+    else feedbackRef.current?.focus();
   }, [create.state.kind, descriptionError, titleError]);
 
   const clearFieldError = (field: ProjectFieldName): void => {
     setFieldErrors((current) =>
       current.filter((error) => error.field !== field),
     );
-    if (create.state.kind === "error") {
-      create.dismissFeedback();
-    }
+    if (create.state.kind === "error") create.dismissFeedback();
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -69,8 +61,7 @@ export function CreateProjectForm({
     const clientErrors = validateProjectInput(title, description);
     if (clientErrors.length > 0) {
       setFieldErrors(clientErrors);
-      const firstField = clientErrors[0]?.field;
-      (firstField === "description"
+      (clientErrors[0]?.field === "description"
         ? descriptionRef
         : titleRef
       ).current?.focus();
@@ -83,17 +74,15 @@ export function CreateProjectForm({
       setDescription("");
       return;
     }
-    if (result.kind === "error") {
-      setFieldErrors(result.error.fieldErrors);
-    }
+    if (result.kind === "error") setFieldErrors(result.error.fieldErrors);
   };
 
   const submitting = create.state.kind === "submitting";
   const feedback =
     create.state.kind === "success"
-      ? `项目已创建：${create.state.project.project_id}`
+      ? `小说《${create.state.project.title}》已创建。`
       : create.state.kind === "partial_success"
-        ? `项目已创建，但列表刷新失败。项目编号：${create.state.project.project_id}`
+        ? `小说《${create.state.project.title}》已创建，但列表刷新失败。`
         : create.state.kind === "error"
           ? create.state.error.message
           : null;
@@ -101,17 +90,22 @@ export function CreateProjectForm({
   return (
     <section className="create-project" aria-labelledby="create-project-title">
       <div>
-        <p className="section-kicker">创建真实 Project</p>
-        <h3 id="create-project-title">创建项目</h3>
+        <p className="section-kicker">开始一个新故事</p>
+        <h3 id="create-project-title">新建小说</h3>
       </div>
-      <form onSubmit={(event) => void submit(event)} noValidate>
+      <form
+        onSubmit={(event) => void submit(event)}
+        noValidate
+        autoComplete="off"
+      >
         <div className="form-field">
-          <label htmlFor="project-title">项目标题</label>
+          <label htmlFor="project-title">书名</label>
           <input
             ref={titleRef}
             id="project-title"
-            name="title"
+            name="novel-title"
             type="text"
+            autoComplete="off"
             value={title}
             onChange={(event) => {
               setTitle(event.target.value);
@@ -132,11 +126,12 @@ export function CreateProjectForm({
           )}
         </div>
         <div className="form-field">
-          <label htmlFor="project-description">项目简介</label>
+          <label htmlFor="project-description">一句话简介（可选）</label>
           <textarea
             ref={descriptionRef}
             id="project-description"
-            name="description"
+            name="novel-description"
+            autoComplete="off"
             rows={6}
             value={description}
             onChange={(event) => {
@@ -158,7 +153,7 @@ export function CreateProjectForm({
           )}
         </div>
         <button type="submit" disabled={submitting}>
-          {submitting ? "正在创建项目…" : "创建项目"}
+          {submitting ? "正在创建…" : "创建小说"}
         </button>
       </form>
       {feedback === null ? null : (
@@ -173,7 +168,7 @@ export function CreateProjectForm({
           {create.state.kind === "success" ||
           create.state.kind === "partial_success" ? (
             <Link to={projectDetailsPath(create.state.project.project_id)}>
-              查看新项目
+              打开这本小说
             </Link>
           ) : null}
           {create.state.kind === "error" &&

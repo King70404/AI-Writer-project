@@ -43,10 +43,10 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     browserAudit.allowOneExpectedSessionCookie();
     await page.goto("/projects");
     await page
-      .getByRole("textbox", { name: "项目标题" })
+      .getByRole("textbox", { name: "书名" })
       .fill("E2E AI Writing 019");
-    await page.getByRole("button", { name: "创建项目" }).click();
-    const projectLink = page.getByRole("link", { name: "查看新项目" });
+    await page.getByRole("button", { name: "创建小说" }).click();
+    const projectLink = page.getByRole("link", { name: "打开这本小说" });
     const projectPath = await projectLink.getAttribute("href");
     expect(projectPath).toMatch(/^\/projects\/prj_[0-9A-HJKMNP-TV-Z]{26}$/u);
     await projectLink.click();
@@ -54,7 +54,7 @@ test("E2E-INT-019 AI writing assistance flow", async ({
       `/api/v1${projectPath}/outline`,
       404,
     );
-    await page.getByRole("link", { name: "小说结构" }).click();
+    await page.getByRole("link", { name: "大纲与章节" }).click();
     await expect(page.getByText("当前尚未创建大纲。")).toBeVisible();
     const outline = page
       .getByRole("heading", { name: "大纲" })

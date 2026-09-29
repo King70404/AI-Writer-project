@@ -31,28 +31,24 @@ function renderStoryBible(
 function missingStoryBible() {
   return storyBibleError("story_bible_for_project_not_found", {
     code: "STORY_BIBLE_FOR_PROJECT_NOT_FOUND",
-    message: "该项目尚未创建Story Bible。",
+    message: "该项目尚未创建小说设定。",
   });
 }
 
-describe("Story Bible initial and create flow", () => {
+describe("小说设定 initial and create flow", () => {
   it("distinguishes loading, not-created, and Project-not-found states", async () => {
     const getStoryBibleForProject = vi
       .fn()
       .mockRejectedValue(missingStoryBible());
     const client = storyBibleClient({ getStoryBibleForProject });
     const first = renderStoryBible(client);
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "正在读取 Story Bible",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("正在读取小说设定");
     expect(
       await screen.findByRole("heading", {
-        name: "尚未创建 Story Bible",
+        name: "创建小说设定",
       }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "创建 Story Bible" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "创建小说设定" })).toBeEnabled();
     expect(client.createStoryBible).not.toHaveBeenCalled();
     first.unmount();
 
@@ -70,7 +66,7 @@ describe("Story Bible initial and create flow", () => {
       await screen.findByRole("heading", { name: "项目不存在" }),
     ).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "创建 Story Bible" }),
+      screen.queryByRole("button", { name: "创建小说设定" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("请求编号：req_project_missing")).toBeVisible();
     second.unmount();
@@ -82,7 +78,7 @@ describe("Story Bible initial and create flow", () => {
       .fn()
       .mockRejectedValueOnce(
         storyBibleError("unavailable", {
-          message: "Story Bible服务暂时不可用，请稍后手动重试。",
+          message: "小说设定服务暂时不可用，请稍后手动重试。",
           requestId: "req_load_safe",
         }),
       )
@@ -91,7 +87,7 @@ describe("Story Bible initial and create flow", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "无法读取 Story Bible",
+        name: "无法读取小说设定",
       }),
     ).toBeVisible();
     expect(screen.getByText("请求编号：req_load_safe")).toBeVisible();
@@ -99,7 +95,7 @@ describe("Story Bible initial and create flow", () => {
     await user.click(screen.getByRole("button", { name: "重新加载" }));
     expect(
       await screen.findByRole("heading", {
-        name: "尚未创建 Story Bible",
+        name: "创建小说设定",
       }),
     ).toBeVisible();
     expect(getStoryBibleForProject).toHaveBeenCalledTimes(2);
@@ -122,12 +118,10 @@ describe("Story Bible initial and create flow", () => {
     });
     renderStoryBible(client);
     await user.click(
-      await screen.findByRole("button", { name: "创建 Story Bible" }),
+      await screen.findByRole("button", { name: "创建小说设定" }),
     );
-    expect(
-      screen.getByRole("textbox", { name: "Story Bible标题" }),
-    ).toHaveFocus();
-    expect(screen.getByText("请输入Story Bible标题。")).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "设定标题" })).toHaveFocus();
+    expect(screen.getByText("请输入小说设定标题。")).toBeVisible();
     expect(client.createStoryBible).not.toHaveBeenCalled();
   });
 
@@ -145,14 +139,14 @@ describe("Story Bible initial and create flow", () => {
     });
     renderStoryBible(client);
     const title = await screen.findByRole("textbox", {
-      name: "Story Bible标题",
+      name: "设定标题",
     });
     const content = screen.getByRole("textbox", {
-      name: "Story Bible正文",
+      name: "设定正文",
     });
     await user.type(title, "创建草稿");
     await user.type(content, "草稿正文");
-    await user.click(screen.getByRole("button", { name: "创建 Story Bible" }));
+    await user.click(screen.getByRole("button", { name: "创建小说设定" }));
 
     expect(
       await screen.findByRole("heading", { name: "服务端规范标题" }),
@@ -165,15 +159,15 @@ describe("Story Bible initial and create flow", () => {
       }),
     );
     expect(client.getStoryBibleForProject).toHaveBeenCalledOnce();
-    expect(
-      screen.getByRole("textbox", { name: "Story Bible标题" }),
-    ).toHaveValue("服务端规范标题");
+    expect(screen.getByRole("textbox", { name: "小说设定标题" })).toHaveValue(
+      "服务端规范标题",
+    );
     expect(screen.getByText("当前没有未保存更改")).toBeVisible();
   });
 
   it.each([
-    ["outcome_unknown", "创建结果未确认，请重新读取 Story Bible 核实。"],
-    ["already_exists", "该项目已经存在 Story Bible，请重新读取。"],
+    ["outcome_unknown", "创建结果未确认，请重新读取小说设定 核实。"],
+    ["already_exists", "该项目已经存在小说设定，请重新读取。"],
   ] as const)(
     "preserves the draft and requires explicit verification for %s",
     async (kind, message) => {
@@ -199,12 +193,10 @@ describe("Story Bible initial and create flow", () => {
       });
       renderStoryBible(client);
       const title = await screen.findByRole("textbox", {
-        name: "Story Bible标题",
+        name: "设定标题",
       });
       await user.type(title, "必须保留的创建草稿");
-      await user.click(
-        screen.getByRole("button", { name: "创建 Story Bible" }),
-      );
+      await user.click(screen.getByRole("button", { name: "创建小说设定" }));
       expect(await screen.findByRole("alert")).toHaveTextContent(message);
       expect(title).toHaveValue("必须保留的创建草稿");
       expect(createStoryBible).toHaveBeenCalledOnce();
@@ -213,7 +205,7 @@ describe("Story Bible initial and create flow", () => {
       expect(getStoryBibleForProject).toHaveBeenCalledOnce();
 
       await user.click(
-        screen.getByRole("button", { name: "重新读取 Story Bible" }),
+        screen.getByRole("button", { name: "重新读取小说设定" }),
       );
       expect(
         await screen.findByRole("heading", { name: "已核实服务端设定" }),
@@ -233,27 +225,27 @@ describe("Story Bible initial and create flow", () => {
       getStoryBibleForProject,
       createStoryBible: vi.fn().mockRejectedValue(
         storyBibleError("outcome_unknown", {
-          message: "创建结果未确认，请重新读取 Story Bible 核实。",
+          message: "创建结果未确认，请重新读取小说设定 核实。",
         }),
       ),
     });
     renderStoryBible(client);
     const title = await screen.findByRole("textbox", {
-      name: "Story Bible标题",
+      name: "设定标题",
     });
     await user.type(title, "核实后仍保留");
-    await user.click(screen.getByRole("button", { name: "创建 Story Bible" }));
+    await user.click(screen.getByRole("button", { name: "创建小说设定" }));
     await user.click(
-      await screen.findByRole("button", { name: "重新读取 Story Bible" }),
+      await screen.findByRole("button", { name: "重新读取小说设定" }),
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "创建 Story Bible" }),
+        screen.getByRole("button", { name: "创建小说设定" }),
       ).toBeEnabled(),
     );
-    expect(
-      screen.getByRole("textbox", { name: "Story Bible标题" }),
-    ).toHaveValue("核实后仍保留");
+    expect(screen.getByRole("textbox", { name: "设定标题" })).toHaveValue(
+      "核实后仍保留",
+    );
   });
 
   it("keeps the draft and exposes a safe verification error for manual retry", async () => {
@@ -263,7 +255,7 @@ describe("Story Bible initial and create flow", () => {
       .mockRejectedValueOnce(missingStoryBible())
       .mockRejectedValueOnce(
         storyBibleError("unavailable", {
-          message: "Story Bible服务暂时不可用，请稍后手动重试。",
+          message: "小说设定服务暂时不可用，请稍后手动重试。",
           requestId: "req_verify_safe",
         }),
       );
@@ -271,22 +263,22 @@ describe("Story Bible initial and create flow", () => {
       getStoryBibleForProject,
       createStoryBible: vi.fn().mockRejectedValue(
         storyBibleError("outcome_unknown", {
-          message: "创建结果未确认，请重新读取 Story Bible 核实。",
+          message: "创建结果未确认，请重新读取小说设定 核实。",
         }),
       ),
     });
     renderStoryBible(client);
     const title = await screen.findByRole("textbox", {
-      name: "Story Bible标题",
+      name: "设定标题",
     });
     await user.type(title, "核实失败仍保留");
-    await user.click(screen.getByRole("button", { name: "创建 Story Bible" }));
+    await user.click(screen.getByRole("button", { name: "创建小说设定" }));
     await user.click(
-      await screen.findByRole("button", { name: "重新读取 Story Bible" }),
+      await screen.findByRole("button", { name: "重新读取小说设定" }),
     );
 
     expect(
-      await screen.findByText("Story Bible服务暂时不可用，请稍后手动重试。"),
+      await screen.findByText("小说设定服务暂时不可用，请稍后手动重试。"),
     ).toBeVisible();
     expect(screen.getByText("请求编号：req_verify_safe")).toBeVisible();
     expect(title).toHaveValue("核实失败仍保留");

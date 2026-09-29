@@ -29,7 +29,7 @@ function conflictError() {
   return storyBibleError("conflict", {
     code: "STORY_BIBLE_VERSION_CONFLICT",
     message:
-      "Story Bible已被其他操作修订。草稿已保留，请读取最新版本后选择处理方式。",
+      "小说设定已被其他操作修订。草稿已保留，请读取最新版本后选择处理方式。",
     requestId: "req_conflict_safe",
     conflict: { expectedVersion: 1, actualVersion: 2 },
   });
@@ -37,10 +37,10 @@ function conflictError() {
 
 async function makeDraftAndSave(user: ReturnType<typeof userEvent.setup>) {
   const title = await screen.findByRole("textbox", {
-    name: "Story Bible标题",
+    name: "小说设定标题",
   });
   const content = screen.getByRole("textbox", {
-    name: "Story Bible正文",
+    name: "小说设定正文",
   });
   await user.clear(title);
   await user.type(title, "我的冲突草稿");
@@ -50,7 +50,7 @@ async function makeDraftAndSave(user: ReturnType<typeof userEvent.setup>) {
   return { title, content };
 }
 
-describe("Story Bible explicit conflict and unknown-outcome flow", () => {
+describe("小说设定 explicit conflict and unknown-outcome flow", () => {
   it("enters 412 conflict, focuses the heading, and does not auto-GET or replay", async () => {
     const user = userEvent.setup();
     const getStoryBible = vi.fn().mockResolvedValue(versionedStoryBible(2));
@@ -60,7 +60,7 @@ describe("Story Bible explicit conflict and unknown-outcome flow", () => {
     const alert = await screen.findByRole("alert");
     expect(
       within(alert).getByRole("heading", {
-        name: "检测到 Story Bible 版本冲突",
+        name: "检测到小说设定版本冲突",
       }),
     ).toHaveFocus();
     expect(alert).toHaveTextContent("版本 1");
@@ -97,9 +97,9 @@ describe("Story Bible explicit conflict and unknown-outcome flow", () => {
       }),
     );
     await user.click(screen.getByRole("button", { name: "采用服务器版本" }));
-    expect(
-      screen.getByRole("textbox", { name: "Story Bible标题" }),
-    ).toHaveValue("服务器版本2");
+    expect(screen.getByRole("textbox", { name: "小说设定标题" })).toHaveValue(
+      "服务器版本2",
+    );
     expect(
       await screen.findByText("已放弃当前草稿并采用服务器最新版本。"),
     ).toBeVisible();
@@ -148,7 +148,7 @@ describe("Story Bible explicit conflict and unknown-outcome flow", () => {
       title: "我的冲突草稿",
       content: "我的草稿正文\n第二行",
     });
-    expect(await screen.findByText("Story Bible修订已保存。")).toBeVisible();
+    expect(await screen.findByText("小说设定修订已保存。")).toBeVisible();
   });
 
   it("keeps the conflict and draft when explicit latest GET fails", async () => {
@@ -157,7 +157,7 @@ describe("Story Bible explicit conflict and unknown-outcome flow", () => {
       .fn()
       .mockRejectedValueOnce(
         storyBibleError("unavailable", {
-          message: "Story Bible服务暂时不可用，请稍后手动重试。",
+          message: "小说设定服务暂时不可用，请稍后手动重试。",
         }),
       )
       .mockResolvedValueOnce(versionedStoryBible(1));
@@ -172,12 +172,12 @@ describe("Story Bible explicit conflict and unknown-outcome flow", () => {
       await screen.findByRole("button", { name: "读取最新版本" }),
     );
     expect(
-      await screen.findByText("Story Bible服务暂时不可用，请稍后手动重试。"),
+      await screen.findByText("小说设定服务暂时不可用，请稍后手动重试。"),
     ).toBeVisible();
     expect(controls.title).toHaveValue("我的冲突草稿");
     await user.click(screen.getByRole("button", { name: "重试读取最新版本" }));
     expect(
-      await screen.findByText("Story Bible服务返回了无法安全读取的数据。"),
+      await screen.findByText("小说设定服务返回了无法安全读取的数据。"),
     ).toBeVisible();
     expect(controls.title).toHaveValue("我的冲突草稿");
   });
@@ -193,7 +193,7 @@ describe("Story Bible explicit conflict and unknown-outcome flow", () => {
     const reviseStoryBible = vi.fn().mockRejectedValue(
       storyBibleError("outcome_unknown", {
         code: "STORY_BIBLE_SAVE_OUTCOME_UNKNOWN",
-        message: "保存结果未确认，请重新读取 Story Bible 核实。",
+        message: "保存结果未确认，请重新读取小说设定 核实。",
       }),
     );
     renderFlow(storyBibleClient({ getStoryBible, reviseStoryBible }));
@@ -201,7 +201,7 @@ describe("Story Bible explicit conflict and unknown-outcome flow", () => {
     const alert = await screen.findByRole("alert");
     expect(
       within(alert).getByRole("heading", {
-        name: "Story Bible 保存结果未确认",
+        name: "小说设定保存结果未确认",
       }),
     ).toHaveFocus();
     expect(controls.title).toHaveValue("我的冲突草稿");

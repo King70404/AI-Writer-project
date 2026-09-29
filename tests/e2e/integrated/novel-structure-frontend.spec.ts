@@ -32,16 +32,16 @@ test("E2E-INT-017 exercises the unified Novel Structure frontend flow", async ({
   });
 
   await page.goto("/projects");
-  await page.getByRole("textbox", { name: "项目标题" }).fill(projectTitle);
+  await page.getByRole("textbox", { name: "书名" }).fill(projectTitle);
   await page
-    .getByRole("textbox", { name: "项目简介" })
+    .getByRole("textbox", { name: "一句话简介（可选）" })
     .fill(projectDescription);
-  await page.getByRole("button", { name: "创建项目" }).click();
-  const projectLink = page.getByRole("link", { name: "查看新项目" });
+  await page.getByRole("button", { name: "创建小说" }).click();
+  const projectLink = page.getByRole("link", { name: "打开这本小说" });
   const projectPath = await projectLink.getAttribute("href");
   expect(projectPath).toMatch(/^\/projects\/prj_[0-9A-HJKMNP-TV-Z]{26}$/u);
   await projectLink.click();
-  const structureLink = page.getByRole("link", { name: "小说结构" });
+  const structureLink = page.getByRole("link", { name: "大纲与章节" });
   const structurePath = `${projectPath}/structure`;
   expect(await structureLink.getAttribute("href")).toBe(structurePath);
   const projectId = projectPath?.split("/")[2] ?? "invalid-project";

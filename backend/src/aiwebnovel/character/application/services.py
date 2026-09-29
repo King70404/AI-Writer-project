@@ -67,7 +67,6 @@ class CharacterCommandService:
         self,
         command: CreateCharacterCommand,
     ) -> CharacterSnapshot:
-        """Validate, create, persist once, and map the authoritative result."""
         if type(command) is not CreateCharacterCommand:
             raise TypeError("command must be a CreateCharacterCommand")
         project_id = ProjectId.parse(command.project_id)
@@ -93,7 +92,6 @@ class CharacterCommandService:
         self,
         command: ReviseCharacterCommand,
     ) -> CharacterSnapshot:
-        """Validate a complete replacement and request one transactional append."""
         if type(command) is not ReviseCharacterCommand:
             raise TypeError("command must be a ReviseCharacterCommand")
         character_id = CharacterId.parse(command.character_id)
@@ -128,7 +126,6 @@ class CharacterQueryService:
         self,
         query: GetCharacterQuery,
     ) -> CharacterSnapshot:
-        """Read one current aggregate exactly once or report absence."""
         if type(query) is not GetCharacterQuery:
             raise TypeError("query must be a GetCharacterQuery")
         character_id = CharacterId.parse(query.character_id)
@@ -141,7 +138,6 @@ class CharacterQueryService:
         self,
         query: ListCharactersForProjectQuery,
     ) -> CharacterListPage:
-        """Validate a Project-bound query and call the list reader exactly once."""
         if type(query) is not ListCharactersForProjectQuery:
             raise TypeError("query must be a ListCharactersForProjectQuery")
         project_id = ProjectId.parse(query.project_id)

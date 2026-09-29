@@ -37,50 +37,50 @@ describe("Story Bible safe error normalization", () => {
       404,
       "STORY_BIBLE_NOT_FOUND",
       "story_bible_not_found",
-      "指定Story Bible不存在。",
+      "指定小说设定不存在。",
     ],
     [
       404,
       "STORY_BIBLE_FOR_PROJECT_NOT_FOUND",
       "story_bible_for_project_not_found",
-      "该项目尚未创建Story Bible。",
+      "该项目尚未创建小说设定。",
     ],
     [
       409,
       "STORY_BIBLE_ALREADY_EXISTS_FOR_PROJECT",
       "already_exists",
-      "该项目已经存在 Story Bible，请重新读取。",
+      "该项目已经存在小说设定，请重新读取。",
     ],
     [413, "REQUEST_TOO_LARGE", "validation", "提交内容超过服务允许的大小。"],
     [
       422,
       "REQUEST_VALIDATION_ERROR",
       "validation",
-      "Story Bible内容未通过服务端验证。",
+      "小说设定内容未通过服务端验证。",
     ],
     [
       503,
       "STORY_BIBLE_SERVICE_UNAVAILABLE",
       "unavailable",
-      "Story Bible服务暂时不可用，请稍后手动重试。",
+      "小说设定服务暂时不可用，请稍后手动重试。",
     ],
     [
       415,
       "UNSUPPORTED_MEDIA_TYPE",
       "contract",
-      "Story Bible服务返回了无法安全读取的数据。",
+      "小说设定服务返回了无法安全读取的数据。",
     ],
     [
       428,
       "PRECONDITION_REQUIRED",
       "contract",
-      "Story Bible服务返回了无法安全读取的数据。",
+      "小说设定服务返回了无法安全读取的数据。",
     ],
     [
       500,
       "UNCLASSIFIED_ERROR",
       "unknown",
-      "Story Bible请求未能完成，请稍后手动重试。",
+      "小说设定请求未能完成，请稍后手动重试。",
     ],
   ] as const)(
     "maps %s %s without exposing the source message",
@@ -115,11 +115,11 @@ describe("Story Bible safe error normalization", () => {
     expect(normalized.fieldErrors).toEqual([
       {
         field: "title",
-        message: "Story Bible标题未通过服务端验证。",
+        message: "小说设定标题未通过服务端验证。",
       },
       {
         field: "content",
-        message: "Story Bible正文未通过服务端验证。",
+        message: "小说设定正文未通过服务端验证。",
       },
     ]);
   });
@@ -161,12 +161,12 @@ describe("Story Bible safe error normalization", () => {
     expect(storyBibleOutcomeUnknownError("create")).toMatchObject({
       kind: "outcome_unknown",
       code: "STORY_BIBLE_CREATE_OUTCOME_UNKNOWN",
-      message: "创建结果未确认，请重新读取 Story Bible 核实。",
+      message: "创建结果未确认，请重新读取小说设定核实。",
     });
     expect(storyBibleOutcomeUnknownError("save")).toMatchObject({
       kind: "outcome_unknown",
       code: "STORY_BIBLE_SAVE_OUTCOME_UNKNOWN",
-      message: "保存结果未确认，请重新读取 Story Bible 核实。",
+      message: "保存结果未确认，请重新读取小说设定核实。",
     });
     expect(storyBibleContractError()).toMatchObject({ kind: "contract" });
   });

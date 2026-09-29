@@ -1,29 +1,57 @@
-# 功能真实性矩阵
+# 当前能力与明确限制
 
-本文件是当前能力索引，不是路线图，也不替代逐项测试证据。M7/V1 的当前正式能力事实以 [`M7_ACCEPTANCE_REPORT.md`](M7_ACCEPTANCE_REPORT.md)、[`M7_ACCEPTANCE_CHECKLIST.md`](M7_ACCEPTANCE_CHECKLIST.md) 与 [`M7_BASELINE_MANIFEST.json`](M7_BASELINE_MANIFEST.json) 为准。
+本页回答“现在能做什么”，未来开发顺序见 [开发路线](REFRACTOR_ROADMAP.md)，当前活动工作见 [PLAN.md](../PLAN.md)。核验日期：2026-09-15。
 
-M0–M2 时期的旧细粒度 feature_id 矩阵已原样归档到 [`history/FEATURE_REALITY_MATRIX_PRE_M7.md`](history/FEATURE_REALITY_MATRIX_PRE_M7.md)。该历史矩阵继续作为当时阶段的真实性证据，但其中“尚未实现”的描述不得用于否定 M3–M7 后已经正式验收的能力。
+**已正式验收的是 M7/V1 基础创作闭环。** [M7 验收报告](M7_ACCEPTANCE_REPORT.md) 与 [Baseline Manifest](M7_BASELINE_MANIFEST.json) 保留其冻结证据。后续 UX 候选已经开发验证，但尚未通过新的正式验收，不能与 M7 混写为同一已发布基线。
 
-## 当前 V1 能力索引
+## M7/V1 已验收能力
 
-| 能力组 | 首次冻结/最终状态 | 当前成立的能力 | 明确限制 |
-| --- | --- | --- | --- |
-| Engineering foundation | M0，M7继续保留 | Windows 本地基础设施、SQLite WAL/FK、安全/诊断/启动/质量门基础 | 不代表 SaaS、多人或公网服务 |
-| Project | M1，M7继续保留 | 创建、列表、读取、完整修订、不可变 Revision 历史、乐观并发 | 无删除/归档等未验收扩展 |
-| Story Bible | M2，M7继续保留 | 单 Project Story Bible 创建、读取、修订、不可变历史、冲突处理 | V1 仍以已验收文本能力为准 |
-| Characters | M3，M7继续保留 | 多 Character 创建、列表、读取、完整修订、不可变历史 | 无 Character relations / World graph |
-| Novel Structure | M4，M7继续保留 | Outline、Volumes、Chapters，稳定对象 + immutable revisions + heads | 以 M4/M7 冻结范围为准 |
-| Chapter Writing | M5，M7继续保留 | Writing Workspace、正文完整替换、Autosave、保存/冲突状态 | 无未经确认的自动覆盖 |
-| Local AI Writing | M6，M7继续保留 | loopback-only OpenAI-compatible Provider、最小上下文组装、Continue / Rewrite、显式采用候选 | 无云 AI API；AI 生成本身不直接修改 Chapter |
-| TXT Export / V1 loop | M7 accepted | 当前服务器已保存正文按结构导出 UTF-8 TXT；完整 V1 主闭环通过正式验收 | 不导出未保存浏览器草稿或 AI 候选；M8+ 未开始即不由 M7 授权 |
+| 用户能力       | 已成立的行为                                                                              | 明确限制                                                                 |
+| -------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 本地运行       | Windows 本地单用户应用、SQLite 持久化、健康检查、诊断及 loopback 安全边界                 | 不代表多人协作、云端托管或公网服务                                       |
+| 小说管理       | 创建、列表、读取、修改小说；不可变修订历史与并发冲突保护                                  | M7 本身不包含后续 UX 逻辑删除增强；没有归档或撤销删除流程                |
+| 小说设定与人物 | 每部小说一个文本设定集、多个角色；可创建、编辑、查看历史和处理冲突                        | 没有人物关系图、世界图谱、地点/组织等完整结构化故事资产                  |
+| 大纲、卷与章节 | 维护大纲、分卷和章节及其顺序；版本和归属受到保护                                          | 没有场景或情节推进点工作流                                               |
+| 正文写作       | 章节纯文本编辑、自动保存、立即保存、Ctrl+S、保存/冲突状态；正文与结构共享章节修订         | 冲突时保留本地稿并停止自动保存；没有完整浏览器草稿恢复或复杂页面跳转保护 |
+| 本地 AI 辅助   | 接入已配置的本地 OpenAI-compatible 服务；续写或改写选中文本；显示候选，作者明确采用后保存 | 不附带可直接使用的模型；没有云模型/API Key 设置、持久 AI 任务或连续生成  |
+| TXT 导出       | 按卷章顺序导出服务器当前已保存正文，UTF-8 TXT                                             | 不导出未保存的浏览器草稿或 AI 候选；没有其他导出格式                     |
 
-## V1 主闭环
+已验收流程：
 
-`Project → Story Bible → Characters → Outline / Volumes / Chapters → Chapter Writing Workspace → Autosave → Local AI Continue / Rewrite → User explicit accept → Autosave → TXT Export`
+`小说 → 小说设定/人物 → 大纲/分卷/章节 → 正文 → 保存 → 本地 AI 续写/改写 → 作者明确采用 → 保存 → TXT 导出`
 
-## 使用规则
+## 当前 UX 候选：开发通过，正式验收待完成
 
-- 判断“当前是否已实现”时，优先看最新正式 Acceptance Report / Manifest，而不是旧阶段说明。
-- 新任务如果新增或改变用户可见能力，应同时更新适用的真实性证据；不得用固定假数据、空按钮、假进度或无真实后端行为的展示声明完成。
-- 本索引不自行创造新的 feature_id。需要继续维护细粒度 feature_id 时，应在后续专门任务中基于当前代码、API、路由和测试库存重新生成，而不是沿用过时的否定描述。
-- 健康检查、页面可打开或单次人工演示均不能单独证明一项业务功能完成。
+[PR #9](https://github.com/King70404/AI-Writer-project/pull/9) 的 R4 实现提交为 `014205985d5e3acfe5cd38cc60d108df495ed42d`，开发恢复见 [#20](https://github.com/King70404/AI-Writer-project/issues/20)。该 PR 仍未合并；新的 Green Candidate、正式验收与最终基线状态由 `PLAN.md` 和活动 Issue 记录。
+
+候选已经实现并经开发验证的增强：
+
+- 普通创作页面与历史内容隐藏原始内部 ID、并发元数据；同一路径的突出文案改为作者能理解的中文。历史版本序号、保存时间和冲突处理信息仍保留。
+- 创作文本输入在实际浏览器入口关闭 autocomplete；创建角色与已有角色编辑草稿保持分离。
+- 删除小说必须输入完整且完全一致的书名；逻辑删除后普通列表、详情和子内容/历史入口不可再读取，已有不可变修订仍保留。没有恢复或物理擦除流程。
+- 根目录双击启动器复用集成启动检查，并在 ready 后打开默认浏览器。正式候选仍须完成隔离真实启动器与完整作者 smoke；无参数启动默认使用正式作者数据根，不能直接用于自动测试。
+
+这些是候选能力，不等于已 formal PASS，也不改变 M0–M7 冻结历史。
+
+## AI 当前能做到的范围
+
+- **接入：** 仅允许 `127.0.0.1`、`localhost`、`::1` 的显式端口。通过环境项 `AIWEBNOVEL_AI_BASE_URL`、`AIWEBNOVEL_AI_MODEL` 配置；没有产品内云模型/Key 管理界面。未配置时应用仍能启动，生成请求会失败。
+- **上下文：** 按固定顺序读取当前章节、当前大纲、小说设定、当前卷、同卷最近前一章、角色名称/定位和小说简介。总预算为 60,000 字符，超出时截断或省略；角色只取稳定排序的首页最多 100 项，不加载完整角色档案或历史，不做相关性检索。
+- **生成：** 一次续写或改写请求，非流式返回；生成前先保存当前正文，结果不直接写入正式正文。没有自动任务队列、200–300 字循环、暂停恢复、独立评审或自动返修流程。
+- **候选：** React 内存仅保留一份，新生成会替换，刷新会丢失。作者点击“追加到正文”或“替换选中文本”后才进入现有保存管线；改写采用时检查原选区文本是否仍一致。现有显式采用不等于未来持久任务的幂等采纳已完成。
+- **质量：** 当前测试证明协议、上下文边界、保存与采用行为，不证明模型能保持百万字一致性、记住全书或达到长期写作质量目标。
+
+## 尚待交付
+
+结构化场景/故事资产/写作规则库、云与本地统一 Model Gateway、可解释 ContextPack、持久任务和候选、安全幂等采纳、连续生成、事实记忆与确认、一致性评审、跨章召回和失效传播、整合作者工作台、产品级升级/备份/恢复及长篇质量成本评测，均属于 [五阶段开发路线](REFRACTOR_ROADMAP.md)。现有修订历史、上下文拼接和章节编辑器不能替代这些能力。
+
+## 按需核验入口
+
+| 核验对象                 | 当前源码与测试                                                                                                                                                                                                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 可达页面与后端入口       | [`AppRouter.tsx`](../frontend/src/app/AppRouter.tsx)、[`main.py`](../backend/src/aiwebnovel/main.py)                                                                                                                                                                                                       |
+| 本地模型接入与上下文     | [`provider.py`](../backend/src/aiwebnovel/ai_writing/provider.py)、[`context.py`](../backend/src/aiwebnovel/ai_writing/application/context.py)、[`test_ai_writing_provider.py`](../tests/backend/test_ai_writing_provider.py)、[`test_ai_writing_context.py`](../tests/backend/test_ai_writing_context.py) |
+| 候选、明确采纳与自动保存 | [`useAIWriting.ts`](../frontend/src/features/novel-structure/hooks/useAIWriting.ts)、[`useChapterWriting.ts`](../frontend/src/features/novel-structure/hooks/useChapterWriting.ts)、[`ai-writing-flow.test.tsx`](../tests/frontend/ai-writing-flow.test.tsx)                                               |
+| 服务器正文导出           | [`export/application.py`](../backend/src/aiwebnovel/export/application.py)、[`test_export_application.py`](../tests/backend/test_export_application.py)                                                                                                                                                    |
+
+旧细粒度矩阵见 [历史目录](history/FEATURE_REALITY_MATRIX_PRE_M7.md)，只在追溯对应旧阶段时读取，不作为当前能力或未来路线的默认入口。

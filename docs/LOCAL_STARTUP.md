@@ -2,6 +2,41 @@
 
 仓库提供开发模式和普通本地 V1 / 集成模式两个前台启动入口。两者都只绑定 loopback；开发、自动测试和验收必须与作者正式创作数据保持隔离。
 
+## 开发依赖安装
+
+在仓库根目录，使用 64 位 Python 3.12.10 和 Node.js 24。首次创建环境后，后端安装必须读取已提交的 Windows 依赖约束，避免上游新版本改变本地与 CI 的结果：
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --constraint backend/constraints-windows-py312.txt pip
+.\.venv\Scripts\python.exe -m pip install --constraint backend/constraints-windows-py312.txt --build-constraint backend/constraints-windows-py312.txt -e "./backend[dev]"
+.\.venv\Scripts\python.exe -m pip check
+Push-Location frontend
+npm ci
+npm run e2e:install
+npm run build
+Pop-Location
+```
+
+已有环境直接执行两条受约束的 pip 安装命令即可同步。约束包含运行、开发、构建及传递依赖；更新依赖时应在独立 Windows / Python 3.12 环境解析整套版本并验证，再共同提交约束与必要的 `pyproject.toml` 变化。不要通过放宽类型检查兼容未经验证的升级。启动脚本仍不会自动安装依赖。
+
+## 普通作者：双击启动
+
+在仓库根目录直接双击：
+
+```text
+启动 AI 网文助手.cmd
+```
+
+该入口会：
+
+- 自动切换到仓库根目录；
+- 复用 `scripts/start_integrated.ps1` 的正式数据根、端口、环境诊断和受控进程边界；
+- 等待 `http://127.0.0.1:8000/api/v1/health/ready` 真正返回 ready 后，再用系统默认浏览器打开 `http://127.0.0.1:8000/`；
+- 保持启动窗口在前台，用户写完后仍通过 `Ctrl+C` 安全停止本次拥有的服务进程。
+
+如果启动失败，窗口会保留错误信息，不会自动删除、迁移或重置已有正式数据。双击入口只是普通用户壳层，不改变 integrated 启动脚本的正式安全边界。
+
 ## 开发模式
 
 ```powershell

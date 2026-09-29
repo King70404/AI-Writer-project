@@ -112,7 +112,9 @@ def test_real_export_is_utf8_current_heads_and_changes_no_database_rows(
             assert missing.json()["error"]["code"] == "PROJECT_NOT_FOUND"
 
 
-def test_export_openapi_adds_only_one_operation_to_frozen_m6(tmp_path: Path) -> None:
+def test_openapi_preserves_m6_with_exact_export_and_project_deletion_additions(
+    tmp_path: Path,
+) -> None:
     baseline = json.loads(
         (Path(__file__).resolve().parents[2] / "docs/M6_BASELINE_MANIFEST.json").read_text(
             encoding="utf-8"
@@ -128,9 +130,12 @@ def test_export_openapi_adds_only_one_operation_to_frozen_m6(tmp_path: Path) -> 
     }
     old = {(item["method"], item["path"]) for item in baseline["production_api_operations"]}
     assert len(old) == 36
-    assert len(operations) == 37
+    assert len(operations) == 38
     assert old < operations
-    assert operations - old == {("GET", "/api/v1/projects/{project_id}/export.txt")}
+    assert operations - old == {
+        ("GET", "/api/v1/projects/{project_id}/export.txt"),
+        ("POST", "/api/v1/projects/{project_id}/delete"),
+    }
     assert (
         "text/plain"
         in schema["paths"]["/api/v1/projects/{project_id}/export.txt"]["get"]["responses"]["200"][

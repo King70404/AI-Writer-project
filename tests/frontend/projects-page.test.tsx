@@ -49,12 +49,12 @@ function client(
 }
 
 async function fillAndCreate(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByRole("textbox", { name: "项目标题" }), "新项目");
+  await user.type(screen.getByRole("textbox", { name: "书名" }), "新项目");
   await user.type(
-    screen.getByRole("textbox", { name: "项目简介" }),
+    screen.getByRole("textbox", { name: "一句话简介（可选）" }),
     "真实简介",
   );
-  await user.click(screen.getByRole("button", { name: "创建项目" }));
+  await user.click(screen.getByRole("button", { name: "创建小说" }));
 }
 
 function renderProjectsPage(clientValue: ProjectApiClient) {
@@ -79,14 +79,14 @@ describe("Projects page composition", () => {
     expect(
       await screen.findByRole("heading", { name: "已有项目" }),
     ).toBeVisible();
-    expect(screen.getByRole("heading", { name: "创建项目" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "新建小说" })).toBeVisible();
     expect(
       screen.queryByRole("button", {
         name: /详情|编辑|删除|历史|搜索|筛选|排序/,
       }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/总数|total/i)).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "重新加载列表" }));
+    await user.click(screen.getByRole("button", { name: "刷新" }));
     expect(listProjects).toHaveBeenCalledTimes(2);
   });
 
@@ -104,9 +104,7 @@ describe("Projects page composition", () => {
 
     await fillAndCreate(user);
 
-    expect(
-      await screen.findByText(`项目已创建：${project().project_id}`),
-    ).toBeVisible();
+    expect(await screen.findByText("小说《新项目》已创建。")).toBeVisible();
     expect(screen.getByRole("heading", { name: "新项目" })).toBeVisible();
     expect(createProject).toHaveBeenCalledOnce();
     expect(listProjects).toHaveBeenCalledTimes(2);
@@ -128,7 +126,7 @@ describe("Projects page composition", () => {
     await fillAndCreate(user);
 
     const partial = await screen.findByRole("status");
-    expect(partial).toHaveTextContent("项目已创建，但列表刷新失败");
+    expect(partial).toHaveTextContent("小说《新项目》已创建，但列表刷新失败");
     expect(partial).not.toHaveTextContent("创建失败");
     expect(createProject).toHaveBeenCalledOnce();
     await user.click(

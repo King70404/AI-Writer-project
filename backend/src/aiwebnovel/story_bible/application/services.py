@@ -65,7 +65,6 @@ class StoryBibleCommandService:
         self,
         command: CreateStoryBibleCommand,
     ) -> StoryBibleSnapshot:
-        """Validate, create, persist once, and map the authoritative result."""
         if type(command) is not CreateStoryBibleCommand:
             raise TypeError("command must be a CreateStoryBibleCommand")
         project_id = ProjectId.parse(command.project_id)
@@ -91,7 +90,6 @@ class StoryBibleCommandService:
         self,
         command: ReviseStoryBibleCommand,
     ) -> StoryBibleSnapshot:
-        """Validate complete replacement input and request one transactional append."""
         if type(command) is not ReviseStoryBibleCommand:
             raise TypeError("command must be a ReviseStoryBibleCommand")
         story_bible_id = StoryBibleId.parse(command.story_bible_id)
@@ -112,14 +110,16 @@ class StoryBibleCommandService:
 class StoryBibleQueryService:
     """Read detached current Story Bible snapshots without side effects."""
 
-    def __init__(self, repository: StoryBibleRepository) -> None:
+    def __init__(
+        self,
+        repository: StoryBibleRepository,
+    ) -> None:
         self._repository = repository
 
     def get_story_bible(
         self,
         query: GetStoryBibleQuery,
     ) -> StoryBibleSnapshot:
-        """Read by Story Bible ID exactly once or raise a precise absence error."""
         if type(query) is not GetStoryBibleQuery:
             raise TypeError("query must be a GetStoryBibleQuery")
         story_bible_id = StoryBibleId.parse(query.story_bible_id)
@@ -132,7 +132,6 @@ class StoryBibleQueryService:
         self,
         query: GetStoryBibleForProjectQuery,
     ) -> StoryBibleSnapshot:
-        """Read by owning Project exactly once and distinguish both absence cases."""
         if type(query) is not GetStoryBibleForProjectQuery:
             raise TypeError("query must be a GetStoryBibleForProjectQuery")
         project_id = ProjectId.parse(query.project_id)

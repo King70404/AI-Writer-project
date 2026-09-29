@@ -15,7 +15,7 @@ export function CharacterList({
     return (
       <section aria-labelledby="character-list-title">
         <h2 id="character-list-title">角色列表</h2>
-        <p>该Project尚未创建角色。</p>
+        <p>这部小说尚未创建角色。</p>
       </section>
     );
   }

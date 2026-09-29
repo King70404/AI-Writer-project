@@ -1,6 +1,9 @@
 import { request as playwrightRequest } from "@playwright/test";
 
-import { expectCleanBrowserAudit } from "../support/assertions";
+import {
+  expectCleanBrowserAudit,
+  expectNoEngineeringMetadata,
+} from "../support/assertions";
 import { expect, test } from "../support/fixture";
 
 test("E2E-INT-013 browses immutable Story Bible history with keyset paging", async ({
@@ -81,9 +84,11 @@ test("E2E-INT-013 browses immutable Story Bible history with keyset paging", asy
   });
   await page.goto(`/projects/${projectId}/story-bible/history`);
   await expect(
-    page.getByRole("heading", { name: "Story Bible 修订历史" }),
+    page.getByRole("heading", { name: "小说设定修订历史", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".project-revision-card")).toHaveCount(20);
+  await expectNoEngineeringMetadata(page);
+  await expect(page.locator(".project-revision-card time")).toHaveCount(20);
   await expect(page.locator(".project-revision-card h3")).toHaveText(
     Array.from({ length: 20 }, (_, index) => `修订 ${21 - index}`),
   );
@@ -103,6 +108,7 @@ test("E2E-INT-013 browses immutable Story Bible history with keyset paging", asy
   await expect(
     page.getByText("E2E-STORY-BIBLE-HISTORY-CONTENT-CANARY-013-01"),
   ).toBeVisible();
+  await expectNoEngineeringMetadata(page);
   await expect(
     page.getByRole("button", {
       name: /回滚|恢复|采用|删除|Diff|编辑历史/u,

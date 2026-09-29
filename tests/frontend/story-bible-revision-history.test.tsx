@@ -123,7 +123,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Story Bible revision history contracts and page", () => {
+describe("小说设定 revision history contracts and page", () => {
   it("strictly parses list and exact revision contracts", () => {
     expect(
       parseStoryBibleRevisionHistoryPageResponse(
@@ -188,6 +188,11 @@ describe("Story Bible revision history contracts and page", () => {
     );
 
     expect(await screen.findByText("设定修订 3")).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "返回小说设定编辑页" }),
+    ).toHaveAttribute("href", `/projects/${storyProjectId}/story-bible`);
+    for (const id of [storyBibleId, storyProjectId, ...revisionIds])
+      expect(document.body).not.toHaveTextContent(id);
     expect(current.getStoryBibleForProject).toHaveBeenCalledOnce();
     expect(list).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -200,6 +205,12 @@ describe("Story Bible revision history contracts and page", () => {
     expect(document.body).not.toHaveTextContent("只读正文 2");
     await user.click(screen.getAllByRole("button", { name: "查看正文" })[1]);
     expect(await screen.findByText("只读正文 2")).toBeVisible();
+    for (const id of [storyBibleId, storyProjectId, ...revisionIds])
+      expect(document.body).not.toHaveTextContent(id);
+    expect(screen.getAllByRole("time").at(-1)).toHaveAttribute(
+      "datetime",
+      storyTimestamp,
+    );
     expect(get).toHaveBeenCalledWith(
       expect.objectContaining({ storyBibleId, revisionNumber: 2 }),
     );

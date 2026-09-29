@@ -1,0 +1,75 @@
+name: Windows Quality
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Full quality gate or known timing-sensitive stability checks
+        required: true
+        default: Full
+        type: choice
+        options: [Full, Stability]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-quality-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.mode || 'automatic' }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Windows ${{ matrix.mode }}
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: ${{ fromJSON(github.event_name == 'pull_request' && '["Default","Full"]' || github.event_name == 'workflow_dispatch' && (inputs.mode == 'Stability' && '["Stability"]' || '["Full"]') || '["Default"]') }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CI_EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      CI_MODE: ${{ matrix.mode }}
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python 3.12.10 x64
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.10"
+          architecture: x64
+
+      - name: Set up Node.js 24 x64
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          architecture: x64
+          package-manager-cache: false
+
+      - name: Run the isolated Windows checks
+        env:
+          CI_EVIDENCE_ROOT: ${{ runner.temp }}/aiwebnovel-ci-evidence/${{ matrix.mode }}
+        run: ./scripts/run_windows_ci.ps1 -Mode $env:CI_MODE -ExpectedSha $env:CI_EXPECTED_SHA
+
+      - name: Preserve CI evidence and failure artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-${{ matrix.mode }}-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/aiwebnovel-ci-evidence/${{ matrix.mode }}
+            frontend/coverage/coverage-summary.json
+            frontend/playwright-report/
+            frontend/playwright-results/
+          if-no-files-found: warn
+          retention-days: 14

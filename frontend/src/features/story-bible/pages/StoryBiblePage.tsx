@@ -38,11 +38,11 @@ function StoryBibleRoute({
     >
       <header className="story-bible-page__header">
         <div>
-          <p className="section-kicker">Story Bible · 纯文本设定集</p>
+          <p className="section-kicker">小说设定 · 纯文本设定集</p>
           <h2 id="story-bible-page-title">
             {state.status === "ready"
               ? state.baseline.storyBible.title
-              : "Story Bible"}
+              : "小说设定"}
           </h2>
         </div>
         <div className="story-bible-page__links">
@@ -59,10 +59,10 @@ function StoryBibleRoute({
                   : projectDetailsPath(projectId)
               }
             >
-              返回Project详情
+              返回小说详情
             </Link>
           )}
-          <Link to="/projects">返回项目列表</Link>
+          <Link to="/projects">返回小说列表</Link>
         </div>
       </header>
       {state.status === "invalid_project" ? <StoryBibleInvalidProject /> : null}

@@ -127,14 +127,18 @@ describe("Project revision history page", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("正在读取修订历史");
     expect(await screen.findByText("修订标题 3")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "小说修订历史" })).toBeVisible();
+    expect(document.body).not.toHaveTextContent(projectId);
     expect(getProjectRevision).not.toHaveBeenCalled();
-    expect(screen.getByRole("link", { name: "返回项目详情" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "返回小说详情" })).toHaveAttribute(
       "href",
       `/projects/${projectId}`,
     );
 
     await user.click(screen.getAllByRole("button", { name: "查看内容" })[1]);
     expect(await screen.findByText("修订 2 的只读内容")).toBeVisible();
+    for (const id of [projectId, item(2).revision_id, item(3).revision_id])
+      expect(document.body).not.toHaveTextContent(id);
     expect(getProjectRevision).toHaveBeenCalledWith(
       expect.objectContaining({ projectId, revisionNumber: 2 }),
     );

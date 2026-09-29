@@ -43,6 +43,8 @@ LIMIT limit + 1
 
 Story Bible不存在时传播`StoryBibleNotFound`并映射`STORY_BIBLE_NOT_FOUND`；Story Bible存在但指定RevisionNumber不存在时使用`StoryBibleRevisionNotFound`并映射`STORY_BIBLE_REVISION_NOT_FOUND`。持久化损坏和数据库不可用分别保持安全的500与503语义，不能转成空列表或404。错误、日志和游标失败不会包含title、content、SQL、路径、游标原文或对象`repr`。
 
+V1-UX-1-R4 将小说逻辑删除的可见性规则应用于两个历史 GET：所属 Project 已删除时返回 `STORY_BIBLE_NOT_FOUND` 404，包括删除前捕获的游标页与修订正文地址。过滤位于原有状态 SELECT，正常读取仍最多两个 SELECT，损坏检查保持不变。前端当前状态读取的 404 不能代替直接历史 API 回归；删除前已有的设定及小说修订仍不可变保留。
+
 ## HTTP接口
 
 只新增两条GET：
@@ -52,7 +54,7 @@ GET /api/v1/story-bibles/{story_bible_id}/revisions
 GET /api/v1/story-bibles/{story_bible_id}/revisions/{revision_number}
 ```
 
-列表支持`limit`与不透明`cursor`；单Revision要求规范正十进制编号。两个响应都发送`Cache-Control: no-store`，不发送ETag，不创建或要求本地Session，不要求CSRF，也不接受写入语义。production API总数为15。
+列表支持`limit`与不透明`cursor`；单Revision要求规范正十进制编号。两个响应都发送`Cache-Control: no-store`，不发送ETag，不创建或要求本地Session，不要求CSRF，也不接受写入语义。DEV-2.6 完成时的历史库存为 15 条 production API；当前能力索引见 [FEATURE_REALITY_MATRIX.md](FEATURE_REALITY_MATRIX.md)。
 
 ## 前端历史页
 
@@ -65,6 +67,8 @@ GET /api/v1/story-bibles/{story_bible_id}/revisions/{revision_number}
 URL只保存Project ID。进入页面后先按Project读取当前Story Bible以取得Story Bible ID，再请求第一页历史摘要；首屏不自动请求任一单Revision正文。列表展示修订号、标题、创建时间和当前标记。“加载更多”原样传递服务端游标并追加去重结果，不把游标写入URL或浏览器存储。点击一项才请求正文；新选择会Abort旧请求，并以generation检查忽略迟到响应。
 
 标题、正文、Revision ID、ETag、游标和草稿都不写入`localStorage`、`sessionStorage`、Cookie、URL或日志。历史GET不获取Security Session。页面只提供查看和返回编辑页，不提供Diff、回滚、恢复、采用、历史编辑或删除。
+
+普通作者界面使用“小说设定”名称，不展示原始 Project/Story Bible/Revision ID 或并发版本；路由与 API 身份保持不变。历史页保留修订号、当前版本与保存时间，编辑冲突保留作者判断所需的版本信息。
 
 ## 当前限制与下一步
 

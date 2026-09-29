@@ -137,7 +137,7 @@ describe("Story Bible runtime contracts", () => {
     expect(validateStoryBibleInput(42, "")).toEqual([
       {
         field: "title",
-        message: "Story Bible标题和正文必须是文本。",
+        message: "小说设定标题和正文必须是文本。",
       },
     ]);
     expect(validateStoryBibleInput("标题", null)[0]?.field).toBe("content");

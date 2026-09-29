@@ -82,12 +82,16 @@ describe("Project list", () => {
     ).toBeVisible();
     expect(screen.getByRole("list", { name: "项目列表" })).toBeVisible();
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
-    expect(screen.getByText(item().project_id)).toBeVisible();
-    expect(screen.getByText("当前修订").nextElementSibling).toHaveTextContent(
-      "1",
+    expect(document.body).not.toHaveTextContent(item().project_id);
+    expect(document.body).not.toHaveTextContent(item().current_revision_id);
+    expect(document.body).not.toHaveTextContent(/当前修订|并发版本/u);
+    expect(screen.getByRole("link", { name: "打开小说" })).toHaveAttribute(
+      "href",
+      `/projects/${item().project_id}`,
     );
-    expect(screen.getByText("并发版本").nextElementSibling).toHaveTextContent(
-      "1",
+    expect(screen.getByRole("listitem")).toHaveAttribute(
+      "data-project-id",
+      item().project_id,
     );
     expect(screen.getAllByRole("time")).toHaveLength(2);
     expect(

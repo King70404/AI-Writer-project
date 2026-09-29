@@ -8,7 +8,7 @@ DEV-3.6在既有Character三表和写Repository之外增加只读历史能力。
 - `GET /api/v1/characters/{character_id}/revisions/{revision_number}`返回一个完整Revision。
 - `/projects/:projectId/characters/:characterId/history`提供React只读历史页，并由当前Character编辑页的“查看修订历史”链接进入。
 
-两个GET都无需Security Session或CSRF，不接受ETag、`If-Match`或请求正文，响应使用`Cache-Control: no-store`。production API精确为21条，前端路由精确为10条。
+两个GET都无需Security Session或CSRF，不接受ETag、`If-Match`或请求正文，响应使用`Cache-Control: no-store`。DEV-3.6 完成时的历史库存为 21 条 production API、10 条前端路由；当前能力索引见 [FEATURE_REALITY_MATRIX.md](FEATURE_REALITY_MATRIX.md)。
 
 ## Reader边界
 
@@ -27,7 +27,7 @@ DEV-3.6在既有Character三表和写Repository之外增加只读历史能力。
 cursor是UTF-8 JSON的无填充base64url编码，载荷字段精确为：
 
 ```json
-{"after_revision_number":20,"character_id":"chr_...","v":1}
+{ "after_revision_number": 20, "character_id": "chr_...", "v": 1 }
 ```
 
 载荷长度上限256字符，严格拒绝未知字段、非规范编码、非正整数、bool、溢出、非规范Character ID和跨Character复用。cursor只表示历史位置，不是安全凭据，也不是数据库快照；创建新Revision后，旧cursor仍按其既有严格下界继续读取。
@@ -35,6 +35,8 @@ cursor是UTF-8 JSON的无填充base64url编码，载荷字段精确为：
 ## 错误与未迁移状态
 
 Character不存在返回`CHARACTER_NOT_FOUND` 404；Character存在但指定Revision不存在返回`CHARACTER_REVISION_NOT_FOUND` 404。非法Character ID或RevisionNumber返回422，非法cursor返回400；数据损坏返回安全500，Reader或Schema不可用返回安全503。空数据库和只迁移到0003的数据库不会自动迁移，历史接口安全返回503。错误不回显name、role、profile、cursor、SQL、数据库路径或异常对象。
+
+V1-UX-1-R4 将小说逻辑删除的可见性规则应用于这两个历史 GET：所属 Project 已删除时返回 `CHARACTER_NOT_FOUND` 404，旧角色历史链接不再展示摘要或档案。过滤位于原有状态 SELECT，正常读取仍最多两个 SELECT，其他损坏检查保持不变。删除只追加 Project 删除标记修订；既有角色及小说修订继续不可变保存，不通过物理删除历史实现隐藏。
 
 ## 前端读取流程
 
@@ -45,6 +47,8 @@ Character不存在返回`CHARACTER_NOT_FOUND` 404；Character存在但指定Revi
 ## 隐私与无障碍
 
 cursor、profile和历史响应不进入URL查询、history state、localStorage、sessionStorage、IndexedDB、Cookie、日志、隐藏DOM或data属性。页面使用唯一主标题、语义列表、原生Link/button、loading `role=status`、error `role=alert`、`aria-pressed`、`time`元素，并在详情成功后聚焦详情标题。
+
+普通作者页面不展示原始 Character/Project/Revision ID 或并发版本；路由与 API 仍使用规范 ID。历史页保留修订号、当前版本标记与保存时间，编辑冲突仍保留作者判断所需的版本信息。
 
 ## 验证与后续范围
 

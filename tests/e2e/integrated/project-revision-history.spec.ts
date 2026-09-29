@@ -1,6 +1,9 @@
 import { request as playwrightRequest } from "@playwright/test";
 
-import { expectCleanBrowserAudit } from "../support/assertions";
+import {
+  expectCleanBrowserAudit,
+  expectNoEngineeringMetadata,
+} from "../support/assertions";
 import { expect, test } from "../support/fixture";
 
 const titles = {
@@ -46,21 +49,23 @@ test("E2E-INT-010 views immutable Project revision history and keyset pages", as
 
   await page.goto("/projects");
   await expect(page.getByText("还没有项目")).toBeVisible();
-  await page.getByRole("textbox", { name: "项目标题" }).fill(titles[1]);
-  await page.getByRole("textbox", { name: "项目简介" }).fill(descriptions[1]);
-  await page.getByRole("button", { name: "创建项目" }).click();
+  await page.getByRole("textbox", { name: "书名" }).fill(titles[1]);
+  await page
+    .getByRole("textbox", { name: "一句话简介（可选）" })
+    .fill(descriptions[1]);
+  await page.getByRole("button", { name: "创建小说" }).click();
   const projectPath = projectPathFromHref(
-    await page.getByRole("link", { name: "查看新项目" }).getAttribute("href"),
+    await page.getByRole("link", { name: "打开这本小说" }).getAttribute("href"),
   );
   const projectApiPath = `/api/v1${projectPath}`;
-  await page.getByRole("link", { name: "查看新项目" }).click();
+  await page.getByRole("link", { name: "打开这本小说" }).click();
   await expect(page).toHaveURL(`${origin}${projectPath}`);
   const projectEditor = page.locator(".project-edit");
   const titleInput = projectEditor.getByRole("textbox", {
-    name: "项目标题",
+    name: "书名",
   });
   const descriptionInput = projectEditor.getByRole("textbox", {
-    name: "项目简介",
+    name: "简介",
   });
   await expect(projectEditor).toBeVisible();
   await expect(titleInput).toHaveValue(titles[1]);
@@ -71,17 +76,25 @@ test("E2E-INT-010 views immutable Project revision history and keyset pages", as
     await expect(titleInput).toHaveValue(titles[revisionNumber]);
     await descriptionInput.fill(descriptions[revisionNumber]);
     await expect(descriptionInput).toHaveValue(descriptions[revisionNumber]);
-    await expect(page.getByText("项目修订已保存。")).toHaveCount(0);
-    await page.getByRole("button", { name: "保存完整修订" }).click();
-    await expect(page.getByText("项目修订已保存。")).toBeVisible();
-    await expect(
-      page.getByText("当前修订号").locator("xpath=following-sibling::dd"),
-    ).toHaveText(String(revisionNumber));
+    await expect(page.getByText("小说信息已保存。")).toHaveCount(0);
+    const saved = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PUT" &&
+        new URL(response.url()).pathname === projectApiPath,
+    );
+    await page.getByRole("button", { name: "保存小说信息" }).click();
+    await expect(page.getByText("小说信息已保存。")).toBeVisible();
+    await expect(page.getByText("当前修订号")).toHaveCount(0);
+    expect(await (await saved).json()).toMatchObject({
+      revision_number: revisionNumber,
+      concurrency_version: revisionNumber,
+    });
   }
 
   const securityRequestsBeforeHistory = pageSecurityRequests.length;
-  await page.getByRole("link", { name: "查看修订历史" }).click();
+  await page.getByRole("link", { name: "历史版本" }).click();
   await expect(page.locator(".project-revision-card")).toHaveCount(3);
+  await expectNoEngineeringMetadata(page);
   await expect(page.locator(".project-revision-card h3")).toHaveText([
     "修订 3",
     "修订 2",
@@ -111,6 +124,7 @@ test("E2E-INT-010 views immutable Project revision history and keyset pages", as
     await expect(
       page.locator(".project-revision-viewer__description"),
     ).toHaveText(descriptions[revisionNumber]);
+    await expectNoEngineeringMetadata(page);
   }
   expect(pageSecurityRequests).toHaveLength(securityRequestsBeforeHistory);
   await expect(
@@ -179,7 +193,7 @@ test("E2E-INT-010 views immutable Project revision history and keyset pages", as
 
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "项目修订历史" }),
+    page.getByRole("heading", { name: "小说修订历史" }),
   ).toBeVisible();
   await expect(page.locator(".project-revision-card")).toHaveCount(20);
   const unknown = await page.goto("/not-a-real-route");

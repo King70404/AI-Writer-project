@@ -18,7 +18,7 @@ class ProjectRepository(Protocol):
         ...
 
     def get(self, project_id: ProjectId) -> ProjectAggregate | None:
-        """Return one consistent current aggregate, or None when it does not exist."""
+        """Return one consistent active aggregate, or None when absent/deleted."""
         ...
 
     def append_revision(

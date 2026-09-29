@@ -23,7 +23,7 @@ export function StoryBibleRevisionHistoryStatus({
   if (kind === "loading") {
     return (
       <div className="project-revision-state" role="status" aria-live="polite">
-        <p>正在读取 Story Bible 修订历史…</p>
+        <p>正在读取小说设定修订历史…</p>
       </div>
     );
   }
@@ -36,12 +36,12 @@ export function StoryBibleRevisionHistoryStatus({
         {kind === "invalid"
           ? "项目地址无效"
           : kind === "not_found"
-            ? "Story Bible 不存在"
+            ? "小说设定不存在"
             : "修订历史读取失败"}
       </h2>
       <p>
         {kind === "invalid"
-          ? "请从项目详情进入 Story Bible 修订历史。"
+          ? "请从项目详情进入小说设定修订历史。"
           : (error?.message ?? "无法读取修订历史。")}
       </p>
       {error?.requestId !== null && error?.requestId !== undefined ? (
@@ -189,7 +189,7 @@ export function StoryBibleRevisionViewer({
               {formatTimestamp(state.revision.created_at)}
             </time>
           </p>
-          <h4>Story Bible 正文</h4>
+          <h4>小说设定正文</h4>
           <pre className="story-bible-revision-viewer__content">
             {state.revision.content}
           </pre>

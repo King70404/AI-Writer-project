@@ -1,6 +1,10 @@
 import { request as playwrightRequest } from "@playwright/test";
 
-import { expectCleanBrowserAudit } from "../support/assertions";
+import {
+  expectCleanBrowserAudit,
+  expectNoEngineeringMetadata,
+  expectSecurityHeaders,
+} from "../support/assertions";
 import { expect, test } from "../support/fixture";
 
 const ownerTitle = "E2E Character History Owner 016";
@@ -88,9 +92,12 @@ test("E2E-INT-016 views immutable Character history with lazy profile reads", as
   await page.goto(editorPath);
   const historyLink = page.getByRole("link", { name: "查看修订历史" });
   await expect(historyLink).toHaveAttribute("href", historyPath);
+  await expectNoEngineeringMetadata(page);
   await historyLink.click();
   await expect(page).toHaveURL(new RegExp(`${historyPath}$`, "u"));
   await expect(page.locator(".project-revision-card")).toHaveCount(20);
+  await expectNoEngineeringMetadata(page);
+  await expect(page.locator(".project-revision-card time")).toHaveCount(20);
   historyRequests.length = 0;
   sessionRequests.length = 0;
   await page.reload();
@@ -121,6 +128,7 @@ test("E2E-INT-016 views immutable Character history with lazy profile reads", as
   await revisionOne.getByRole("button", { name: "查看此修订" }).click();
   await expect(page.getByText(`${profilePrefix}-01`)).toBeVisible();
   await expect(page.getByText("line two")).toBeVisible();
+  await expectNoEngineeringMetadata(page);
 
   let releaseRevisionTwo!: () => void;
   const revisionTwoRelease = new Promise<void>((resolve) => {
@@ -158,5 +166,79 @@ test("E2E-INT-016 views immutable Character history with lazy profile reads", as
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
   expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
   expect(page.url()).not.toMatch(/cursor|profile|revision_id/iu);
+  expectCleanBrowserAudit(browserAudit);
+
+  // Keep the captured history page open while the author deletes its novel.
+  const ownerPage = await page.context().newPage();
+  const deleteApiPath = `/api/v1/projects/${projectId}/delete`;
+  const deleteRequests: Array<{
+    readonly method: string;
+    readonly ifMatch: string | undefined;
+  }> = [];
+  ownerPage.on("request", (request) => {
+    if (new URL(request.url()).pathname === deleteApiPath) {
+      deleteRequests.push({
+        method: request.method(),
+        ifMatch: request.headers()["if-match"],
+      });
+    }
+  });
+  browserAudit.allowOneExpectedSessionCookie();
+  await ownerPage.goto(`/projects/${projectId}`);
+  const deletion = ownerPage.getByRole("region", { name: "删除小说" });
+  const deleteButton = deletion.getByRole("button", {
+    name: "删除小说",
+    exact: true,
+  });
+  await expect(deleteButton).toBeDisabled();
+  await deletion.getByRole("textbox", { name: "确认书名" }).fill(ownerTitle);
+  const deletedResponsePromise = ownerPage.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === deleteApiPath,
+  );
+  await deleteButton.click();
+  const deletedResponse = await deletedResponsePromise;
+  expect(deletedResponse.status()).toBe(200);
+  expect(await deletedResponse.json()).toEqual({ deleted: true });
+  expect(deleteRequests).toEqual([{ method: "POST", ifMatch: '"1"' }]);
+  await expect(ownerPage).toHaveURL(`${origin}/projects`);
+  await expect(ownerPage.getByText("还没有项目")).toBeVisible();
+
+  const deletedRevisionApi = `/api/v1/characters/${characterId}/revisions/3`;
+  browserAudit.allowExpectedConsoleHttpFailure(deletedRevisionApi, 404);
+  const deniedRevisionPromise = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === deletedRevisionApi,
+  );
+  const revisionThree = page.locator(".project-revision-card").filter({
+    has: page.getByRole("heading", { name: "修订 3", exact: true }),
+  });
+  await revisionThree.getByRole("button", { name: "查看此修订" }).click();
+  const deniedRevision = await deniedRevisionPromise;
+  expect(deniedRevision.status()).toBe(404);
+  expectSecurityHeaders(deniedRevision.headers(), "api");
+  expect(await deniedRevision.text()).not.toContain(profilePrefix);
+  await expect(
+    page.locator(".project-revision-viewer").getByRole("alert"),
+  ).toContainText("指定角色不存在。");
+  await expect(page.getByText(new RegExp(profilePrefix, "u"))).toHaveCount(0);
+
+  const deletedHistoryApi = `/api/v1/characters/${characterId}/revisions`;
+  browserAudit.allowExpectedConsoleHttpFailure(deletedHistoryApi, 404);
+  const deniedHistoryPromise = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === deletedHistoryApi,
+  );
+  await page.goto(historyPath);
+  const deniedHistory = await deniedHistoryPromise;
+  expect(deniedHistory.status()).toBe(404);
+  expectSecurityHeaders(deniedHistory.headers(), "api");
+  expect(await deniedHistory.text()).not.toContain(profilePrefix);
+  await expect(page.getByRole("heading", { name: "角色不存在" })).toBeVisible();
+  await expect(page.locator(".project-revision-card")).toHaveCount(0);
+  await expect(page.getByText(new RegExp(profilePrefix, "u"))).toHaveCount(0);
+  expect(historyRequests.every(({ method }) => method === "GET")).toBe(true);
+  expect(sessionRequests).toHaveLength(0);
+  expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
   expectCleanBrowserAudit(browserAudit);
 });

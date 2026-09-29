@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sqlite3
+from contextlib import closing
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -293,6 +295,20 @@ def test_missing_owner_and_corrupt_missing_head_are_distinct(tmp_path: Path) -> 
                 current.story_bible.id,
                 RevisionNumber(1),
             )
+
+
+def test_missing_parent_remains_corruption_for_both_history_reads(tmp_path: Path) -> None:
+    with repository_database(tmp_path) as database:
+        current = append_revisions(database, 1)
+        # Inject broken ownership only into this disposable migrated database.
+        with closing(sqlite3.connect(database.engine.url.database)) as connection:
+            connection.execute("DELETE FROM projects")
+            connection.commit()
+        reader = SqlAlchemyStoryBibleRevisionHistoryReader(database.session_factory)
+        with pytest.raises(StoryBibleDataCorruption):
+            reader.list_revisions(current.story_bible.id, limit=20, after=None)
+        with pytest.raises(StoryBibleDataCorruption):
+            reader.get_revision(current.story_bible.id, RevisionNumber(1))
 
 
 def state() -> _StoryBibleHistoryState:

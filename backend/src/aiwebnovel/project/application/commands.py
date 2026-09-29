@@ -21,4 +21,12 @@ class ReviseProjectCommand:
     description: str = ""
 
 
-__all__ = ["CreateProjectCommand", "ReviseProjectCommand"]
+@dataclass(frozen=True, slots=True)
+class DeleteProjectCommand:
+    """Logically delete one Project after optimistic-concurrency validation."""
+
+    project_id: str
+    expected_version: int
+
+
+__all__ = ["CreateProjectCommand", "DeleteProjectCommand", "ReviseProjectCommand"]

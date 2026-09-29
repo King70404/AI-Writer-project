@@ -15,6 +15,7 @@ from aiwebnovel.project import (
     ConcurrencyVersion,
     assert_expected_version,
 )
+from aiwebnovel.project.deletion import is_deleted_project_title
 from aiwebnovel.project.entities import ProjectAggregate
 from aiwebnovel.project.errors import (
     DomainError,
@@ -95,12 +96,16 @@ class SqlAlchemyProjectRepository(ProjectRepository):
             session.close()
 
     def get(self, project_id: ProjectId) -> ProjectAggregate | None:
-        """Restore the current aggregate with one business SELECT and no writes."""
+        """Restore one active aggregate; tombstoned Projects behave as absent."""
         self._validate_project_id(project_id)
         session = self._new_session()
         try:
             aggregate = self._load_current(session, project_id)
             session.rollback()
+            if aggregate is not None and is_deleted_project_title(
+                str(aggregate.current_revision.title)
+            ):
+                return None
             return aggregate
         except ProjectDataCorruption:
             session.rollback()
@@ -131,7 +136,7 @@ class SqlAlchemyProjectRepository(ProjectRepository):
         try:
             self._begin_immediate(session)
             aggregate = self._load_current(session, project_id)
-            if aggregate is None:
+            if aggregate is None or is_deleted_project_title(str(aggregate.current_revision.title)):
                 raise ProjectNotFound(project_id)
 
             assert_expected_version(

@@ -237,7 +237,7 @@ describe("Story Bible create client", () => {
               fieldErrors: [
                 {
                   field: "title",
-                  message: "Story Bible标题未通过服务端验证。",
+                  message: "小说设定标题未通过服务端验证。",
                 },
               ],
             }
@@ -263,7 +263,7 @@ describe("Story Bible create client", () => {
         }),
       ).rejects.toMatchObject({
         kind: "outcome_unknown",
-        message: "创建结果未确认，请重新读取 Story Bible 核实。",
+        message: "创建结果未确认，请重新读取小说设定核实。",
       });
       expect(fetchMock).toHaveBeenCalledOnce();
     },
@@ -456,7 +456,7 @@ describe("Story Bible revision client", () => {
         }),
       ).rejects.toMatchObject({
         kind: "outcome_unknown",
-        message: "保存结果未确认，请重新读取 Story Bible 核实。",
+        message: "保存结果未确认，请重新读取小说设定核实。",
       });
     },
   );

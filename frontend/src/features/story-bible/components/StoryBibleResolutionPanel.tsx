@@ -33,8 +33,8 @@ export function StoryBibleResolutionPanel({
     >
       <h3 id="story-bible-resolution-title" ref={headingRef} tabIndex={-1}>
         {resolution.reason === "conflict"
-          ? "检测到 Story Bible 版本冲突"
-          : "Story Bible 保存结果未确认"}
+          ? "检测到小说设定版本冲突"
+          : "小说设定保存结果未确认"}
       </h3>
       <p>{resolution.message}</p>
       {resolution.reason === "conflict" ? (

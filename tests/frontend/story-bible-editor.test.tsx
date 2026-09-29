@@ -8,6 +8,7 @@ import { StoryBiblePage } from "../../frontend/src/features/story-bible/pages/St
 import {
   storyBibleClient,
   storyBibleError,
+  storyBibleResponse,
   storyProjectId,
   versionedStoryBible,
 } from "./story-bible-support";
@@ -25,32 +26,33 @@ function renderEditor(client: StoryBibleApiClient) {
   );
 }
 
-describe("Story Bible ready editor", () => {
-  it("renders all live metadata, semantic times, and exact editing controls", async () => {
+describe("小说设定 ready editor", () => {
+  it("shows saved times and editing controls without internal identifiers", async () => {
     const client = storyBibleClient();
     renderEditor(client);
     expect(
       await screen.findByRole("heading", { name: "设定集版本1" }),
     ).toBeVisible();
-    expect(screen.getAllByRole("time")).toHaveLength(4);
+    const baseline = storyBibleResponse();
+    expect(screen.getAllByRole("time")).toHaveLength(2);
     expect(
-      screen.getByText("Story Bible编号").nextElementSibling,
-    ).toHaveTextContent("sbl_");
-    expect(
-      screen.getByText("Project编号").nextElementSibling,
-    ).toHaveTextContent(storyProjectId);
-    expect(screen.getByText("当前修订号").nextElementSibling).toHaveTextContent(
-      "1",
+      screen.getByText("最近保存").nextElementSibling?.querySelector("time"),
+    ).toHaveAttribute("datetime", baseline.updated_at);
+    for (const id of [
+      baseline.story_bible_id,
+      baseline.project_id,
+      baseline.current_revision_id,
+    ])
+      expect(document.body).not.toHaveTextContent(id);
+    expect(document.body).not.toHaveTextContent(
+      /Project编号|当前修订号|并发版本|Head更新时间/u,
     );
-    expect(screen.getByText("并发版本").nextElementSibling).toHaveTextContent(
-      "1",
+    expect(screen.getByRole("textbox", { name: "小说设定标题" })).toHaveValue(
+      "设定集版本1",
     );
-    expect(
-      screen.getByRole("textbox", { name: "Story Bible标题" }),
-    ).toHaveValue("设定集版本1");
-    expect(
-      screen.getByRole("textbox", { name: "Story Bible正文" }),
-    ).toHaveValue("设定正文版本1\n第二行");
+    expect(screen.getByRole("textbox", { name: "小说设定正文" })).toHaveValue(
+      "设定正文版本1\n第二行",
+    );
     expect(document.body).not.toHaveTextContent(
       /Character|World|PowerSystem|AI生成/u,
     );
@@ -67,10 +69,10 @@ describe("Story Bible ready editor", () => {
     const client = storyBibleClient({ reviseStoryBible });
     renderEditor(client);
     const title = await screen.findByRole("textbox", {
-      name: "Story Bible标题",
+      name: "小说设定标题",
     });
     const content = screen.getByRole("textbox", {
-      name: "Story Bible正文",
+      name: "小说设定正文",
     });
     await user.clear(title);
     await user.type(title, "本地新标题");
@@ -79,7 +81,7 @@ describe("Story Bible ready editor", () => {
     expect(screen.getByText("有未保存更改")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "保存完整修订" }));
 
-    expect(await screen.findByText("Story Bible修订已保存。")).toBeVisible();
+    expect(await screen.findByText("小说设定修订已保存。")).toBeVisible();
     expect(reviseStoryBible).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         etag: '"1"',
@@ -89,8 +91,16 @@ describe("Story Bible ready editor", () => {
     );
     expect(title).toHaveValue("服务端保存标题");
     expect(content).toHaveValue("服务端保存正文");
-    expect(screen.getByText("并发版本").nextElementSibling).toHaveTextContent(
-      "2",
+    expect(document.body).not.toHaveTextContent(/当前修订号|并发版本/u);
+    await user.type(title, "再次保存");
+    await user.click(screen.getByRole("button", { name: "保存完整修订" }));
+    await waitFor(() => expect(reviseStoryBible).toHaveBeenCalledTimes(2));
+    expect(reviseStoryBible).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        etag: '"2"',
+        title: "服务端保存标题再次保存",
+        content: "服务端保存正文",
+      }),
     );
   });
 
@@ -99,7 +109,7 @@ describe("Story Bible ready editor", () => {
     const client = storyBibleClient();
     renderEditor(client);
     const content = await screen.findByRole("textbox", {
-      name: "Story Bible正文",
+      name: "小说设定正文",
     });
     await user.clear(content);
     await user.type(content, "应放弃的草稿");
@@ -115,25 +125,26 @@ describe("Story Bible ready editor", () => {
     const user = userEvent.setup();
     const reviseStoryBible = vi.fn().mockRejectedValue(
       storyBibleError("unavailable", {
-        message: "Story Bible服务暂时不可用，请稍后手动重试。",
+        message: "小说设定服务暂时不可用，请稍后手动重试。",
         requestId: "req_save_safe",
       }),
     );
     renderEditor(storyBibleClient({ reviseStoryBible }));
     const title = await screen.findByRole("textbox", {
-      name: "Story Bible标题",
+      name: "小说设定标题",
     });
     await user.clear(title);
     await user.type(title, "保留的失败草稿");
     await user.click(screen.getByRole("button", { name: "保存完整修订" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Story Bible服务暂时不可用",
+      "小说设定服务暂时不可用",
     );
     expect(screen.getByRole("alert")).toHaveTextContent("req_save_safe");
     expect(title).toHaveValue("保留的失败草稿");
-    expect(screen.getByText("并发版本").nextElementSibling).toHaveTextContent(
-      "1",
-    );
+    expect(document.body).not.toHaveTextContent(/当前修订号|并发版本/u);
+    await user.click(screen.getByRole("button", { name: "放弃未保存更改" }));
+    expect(title).toHaveValue("设定集版本1");
+    expect(reviseStoryBible).toHaveBeenCalledOnce();
   });
 
   it("validates before save and prevents synchronous double submission", async () => {
@@ -147,11 +158,11 @@ describe("Story Bible ready editor", () => {
     const reviseStoryBible = vi.fn().mockReturnValue(pending);
     renderEditor(storyBibleClient({ reviseStoryBible }));
     const title = await screen.findByRole("textbox", {
-      name: "Story Bible标题",
+      name: "小说设定标题",
     });
     await user.clear(title);
     await user.click(screen.getByRole("button", { name: "保存完整修订" }));
-    expect(screen.getByText("请输入Story Bible标题。")).toBeVisible();
+    expect(screen.getByText("请输入小说设定标题。")).toBeVisible();
     expect(reviseStoryBible).not.toHaveBeenCalled();
 
     await user.type(title, "有效标题");

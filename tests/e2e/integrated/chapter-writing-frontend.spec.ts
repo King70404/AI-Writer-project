@@ -8,13 +8,13 @@ test("E2E-INT-018 writes and autosaves Chapter prose through the writing workspa
   browserAudit.allowOneExpectedSessionCookie();
   await page.goto("/projects");
   await page
-    .getByRole("textbox", { name: "项目标题" })
+    .getByRole("textbox", { name: "书名" })
     .fill("E2E Chapter Writing 018");
   await page
-    .getByRole("textbox", { name: "项目简介" })
+    .getByRole("textbox", { name: "一句话简介（可选）" })
     .fill("独立写作验收项目");
-  await page.getByRole("button", { name: "创建项目" }).click();
-  const projectLink = page.getByRole("link", { name: "查看新项目" });
+  await page.getByRole("button", { name: "创建小说" }).click();
+  const projectLink = page.getByRole("link", { name: "打开这本小说" });
   const projectPath = await projectLink.getAttribute("href");
   expect(projectPath).toMatch(/^\/projects\/prj_[0-9A-HJKMNP-TV-Z]{26}$/u);
   await projectLink.click();
@@ -23,7 +23,7 @@ test("E2E-INT-018 writes and autosaves Chapter prose through the writing workspa
     `/api/v1/projects/${projectId}/outline`,
     404,
   );
-  await page.getByRole("link", { name: "小说结构" }).click();
+  await page.getByRole("link", { name: "大纲与章节" }).click();
   await expect(page).toHaveURL(
     `${browserAudit.allowedOrigin}${projectPath}/structure`,
   );

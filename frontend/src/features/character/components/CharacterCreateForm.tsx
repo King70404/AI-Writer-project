@@ -71,12 +71,14 @@ export function CharacterCreateForm({
       aria-labelledby="character-create-title"
     >
       <h2 id="character-create-title">创建角色</h2>
-      <form onSubmit={submit} noValidate>
+      <form onSubmit={submit} noValidate autoComplete="off">
         <div className="form-field">
           <label htmlFor="character-create-name">角色名称</label>
           <input
             ref={nameRef}
             id="character-create-name"
+            name="new-character-name"
+            autoComplete="off"
             value={controller.draft.name}
             onChange={(event) => {
               controller.setDraftField("name", event.target.value);
@@ -97,6 +99,8 @@ export function CharacterCreateForm({
           <input
             ref={roleRef}
             id="character-create-role"
+            name="new-character-role"
+            autoComplete="off"
             value={controller.draft.role}
             onChange={(event) => {
               controller.setDraftField("role", event.target.value);
@@ -117,6 +121,8 @@ export function CharacterCreateForm({
           <textarea
             ref={profileRef}
             id="character-create-profile"
+            name="new-character-profile"
+            autoComplete="off"
             rows={8}
             value={controller.draft.profile}
             onChange={(event) => {
@@ -169,7 +175,7 @@ export function CharacterCreateForm({
               >
                 重新读取角色列表
               </button>
-              <p>再次提交可能创建重复Character，请先人工核对列表。</p>
+              <p>再次提交可能创建重复角色，请先人工核对列表。</p>
               <button type="button" onClick={controller.confirmResubmit}>
                 我已确认需要再次提交
               </button>

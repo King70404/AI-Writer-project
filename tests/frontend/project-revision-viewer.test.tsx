@@ -52,6 +52,13 @@ describe("Project revision viewer", () => {
     );
     expect(description?.textContent).toBe("第一行\n第二行");
     expect(screen.getByText("历史修订")).toBeVisible();
+    expect(document.body).not.toHaveTextContent(
+      readyState.revision.revision_id,
+    );
+    expect(screen.getByRole("time")).toHaveAttribute(
+      "datetime",
+      readyState.revision.created_at,
+    );
   });
 
   it("shows the explicit empty-description fallback", () => {

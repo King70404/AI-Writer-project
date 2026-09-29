@@ -7,8 +7,10 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Select,
     Text,
     UniqueConstraint,
+    select,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,6 +27,7 @@ from aiwebnovel.project import (
     ProjectRevisionId,
     RevisionNumber,
 )
+from aiwebnovel.project.deletion import PROJECT_DELETION_TITLE_PREFIX
 
 _PROJECT_TITLE_WHITESPACE_SQL = (
     "char(9, 10, 11, 12, 13, 28, 29, 30, 31, 32, 133, 160, 5760, "
@@ -58,6 +61,28 @@ class ProjectRecord(Base):
     )
     created_at: Mapped[datetime] = mapped_column(UtcDateTimeType(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTimeType(), nullable=False)
+
+    @staticmethod
+    def active_ids() -> Select[tuple[ProjectId]]:
+        """Read-only ownership projection; excludes logically deleted Projects."""
+        return select(ProjectRecord.id).where(ProjectRecord.id.not_in(ProjectRecord.deleted_ids()))
+
+    @staticmethod
+    def deleted_ids() -> Select[tuple[ProjectId]]:
+        """Identify tombstones without treating broken ownership as normal absence."""
+        return (
+            select(ProjectRecord.id)
+            .join(ProjectHeadRecord, ProjectHeadRecord.project_id == ProjectRecord.id)
+            .join(
+                ProjectRevisionRecord,
+                ProjectRevisionRecord.id == ProjectHeadRecord.revision_id,
+            )
+            .where(
+                ProjectRevisionRecord.title.startswith(
+                    PROJECT_DELETION_TITLE_PREFIX, autoescape=True
+                )
+            )
+        )
 
 
 class ProjectRevisionRecord(Base):

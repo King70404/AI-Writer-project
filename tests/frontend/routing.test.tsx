@@ -34,8 +34,8 @@ describe("application routes", () => {
     renderAt("/");
     await user.click(screen.getByRole("link", { name: "开始使用：进入项目" }));
     expect(screen.getByTestId("location-path")).toHaveTextContent("/projects");
-    expect(screen.getByRole("heading", { name: "创建项目" })).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "项目标题" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "新建小说" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "书名" })).toBeVisible();
   });
 
   it("uses client-side routing to leave the not-found page", async () => {

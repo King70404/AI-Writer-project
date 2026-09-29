@@ -28,12 +28,12 @@ from aiwebnovel.character.persistence.models import (
     CharacterRecord,
     CharacterRevisionRecord,
 )
-from aiwebnovel.character.persistence.queries import project_exists_query
 from aiwebnovel.character.values import CharacterName, CharacterRole
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
 from aiwebnovel.domain.errors import DomainError
 from aiwebnovel.domain.revisions import RevisionNumber
 from aiwebnovel.project.identifiers import ProjectId
+from aiwebnovel.project.persistence.models import ProjectRecord
 
 SessionFactory = Callable[[], Session]
 CharacterListRow = tuple[
@@ -60,7 +60,6 @@ def character_list_statement(
     limit: int,
     after: CharacterListPosition | None,
 ) -> Select[CharacterListRow]:
-    """Build the fixed current-summary query without profile, COUNT, or OFFSET."""
     statement = (
         select(
             CharacterRecord.id,
@@ -192,7 +191,6 @@ class SqlAlchemyCharacterListReader:
         limit: int,
         after: CharacterListPosition | None,
     ) -> CharacterListPage:
-        """Return a Project-bound page using at most two business SELECTs."""
         if type(project_id) is not ProjectId:
             raise InvalidCharacterState
         validated_limit = validate_character_list_limit(limit)
@@ -202,7 +200,10 @@ class SqlAlchemyCharacterListReader:
             raise ValueError("after position must belong to the requested Project")
         session = self._new_session()
         try:
-            if session.scalar(project_exists_query(project_id)) is None:
+            if (
+                session.scalar(ProjectRecord.active_ids().where(ProjectRecord.id == project_id))
+                is None
+            ):
                 raise CharacterProjectNotFound(project_id)
             rows = (
                 session.execute(

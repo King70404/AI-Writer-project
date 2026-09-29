@@ -11,6 +11,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "invoke_owned_process.ps1")
 
 $script:RepositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $script:FrontendRoot = Join-Path $script:RepositoryRoot "frontend"
@@ -950,7 +951,7 @@ try:
     assert counts == {
         'projects': 1,
         'project_heads': 1,
-        'project_revisions': 1,
+        'project_revisions': 2,
         'story_bibles': 0,
         'story_bible_heads': 0,
         'story_bible_revisions': 0,
@@ -958,9 +959,27 @@ try:
         'character_heads': 1,
         'character_revisions': 21,
     }
+    project_id, project_version = connection.execute(
+        'SELECT id, concurrency_version FROM projects'
+    ).fetchone()
+    assert project_version == 2
+    project_revisions = connection.execute(
+        '''
+        SELECT id, revision_number, title, description
+        FROM project_revisions WHERE project_id = ? ORDER BY revision_number
+        ''',
+        (project_id,),
+    ).fetchall()
+    assert project_revisions[0][1:] == (
+        1, 'E2E Character History Owner 016', 'History owner',
+    )
+    assert project_revisions[1][1:] == (
+        2, '__AIWEBNOVEL_DELETED__:' + project_id, '',
+    )
     assert connection.execute(
-        'SELECT concurrency_version FROM projects'
-    ).fetchone()[0] == 1
+        'SELECT revision_id FROM project_heads WHERE project_id = ?',
+        (project_id,),
+    ).fetchone()[0] == project_revisions[1][0]
     character_id, version = connection.execute(
         'SELECT id, concurrency_version FROM characters'
     ).fetchone()
@@ -1094,18 +1113,6 @@ function Assert-ServiceOwnsPort {
     }
 }
 
-function ConvertTo-QuotedArgument {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Value
-    )
-
-    if ($Value.Contains('"')) {
-        throw "service argument contains an unsupported quote character"
-    }
-    return '"{0}"' -f $Value
-}
-
 function Start-OwnedService {
     param(
         [Parameter(Mandatory = $true)]
@@ -1142,13 +1149,13 @@ function Start-OwnedService {
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        (ConvertTo-QuotedArgument -Value $script:ServiceLauncher),
+        $script:ServiceLauncher,
         "-Service",
         $Service,
         "-Port",
         $Port.ToString(),
         "-ProcessManifestPath",
-        (ConvertTo-QuotedArgument -Value $manifestPath)
+        $manifestPath
     )
     if ($BackendPort -gt 0) {
         $arguments += @("-BackendPort", $BackendPort.ToString())
@@ -1162,28 +1169,27 @@ function Start-OwnedService {
     if (-not [string]::IsNullOrWhiteSpace($DataRoot)) {
         $arguments += @(
             "-DataRoot",
-            (ConvertTo-QuotedArgument -Value $DataRoot)
+            $DataRoot
         )
     }
     if ($ServeFrontend) {
         $arguments += "-ServeFrontend"
         $arguments += @(
             "-FrontendDistPath",
-            (ConvertTo-QuotedArgument -Value $FrontendDistPath)
+            $FrontendDistPath
         )
     }
     if ($MigrateDatabase) {
         $arguments += "-MigrateDatabase"
     }
 
-    $process = Start-Process `
-        -FilePath "powershell.exe" `
+    $capture = Start-OwnedProcess `
+        -Name $Name `
+        -FilePath (Get-Command powershell.exe).Source `
         -ArgumentList $arguments `
         -WorkingDirectory $script:RepositoryRoot `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput $stdoutPath `
-        -RedirectStandardError $stderrPath `
-        -PassThru
+        -LogDirectory $RunDirectory
+    $process = $capture.Process
 
     $record = [pscustomobject]@{
         Name = $Name
@@ -1196,6 +1202,7 @@ function Start-OwnedService {
         StderrPath = $stderrPath
         ManifestPath = $manifestPath
         DataRoot = $DataRoot
+        Capture = $capture
     }
     $script:OwnedProcesses.Add($record)
     $null = $script:OwnedPorts.Add($Port)
@@ -1383,57 +1390,17 @@ function Stop-OwnedServiceTree {
     )
 
     if ($Record.ServiceProcessId -gt 0) {
-        $serviceProcess = Get-Process `
-            -Id $Record.ServiceProcessId `
-            -ErrorAction SilentlyContinue
-        if ($null -ne $serviceProcess) {
-            if ($serviceProcess.StartTime.ToUniversalTime() -ne $Record.ServiceStartedAt) {
-                throw "refusing to stop a reused service process identifier"
-            }
-            try {
-                & taskkill.exe /PID $Record.ServiceProcessId /T /F 2>$null | Out-Null
-                $serviceTaskkillExitCode = $LASTEXITCODE
-            } catch {
-                $serviceTaskkillExitCode = 1
-            }
-            $serviceProcess.WaitForExit(5000) | Out-Null
-            $serviceProcess.Refresh()
-            if (-not $serviceProcess.HasExited) {
-                throw (
-                    "failed to stop owned service process: $($Record.Name) " +
-                    "(taskkill exit code $serviceTaskkillExitCode)"
-                )
-            }
+        $serviceRecord = [pscustomobject]@{
+            Name = $Record.Name
+            ProcessId = $Record.ServiceProcessId
+            StartedAtUtcTicks = $Record.ServiceStartedAt.Ticks
         }
+        Stop-OwnedProcessTree -Record $serviceRecord -TimeoutSeconds 5
     }
 
-    $Record.Process.Refresh()
-    if ($Record.Process.HasExited) {
-        return
-    }
-    $currentProcess = Get-Process -Id $Record.Process.Id -ErrorAction SilentlyContinue
-    if ($null -eq $currentProcess) {
-        return
-    }
-    $currentStartedAt = $currentProcess.StartTime.ToUniversalTime()
-    if ($currentStartedAt -ne $Record.StartedAt) {
-        throw "refusing to stop a reused process identifier"
-    }
-
-    try {
-        & taskkill.exe /PID $Record.Process.Id /T /F 2>$null | Out-Null
-        $taskkillExitCode = $LASTEXITCODE
-    } catch {
-        $taskkillExitCode = 1
-    }
-    $Record.Process.WaitForExit(5000) | Out-Null
-    $Record.Process.Refresh()
-    if (-not $Record.Process.HasExited) {
-        throw (
-            "failed to stop owned service tree: $($Record.Name) " +
-            "(taskkill exit code $taskkillExitCode)"
-        )
-    }
+    # The parent can exit before PowerShell's implicit redirection callbacks close
+    # their files. Own and drain both capture tasks before removing the run root.
+    Stop-OwnedProcessTree -Record $Record.Capture -TimeoutSeconds 5
 }
 
 function Remove-ValidatedRunDirectory {

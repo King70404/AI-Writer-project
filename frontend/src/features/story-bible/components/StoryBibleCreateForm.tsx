@@ -40,9 +40,7 @@ export function StoryBibleCreateForm({
     }
   }, [createKind, createState?.create]);
 
-  if (createState === null) {
-    return null;
-  }
+  if (createState === null) return null;
   const stateDraft = createState.draft;
   const stateCreate = createState.create;
   const effectiveFieldErrors =
@@ -83,19 +81,18 @@ export function StoryBibleCreateForm({
       className="story-bible-create"
       aria-labelledby="story-bible-create-title"
     >
-      <p className="section-kicker">Project唯一设定集</p>
-      <h3 id="story-bible-create-title">尚未创建 Story Bible</h3>
-      <p>创建后可在此维护一份完整纯文本设定。此操作不会自动重试。</p>
-      <form onSubmit={submit} noValidate>
+      <p className="section-kicker">小说设定</p>
+      <h3 id="story-bible-create-title">创建小说设定</h3>
+      <p>在这里记录世界观、力量体系、地点、主线和其他长期设定。</p>
+      <form onSubmit={submit} noValidate autoComplete="off">
         <div className="form-field">
-          <label htmlFor="story-bible-create-title-input">
-            Story Bible标题
-          </label>
+          <label htmlFor="story-bible-create-title-input">设定标题</label>
           <input
             ref={titleRef}
             id="story-bible-create-title-input"
-            name="title"
+            name="novel-setting-title"
             type="text"
+            autoComplete="off"
             value={stateDraft.title}
             onChange={(event) => {
               controller.setTitle(event.target.value);
@@ -116,11 +113,12 @@ export function StoryBibleCreateForm({
           )}
         </div>
         <div className="form-field">
-          <label htmlFor="story-bible-create-content">Story Bible正文</label>
+          <label htmlFor="story-bible-create-content">设定正文</label>
           <textarea
             ref={contentRef}
             id="story-bible-create-content"
-            name="content"
+            name="novel-setting-content"
+            autoComplete="off"
             rows={16}
             value={stateDraft.content}
             onChange={(event) => {
@@ -142,7 +140,7 @@ export function StoryBibleCreateForm({
           )}
         </div>
         <button type="submit" disabled={blocked}>
-          {stateCreate.kind === "submitting" ? "正在创建…" : "创建 Story Bible"}
+          {stateCreate.kind === "submitting" ? "正在创建…" : "创建小说设定"}
         </button>
       </form>
       {stateCreate.error === null ? null : (
@@ -166,7 +164,7 @@ export function StoryBibleCreateForm({
               disabled={stateCreate.verifying}
               onClick={() => void controller.verifyCreateResult()}
             >
-              {stateCreate.verifying ? "正在重新读取…" : "重新读取 Story Bible"}
+              {stateCreate.verifying ? "正在重新读取…" : "重新读取小说设定"}
             </button>
           ) : null}
           {stateCreate.verificationError === null ? null : (

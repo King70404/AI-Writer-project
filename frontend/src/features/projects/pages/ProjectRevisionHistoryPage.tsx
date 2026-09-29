@@ -39,18 +39,13 @@ function ProjectRevisionHistoryRoute({
     >
       <header className="project-revision-history__header">
         <div>
-          <p className="section-kicker">Project 只读历史</p>
-          <h2 id="project-revision-history-title">项目修订历史</h2>
-          {history.status !== "invalid" && projectId !== undefined ? (
-            <p className="project-revision-history__id">
-              项目编号：{projectId}
-            </p>
-          ) : null}
+          <p className="section-kicker">小说 · 只读历史</p>
+          <h2 id="project-revision-history-title">小说修订历史</h2>
         </div>
         {history.status !== "invalid" && projectId !== undefined ? (
-          <Link to={projectDetailsPath(projectId)}>返回项目详情</Link>
+          <Link to={projectDetailsPath(projectId)}>返回小说详情</Link>
         ) : (
-          <Link to="/projects">返回项目列表</Link>
+          <Link to="/projects">返回小说列表</Link>
         )}
       </header>
 

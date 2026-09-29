@@ -80,27 +80,33 @@ test("E2E-INT-008 exercises the Project list and creation UI", async ({
     ]);
   }
 
-  await page.getByRole("textbox", { name: "项目标题" }).fill(titleCanary);
-  await page.getByRole("textbox", { name: "项目简介" }).fill(descriptionCanary);
-  await page.getByRole("button", { name: "创建项目" }).click();
+  await page.getByRole("textbox", { name: "书名" }).fill(titleCanary);
+  await page
+    .getByRole("textbox", { name: "一句话简介（可选）" })
+    .fill(descriptionCanary);
+  await page.getByRole("button", { name: "创建小说" }).click();
 
   const firstCard = page.getByRole("listitem").filter({ hasText: titleCanary });
   await expect(firstCard).toBeVisible();
-  await expect(firstCard.locator(".project-card__id")).toHaveText(
+  await expect(firstCard).toHaveAttribute(
+    "data-project-id",
     /^prj_[0-9A-HJKMNP-TV-Z]{26}$/u,
   );
+  await expect(firstCard.locator(".project-card__id")).toHaveCount(0);
+  await expect(firstCard.getByText(/当前修订|并发版本/u)).toHaveCount(0);
+  const projectId = await firstCard.getAttribute("data-project-id");
   await expect(
-    firstCard
-      .locator("dt", { hasText: "当前修订" })
-      .locator("xpath=following-sibling::dd"),
-  ).toHaveText("1");
+    firstCard.getByRole("link", { name: "打开小说" }),
+  ).toHaveAttribute("href", `/projects/${projectId}`);
+  expect(
+    (await (
+      await context.request.get(`/api/v1/projects/${projectId}`)
+    ).json()) as unknown,
+  ).toMatchObject({ revision_number: 1, concurrency_version: 1 });
+  await expect(page.getByRole("textbox", { name: "书名" })).toHaveValue("");
   await expect(
-    firstCard
-      .locator("dt", { hasText: "并发版本" })
-      .locator("xpath=following-sibling::dd"),
-  ).toHaveText("1");
-  await expect(page.getByRole("textbox", { name: "项目标题" })).toHaveValue("");
-  await expect(page.getByRole("textbox", { name: "项目简介" })).toHaveValue("");
+    page.getByRole("textbox", { name: "一句话简介（可选）" }),
+  ).toHaveValue("");
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toMatch(
     /csrf|token/iu,
   );

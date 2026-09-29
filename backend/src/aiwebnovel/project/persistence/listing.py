@@ -17,6 +17,7 @@ from aiwebnovel.project.application.models import (
     ProjectListPosition,
 )
 from aiwebnovel.project.application.queries import validate_project_list_limit
+from aiwebnovel.project.deletion import PROJECT_DELETION_TITLE_PREFIX
 from aiwebnovel.project.errors import (
     DomainError,
     ProjectDataCorruption,
@@ -75,6 +76,14 @@ def project_list_statement(
         .outerjoin(
             ProjectRevisionRecord,
             ProjectRevisionRecord.id == ProjectHeadRecord.revision_id,
+        )
+        .where(
+            or_(
+                ProjectRevisionRecord.title.is_(None),
+                ~ProjectRevisionRecord.title.startswith(
+                    PROJECT_DELETION_TITLE_PREFIX, autoescape=True
+                ),
+            )
         )
     )
     if after is not None:

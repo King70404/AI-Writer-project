@@ -45,7 +45,9 @@ npm run e2e:integrated -- -Scenario E2E-INT-012
 npm run e2e:integrated -- -Scenario E2E-INT-016
 ```
 
-当前完整集共20个场景：3个开发模式、16个生产集成模式和1个缺失构建启动失败场景。`E2E-INT-014`验证Character HTTP创建、稳定列表与并发修订；`E2E-INT-015`验证Character当前前端流程；`E2E-INT-016`在生产构建、真实后端和临时0004 SQLite上验证历史入口与直接刷新、首屏一个列表GET且无详情GET、21个Revision的20+1分页、Head current、按需profile、快速切换取消、无历史写入、隐私及数据库/资源清理。
+当前完整集共24个场景：3个开发模式、20个生产集成模式和1个缺失构建启动失败场景。`E2E-INT-014`验证Character HTTP创建、稳定列表与并发修订；`E2E-INT-015`验证Character当前前端流程；`E2E-INT-016`在生产构建、真实后端和临时0004 SQLite上验证历史入口与直接刷新、首屏一个列表GET且无详情GET、21个Revision的20+1分页、Head current、按需profile、快速切换取消、无历史写入、隐私及数据库/资源清理。
+
+V1-UX-1-R4 在 `E2E-INT-016` 原有只读历史断言之后增加小说删除回归：通过精确书名确认删除同一个临时小说，已打开历史页再请求未读正文及重新打开旧历史链接均须返回 404 且不显示档案。数据库验后检查保留全部 21 条角色修订与原小说修订，并验证仅追加预期的小说删除标记。设定/角色普通页面的内部 ID 与并发信息隐藏也纳入受影响 E2E；API/ETag、历史版本、冲突和浏览器审计断言继续保留。
 
 统一启动入口的最低浏览器验收由仓库根目录的受控脚本执行：
 
@@ -54,7 +56,7 @@ npm run e2e:integrated -- -Scenario E2E-INT-016
 .\scripts\check_startup_runtime.ps1 -Mode Integrated
 ```
 
-Development与Integrated烟测使用专用临时端口和唯一隔离数据根；它们不会复制全部20个E2E场景。`E2E-INT-006`至`E2E-INT-010`保留Project API、稳定列表、前端创建/修订与不可变历史证据；`E2E-INT-011`至`E2E-INT-013`验证Story Bible HTTP、真实前端当前流程和只读历史；`E2E-INT-014/015`验证Character HTTP与当前前端流程；`E2E-INT-016`验证Character只读Revision历史、取消竞态、21个不可变Revision与完整清理。
+Development与Integrated烟测使用专用临时端口和唯一隔离数据根；它们不会复制全部24个E2E场景。`E2E-INT-006`至`E2E-INT-010`保留Project API、稳定列表、前端创建/修订与不可变历史证据；`E2E-INT-011`至`E2E-INT-013`验证Story Bible HTTP、真实前端当前流程和只读历史；`E2E-INT-014/015`验证Character HTTP与当前前端流程；`E2E-INT-016`验证Character只读Revision历史、取消竞态、21个不可变Revision与完整清理。
 
 默认使用无头 Chromium、`retries=0` 和单 worker，不自动打开报告或浏览器窗口。人工调试时可执行 `npm run e2e:headed`；失败后执行 `npm run e2e:report` 查看本地 HTML 报告。截图和 trace 只在失败时保留，视频关闭；成功运行会删除无用的模式报告和结果目录。
 
@@ -62,11 +64,11 @@ Development与Integrated烟测使用专用临时端口和唯一隔离数据根�
 
 E2E 使用固定专用 loopback 端口，启动前必须确认端口空闲，绝不复用开发者已经启动的服务：
 
-| 模式 | 服务 | 端口 |
-| --- | --- | ---: |
-| 开发 | Vite | 14173 |
-| 开发 | FastAPI | 18120 |
-| 生产集成 | FastAPI | 18121 |
+| 模式             | 服务    |  端口 |
+| ---------------- | ------- | ----: |
+| 开发             | Vite    | 14173 |
+| 开发             | FastAPI | 18120 |
+| 生产集成         | FastAPI | 18121 |
 | 缺失构建失败验收 | FastAPI | 18122 |
 
 开发模式只从 Vite 访问页面，Vite 的 `/api` 代理仅指向本次 E2E 后端，并为测试关闭 HMR WebSocket。生产集成模式不启动 Vite；正常构建验收结束并清理后，才以缺少 `index.html` 的受控目录启动独立失败验收进程。

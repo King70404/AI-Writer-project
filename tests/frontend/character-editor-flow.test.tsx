@@ -10,6 +10,7 @@ import {
   characterError,
   characterId,
   characterProjectId,
+  characterResponse,
   secondCharacterProjectId,
   versionedCharacter,
 } from "./character-support";
@@ -38,12 +39,24 @@ async function changeProfile(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("Character current editor", () => {
-  it("loads one trusted baseline, displays all metadata, and starts clean", async () => {
+  it("loads one trusted baseline, shows saved times without internal identifiers, and starts clean", async () => {
     const client = characterClient();
     renderEditor(client);
     expect(await screen.findByRole("heading", { name: "林砚" })).toBeVisible();
-    expect(screen.getByText(characterId)).toBeVisible();
-    expect(screen.getByText("crv_01ARZ3NDEKTSV4RRFFQ69G5FAV")).toBeVisible();
+    const baseline = characterResponse();
+    for (const id of [
+      baseline.character_id,
+      baseline.project_id,
+      baseline.current_revision_id,
+    ])
+      expect(document.body).not.toHaveTextContent(id);
+    expect(document.body).not.toHaveTextContent(
+      /Character ID|Project ID|RevisionNumber|ConcurrencyVersion|head_updated_at/u,
+    );
+    expect(screen.getAllByRole("time")).toHaveLength(2);
+    expect(
+      screen.getByText("最近保存").nextElementSibling?.querySelector("time"),
+    ).toHaveAttribute("datetime", baseline.updated_at);
     expect(screen.getByText("当前没有未保存更改")).toBeVisible();
     expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
     expect(client.getCharacter).toHaveBeenCalledOnce();
@@ -72,7 +85,20 @@ describe("Character current editor", () => {
     );
     expect(client.getCharacter).toHaveBeenCalledOnce();
     expect(screen.getByText("当前没有未保存更改")).toBeVisible();
-    expect(screen.getAllByText("2")).toHaveLength(2);
+    expect(screen.getByLabelText("角色名称")).toHaveValue("林砚二版");
+    expect(document.body).not.toHaveTextContent(
+      /RevisionNumber|ConcurrencyVersion/u,
+    );
+    await user.type(screen.getByLabelText("角色名称"), "再次保存");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(revise).toHaveBeenCalledTimes(2));
+    expect(revise).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        etag: '"2"',
+        name: "林砚二版再次保存",
+        profile: "本地完整新草稿",
+      }),
+    );
   });
 
   it("discards only in memory without a request", async () => {

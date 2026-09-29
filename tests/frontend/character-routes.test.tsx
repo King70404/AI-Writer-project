@@ -119,7 +119,7 @@ describe("Character routes and navigation", () => {
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
     renderAt(`/projects/${characterProjectId}`);
-    const link = await screen.findByRole("link", { name: "查看角色" });
+    const link = await screen.findByRole("link", { name: "人物" });
     expect(link).toHaveAttribute(
       "href",
       `/projects/${characterProjectId}/characters`,

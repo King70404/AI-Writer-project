@@ -9,6 +9,7 @@ from aiwebnovel.domain.errors import DomainError
 from aiwebnovel.domain.revisions import RevisionNumber
 from aiwebnovel.project.application.commands import (
     CreateProjectCommand,
+    DeleteProjectCommand,
     ReviseProjectCommand,
 )
 from aiwebnovel.project.application.queries import (
@@ -42,6 +43,7 @@ from aiwebnovel.project.web.dependencies import (
 )
 from aiwebnovel.project.web.dto import (
     CreateProjectRequest,
+    DeleteProjectResponse,
     ProjectListResponse,
     ProjectResponse,
     ProjectRevisionHistoryResponse,
@@ -110,7 +112,8 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
             "Returns current-revision summaries ordered by immutable created_at DESC and "
             "project_id DESC using keyset pagination. The opaque cursor is a transport token, "
             "not a security credential. Description and total count are intentionally omitted; "
-            "search, filtering, and custom sorting are not supported."
+            "search, filtering, and custom sorting are not supported. Logically deleted Projects "
+            "are omitted from ordinary author use."
         ),
         openapi_extra={
             "parameters": [
@@ -341,6 +344,47 @@ def create_project_router(*, api_prefix: str) -> APIRouter:
         project = project_response_from_snapshot(snapshot)
         _set_project_headers(response, project)
         return project
+
+    @router.post(
+        "/{project_id}/delete",
+        response_model=DeleteProjectResponse,
+        responses=_ERROR_RESPONSES,
+        summary="Logically delete a Project",
+        description=(
+            "Appends an internal immutable tombstone revision so the Project disappears from "
+            "ordinary author workflows without rewriting accepted revision history. If-Match "
+            "must contain the current strong Project ETag."
+        ),
+        openapi_extra={
+            "parameters": [
+                {
+                    "name": "If-Match",
+                    "in": "header",
+                    "required": True,
+                    "description": 'Required strong Project ETag, for example "1".',
+                    "schema": {"type": "string"},
+                }
+            ]
+        },
+    )
+    def delete_project(
+        project_id: Annotated[str, Depends(get_project_id)],
+        expected_version: Annotated[
+            ConcurrencyVersion,
+            Depends(get_required_project_version),
+        ],
+        service: Annotated[ProjectCommandService, Depends(get_project_command_service)],
+    ) -> DeleteProjectResponse:
+        try:
+            service.delete_project(
+                DeleteProjectCommand(
+                    project_id=project_id,
+                    expected_version=int(expected_version),
+                )
+            )
+        except DomainError as exc:
+            raise_project_http_error(exc)
+        return DeleteProjectResponse(deleted=True)
 
     return router
 

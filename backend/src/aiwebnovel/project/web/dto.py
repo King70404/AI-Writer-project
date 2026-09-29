@@ -20,6 +20,14 @@ class ReviseProjectRequest(_ProjectRequest):
     """Complete client-owned replacement accepted for a Project revision."""
 
 
+class DeleteProjectResponse(BaseModel):
+    """Confirmation that an active Project has been logically deleted."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    deleted: bool
+
+
 class ProjectResponse(BaseModel):
     """Detached current Project state exposed over HTTP."""
 
@@ -44,7 +52,6 @@ class ProjectResponse(BaseModel):
     )
     @classmethod
     def require_utc_datetime(cls, value: datetime) -> datetime:
-        """Reject naive or non-UTC timestamps at the HTTP boundary."""
         if value.tzinfo is None or value.utcoffset() != timedelta(0):
             raise ValueError("Project response timestamps must be aware UTC datetimes")
         return value
@@ -67,15 +74,12 @@ class ProjectListItemResponse(BaseModel):
     @field_validator("created_at", "updated_at", "revision_created_at")
     @classmethod
     def require_utc_datetime(cls, value: datetime) -> datetime:
-        """Reject naive or non-UTC list timestamps at the HTTP boundary."""
         if value.tzinfo is None or value.utcoffset() != timedelta(0):
             raise ValueError("Project list timestamps must be aware UTC datetimes")
         return value
 
 
 class ProjectListResponse(BaseModel):
-    """One Project keyset page without total counts or page numbers."""
-
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     items: tuple[ProjectListItemResponse, ...]
@@ -84,8 +88,6 @@ class ProjectListResponse(BaseModel):
 
 
 class ProjectRevisionHistoryItemResponse(BaseModel):
-    """Read-only summary for one immutable Project revision."""
-
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     revision_id: str
@@ -97,15 +99,12 @@ class ProjectRevisionHistoryItemResponse(BaseModel):
     @field_validator("created_at")
     @classmethod
     def require_utc_datetime(cls, value: datetime) -> datetime:
-        """Reject naive or non-UTC history timestamps."""
         if value.tzinfo is None or value.utcoffset() != timedelta(0):
             raise ValueError("Project revision timestamps must be aware UTC datetimes")
         return value
 
 
 class ProjectRevisionHistoryResponse(BaseModel):
-    """One immutable revision-history keyset page without a total count."""
-
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     project_id: str
@@ -116,8 +115,6 @@ class ProjectRevisionHistoryResponse(BaseModel):
 
 
 class ProjectRevisionResponse(BaseModel):
-    """Complete read-only content for one immutable Project revision."""
-
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     project_id: str
@@ -132,7 +129,6 @@ class ProjectRevisionResponse(BaseModel):
     @field_validator("created_at")
     @classmethod
     def require_utc_datetime(cls, value: datetime) -> datetime:
-        """Reject naive or non-UTC revision timestamps."""
         if value.tzinfo is None or value.utcoffset() != timedelta(0):
             raise ValueError("Project revision timestamps must be aware UTC datetimes")
         return value
@@ -140,6 +136,7 @@ class ProjectRevisionResponse(BaseModel):
 
 __all__ = [
     "CreateProjectRequest",
+    "DeleteProjectResponse",
     "ProjectListItemResponse",
     "ProjectListResponse",
     "ProjectResponse",
