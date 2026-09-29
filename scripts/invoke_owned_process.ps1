@@ -648,19 +648,35 @@ function Stop-OwnedProcessTree {
         throw "refusing to stop a process whose identity cannot be verified (pid=$($Record.ProcessId))"
     }
 
-    & taskkill.exe /PID $Record.ProcessId /T /F 2>$null | Out-Null
-    $taskkillExitCode = $LASTEXITCODE
+    $taskkillExitCode = -1
+    $taskkillError = $null
+    try {
+        & taskkill.exe /PID $Record.ProcessId /T /F 2>$null | Out-Null
+        $taskkillExitCode = $LASTEXITCODE
+    } catch {
+        # Windows PowerShell 5.1 can throw on taskkill stderr when the owned
+        # process exits between the identity check and taskkill. Only the
+        # verified postcondition below may turn that race into success.
+        $taskkillError = ConvertTo-StartupSafeText -Value $_.Exception.Message
+    }
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     do {
-        if ((Get-OwnedProcessState -Record $Record) -eq "absent") {
+        $state = Get-OwnedProcessState -Record $Record
+        if ($state -eq "absent") {
             Complete-OwnedProcessCapture -Record $Record
             return
+        }
+        if ($state -eq "mismatch") {
+            throw "refusing to stop a reused process identifier (pid=$($Record.ProcessId))"
+        }
+        if ($state -ne "owned") {
+            throw "refusing to stop a process whose identity cannot be verified (pid=$($Record.ProcessId))"
         }
         Start-Sleep -Milliseconds 200
     } while ([DateTime]::UtcNow -lt $deadline)
     throw (
         "owned process tree did not stop (pid=$($Record.ProcessId), " +
-        "exit_code=$taskkillExitCode)"
+        "exit_code=$taskkillExitCode, command_error=$taskkillError)"
     )
 }
 

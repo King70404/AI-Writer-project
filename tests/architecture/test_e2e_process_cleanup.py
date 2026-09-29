@@ -17,9 +17,13 @@ def _quote(value: str | Path) -> str:
     return str(value).replace("'", "''")
 
 
-@pytest.mark.parametrize("already_exited", [False, True], ids=["terminated", "natural-exit"])
+@pytest.mark.parametrize(
+    ("already_exited", "exit_race"),
+    [(False, False), (True, False), (False, True)],
+    ids=["terminated", "natural-exit", "exit-before-taskkill"],
+)
 def test_e2e_service_cleanup_drains_output_and_releases_log_files(
-    tmp_path: Path, already_exited: bool
+    tmp_path: Path, already_exited: bool, exit_race: bool
 ) -> None:
     powershell = shutil.which("powershell.exe")
     assert powershell is not None
@@ -70,6 +74,8 @@ $port = Get-TemporaryLoopbackPort
 $release = [System.Threading.EventWaitHandle]::new(
     $false, [System.Threading.EventResetMode]::ManualReset, "Local\\AIWebNovel-E2ECapture-$port")
 $record = $null
+$script:originalOwnedState = ${{function:Get-OwnedProcessState}}
+$script:forcedExitRace = $false
 try {{
     $record = Start-OwnedService -Service Backend -Name capture-regression -Port $port `
         -RunDirectory '{_quote(run_directory)}' -DataRoot '{_quote(run_directory / "data root")}'
@@ -81,7 +87,30 @@ try {{
         $null = $release.Set()
         if (-not $record.Process.WaitForExit(5000)) {{ throw 'controlled service did not exit' }}
     }}
-    Stop-OwnedServiceTree -Record $record
+    if (${str(exit_race).lower()}) {{
+        # Force natural exit after the ownership check, before real taskkill.exe.
+        # Windows PowerShell 5.1 turns taskkill stderr into a terminating error.
+        function Get-OwnedProcessState {{
+            param([object]$Record)
+            $state = & $script:originalOwnedState -Record $Record
+            if ($state -eq 'owned' -and -not $script:forcedExitRace) {{
+                $script:forcedExitRace = $true
+                $null = $release.Set()
+                if (-not $Record.Process.WaitForExit(5000)) {{
+                    throw 'controlled exit race did not exit'
+                }}
+            }}
+            return $state
+        }}
+    }}
+    if (${str(exit_race).lower()}) {{
+        Stop-OwnedProcessTree -Record $record.Capture
+    }} else {{
+        Stop-OwnedServiceTree -Record $record
+    }}
+    if (${str(exit_race).lower()} -and -not $script:forcedExitRace) {{
+        throw 'cleanup did not exercise the exit race'
+    }}
     if (-not $record.Capture.CaptureCompleted) {{ throw 'output capture was not finalized' }}
     if ((Get-OwnedProcessState -Record $record.Capture) -ne 'absent') {{
         throw 'owned service is still running'
@@ -103,6 +132,7 @@ try {{
     }}
     Write-Output 'captured-output-released'
 }} finally {{
+    ${{function:Get-OwnedProcessState}} = $script:originalOwnedState
     $null = $release.Set()
     foreach ($owned in $script:OwnedProcesses) {{ Stop-OwnedServiceTree -Record $owned }}
     $release.Dispose()
@@ -120,3 +150,55 @@ try {{
     )
     assert result.returncode == 0, result.stderr
     assert "captured-output-released" in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("state_after_failure", "expected_error"),
+    [
+        ("owned", "owned process tree did not stop*controlled taskkill failure*"),
+        ("mismatch", "refusing to stop a reused process identifier*"),
+        ("unverifiable", "refusing to stop a process whose identity cannot be verified*"),
+    ],
+)
+def test_taskkill_failure_requires_verified_absence(
+    state_after_failure: str, expected_error: str
+) -> None:
+    powershell = shutil.which("powershell.exe")
+    assert powershell is not None
+    command = f"""
+$ErrorActionPreference = 'Stop'
+. '{_quote(_REPOSITORY_ROOT / "scripts/invoke_owned_process.ps1")}'
+$script:identityChecks = 0
+function Get-OwnedProcessState {{
+    param([object]$Record)
+    $script:identityChecks++
+    if ($script:identityChecks -eq 1) {{ return 'owned' }}
+    return '{state_after_failure}'
+}}
+function taskkill.exe {{ Write-Error 'controlled taskkill failure' }}
+$record = [pscustomobject]@{{
+    ProcessId = 1
+    StartedAtUtcTicks = 1
+    CaptureCompleted = $false
+}}
+$failure = $null
+try {{ Stop-OwnedProcessTree -Record $record -TimeoutSeconds 0 }} catch {{
+    $failure = $_.Exception.Message
+}}
+if ($failure -notlike '{expected_error}') {{ throw "cleanup reported wrong result: $failure" }}
+if ($script:identityChecks -ne 2) {{ throw 'failed termination was not rechecked' }}
+if ($record.CaptureCompleted) {{ throw 'unverified process was marked complete' }}
+Write-Output 'unverified-cleanup-rejected'
+"""
+    result = subprocess.run(
+        [powershell, "-NoProfile", "-NonInteractive", "-Command", command],
+        cwd=_REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "unverified-cleanup-rejected" in result.stdout

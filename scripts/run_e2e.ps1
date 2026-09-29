@@ -1390,28 +1390,12 @@ function Stop-OwnedServiceTree {
     )
 
     if ($Record.ServiceProcessId -gt 0) {
-        $serviceProcess = Get-Process `
-            -Id $Record.ServiceProcessId `
-            -ErrorAction SilentlyContinue
-        if ($null -ne $serviceProcess) {
-            if ($serviceProcess.StartTime.ToUniversalTime() -ne $Record.ServiceStartedAt) {
-                throw "refusing to stop a reused service process identifier"
-            }
-            try {
-                & taskkill.exe /PID $Record.ServiceProcessId /T /F 2>$null | Out-Null
-                $serviceTaskkillExitCode = $LASTEXITCODE
-            } catch {
-                $serviceTaskkillExitCode = 1
-            }
-            $serviceProcess.WaitForExit(5000) | Out-Null
-            $serviceProcess.Refresh()
-            if (-not $serviceProcess.HasExited) {
-                throw (
-                    "failed to stop owned service process: $($Record.Name) " +
-                    "(taskkill exit code $serviceTaskkillExitCode)"
-                )
-            }
+        $serviceRecord = [pscustomobject]@{
+            Name = $Record.Name
+            ProcessId = $Record.ServiceProcessId
+            StartedAtUtcTicks = $Record.ServiceStartedAt.Ticks
         }
+        Stop-OwnedProcessTree -Record $serviceRecord -TimeoutSeconds 5
     }
 
     # The parent can exit before PowerShell's implicit redirection callbacks close
