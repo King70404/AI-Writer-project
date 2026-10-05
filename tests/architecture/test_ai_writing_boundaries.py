@@ -9,7 +9,9 @@ ROOT = Path(__file__).resolve().parents[2] / "backend/src/aiwebnovel/ai_writing"
 
 
 def violations(source: str, layer: str) -> tuple[str, ...]:
-    banned = ["sqlalchemy", "alembic", "aiwebnovel.db"]
+    banned = ["alembic"]
+    if layer not in ("composition", "persistence"):
+        banned += ["sqlalchemy", "aiwebnovel.db"]
     if layer == "application":
         banned += [
             "fastapi",
@@ -20,11 +22,30 @@ def violations(source: str, layer: str) -> tuple[str, ...]:
             "aiwebnovel.ai_writing.provider",
             "aiwebnovel.ai_writing.web",
             "aiwebnovel.core",
+            "aiwebnovel.model_gateway",
+            "aiwebnovel.ai_writing.runtime",
         ]
-    elif layer == "web":
+    elif layer in ("web", "workflow_web"):
         banned += ["http", "urllib", "httpx", "aiwebnovel.ai_writing.provider"]
     elif layer == "provider":
         banned += ["fastapi", "aiwebnovel.ai_writing.web"]
+    elif layer == "persistence":
+        banned += [
+            "fastapi",
+            "http",
+            "httpx",
+            "urllib",
+            "aiwebnovel.model_gateway",
+            "aiwebnovel.ai_writing.provider",
+        ]
+    allowed_persistence = {
+        "composition": {"aiwebnovel.ai_writing.persistence.repository"},
+        "persistence": {
+            "aiwebnovel.ai_writing.persistence.models",
+            "aiwebnovel.project.persistence.models",
+            "aiwebnovel.novel_structure.persistence.workflow_transaction",
+        },
+    }.get(layer, set())
     modules = []
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Import):
@@ -37,15 +58,16 @@ def violations(source: str, layer: str) -> tuple[str, ...]:
         m
         for m in modules
         if m == "relative-import"
-        or ".persistence" in m
-        or ".repository" in m
+        or ((".persistence" in m or ".repository" in m) and m not in allowed_persistence)
         or any(m == b or m.startswith(b + ".") for b in banned)
     )
 
 
 def test_ai_production_boundaries_and_no_fake_implementation() -> None:
     for path in ROOT.rglob("*.py"):
-        layer = "application" if path.parent.name == "application" else path.stem
+        layer = (
+            path.parent.name if path.parent.name in ("application", "persistence") else path.stem
+        )
         source = path.read_text(encoding="utf-8")
         assert violations(source, layer) == ()
         assert not any(
@@ -66,6 +88,11 @@ def test_ai_production_boundaries_and_no_fake_implementation() -> None:
         ("web", "httpx"),
         ("provider", "fastapi"),
         ("application", "aiwebnovel.project.persistence.repository"),
+        ("persistence", "aiwebnovel.project.persistence.repository"),
+        ("persistence", "aiwebnovel.novel_structure.persistence.repository"),
+        ("persistence", "httpx"),
+        ("workflow_web", "sqlalchemy"),
+        ("application", "aiwebnovel.model_gateway.service"),
     ],
 )
 def test_checker_rejects_controlled_illegal_imports(layer: str, module: str) -> None:

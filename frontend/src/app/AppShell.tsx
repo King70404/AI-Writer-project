@@ -30,7 +30,7 @@ export function AppShell() {
       <footer className="app-shell__footer">
         <p>
           V1 支持项目、设定、人物、小说结构、章节写作与 TXT 导出。 AI
-          续写与改写需要另行配置本地 AI 服务。
+          协作支持配置本地或云端模型，候选由作者确认后采纳。
         </p>
       </footer>
     </div>

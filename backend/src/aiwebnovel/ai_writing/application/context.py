@@ -1,6 +1,10 @@
 """Bounded current snapshots, read only through public application services."""
 
-from aiwebnovel.ai_writing.application.models import ChapterWritingContext, ContextManifest
+from aiwebnovel.ai_writing.application.models import (
+    ChapterWritingContext,
+    ContextManifest,
+    ContextSource,
+)
 from aiwebnovel.ai_writing.errors import AIContextChanged
 from aiwebnovel.character.application.queries import ListCharactersForProjectQuery
 from aiwebnovel.character.application.services import CharacterQueryService
@@ -32,29 +36,61 @@ class _Assembly:
         self.omitted: list[str] = []
         self.count = 0
         self.truncated = False
+        self.sources: list[ContextSource] = []
 
-    def add(self, source: str, text: str | None, limit: int, *, tail: bool = False) -> None:
+    def add(
+        self,
+        source: str,
+        text: str | None,
+        limit: int,
+        *,
+        tail: bool = False,
+        references: tuple[tuple[str, str], ...] = (),
+    ) -> None:
         if text is None:
             self.omitted.append(source)
+            self.sources.append(
+                ContextSource(source, references, "", "相关创作资料", "尚未创建或无匹配内容", False)
+            )
             return
         label = f"\n[{source}]\n"
         available = max(0, min(limit, CONTEXT_CHARACTER_BUDGET - self.count - len(label)))
         if available == 0:
             self.omitted.append(source)
             self.truncated = True
+            self.sources.append(
+                ContextSource(source, references, "", "相关创作资料", "上下文预算已用完", True)
+            )
             return
+        truncated = len(text) > available
         if len(text) > available:
             self.truncated = True
             text = text[-available:] if tail else text[:available]
         self.parts.append(label + text)
         self.count += len(label) + len(text)
+        self.sources.append(
+            ContextSource(
+                source,
+                references,
+                text,
+                "最近正文尾部" if tail else "当前有效版本的相关创作资料",
+                None,
+                truncated,
+            )
+        )
         if source not in self.included:
             self.included.append(source)
 
     def finish(self) -> ChapterWritingContext:
         return ChapterWritingContext(
             "".join(self.parts),
-            ContextManifest(tuple(self.included), tuple(self.omitted), self.truncated, self.count),
+            ContextManifest(
+                tuple(self.included),
+                tuple(self.omitted),
+                self.truncated,
+                self.count,
+                tuple(self.sources),
+            ),
         )
 
 
@@ -83,12 +119,17 @@ class ChapterWritingContextBuilder:
         result = _Assembly()
         result.add(
             "current_chapter",
-            f"id={chapter.chapter_id}\nproject={chapter.project_id}\n"
-            f"volume={chapter.volume_id}\nposition={chapter.position}\n"
-            f"title={chapter.title}\nsummary={chapter.summary}",
+            f"position={chapter.position}\ntitle={chapter.title}\nsummary={chapter.summary}",
             4_000,
+            references=((chapter.chapter_id, chapter.current_revision_id),),
         )
-        result.add("current_chapter", content.content, CURRENT_CONTENT_LIMIT, tail=True)
+        result.add(
+            "current_chapter",
+            content.content,
+            CURRENT_CONTENT_LIMIT,
+            tail=True,
+            references=((chapter.chapter_id, content.current_revision_id),),
+        )
         try:
             outline = self._structure.get_outline_for_project(
                 GetOutlineForProjectQuery(chapter.project_id)
@@ -96,7 +137,12 @@ class ChapterWritingContextBuilder:
         except OutlineNotFound:
             result.add("outline", None, 3_000)
         else:
-            result.add("outline", f"{outline.title}\n{outline.summary}", 3_000)
+            result.add(
+                "outline",
+                f"{outline.title}\n{outline.summary}",
+                3_000,
+                references=((outline.outline_id, outline.current_revision_id),),
+            )
         try:
             bible = self._story_bibles.get_story_bible_for_project(
                 GetStoryBibleForProjectQuery(chapter.project_id)
@@ -104,11 +150,21 @@ class ChapterWritingContextBuilder:
         except StoryBibleForProjectNotFound:
             result.add("story_bible", None, 16_000)
         else:
-            result.add("story_bible", f"{bible.title}\n{bible.content}", 16_000)
+            result.add(
+                "story_bible",
+                f"{bible.title}\n{bible.content}",
+                16_000,
+                references=((bible.story_bible_id, bible.current_revision_id),),
+            )
         volume = self._structure.get_volume(GetVolumeQuery(chapter.volume_id))
         if volume.project_id != chapter.project_id:
             raise AIContextChanged
-        result.add("volume", f"{volume.title}\n{volume.summary}", 3_000)
+        result.add(
+            "volume",
+            f"{volume.title}\n{volume.summary}",
+            3_000,
+            references=((volume.volume_id, volume.current_revision_id),),
+        )
         earlier = tuple(
             item
             for item in self._structure.list_chapters(ListChaptersQuery(chapter.volume_id))
@@ -123,9 +179,18 @@ class ChapterWritingContextBuilder:
             )
             if previous_content.current_revision_id != previous.current_revision_id:
                 raise AIContextChanged
-            result.add("previous_chapter", f"{previous.title}\n{previous.summary}", 3_000)
             result.add(
-                "previous_chapter", previous_content.content, PREVIOUS_CONTENT_LIMIT, tail=True
+                "previous_chapter",
+                f"{previous.title}\n{previous.summary}",
+                3_000,
+                references=((previous.chapter_id, previous.current_revision_id),),
+            )
+            result.add(
+                "previous_chapter",
+                previous_content.content,
+                PREVIOUS_CONTENT_LIMIT,
+                tail=True,
+                references=((previous.chapter_id, previous_content.current_revision_id),),
             )
         else:
             result.add("previous_chapter", None, PREVIOUS_CONTENT_LIMIT)
@@ -137,8 +202,14 @@ class ChapterWritingContextBuilder:
             "characters",
             "\n".join(f"{item.name}: {item.role}" for item in page.items) if page.items else None,
             CHARACTER_CONTEXT_LIMIT,
+            references=tuple((item.character_id, item.current_revision_id) for item in page.items),
         )
         result.truncated |= page.has_more
         project = self._projects.get_project(GetProjectQuery(chapter.project_id))
-        result.add("project", f"{project.title}\n{project.description}" if project else None, 3_000)
+        result.add(
+            "project",
+            f"{project.title}\n{project.description}" if project else None,
+            3_000,
+            references=((project.project_id, project.current_revision_id),) if project else (),
+        )
         return result.finish()

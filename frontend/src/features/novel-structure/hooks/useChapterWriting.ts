@@ -53,6 +53,7 @@ export function useChapterWriting(
       !mounted.current ||
       inFlight.current ||
       before.reloading ||
+      before.reloadFailed ||
       before.status === "conflict" ||
       before.status === "saved"
     )
@@ -99,6 +100,7 @@ export function useChapterWriting(
       const latest = current.current;
       if (
         latest.reloading ||
+        latest.reloadFailed ||
         latest.status === "error" ||
         latest.status === "conflict"
       )
@@ -119,7 +121,7 @@ export function useChapterWriting(
   const edit = useCallback(
     (value: string) => {
       const before = current.current;
-      if (before.reloading) return;
+      if (before.reloading || before.reloadFailed) return;
       publish({
         ...before,
         content: normalizeManuscript(value),
@@ -162,6 +164,53 @@ export function useChapterWriting(
     }
   }, [client, publish]);
 
+  const acceptExternal = useCallback(
+    async (commit: () => Promise<void>): Promise<boolean> => {
+      const before = current.current;
+      if (
+        inFlight.current ||
+        before.reloading ||
+        before.reloadFailed ||
+        before.status !== "saved"
+      )
+        return false;
+      // Lock local editing across adoption and the authoritative content read.
+      // A successful server adoption is never written again through autosave.
+      publish({ ...before, reloading: true, reloadFailed: false });
+      try {
+        await commit();
+        const result = await client.getChapterContent(
+          before.snapshot.resource.chapter_id,
+          before.snapshot.resource.project_id,
+        );
+        if (!mounted.current) return false;
+        if (
+          result.resource.volume_id !== before.snapshot.resource.volume_id ||
+          result.version < before.snapshot.version
+        )
+          throw new Error("Chapter snapshot changed unexpectedly.");
+        publish({
+          content: result.resource.content,
+          snapshot: result,
+          status: "saved",
+          reloading: false,
+          reloadFailed: false,
+        });
+        return true;
+      } catch (failure) {
+        if (mounted.current)
+          publish({
+            ...current.current,
+            status: "conflict",
+            reloading: false,
+            reloadFailed: true,
+          });
+        throw failure;
+      }
+    },
+    [client, publish],
+  );
+
   useEffect(() => {
     if (state.status !== "dirty" || state.reloading) return;
     const timer = window.setTimeout(() => {
@@ -180,5 +229,5 @@ export function useChapterWriting(
     return () => window.removeEventListener("beforeunload", protect);
   }, [state.status]);
 
-  return { state, edit, save, reloadServer, flush, getContent };
+  return { state, edit, save, reloadServer, flush, getContent, acceptExternal };
 }

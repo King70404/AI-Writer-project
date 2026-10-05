@@ -3,6 +3,7 @@ import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChapterWritingPage } from "../../frontend/src/features/novel-structure/pages/ChapterWritingPage";
+import { aiWorkflowClient } from "../../frontend/src/features/novel-structure/api/ai-workflow";
 import type { NovelStructureApiClient } from "../../frontend/src/features/novel-structure/api/client";
 import type { VersionedChapter } from "../../frontend/src/features/novel-structure/api/contracts";
 import { ProjectApiError } from "../../frontend/src/features/projects/api/errors";
@@ -26,7 +27,21 @@ import {
   writingClient,
 } from "./chapter-writing-support";
 
-beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }));
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  vi.spyOn(aiWorkflowClient, "models").mockResolvedValue([
+    {
+      id: "default-local",
+      name: "测试模型",
+      kind: "local",
+      base_url: "http://127.0.0.1:1234",
+      model: "local-model",
+      max_output_tokens: 2048,
+      has_key: false,
+    },
+  ]);
+  vi.spyOn(aiWorkflowClient, "list").mockResolvedValue([]);
+});
 afterEach(() => vi.useRealTimers());
 
 async function show(
@@ -177,7 +192,9 @@ describe("Chapter writing workspace", () => {
       fireEvent.click(button);
     });
     expect(
-      screen.getByText("重新加载失败，本地正文仍保留，请手动重试。"),
+      screen.getByText(
+        "服务器正文尚未确认，本地正文仍保留。重新读取前暂停编辑，避免覆盖已采纳内容。",
+      ),
     ).toBeVisible();
     fireEvent.click(button);
     expect(screen.getByText("正在重新读取服务器正文…")).toBeVisible();

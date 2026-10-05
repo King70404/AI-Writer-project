@@ -37,11 +37,17 @@ def test_all_sources_previous_nearest_same_volume_and_stable_character_order() -
     s = sources()
     s.structure.get_outline_for_project.side_effect = None
     s.structure.get_outline_for_project.return_value = SimpleNamespace(
-        title="大纲", summary="大纲梗概"
+        title="大纲",
+        summary="大纲梗概",
+        outline_id="outline",
+        current_revision_id="outline-revision",
     )
     s.bibles.get_story_bible_for_project.side_effect = None
     s.bibles.get_story_bible_for_project.return_value = SimpleNamespace(
-        title="设定", content="设定内容"
+        title="设定",
+        content="设定内容",
+        story_bible_id="bible",
+        current_revision_id="bible-revision",
     )
     previous = SimpleNamespace(
         chapter_id="previous",
@@ -67,7 +73,14 @@ def test_all_sources_previous_nearest_same_volume_and_stable_character_order() -
         SimpleNamespace(content="前" * 9000 + "末尾", current_revision_id="prev"),
     ]
     s.characters.list_characters_for_project.return_value = SimpleNamespace(
-        items=(SimpleNamespace(name="乙", role="配角"), SimpleNamespace(name="甲", role="主角")),
+        items=(
+            SimpleNamespace(
+                name="乙", role="配角", character_id="second", current_revision_id="second-revision"
+            ),
+            SimpleNamespace(
+                name="甲", role="主角", character_id="first", current_revision_id="first-revision"
+            ),
+        ),
         has_more=False,
     )
     result = s.builder.build(CHAPTER)
@@ -93,14 +106,29 @@ def test_budget_tail_priority_determinism_and_character_cap() -> None:
     s.content.content = "开头" + "文" * 30_000 + "结尾"
     s.structure.get_outline_for_project.side_effect = None
     s.structure.get_outline_for_project.return_value = SimpleNamespace(
-        title="纲", summary="纲" * 9000
+        title="纲",
+        summary="纲" * 9000,
+        outline_id="outline",
+        current_revision_id="outline-revision",
     )
     s.bibles.get_story_bible_for_project.side_effect = None
     s.bibles.get_story_bible_for_project.return_value = SimpleNamespace(
-        title="设", content="设" * 50000
+        title="设",
+        content="设" * 50000,
+        story_bible_id="bible",
+        current_revision_id="bible-revision",
     )
     s.characters.list_characters_for_project.return_value = SimpleNamespace(
-        items=tuple(SimpleNamespace(name="角", role="角" * 500) for _ in range(100)), has_more=True
+        items=tuple(
+            SimpleNamespace(
+                name="角",
+                role="角" * 500,
+                character_id="character",
+                current_revision_id="character-revision",
+            )
+            for _ in range(100)
+        ),
+        has_more=True,
     )
     first = s.builder.build(CHAPTER)
     second = s.builder.build(CHAPTER)

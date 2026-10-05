@@ -32,16 +32,22 @@ NOVEL_STRUCTURE_TABLE_NAMES = frozenset(
         "chapter_heads",
     }
 )
+AI_WORKFLOW_TABLE_NAMES = frozenset({"ai_workflow_runs", "ai_workflow_candidates"})
 BUSINESS_TABLE_NAMES = (
     PROJECT_TABLE_NAMES
     | STORY_BIBLE_TABLE_NAMES
     | CHARACTER_TABLE_NAMES
     | NOVEL_STRUCTURE_TABLE_NAMES
+    | AI_WORKFLOW_TABLE_NAMES
 )
 
 
 def load_model_metadata() -> MetaData:
     """Load the explicit model set without connecting to or migrating a database."""
+    from aiwebnovel.ai_writing.persistence.models import (
+        AIWorkflowCandidateRecord,
+        AIWorkflowRunRecord,
+    )
     from aiwebnovel.character.persistence.models import (
         CharacterHeadRecord,
         CharacterRecord,
@@ -70,6 +76,8 @@ def load_model_metadata() -> MetaData:
     )
 
     registered_records = (
+        AIWorkflowRunRecord,
+        AIWorkflowCandidateRecord,
         ProjectRecord,
         ProjectRevisionRecord,
         ProjectHeadRecord,

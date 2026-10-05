@@ -176,6 +176,7 @@ class _ImportReference:
     line: int
     source_module: str
     target_module: str
+    imported_names: tuple[str, ...] = ()
 
 
 def _module_name(package_root: Path, source_file: Path) -> str:
@@ -244,6 +245,11 @@ def _import_references(package_root: Path) -> tuple[_ImportReference, ...]:
                     line=node.lineno,
                     source_module=module_name,
                     target_module=target,
+                    imported_names=(
+                        tuple(alias.name for alias in node.names)
+                        if isinstance(node, ast.ImportFrom)
+                        else ()
+                    ),
                 )
                 for target in targets
             )
@@ -497,6 +503,14 @@ def _project_import_violation(
     if _allowed_character_project_ownership_import(reference, target_layer):
         return None
     if _allowed_novel_structure_project_ownership_import(reference, target_layer):
+        return None
+    if (
+        reference.source_module == "aiwebnovel.ai_writing.persistence.repository"
+        and reference.target_module == _PROJECT_PERSISTENCE_MODELS
+        and reference.imported_names == ("ProjectRecord",)
+    ):
+        # The AI repository uses only the active-project ownership filter. Project
+        # writes remain guarded below and all other Project internals stay private.
         return None
     if source_layer == "main":
         return None

@@ -45,6 +45,39 @@ def test_current_backend_respects_declared_layer_boundaries() -> None:
     )
 
 
+def test_ai_workflow_ownership_exception_is_limited_to_project_record(tmp_path: Path) -> None:
+    package_root = _fixture_package(tmp_path)
+    path = "ai_writing/persistence/repository.py"
+    _write_module(
+        package_root, path, "from aiwebnovel.project.persistence.models import ProjectRecord\n"
+    )
+    assert check_backend_boundaries(package_root) == ()
+    for source in (
+        "from aiwebnovel.project.persistence.models import ProjectRevisionRecord\n",
+        "from aiwebnovel.project.persistence.models import ProjectRecord, ProjectHeadRecord\n",
+        "import aiwebnovel.project.persistence.models\n",
+        "from aiwebnovel.project.persistence.models import *\n",
+        "from aiwebnovel.project.persistence.repository import SqlAlchemyProjectRepository\n",
+    ):
+        _write_module(package_root, path, source)
+        assert "project-persistence-must-remain-internal" in {
+            violation.rule for violation in check_backend_boundaries(package_root)
+        }
+
+
+def test_ai_workflow_ownership_exception_does_not_allow_project_writes(tmp_path: Path) -> None:
+    package_root = _fixture_package(tmp_path)
+    _write_module(
+        package_root,
+        "ai_writing/persistence/repository.py",
+        "from aiwebnovel.project.persistence.models import ProjectRecord\n"
+        'STATEMENT = "UPDATE projects SET deleted_at = :value"\n',
+    )
+    assert "project-tables-written-only-by-project-persistence" in {
+        violation.rule for violation in check_backend_boundaries(package_root)
+    }
+
+
 @pytest.mark.parametrize(
     ("module_path", "source", "expected_rule"),
     [

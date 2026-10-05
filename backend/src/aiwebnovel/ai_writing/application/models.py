@@ -54,11 +54,22 @@ class TextGenerationProvider(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class ContextSource:
+    source: str
+    references: tuple[tuple[str, str], ...]
+    text: str
+    reason: str
+    omitted_reason: str | None
+    truncated: bool
+
+
+@dataclass(frozen=True, slots=True)
 class ContextManifest:
     included_sources: tuple[str, ...]
     omitted_sources: tuple[str, ...]
     truncated: bool
     character_count: int
+    sources: tuple[ContextSource, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

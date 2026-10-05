@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+from tests.backend.ai_workflow_contract_support import AI_WORKFLOW_OPERATIONS
 from tests.backend.factories import create_test_app
 
 pytestmark = pytest.mark.unit
@@ -59,8 +60,8 @@ def test_route_inventory_contains_all_declared_business_routes(tmp_path: Path) -
         ("POST", "/api/v1/chapters/{chapter_id}/ai/continue"),
         ("POST", "/api/v1/chapters/{chapter_id}/ai/rewrite"),
     }
-    assert len(routes) == 38
-    assert routes == expected_routes
+    assert len(routes) == 50
+    assert routes == expected_routes | AI_WORKFLOW_OPERATIONS
     assert routes.isdisjoint(
         {
             ("POST", "/api/v1/characters/{character_id}/revisions"),

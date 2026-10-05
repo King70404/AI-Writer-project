@@ -16,13 +16,18 @@ from sqlalchemy.engine import URL
 
 from aiwebnovel.core.config import Settings
 from aiwebnovel.db.engine import create_database_engine
-from aiwebnovel.db.model_registry import BUSINESS_TABLE_NAMES, load_model_metadata
+from aiwebnovel.db.model_registry import (
+    AI_WORKFLOW_TABLE_NAMES,
+    BUSINESS_TABLE_NAMES,
+    load_model_metadata,
+)
 
 pytestmark = pytest.mark.integration
 
 _PREVIOUS_REVISION = "0004_create_character_foundation"
 _NOVEL_STRUCTURE_REVISION = "0005_create_novel_structure_foundation"
 _CURRENT_NOVEL_STRUCTURE_REVISION = "0006_add_chapter_manuscript_content"
+_PRE_AI_TABLE_NAMES = BUSINESS_TABLE_NAMES - AI_WORKFLOW_TABLE_NAMES
 _NEW_TABLES = {
     "outlines",
     "outline_revisions",
@@ -102,7 +107,7 @@ def migrated_novel_structure_database_context(
     tmp_path: Path,
 ) -> Iterator[MigratedNovelStructureDatabase]:
     path = tmp_path / "novel structure" / "structure.sqlite3"
-    upgrade = _run_alembic(path, "upgrade", _CURRENT_NOVEL_STRUCTURE_REVISION)
+    upgrade = _run_alembic(path, "upgrade", "head")
     assert upgrade.returncode == 0, upgrade.stderr
     engine = create_database_engine(
         Settings(
@@ -126,10 +131,11 @@ def _migrated_database_fixture(
         yield database
 
 
-def test_metadata_registers_exactly_eighteen_business_tables() -> None:
+def test_metadata_registers_twenty_tables_with_unchanged_author_schema() -> None:
     metadata = load_model_metadata()
 
-    assert len(BUSINESS_TABLE_NAMES) == 18
+    assert len(BUSINESS_TABLE_NAMES) == 20
+    assert len(_PRE_AI_TABLE_NAMES) == 18
     assert frozenset(metadata.tables) == BUSINESS_TABLE_NAMES
     assert _NEW_TABLES <= BUSINESS_TABLE_NAMES
     assert {table: set(metadata.tables[table].columns.keys()) for table in _NEW_TABLES} == {
@@ -194,8 +200,8 @@ def test_0005_upgrade_downgrade_reupgrade_cycle(tmp_path: Path) -> None:
         upgrade = _run_alembic(path, "upgrade", _NOVEL_STRUCTURE_REVISION)
         assert upgrade.returncode == 0, upgrade.stderr
         tables, triggers, version = _inventory(path)
-        assert tables == {"alembic_version", *BUSINESS_TABLE_NAMES}
-        assert len(BUSINESS_TABLE_NAMES) == 18
+        assert tables == {"alembic_version", *_PRE_AI_TABLE_NAMES}
+        assert len(_PRE_AI_TABLE_NAMES) == 18
         assert triggers == old_triggers | _NEW_TRIGGERS
         assert len(triggers) == 12
         assert version == _NOVEL_STRUCTURE_REVISION
@@ -207,7 +213,7 @@ def test_0005_upgrade_downgrade_reupgrade_cycle(tmp_path: Path) -> None:
         reupgrade = _run_alembic(path, "upgrade", _NOVEL_STRUCTURE_REVISION)
         assert reupgrade.returncode == 0, reupgrade.stderr
         tables, triggers, version = _inventory(path)
-        assert tables == {"alembic_version", *BUSINESS_TABLE_NAMES}
+        assert tables == {"alembic_version", *_PRE_AI_TABLE_NAMES}
         assert triggers == old_triggers | _NEW_TRIGGERS
         assert version == _NOVEL_STRUCTURE_REVISION
     finally:

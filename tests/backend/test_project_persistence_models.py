@@ -11,6 +11,7 @@ from sqlalchemy import inspect
 
 from aiwebnovel.db.base import Base
 from aiwebnovel.db.model_registry import (
+    AI_WORKFLOW_TABLE_NAMES,
     BUSINESS_TABLE_NAMES,
     CHARACTER_TABLE_NAMES,
     NOVEL_STRUCTURE_TABLE_NAMES,
@@ -87,6 +88,7 @@ def test_model_registry_is_exact_idempotent_and_uses_shared_metadata() -> None:
         "character_revisions",
         "character_heads",
         *NOVEL_STRUCTURE_TABLE_NAMES,
+        *AI_WORKFLOW_TABLE_NAMES,
     }
     assert "alembic_version" not in first.tables
     assert all(table.metadata is first for table in first.tables.values())
@@ -119,6 +121,7 @@ def test_domain_import_does_not_register_models_or_create_database(tmp_path: Pat
     assert result.stdout.splitlines() == [
         "",
         (
+            "ai_workflow_candidates,ai_workflow_runs,"
             "chapter_heads,chapter_revisions,chapters,"
             "character_heads,character_revisions,characters,"
             "outline_heads,outline_revisions,outlines,"

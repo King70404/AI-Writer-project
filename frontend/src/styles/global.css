@@ -861,10 +861,16 @@ textarea:focus-visible {
 }
 
 .ai-writing-assistant {
+  min-width: 0;
   padding: 1.25rem;
   border: 1px solid #d7c4b7;
   border-radius: 0.5rem;
   background: #ffffff;
+}
+
+.ai-writing-assistant pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .ai-writing-assistant textarea {

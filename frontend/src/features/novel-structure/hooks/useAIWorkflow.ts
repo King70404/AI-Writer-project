@@ -1,0 +1,206 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AIWritingError, type AIOperation } from "../api/ai-writing";
+import {
+  aiWorkflowClient,
+  type AIWorkflowClient,
+  type ModelProfile,
+  type WorkflowCandidate,
+  type WorkflowRun,
+} from "../api/ai-workflow";
+import type { SelectionSnapshot } from "./useAIWriting";
+import type { useChapterWriting } from "./useChapterWriting";
+
+export function useAIWorkflow(
+  chapterId: string,
+  writing: ReturnType<typeof useChapterWriting>,
+  client: AIWorkflowClient = aiWorkflowClient,
+) {
+  const [models, setModels] = useState<readonly ModelProfile[]>([]);
+  const [runs, setRuns] = useState<readonly WorkflowRun[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const lock = useRef(false);
+  const alive = useRef(false);
+  const keys = useRef(new Map<string, string>());
+  const paused = useRef(false);
+  const publish = useCallback((run: WorkflowRun) => {
+    if (!alive.current) return;
+    setRuns((current) => [
+      run,
+      ...current.filter((item) => item.run_id !== run.run_id),
+    ]);
+    setActiveId(run.run_id);
+  }, []);
+  const refresh = useCallback(async () => {
+    const [nextModels, nextRuns] = await Promise.all([
+      client.models(),
+      client.list(chapterId),
+    ]);
+    if (!alive.current) return;
+    setModels(nextModels);
+    setRuns(nextRuns);
+    setActiveId((id) =>
+      nextRuns.some((run) => run.run_id === id)
+        ? id
+        : (nextRuns[0]?.run_id ?? null),
+    );
+  }, [chapterId, client]);
+  useEffect(() => {
+    alive.current = true;
+    void refresh()
+      .catch((failure: unknown) => {
+        if (alive.current)
+          setError(
+            failure instanceof AIWritingError
+              ? failure.message
+              : "协作任务读取失败，请点击刷新；手动写作仍可使用。",
+          );
+      })
+      .finally(() => {
+        if (alive.current) setLoading(false);
+      });
+    return () => {
+      alive.current = false;
+    };
+  }, [refresh]);
+  const execute = async (action: () => Promise<void>) => {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await action();
+    } catch (failure) {
+      if (alive.current)
+        setError(
+          failure instanceof Error
+            ? failure.message
+            : "操作失败，请刷新后重试。",
+        );
+    } finally {
+      lock.current = false;
+      if (alive.current) setBusy(false);
+    }
+  };
+  const active = runs.find((run) => run.run_id === activeId) ?? null;
+  const prepare = (
+    operation: AIOperation,
+    profileId: string,
+    instruction: string,
+    maxSteps: number,
+    selection: SelectionSnapshot | null,
+  ) =>
+    execute(async () => {
+      if (!profileId) throw new AIWritingError("请先添加或选择模型。");
+      if (!(await writing.flush()))
+        throw new AIWritingError("请先保存当前正文并处理版本冲突。");
+      if (
+        operation === "rewrite" &&
+        (!selection?.text.trim() ||
+          writing.getContent().slice(selection.start, selection.end) !==
+            selection.text)
+      )
+        throw new AIWritingError("选区已经改变，请重新选择正文。");
+      const steps = operation === "rewrite" ? 1 : maxSteps;
+      const result = await client.create(chapterId, {
+        operation,
+        profile_id: profileId,
+        instruction,
+        selected_text: operation === "rewrite" ? selection!.text : "",
+        selection_start: operation === "rewrite" ? selection!.start : null,
+        selection_end: operation === "rewrite" ? selection!.end : null,
+        max_steps: steps,
+        max_output_characters: steps * 300,
+      });
+      paused.current = false;
+      publish(result);
+    });
+  const generate = (run = active) =>
+    execute(async () => {
+      if (!run) return;
+      if (writing.state.status !== "saved")
+        throw new AIWritingError(
+          "正文有未保存修改，请先保存，再为最新正文准备任务。",
+        );
+      paused.current = false;
+      publish(await client.action(chapterId, run.run_id, "generate"));
+    });
+  const adopt = (candidate: WorkflowCandidate, continueAfter: boolean) =>
+    execute(async () => {
+      if (!active) return;
+      const key =
+        keys.current.get(candidate.candidate_id) ?? crypto.randomUUID();
+      keys.current.set(candidate.candidate_id, key);
+      let result: WorkflowRun | null = null;
+      const accepted = await writing.acceptExternal(async () => {
+        result = await client.candidate(
+          chapterId,
+          candidate.candidate_id,
+          "adopt",
+          key,
+          active.current_version,
+        );
+        publish(result);
+      });
+      if (!accepted)
+        throw new AIWritingError("请先保存或处理正文冲突，再确认采纳。");
+      // Only this explicit author action can advance the next step.
+      const next = result as WorkflowRun | null;
+      if (
+        continueAfter &&
+        next &&
+        next.status === "ready" &&
+        !paused.current &&
+        alive.current
+      )
+        publish(await client.action(chapterId, next.run_id, "generate"));
+    });
+  const pause = async () => {
+    if (!active) return;
+    paused.current = true;
+    try {
+      publish(await client.action(chapterId, active.run_id, "pause"));
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "暂停失败，请刷新确认状态。",
+      );
+    }
+  };
+  return {
+    models,
+    runs,
+    active,
+    busy,
+    loading,
+    error,
+    prepare,
+    generate,
+    adopt,
+    pause,
+    select: (id: string) => {
+      if (!lock.current) {
+        setActiveId(id);
+        setError("");
+      }
+    },
+    refresh: () => execute(refresh),
+    resume: () =>
+      execute(async () => {
+        if (active) {
+          paused.current = false;
+          publish(await client.action(chapterId, active.run_id, "resume"));
+        }
+      }),
+    discard: (candidate: WorkflowCandidate) =>
+      execute(async () =>
+        publish(
+          await client.candidate(chapterId, candidate.candidate_id, "discard"),
+        ),
+      ),
+    modelSaved: refresh,
+  };
+}
