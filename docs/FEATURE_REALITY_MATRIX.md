@@ -1,6 +1,6 @@
 # 当前能力与明确限制
 
-核验日期：2026-10-05。当前交付状态见 [PLAN.md](../PLAN.md)，开发顺序见 [交付路线](REFRACTOR_ROADMAP.md)。本页区分已冻结基线与新增实现；最终 PASS 以精确 SHA 的证据为准。
+核验日期：2026-10-06。当前交付状态见 [PLAN.md](../PLAN.md)，开发顺序见 [交付路线](REFRACTOR_ROADMAP.md)。本页区分已冻结基线与新增实现；最终 PASS 以精确 SHA 的证据为准。
 
 ## 基础创作闭环
 
@@ -10,7 +10,7 @@ M7/V1 已验收：本地 Windows 单用户运行、SQLite 持久化、小说/设
 
 ## AI 协作实现（RF-06–10）
 
-当前实现已接通，本地后端 2,866 项、前端 693 项、24 个 E2E 场景及隔离作者流程通过；精确候选、GitHub CI 和最终同步结果见主任务 [#24](https://github.com/King70404/AI-Writer-project/issues/24)。
+已最终 PASS 并通过 [PR #25](https://github.com/King70404/AI-Writer-project/pull/25) 合并：精确候选完整 CI 的后端 2,866 项、前端 693 项、24 个 E2E 场景全部通过，隔离作者流程已验证；SHA、完整结果与边界见已关闭的交付任务 [#24](https://github.com/King70404/AI-Writer-project/issues/24)。
 
 | 能力 | 当前实现 | 边界 |
 | --- | --- | --- |
