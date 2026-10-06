@@ -8,15 +8,20 @@ M7/V1 已验收的流程：
 
 `小说 → 设定/人物 → 大纲/卷/章 → 正文编辑与自动保存 → 本地 AI 续写/改写 → 确认采用 → TXT 导出`
 
-本地 AI 需要已配置、可用的 loopback OpenAI-compatible 模型服务。云模型/API Key、可恢复连续生成、长期故事记忆等见后续路线，当前不宣称已经完成。
+RF-06–10 的新 AI 协作流程已接通，并通过本地检查与隔离作者流程：
 
-作者体验修复已完成开发检查，PR #9 仍等待新的候选验证与正式验收。动态状态只维护在 [PLAN.md](PLAN.md)，能力边界只维护在 [功能索引](docs/FEATURE_REALITY_MATRIX.md)。
+`配置本地/云端模型 → 预览实际上下文 → 生成并保留候选 → 作者确认采纳 → 继续生成、暂停或恢复`
+
+需自备 OpenAI-compatible 模型服务；云端 API Key 受 Windows DPAPI 保护。任务与候选持久保存，连续生成每段 200–300 字，未经作者确认不写入正文。使用方法和限制见 [AI 协作说明](docs/AI_COLLABORATION.md)；长期故事记忆仍属后续阶段。
+
+当前交付状态见 [PLAN.md](PLAN.md)，能力边界见 [功能索引](docs/FEATURE_REALITY_MATRIX.md)。
 
 ## 从哪里开始
 
 - 继续开发：先读 [AGENTS.md](AGENTS.md) 和 [PLAN.md](PLAN.md)。
 - 看未来五个交付阶段：[开发路线](docs/REFRACTOR_ROADMAP.md)。
 - 启动、停止、数据隔离：[本地启动](docs/LOCAL_STARTUP.md)。
+- 配置模型、查看上下文、采纳候选与暂停恢复：[AI 协作说明](docs/AI_COLLABORATION.md)。
 - 运行检查：[质量门](docs/QUALITY_GATES.md)；浏览器检查：[E2E](docs/E2E_TESTING.md)。
 - 修改模块时再读对应契约与 [架构边界](docs/ARCHITECTURE_BOUNDARIES.md)。历史材料不属于默认阅读入口。
 

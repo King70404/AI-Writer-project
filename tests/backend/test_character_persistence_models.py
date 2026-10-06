@@ -14,6 +14,7 @@ from aiwebnovel.character.persistence.models import (
 )
 from aiwebnovel.db.base import Base
 from aiwebnovel.db.model_registry import (
+    AI_WORKFLOW_TABLE_NAMES,
     BUSINESS_TABLE_NAMES,
     CHARACTER_TABLE_NAMES,
     NOVEL_STRUCTURE_TABLE_NAMES,
@@ -21,7 +22,7 @@ from aiwebnovel.db.model_registry import (
 )
 
 
-def test_registry_contains_exactly_eighteen_business_tables() -> None:
+def test_registry_contains_exactly_authorized_business_tables() -> None:
     metadata = load_model_metadata()
 
     assert metadata is Base.metadata
@@ -41,6 +42,7 @@ def test_registry_contains_exactly_eighteen_business_tables() -> None:
         "character_revisions",
         "character_heads",
         *NOVEL_STRUCTURE_TABLE_NAMES,
+        *AI_WORKFLOW_TABLE_NAMES,
     }
     assert "alembic_version" not in metadata.tables
 

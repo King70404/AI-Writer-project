@@ -33,7 +33,7 @@ export function FoundationPage() {
         </div>
         <div>
           <dt>集成范围</dt>
-          <dd>本地 AI 未配置时，手动写作、自动保存与导出仍可使用。</dd>
+          <dd>AI 模型未配置时，手动写作、自动保存与导出仍可使用。</dd>
         </div>
       </dl>
     </section>

@@ -52,11 +52,17 @@ def sources() -> SimpleNamespace:
     structure.get_chapter_content.return_value = content
     structure.get_outline_for_project.side_effect = OutlineNotFound()
     structure.get_volume.return_value = SimpleNamespace(
-        project_id=PROJECT, title="当前卷", summary="卷梗概"
+        project_id=PROJECT,
+        title="当前卷",
+        summary="卷梗概",
+        volume_id=VOLUME,
+        current_revision_id="volume-revision",
     )
     structure.list_chapters.return_value = (chapter,)
     projects = Mock(spec=ProjectQueryService)
-    projects.get_project.return_value = SimpleNamespace(title="项目", description="简介")
+    projects.get_project.return_value = SimpleNamespace(
+        title="项目", description="简介", project_id=PROJECT, current_revision_id="project-revision"
+    )
     bibles = Mock(spec=StoryBibleQueryService)
     bibles.get_story_bible_for_project.side_effect = StoryBibleForProjectNotFound(project_id())
     characters = Mock(spec=CharacterQueryService)

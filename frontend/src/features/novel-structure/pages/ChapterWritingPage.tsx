@@ -16,7 +16,7 @@ import type {
   VolumeResponse,
 } from "../api/contracts";
 import { useChapterWriting, type SaveStatus } from "../hooks/useChapterWriting";
-import { AIWritingAssistant } from "../components/AIWritingAssistant";
+import { AIWorkflowAssistant } from "../components/AIWorkflowAssistant";
 import type { SelectionSnapshot } from "../hooks/useAIWriting";
 
 const SAVE_LABELS: Record<SaveStatus, string> = {
@@ -88,14 +88,25 @@ function WritingEditor({
         </p>
       ) : null}
       {state.reloadFailed ? (
-        <p role="alert">重新加载失败，本地正文仍保留，请手动重试。</p>
+        <div role="alert">
+          <p>
+            服务器正文尚未确认，本地正文仍保留。重新读取前暂停编辑，避免覆盖已采纳内容。
+          </p>
+          <button
+            type="button"
+            disabled={state.reloading}
+            onClick={() => void reloadServer()}
+          >
+            重新读取已保存正文
+          </button>
+        </div>
       ) : null}
       {state.reloading ? <p role="status">正在重新读取服务器正文…</p> : null}
       <label htmlFor="chapter-manuscript">章节正文</label>
       <textarea
         id="chapter-manuscript"
         value={state.content}
-        readOnly={state.reloading}
+        readOnly={state.reloading || state.reloadFailed}
         spellCheck={false}
         onChange={(event) => edit(event.target.value)}
         onSelect={(event) => {
@@ -130,7 +141,7 @@ function WritingEditor({
         }}
       />
       <p aria-label="字符数">字符数：{state.content.length}</p>
-      <AIWritingAssistant
+      <AIWorkflowAssistant
         chapterId={chapter.chapter_id}
         writing={writing}
         selection={selection}

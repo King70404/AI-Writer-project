@@ -11,8 +11,8 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     path: string | undefined;
     body: string;
   }[] = [];
-  const continued = "续写候选文本：门外传来轻轻的脚步声。";
-  const rewritten = "改写候选文本：夜雨终于停歇";
+  const continued = "续写候选文本：门外传来轻轻的脚步声。".repeat(12);
+  const rewritten = "改写候选文本：夜雨终于停歇。".repeat(16);
   const server = createServer((request, response) => {
     let body = "";
     request.setEncoding("utf8");
@@ -82,6 +82,13 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     await expect(status).toHaveText("已保存");
     await page.getByLabel("额外要求（可选）").fill("增加紧张感");
     await page.getByRole("button", { name: "续写", exact: true }).click();
+    await expect(page.getByLabel("本次发送的小说上下文")).toHaveValue(
+      new RegExp(initial),
+    );
+    expect(requests).toHaveLength(0);
+    await page
+      .getByRole("button", { name: "确认发送并生成", exact: true })
+      .click();
     await expect(page.getByLabel("AI候选文本")).toHaveValue(continued);
     await expect(editor).toHaveValue(initial);
     expect(requests).toHaveLength(1);
@@ -93,6 +100,14 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     });
     expect(requests[0].body).toContain("messages");
     expect(JSON.stringify(JSON.parse(requests[0].body))).toContain(initial);
+    await page.reload();
+    await expect(page.getByLabel("AI候选文本")).toHaveValue(continued);
+    await page.getByRole("button", { name: "暂停任务", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "恢复任务", exact: true }),
+    ).toBeVisible();
+    expect(requests).toHaveLength(1);
+    await page.getByRole("button", { name: "恢复任务", exact: true }).click();
     await page.getByRole("button", { name: "追加到正文" }).click();
     const appended = `${initial}\n\n${continued}`;
     await expect(editor).toHaveValue(appended);
@@ -111,6 +126,9 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     const rewrite = page.getByRole("button", { name: "改写选中文本" });
     await expect(rewrite).toBeEnabled();
     await rewrite.click();
+    await page
+      .getByRole("button", { name: "确认发送并生成", exact: true })
+      .click();
     await expect(page.getByLabel("AI候选文本")).toHaveValue(rewritten);
     await expect(editor).toHaveValue(appended);
     expect(requests).toHaveLength(2);

@@ -10,8 +10,10 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy import Engine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from aiwebnovel.ai_writing.composition import compose_ai_writing
+from aiwebnovel.ai_writing.composition import compose_ai_workflow, compose_ai_writing
+from aiwebnovel.ai_writing.errors import AIWorkflowSchemaRequired
 from aiwebnovel.ai_writing.web import create_ai_writing_router
+from aiwebnovel.ai_writing.workflow_web import create_ai_workflow_router
 from aiwebnovel.character.application.history_service import (
     CharacterRevisionHistoryQueryService,
 )
@@ -30,6 +32,7 @@ from aiwebnovel.db.health import check_database_health
 from aiwebnovel.db.session import create_database_session_factory
 from aiwebnovel.domain.time import utc_now
 from aiwebnovel.export.web import create_export_router
+from aiwebnovel.model_gateway.web import create_model_gateway_router
 from aiwebnovel.novel_structure.application.services import (
     NovelStructureCommandService,
     NovelStructureQueryService,
@@ -235,6 +238,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         runtime_engine: Engine | None = None
+        application.state.ai_workflow_schema_required = False
 
         if resolved_settings is not None:
             try:
@@ -372,6 +376,32 @@ def create_app(
                         application.state.story_bible_query_service,
                         application.state.character_query_service,
                     )
+                    try:
+                        workflow = compose_ai_workflow(
+                            resolved_settings,
+                            storage_paths,
+                            runtime_engine,
+                            session_factory,
+                            application.state.novel_structure_query_service,
+                            application.state.project_query_service,
+                            application.state.story_bible_query_service,
+                            application.state.character_query_service,
+                        )
+                    except AIWorkflowSchemaRequired:
+                        application.state.ai_workflow_schema_required = True
+                        workflow = None
+                    except Exception as exc:  # noqa: BLE001 - keep live/manual writing available.
+                        logger.error(
+                            "AI workflow initialization failed error_type=%s",
+                            type(exc).__name__,
+                        )
+                        workflow = None
+                    if workflow is not None:
+                        (
+                            application.state.ai_workflow_service,
+                            application.state.model_gateway_service,
+                            application.state.ai_workflow_runtime,
+                        ) = workflow
 
         application.state.initialized = True
         try:
@@ -391,6 +421,11 @@ def create_app(
             application.state.novel_structure_command_service = None
             application.state.novel_structure_query_service = None
             application.state.ai_writing_service = None
+            application.state.ai_workflow_service = None
+            application.state.model_gateway_service = None
+            if application.state.ai_workflow_runtime is not None:
+                application.state.ai_workflow_runtime.close()
+                application.state.ai_workflow_runtime = None
             application.state.database_session_factory = None
             session_manager.clear()
             if runtime_engine is not None:
@@ -425,6 +460,10 @@ def create_app(
     application.state.novel_structure_command_service = None
     application.state.novel_structure_query_service = None
     application.state.ai_writing_service = None
+    application.state.ai_workflow_service = None
+    application.state.ai_workflow_schema_required = False
+    application.state.model_gateway_service = None
+    application.state.ai_workflow_runtime = None
     application.state.local_session_manager = session_manager
     application.state.proxy_headers_trusted = False
     frontend_service = FrontendStaticService(frontend_dist_path, api_prefix)
@@ -487,6 +526,8 @@ def create_app(
     application.include_router(create_novel_structure_router(api_prefix=api_prefix))
     application.include_router(create_chapter_content_router(api_prefix=api_prefix))
     application.include_router(create_ai_writing_router(api_prefix=api_prefix))
+    application.include_router(create_ai_workflow_router(api_prefix=api_prefix))
+    application.include_router(create_model_gateway_router(api_prefix=api_prefix))
     application.include_router(create_export_router(api_prefix=api_prefix))
 
     @application.get(f"{api_prefix}/health/live")

@@ -29,3 +29,7 @@ class AIProviderTimeout(DomainError):
 
 class AIContextChanged(DomainError):
     message = "Chapter context changed during reading; request a new candidate."
+
+
+class AIWorkflowSchemaRequired(DomainError):
+    message = "AI collaboration requires an explicit database upgrade after backup."

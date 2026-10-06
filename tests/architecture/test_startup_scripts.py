@@ -865,8 +865,12 @@ def test_integrated_database_initialization_preserves_existing_database(tmp_path
     database = root / "data/aiwebnovel.sqlite3"
     with sqlite3.connect(database) as connection:
         assert connection.execute("select version_num from alembic_version").fetchone() == (
-            "0006_add_chapter_manuscript_content",
+            "0007_add_ai_workflows",
         )
+        assert connection.execute(
+            "select name from sqlite_master where type='table' and name like 'ai_workflow_%' "
+            "order by name"
+        ).fetchall() == [("ai_workflow_candidates",), ("ai_workflow_runs",)]
         assert connection.execute(
             "select count(*) from sqlite_master where type='trigger'"
         ).fetchone() == (12,)

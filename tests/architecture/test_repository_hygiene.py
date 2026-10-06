@@ -178,6 +178,26 @@ def test_hygiene_check_rejects_tracked_artifacts_without_leaking_values(
     assert untracked_name not in output
 
 
+@pytest.mark.parametrize("has_literal", [False, True])
+def test_hygiene_distinguishes_secret_type_from_embedded_default(
+    tmp_path: Path, has_literal: bool
+) -> None:
+    repository = tmp_path / "typed-secret"
+    _initialize_repository(repository)
+    default = '"fixture-value-that-must-not-be-printed"' if has_literal else "None"
+    (repository / "schema.py").write_text(
+        "class Input:\n    api_"
+        + "key: SecretStr | None = Field(default="
+        + default
+        + ", min_length=1, max_length=4096)\n",
+        encoding="utf-8",
+    )
+    _commit_all(repository)
+    result = _run_hygiene_script(repository)
+    assert (result.returncode != 0) is has_literal
+    assert "fixture-value-that-must-not-be-printed" not in result.stdout + result.stderr
+
+
 def test_quality_gate_step_propagates_failure_and_stops_success_reporting() -> None:
     quoted_script = str(_QUALITY_GATE_SCRIPT).replace("'", "''")
     command = (

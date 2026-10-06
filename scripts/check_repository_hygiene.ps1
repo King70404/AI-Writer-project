@@ -211,7 +211,10 @@ $contentPatterns.Add(
         Type = "password-or-secret-assignment"
         Regex = [regex]::new(
             '(?im)^\s*["'']?(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?token)' +
-            '["'']?\s*[:=]\s*["'']?[^\s"''(<{]{8,}'
+            '["'']?\s*[:=]\s*' +
+            '(?!SecretStr\s*\|\s*None\s*=\s*Field\(' +
+            '\s*default=None,\s*min_length=\d+,\s*max_length=\d+\s*\)\s*$)' +
+            '["'']?[^\s"''(<{]{8,}'
         )
     }
 )

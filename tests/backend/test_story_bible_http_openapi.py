@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+from tests.backend.ai_workflow_contract_support import AI_WORKFLOW_OPERATIONS
 from tests.backend.factories import create_test_app
 
 pytestmark = pytest.mark.unit
@@ -50,7 +51,7 @@ EXPECTED_ROUTES = {
 }
 
 
-def test_production_api_inventory_has_exactly_thirty_eight_routes(tmp_path: Path) -> None:
+def test_production_api_inventory_has_exactly_fifty_routes(tmp_path: Path) -> None:
     app = create_test_app(data_root=(tmp_path / "routes").resolve(), expose_api_docs=True)
     routes = {
         (method.upper(), path)
@@ -58,7 +59,7 @@ def test_production_api_inventory_has_exactly_thirty_eight_routes(tmp_path: Path
         for method in operations
         if method in {"get", "post", "put", "patch", "delete"}
     }
-    assert routes == EXPECTED_ROUTES
+    assert routes == EXPECTED_ROUTES | AI_WORKFLOW_OPERATIONS
 
 
 def test_openapi_documents_six_story_bible_routes_and_exact_schemas(
