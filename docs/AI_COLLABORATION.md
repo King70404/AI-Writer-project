@@ -42,12 +42,15 @@
 
 ```powershell
 $env:AIWEBNOVEL_DATA_ROOT = '替换为已经停止服务并备份的数据根绝对路径'
+Remove-Item Env:AIWEBNOVEL_DATABASE_URL -ErrorAction SilentlyContinue
 .\.venv\Scripts\python.exe -m alembic -c backend/alembic.ini current
 .\.venv\Scripts\python.exe -m alembic -c backend/alembic.ini upgrade head
 .\.venv\Scripts\python.exe -m alembic -c backend/alembic.ini current
 ```
 
 最后应显示 `0007_add_ai_workflows (head)`。任一步报错就保留原库与备份，不删除数据库重试；关闭该 PowerShell 窗口，使用同一个数据根重新启动应用。开发验证只在自有隔离库执行升级，不能代替数据所有者操作正式库。
+
+无参数双击启动器使用的数据根是 `%LOCALAPPDATA%\AIWebNovel`；上面的变量可填 `(Join-Path $env:LOCALAPPDATA 'AIWebNovel')`。清除当前 PowerShell 会话中的 `AIWEBNOVEL_DATABASE_URL` 是为了避免其他数据库地址覆盖所指定的数据根，不删除任何数据文件。
 
 ## 实现与验证入口
 
