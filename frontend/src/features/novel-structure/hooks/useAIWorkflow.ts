@@ -23,6 +23,7 @@ export function useAIWorkflow(
   const [error, setError] = useState("");
   const lock = useRef(false);
   const alive = useRef(false);
+  const modelRevision = useRef(0);
   const keys = useRef(new Map<string, string>());
   const paused = useRef(false);
   const publish = useCallback((run: WorkflowRun) => {
@@ -34,33 +35,45 @@ export function useAIWorkflow(
     setActiveId(run.run_id);
   }, []);
   const refresh = useCallback(async () => {
-    const [nextModels, nextRuns] = await Promise.all([
+    const requestedModelRevision = modelRevision.current;
+    const [nextModels, nextRuns] = await Promise.allSettled([
       client.models(),
       client.list(chapterId),
     ]);
     if (!alive.current) return;
-    setModels(nextModels);
-    setRuns(nextRuns);
-    setActiveId((id) =>
-      nextRuns.some((run) => run.run_id === id)
-        ? id
-        : (nextRuns[0]?.run_id ?? null),
-    );
+    if (
+      nextModels.status === "fulfilled" &&
+      requestedModelRevision === modelRevision.current
+    )
+      setModels(nextModels.value);
+    if (nextRuns.status === "fulfilled") {
+      setRuns(nextRuns.value);
+      setActiveId((id) =>
+        nextRuns.value.some((run) => run.run_id === id)
+          ? id
+          : (nextRuns.value[0]?.run_id ?? null),
+      );
+    }
+    if (nextModels.status === "rejected") throw nextModels.reason;
+    if (nextRuns.status === "rejected") throw nextRuns.reason;
   }, [chapterId, client]);
   useEffect(() => {
     alive.current = true;
-    void refresh()
-      .catch((failure: unknown) => {
-        if (alive.current)
-          setError(
-            failure instanceof AIWritingError
-              ? failure.message
-              : "协作任务读取失败，请点击刷新；手动写作仍可使用。",
-          );
-      })
-      .finally(() => {
-        if (alive.current) setLoading(false);
-      });
+    queueMicrotask(() => {
+      if (!alive.current) return;
+      void refresh()
+        .catch((failure: unknown) => {
+          if (alive.current)
+            setError(
+              failure instanceof AIWritingError
+                ? failure.message
+                : "协作任务读取失败，请点击刷新；手动写作仍可使用。",
+            );
+        })
+        .finally(() => {
+          if (alive.current) setLoading(false);
+        });
+    });
     return () => {
       alive.current = false;
     };
@@ -201,6 +214,13 @@ export function useAIWorkflow(
           await client.candidate(chapterId, candidate.candidate_id, "discard"),
         ),
       ),
-    modelSaved: refresh,
+    modelSaved: (saved: ModelProfile) => {
+      if (!alive.current) return;
+      modelRevision.current += 1;
+      setModels((current) => [
+        saved,
+        ...current.filter((item) => item.id !== saved.id),
+      ]);
+    },
   };
 }

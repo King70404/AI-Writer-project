@@ -87,9 +87,15 @@ export function AIWorkflowAssistant({
         每次生成 200–300
         字，先保留为候选，由你确认后写入正文。任务和候选会保存在本机，可关闭后继续。
       </p>
+      {ai.error || formError ? (
+        <p role="alert">{ai.error || formError}</p>
+      ) : null}
       <AIModelSettings
         models={ai.models}
-        onSaved={ai.modelSaved}
+        onSaved={(saved) => {
+          ai.modelSaved(saved);
+          setProfileId(saved.id);
+        }}
         client={client}
       />
       <label htmlFor="ai-profile">使用模型</label>
@@ -139,9 +145,6 @@ export function AIWorkflowAssistant({
         先准备上下文，再确认生成。每次采纳后可选择继续下一段，达到本轮上限即停止。
       </p>
       {ai.loading ? <p role="status">正在读取模型与已保存任务…</p> : null}
-      {ai.error || formError ? (
-        <p role="alert">{ai.error || formError}</p>
-      ) : null}
       <button
         type="button"
         disabled={ai.busy}

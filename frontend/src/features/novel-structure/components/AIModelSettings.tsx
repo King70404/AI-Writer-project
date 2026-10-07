@@ -11,7 +11,7 @@ export function AIModelSettings({
   client = aiWorkflowClient,
 }: {
   readonly models: readonly ModelProfile[];
-  readonly onSaved: () => Promise<void>;
+  readonly onSaved: (saved: ModelProfile) => void;
   readonly client?: AIWorkflowClient;
 }) {
   const [id, setId] = useState<string | undefined>();
@@ -72,11 +72,11 @@ export function AIModelSettings({
       setId(saved.id);
       setKey("");
       setClearKey(false);
-      await onSaved();
+      onSaved(saved);
       setMessage("模型配置已保存。密钥不会回显。");
     } catch (failure) {
       setError(
-        failure instanceof Error ? failure.message : "模型配置保存失败。",
+        `模型配置保存未确认：${failure instanceof Error ? failure.message : "请重试。"}`,
       );
     } finally {
       saving.current = false;

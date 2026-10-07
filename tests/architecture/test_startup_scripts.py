@@ -6,6 +6,7 @@ import base64
 import json
 import os
 import shutil
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -883,6 +884,10 @@ def test_integrated_database_initialization_preserves_existing_database(tmp_path
 
 
 def test_doctor_required_security_and_hygiene_use_real_commands() -> None:
+    # This checks security/hygiene commands, not the author's running app port.
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        isolated_port = probe.getsockname()[1]
     result = _run(
         [
             _require_command("powershell.exe"),
@@ -891,6 +896,8 @@ def test_doctor_required_security_and_hygiene_use_real_commands() -> None:
             str(_REPOSITORY_ROOT / "scripts/environment_doctor.ps1"),
             "-Mode",
             "Integrated",
+            "-BackendPort",
+            str(isolated_port),
             "-Json",
         ],
         cwd=_REPOSITORY_ROOT,
