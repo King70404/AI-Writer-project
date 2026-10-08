@@ -4,7 +4,7 @@
 
 ## 怎么使用
 
-1. 打开小说的一章，进入“写正文”，在 AI 助手的模型设置中添加模型。支持本地 OpenAI-compatible 服务，以及提供相同 `/chat/completions` 协议的 HTTPS 云服务。填写服务地址、模型名和单次输出 token 上限；云服务需要凭据时填写 API Key。
+1. 打开小说的一章，进入“写正文”。如果 AI 助手显示需要升级，点击“备份并启用 AI 协作”，等待“AI 协作已启用，可以保存模型配置。”，然后在模型设置中添加模型。支持本地 OpenAI-compatible 服务，以及提供相同 `/chat/completions` 协议的 HTTPS 云服务。填写服务地址、模型名和单次输出 token 上限；云服务需要凭据时填写 API Key。
 2. 保存正文，填写本次要求，选择“续写”或先在正文中选中文字再选择“改写选中文本”。这一步仅保存任务和上下文，不调用模型。
 3. 查看准备发送的上下文、来源、截断/省略情况和改写选区。云模型还需明确确认发送。点击“确认发送并生成”才发起模型请求。
 4. 阅读候选，决定追加、替换或丢弃。候选不进入 TXT 导出，也不会自行成为正文。采用后，服务器在同一事务内保存正文修订及采纳记录；重复点击或断线重试不能重复追加。
@@ -12,7 +12,7 @@
 
 没有内置模型或赠送额度。这里只验证协议与数据流程，不保证任意供应商、任意模型都遵守长度要求或达到小说质量目标。
 
-保存模型后应明确显示“模型配置已保存。密钥不会回显。”，并自动选中刚保存的模型。如果仍是“请先添加模型”，先看模型配置按钮下方及 AI 区域顶部的错误提示。浏览器页面打开不代表本机服务正在运行：关闭启动命令窗口会停止服务，需要重新双击“启动 AI 网文助手.cmd”并保持该窗口开启。连接中断时无法确认保存结果，重启后先刷新查看已有模型，避免重复添加；数据库升级、会话或密钥保护错误按各自提示处理。
+保存模型后应明确显示“模型配置已保存。密钥不会回显。”，并自动选中刚保存的模型。如果仍是“请先添加模型”，先看模型配置按钮下方及 AI 区域顶部的错误提示。浏览器页面打开不代表本机服务正在运行：关闭启动命令窗口会停止服务，需要重新双击“启动 AI 网文助手.cmd”并保持该窗口开启。连接中断时无法确认保存结果，重启后先刷新查看已有模型，避免重复添加。数据库需要升级时使用上述按钮；会话或密钥保护错误按各自提示处理。
 
 ## 发送与费用边界
 
@@ -34,28 +34,21 @@
 
 ## 数据库兼容
 
-新数据库由现有启动器初始化到最新迁移 `0007_add_ai_workflows`。已有数据库仍遵守“不在普通启动时自动迁移”的约定；迁移增加两张 AI 表，不改变作者正文、历史或其他表。升级/降级往返的隔离测试验证既有作者内容保持一致。
+新数据库由现有启动器初始化到最新迁移 `0007_add_ai_workflows`。已有数据库不会在普通启动或页面刷新时自动迁移。更新程序后，先保存正文并正常停止旧服务，再双击“启动 AI 网文助手.cmd”启动新版、刷新页面；这一次重启用于加载新版程序。
 
-已有数据库需要在停止服务、完成可验证备份后，由数据所有者显式执行 Alembic 升级；这不授权开发代理接触正式作者数据。未升级时既有创作功能保留，AI 协作服务不可用。产品级备份/恢复向导属于 RF-15，尚未实现。
+当前受支持的旧库可直接点击“备份并启用 AI 协作”，无需手动执行 Alembic。页面先保存当前正文，服务再锁定写入、创建并校验数据库备份，然后在同一事务内执行 `0006_add_chapter_manuscript_content` → `0007_add_ai_workflows` 迁移。迁移只增加两张 AI 表，保留正文和历史版本。完成后立即启用当前进程的 AI 服务，可以继续保存模型配置，无需再次重启。
 
-数据所有者确认备份可用后，在仓库根目录新开 PowerShell 窗口，明确填写要升级的数据根，再执行：
+备份保存在当前数据根的 `backups/before-ai-workflow-<唯一标识>.sqlite3`，不会覆盖已有备份；普通双击启动的数据根为 `%LOCALAPPDATA%\AIWebNovel`。备份包含已提交的数据库状态，迁移前会校验完整性和版本。该入口只接受当前数据根管理的数据库，以及结构完整的 `0006` 版本；自定义外部数据库、其他旧版本或结构不匹配会拒绝升级。
 
-```powershell
-$env:AIWEBNOVEL_DATA_ROOT = '替换为已经停止服务并备份的数据根绝对路径'
-Remove-Item Env:AIWEBNOVEL_DATABASE_URL -ErrorAction SilentlyContinue
-.\.venv\Scripts\python.exe -m alembic -c backend/alembic.ini current
-.\.venv\Scripts\python.exe -m alembic -c backend/alembic.ini upgrade head
-.\.venv\Scripts\python.exe -m alembic -c backend/alembic.ini current
-```
+正文保存冲突时先处理冲突，再点击启用。备份或迁移失败时不替换原库，迁移事务会回滚并保留已创建的备份；如数据库已升级但 AI 服务启用失败，可以再次点击重试启用，不重复升级或生成备份。其他不支持的情况保留错误信息交给维护者，不删除数据库重试。未启用 AI 时，手动写作仍可使用。
 
-最后应显示 `0007_add_ai_workflows (head)`。任一步报错就保留原库与备份，不删除数据库重试；关闭该 PowerShell 窗口，使用同一个数据根重新启动应用。开发验证只在自有隔离库执行升级，不能代替数据所有者操作正式库。
-
-无参数双击启动器使用的数据根是 `%LOCALAPPDATA%\AIWebNovel`；上面的变量可填 `(Join-Path $env:LOCALAPPDATA 'AIWebNovel')`。清除当前 PowerShell 会话中的 `AIWEBNOVEL_DATABASE_URL` 是为了避免其他数据库地址覆盖所指定的数据根，不删除任何数据文件。
+这是作者明确点击触发的专用升级入口；完整备份/恢复向导仍属于 RF-15。开发验证只在自有隔离库进行，不授权开发代理接触正式作者数据。
 
 ## 实现与验证入口
 
 - 模型与凭据：`backend/src/aiwebnovel/model_gateway/`、`tests/backend/test_model_gateway.py`。
 - 上下文/任务/采纳：`backend/src/aiwebnovel/ai_writing/`、`tests/backend/test_ai_workflow.py`。
+- 旧库备份升级与启用：`backend/src/aiwebnovel/db/ai_workflow_upgrade.py`、`tests/backend/test_ai_workflow_setup_http.py`。
 - 作者界面：`AIWorkflowAssistant.tsx`、`useAIWorkflow.ts`、`tests/frontend/ai-workflow.test.tsx`。
 - 真实 HTTP 与浏览器流程：`tests/e2e/integrated/ai-writing-frontend.spec.ts`。测试使用自有隔离根和受控本地协议服务；不使用作者 Key 或付费云调用。
 

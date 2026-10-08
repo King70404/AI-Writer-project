@@ -1,0 +1,277 @@
+"""Explicit legacy upgrades preserve committed author data and recovery copies."""
+
+import sqlite3
+from collections.abc import Iterator
+from contextlib import closing
+from dataclasses import dataclass
+from pathlib import Path
+
+import pytest
+from sqlalchemy import Connection, Engine, create_engine
+from sqlalchemy.engine import URL
+
+import aiwebnovel.core.config as config_module
+import aiwebnovel.db.ai_workflow_upgrade as upgrade_module
+import aiwebnovel.storage.initializer as storage_module
+from aiwebnovel.core.config import Settings
+from aiwebnovel.db.ai_workflow_upgrade import (
+    AIWorkflowUpgradeBusy,
+    AIWorkflowUpgradeFailed,
+    AIWorkflowUpgradeUnsupported,
+    StorageUpgradeChecks,
+)
+from aiwebnovel.db.ai_workflow_upgrade import (
+    upgrade_ai_workflow_database as _upgrade_database,
+)
+from aiwebnovel.db.engine import create_database_engine
+from aiwebnovel.db.model_registry import AI_WORKFLOW_TABLE_NAMES, BUSINESS_TABLE_NAMES
+from aiwebnovel.storage.initializer import initialize_storage
+from aiwebnovel.storage.paths import StoragePaths
+
+from .test_novel_structure_migration import _run_alembic
+
+pytestmark = pytest.mark.integration
+_OLD = "0006_add_chapter_manuscript_content"
+_NEW = "0007_add_ai_workflows"
+_AUTHOR_TABLES = BUSINESS_TABLE_NAMES - AI_WORKFLOW_TABLE_NAMES
+
+
+def upgrade_ai_workflow_database(engine: Engine, paths: StoragePaths) -> None:
+    _upgrade_database(
+        engine,
+        paths,
+        StorageUpgradeChecks(
+            storage_module.validate_storage_layout, storage_module.is_reparse_point
+        ),
+    )
+
+
+@dataclass(frozen=True)
+class LegacyDatabase:
+    engine: Engine
+    paths: StoragePaths
+
+
+@pytest.fixture
+def legacy(tmp_path: Path) -> Iterator[LegacyDatabase]:
+    paths = StoragePaths.from_root(tmp_path / "owned author fixture")
+    initialize_storage(paths)
+    result = _run_alembic(paths.database_file, "upgrade", _OLD)
+    assert result.returncode == 0, result.stderr
+    settings = Settings(environment="test", data_root=paths.root, database_busy_timeout_ms=1)
+    engine = create_database_engine(settings, storage_paths=paths)
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            "INSERT INTO projects VALUES ('project-fixture', 1, '2026-01-01', '2026-01-01')"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO project_revisions VALUES "
+            "('revision-fixture', 'project-fixture', 1, ?, ?, '2026-01-01')",
+            ("已有小说😀", "升级前保留的说明。"),
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO project_heads VALUES ('project-fixture', 'revision-fixture', '2026-01-01')"
+        )
+    try:
+        yield LegacyDatabase(engine, paths)
+    finally:
+        engine.dispose()
+
+
+def _snapshot(path: Path) -> tuple[dict[str, list[tuple]], list[tuple]]:
+    with closing(sqlite3.connect(path)) as connection:
+        data = {
+            name: connection.execute(f'SELECT * FROM "{name}" ORDER BY rowid').fetchall()
+            for name in sorted(_AUTHOR_TABLES)
+        }
+        objects = connection.execute(
+            "SELECT type, name, tbl_name, sql FROM sqlite_master "
+            "WHERE name NOT LIKE 'sqlite_%' AND tbl_name NOT LIKE 'ai_workflow_%' "
+            "ORDER BY name"
+        ).fetchall()
+        return data, objects
+
+
+def _version(path: Path) -> str:
+    with closing(sqlite3.connect(path)) as connection:
+        assert connection.execute("PRAGMA quick_check").fetchall() == [("ok",)]
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+        return connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+
+
+def test_real_upgrade_preserves_author_rows_schema_and_backup_then_is_idempotent(legacy):
+    original = _snapshot(legacy.paths.database_file)
+    upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+
+    assert _version(legacy.paths.database_file) == _NEW
+    assert _snapshot(legacy.paths.database_file) == original
+    backups = list(legacy.paths.backups.glob("before-ai-workflow-*.sqlite3"))
+    assert len(backups) == 1
+    assert _version(backups[0]) == _OLD
+    assert _snapshot(backups[0]) == original
+    upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert list(legacy.paths.backups.iterdir()) == backups
+    assert _snapshot(legacy.paths.database_file) == original
+
+
+def test_backup_includes_committed_wal_and_excludes_other_writers_until_migration_finishes(
+    legacy, monkeypatch
+):
+    original_migrate = upgrade_module._migrate
+    with closing(sqlite3.connect(legacy.paths.database_file, timeout=0)) as writer:
+        writer.execute("PRAGMA wal_autocheckpoint=0")
+        writer.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        writer.execute(
+            "INSERT INTO project_revisions VALUES "
+            "('wal-revision', 'project-fixture', 2, 'WAL 中已保存', '', '2026-01-02')"
+        )
+        writer.commit()
+        assert Path(f"{legacy.paths.database_file}-wal").stat().st_size > 0
+        expected = _snapshot(legacy.paths.database_file)
+
+        def observe_writer_lock(connection: Connection) -> None:
+            with pytest.raises(sqlite3.OperationalError, match="locked"):
+                writer.execute("BEGIN IMMEDIATE")
+            original_migrate(connection)
+
+        monkeypatch.setattr(upgrade_module, "_migrate", observe_writer_lock)
+        upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+        backup = next(legacy.paths.backups.glob("*.sqlite3"))
+        assert _snapshot(backup) == expected
+        assert _snapshot(legacy.paths.database_file) == expected
+        writer.execute("BEGIN IMMEDIATE")
+        writer.rollback()
+
+
+def test_failed_migration_rolls_back_ddl_and_version_retains_backup_and_can_retry(
+    legacy, monkeypatch
+):
+    original = _snapshot(legacy.paths.database_file)
+    migrate = upgrade_module._migrate
+
+    def fail_after_ddl(connection: Connection) -> None:
+        migrate(connection)
+        raise RuntimeError("private fixture details must not reach the author")
+
+    monkeypatch.setattr(upgrade_module, "_migrate", fail_after_ddl)
+    with pytest.raises(AIWorkflowUpgradeFailed, match="original data is retained") as error:
+        upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert "private" not in str(error.value)
+    assert _version(legacy.paths.database_file) == _OLD
+    assert _snapshot(legacy.paths.database_file) == original
+    with closing(sqlite3.connect(legacy.paths.database_file)) as connection:
+        assert (
+            connection.execute(
+                "SELECT name FROM sqlite_master WHERE name LIKE 'ai_workflow_%'"
+            ).fetchall()
+            == []
+        )
+    first_backup = next(legacy.paths.backups.glob("*.sqlite3"))
+    assert _snapshot(first_backup) == original
+    monkeypatch.setattr(upgrade_module, "_migrate", migrate)
+    upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert _version(legacy.paths.database_file) == _NEW
+    assert first_backup.exists()
+    assert len(list(legacy.paths.backups.glob("*.sqlite3"))) == 2
+
+
+def test_failed_backup_flush_prevents_any_migration(legacy, monkeypatch):
+    original = _snapshot(legacy.paths.database_file)
+
+    def fail_flush(_descriptor: int) -> None:
+        raise OSError("private disk path")
+
+    monkeypatch.setattr(upgrade_module.os, "fsync", fail_flush)
+    with pytest.raises(AIWorkflowUpgradeFailed, match="original data is retained"):
+        upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert _version(legacy.paths.database_file) == _OLD
+    assert _snapshot(legacy.paths.database_file) == original
+
+
+def test_busy_database_has_no_backup_or_schema_changes(legacy):
+    with legacy.engine.connect() as writer:
+        writer.exec_driver_sql("BEGIN IMMEDIATE")
+        with pytest.raises(AIWorkflowUpgradeBusy):
+            upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+        writer.rollback()
+    assert not list(legacy.paths.backups.iterdir())
+    assert _version(legacy.paths.database_file) == _OLD
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "DROP TABLE alembic_version",
+        "DELETE FROM alembic_version",
+        "UPDATE alembic_version SET version_num='0005_create_novel_structure_foundation'",
+        "CREATE TABLE unexpected (id INTEGER)",
+        "DROP TABLE chapter_heads",
+        "ALTER TABLE projects ADD COLUMN unexpected TEXT",
+    ],
+)
+def test_unknown_or_incomplete_schema_is_rejected_without_backup_or_changes(legacy, change):
+    with legacy.engine.begin() as connection:
+        connection.exec_driver_sql(change)
+    with closing(sqlite3.connect(legacy.paths.database_file)) as connection:
+        before = list(connection.iterdump())
+    with pytest.raises(AIWorkflowUpgradeUnsupported):
+        upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert not list(legacy.paths.backups.iterdir())
+    with closing(sqlite3.connect(legacy.paths.database_file)) as connection:
+        assert list(connection.iterdump()) == before
+
+
+def test_ready_version_with_incomplete_ai_columns_is_not_treated_as_ready(legacy):
+    upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    with legacy.engine.begin() as connection:
+        connection.exec_driver_sql("ALTER TABLE ai_workflow_runs ADD COLUMN unexpected TEXT")
+    with pytest.raises(AIWorkflowUpgradeUnsupported):
+        upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert len(list(legacy.paths.backups.glob("*.sqlite3"))) == 1
+
+
+@pytest.mark.parametrize("kind", ["memory", "outside", "query"])
+def test_only_current_managed_database_url_is_accepted(legacy, tmp_path, kind):
+    if kind == "memory":
+        url = URL.create("sqlite+pysqlite", database=":memory:")
+    elif kind == "outside":
+        url = URL.create("sqlite+pysqlite", database=str(tmp_path / "other.sqlite3"))
+    else:
+        url = legacy.engine.url.set(query={"mode": "ro"})
+    engine = create_engine(url)
+    try:
+        with pytest.raises(AIWorkflowUpgradeUnsupported):
+            upgrade_ai_workflow_database(engine, legacy.paths)
+    finally:
+        engine.dispose()
+    assert not (tmp_path / "other.sqlite3").exists()
+    assert not list(legacy.paths.backups.iterdir())
+    assert _version(legacy.paths.database_file) == _OLD
+
+
+@pytest.mark.parametrize("redirect", ["database", "wal", "parent", "backup"])
+def test_redirected_database_sidecar_ancestor_or_backup_is_rejected(legacy, monkeypatch, redirect):
+    redirects = {
+        "database": legacy.paths.database_file,
+        "wal": Path(f"{legacy.paths.database_file}-wal"),
+        "parent": legacy.paths.root.parent,
+        "backup": legacy.paths.backups,
+    }
+    target = redirects[redirect]
+    monkeypatch.setattr(storage_module, "is_reparse_point", lambda path: path == target)
+    with pytest.raises(AIWorkflowUpgradeUnsupported):
+        upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert not list(legacy.paths.backups.iterdir())
+    assert _version(legacy.paths.database_file) == _OLD
+
+
+def test_programmatic_alembic_uses_supplied_connection_without_loading_environment(
+    legacy, monkeypatch
+):
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("Must not select a database or initialize storage from environment")
+
+    monkeypatch.setattr(config_module, "get_settings", forbidden)
+    monkeypatch.setattr(storage_module, "initialize_storage", forbidden)
+    upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert _version(legacy.paths.database_file) == _NEW

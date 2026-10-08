@@ -277,9 +277,26 @@ async function request<T>(
   } catch (error) {
     if (error instanceof ApiError) {
       if ([401, 403].includes(error.status)) securitySession.clear();
+      if (error.code === "INVALID_RESPONSE") invalid();
       if (error.code === "AI_WORKFLOW_SCHEMA_REQUIRED")
         throw new AIWritingError(
-          "当前数据库需要升级后才能使用 AI 协作。请停止服务，备份后升级，再重新启动；手动写作仍可使用。",
+          "当前数据库需要升级后才能使用 AI 协作。请点击“备份并启用 AI 协作”；手动写作仍可使用。",
+          error.code,
+        );
+      if (error.code === "AI_WORKFLOW_UPGRADE_FAILED")
+        throw new AIWritingError(
+          "AI 协作启用未完成，请保留本机数据和备份，点击“备份并启用 AI 协作”重试；若仍失败，请联系维护者。手动写作仍可使用。",
+          error.code,
+        );
+      if (error.code === "AI_WORKFLOW_UPGRADE_UNSUPPORTED")
+        throw new AIWritingError(
+          "当前数据库状态不支持自动启用，请保留数据并联系维护者；手动写作仍可使用。",
+          error.code,
+        );
+      if (error.code === "AI_WORKFLOW_UPGRADE_BUSY")
+        throw new AIWritingError(
+          "数据库正在处理其他写入或启用请求，请等待完成后点击“备份并启用 AI 协作”重试；手动写作仍可使用。",
+          error.code,
         );
       if (context === "model") {
         const modelErrors: Record<string, string> = {
@@ -341,6 +358,10 @@ function runPath(chapterId: string, runId?: string) {
   return `chapters/${chapterId}/ai/runs${runId === undefined ? "" : `/${runId}`}`;
 }
 export const aiWorkflowClient = {
+  upgrade: () =>
+    mutate("ai/workflow-setup/upgrade", { confirm_backup: true }, (value) => {
+      if (!record(value) || value.status !== "ready") invalid();
+    }),
   models: () =>
     request(
       () =>

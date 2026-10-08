@@ -108,6 +108,7 @@ const adopted: WorkflowRun = {
 };
 function client(initial: WorkflowRun[] = []): AIWorkflowClient {
   return {
+    upgrade: vi.fn().mockResolvedValue(undefined),
     models: vi.fn().mockResolvedValue([model]),
     saveModel: vi.fn().mockResolvedValue(model),
     list: vi.fn().mockResolvedValue(initial),

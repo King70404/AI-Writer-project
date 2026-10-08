@@ -161,8 +161,8 @@ def test_openapi_preserves_all_m5_operations_adds_exactly_two(tmp_path: Path) ->
         if m in {"get", "post", "put", "patch", "delete"}
     }
     old = {(i["method"], i["path"]) for i in baseline["production_api_operations"]}
-    assert len(operations) == 50
-    assert len(AI_WORKFLOW_OPERATIONS) == 12
+    assert len(operations) == 51
+    assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert operations >= AI_WORKFLOW_OPERATIONS
     assert operations - AI_WORKFLOW_OPERATIONS - old - {
         ("GET", "/api/v1/projects/{project_id}/export.txt"),

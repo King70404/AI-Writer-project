@@ -5,6 +5,7 @@ from logging.config import fileConfig
 from pathlib import Path
 
 from alembic import context
+from sqlalchemy import Connection
 
 backend_root = Path(__file__).resolve().parents[1]
 source_root = backend_root / "src"
@@ -21,17 +22,18 @@ from aiwebnovel.storage.initializer import initialize_storage  # noqa: E402
 from aiwebnovel.storage.paths import StoragePaths  # noqa: E402
 
 config = context.config
-if config.config_file_name is not None:
+supplied_connection = config.attributes.get("connection")
+if config.config_file_name is not None and supplied_connection is None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-settings = get_settings()
-storage_paths = StoragePaths.from_settings(settings)
-database_url = resolve_database_url(settings, storage_paths)
 target_metadata = load_model_metadata()
 
 
 def run_migrations_offline() -> None:
     """Run migrations without creating a database connection."""
+    settings = get_settings()
+    storage_paths = StoragePaths.from_settings(settings)
+    database_url = resolve_database_url(settings, storage_paths)
     context.configure(
         url=database_url,
         target_metadata=target_metadata,
@@ -45,8 +47,28 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def migrate_connection(connection: Connection) -> None:
+    """Honor an existing transaction when the caller owns the connection."""
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        render_as_batch=True,
+        compare_type=True,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
 def run_migrations_online() -> None:
-    """Run migrations through the configured synchronous SQLite engine."""
+    """Run migrations through the caller's connection or configured engine."""
+    if supplied_connection is not None:
+        if not isinstance(supplied_connection, Connection):
+            raise TypeError("Alembic requires a SQLAlchemy connection")
+        migrate_connection(supplied_connection)
+        return
+    settings = get_settings()
+    storage_paths = StoragePaths.from_settings(settings)
+    database_url = resolve_database_url(settings, storage_paths)
     initialize_storage(storage_paths)
     engine = create_database_engine(
         settings,
@@ -55,15 +77,7 @@ def run_migrations_online() -> None:
     )
     try:
         with engine.connect() as connection:
-            context.configure(
-                connection=connection,
-                target_metadata=target_metadata,
-                render_as_batch=True,
-                compare_type=True,
-            )
-
-            with context.begin_transaction():
-                context.run_migrations()
+            migrate_connection(connection)
     finally:
         engine.dispose()
 

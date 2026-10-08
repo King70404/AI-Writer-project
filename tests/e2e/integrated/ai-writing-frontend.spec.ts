@@ -74,12 +74,32 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     await chapter.getByLabel("标题").fill("归途");
     await chapter.getByRole("button", { name: "创建章" }).click();
     await expect(page.getByText("章已创建。已选中新章。")).toBeVisible();
+    const writingPath = await page
+      .getByRole("link", { name: "写正文" })
+      .getAttribute("href");
+    const oldChapterId = writingPath?.match(
+      /\/chapters\/(chp_[0-9A-HJKMNP-TV-Z]{26})\/write$/u,
+    )?.[1];
+    expect(oldChapterId).toBeTruthy();
+    browserAudit.allowExpectedConsoleHttpFailure("/api/v1/ai/models", 503);
+    browserAudit.allowExpectedConsoleHttpFailure(
+      `/api/v1/chapters/${oldChapterId}/ai/runs`,
+      503,
+    );
     await page.getByRole("link", { name: "写正文" }).click();
     const editor = page.getByLabel("章节正文");
     const status = page.getByRole("status", { name: "保存状态" });
     const initial = "雨停后，旅人推开了旧院的木门。";
     await editor.fill(initial);
     await expect(status).toHaveText("已保存");
+    const enableAI = page.getByRole("button", {
+      name: "备份并启用 AI 协作",
+      exact: true,
+    });
+    await expect(enableAI).toBeVisible();
+    await enableAI.click();
+    await expect(enableAI).toHaveCount(0);
+    await expect(editor).toHaveValue(initial);
     await page.getByText("模型配置", { exact: true }).click();
     await page.getByLabel("配置名称", { exact: true }).fill("云端配置保存测试");
     await page.getByLabel("服务位置", { exact: true }).selectOption("cloud");

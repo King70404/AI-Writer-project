@@ -21,6 +21,9 @@ export function useAIWorkflow(
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [upgradeRequired, setUpgradeRequired] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState("");
   const lock = useRef(false);
   const alive = useRef(false);
   const modelRevision = useRef(0);
@@ -42,6 +45,15 @@ export function useAIWorkflow(
     ]);
     if (!alive.current) return;
     if (
+      [nextModels, nextRuns].some(
+        (result) =>
+          result.status === "rejected" &&
+          result.reason instanceof AIWritingError &&
+          result.reason.code === "AI_WORKFLOW_SCHEMA_REQUIRED",
+      )
+    )
+      setUpgradeRequired(true);
+    if (
       nextModels.status === "fulfilled" &&
       requestedModelRevision === modelRevision.current
     )
@@ -56,6 +68,7 @@ export function useAIWorkflow(
     }
     if (nextModels.status === "rejected") throw nextModels.reason;
     if (nextRuns.status === "rejected") throw nextRuns.reason;
+    setUpgradeRequired(false);
   }, [chapterId, client]);
   useEffect(() => {
     alive.current = true;
@@ -86,12 +99,18 @@ export function useAIWorkflow(
     try {
       await action();
     } catch (failure) {
-      if (alive.current)
+      if (alive.current) {
+        if (
+          failure instanceof AIWritingError &&
+          failure.code === "AI_WORKFLOW_SCHEMA_REQUIRED"
+        )
+          setUpgradeRequired(true);
         setError(
           failure instanceof Error
             ? failure.message
             : "操作失败，请刷新后重试。",
         );
+      }
     } finally {
       lock.current = false;
       if (alive.current) setBusy(false);
@@ -190,6 +209,32 @@ export function useAIWorkflow(
     busy,
     loading,
     error,
+    upgradeRequired,
+    upgrading,
+    upgradeMessage,
+    upgrade: () =>
+      execute(async () => {
+        setUpgradeMessage("");
+        if (!(await writing.flush()))
+          throw new AIWritingError(
+            "请先保存当前正文并处理版本冲突，再启用 AI 协作。",
+          );
+        setUpgrading(true);
+        try {
+          await client.upgrade();
+          await refresh();
+          if (alive.current)
+            setUpgradeMessage("AI 协作已启用，可以保存模型配置。");
+        } finally {
+          if (alive.current) setUpgrading(false);
+        }
+      }),
+    modelError: (failure: AIWritingError) => {
+      if (!alive.current) return;
+      setUpgradeRequired(true);
+      setUpgradeMessage("");
+      setError(failure.message);
+    },
     prepare,
     generate,
     adopt,

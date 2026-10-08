@@ -15,6 +15,8 @@ param(
     [string]$DataRoot = "",
     [switch]$ServeFrontend,
     [switch]$MigrateDatabase,
+    [ValidateSet("head", "0006_add_chapter_manuscript_content")]
+    [string]$MigrationRevision = "head",
     [string]$FrontendDistPath = "",
     [Parameter(Mandatory = $true)]
     [string]$ProcessManifestPath
@@ -274,7 +276,7 @@ if ($Service -eq "Backend") {
 
     if ($MigrateDatabase) {
         Set-Location $repositoryRoot
-        & $pythonExecutable -m alembic -c backend/alembic.ini upgrade head
+        & $pythonExecutable -m alembic -c backend/alembic.ini upgrade $MigrationRevision
         if ($LASTEXITCODE -ne 0) {
             Stop-ServiceLauncher -Message "explicit E2E database migration failed"
         }
