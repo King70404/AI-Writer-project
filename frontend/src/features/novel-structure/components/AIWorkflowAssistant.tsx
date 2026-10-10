@@ -56,6 +56,7 @@ export function AIWorkflowAssistant({
   const unavailable =
     ai.busy ||
     ai.loading ||
+    ai.upgradeRequired ||
     writing.state.reloading ||
     writing.state.reloadFailed;
   const prepare = (operation: "continue" | "rewrite") => {
@@ -83,13 +84,42 @@ export function AIWorkflowAssistant({
       data-feature-id="ai.workflow"
     >
       <h3>AI协作写作</h3>
+      {ai.upgradeRequired ? (
+        <section aria-label="启用 AI 协作">
+          <p>
+            当前数据库需要升级。将先在本机保存数据库备份，再添加 AI
+            协作表，保留正文和历史版本。手动写作仍可使用。
+          </p>
+          <button
+            type="button"
+            disabled={
+              ai.busy ||
+              ai.loading ||
+              writing.state.reloading ||
+              writing.state.reloadFailed
+            }
+            onClick={() => void ai.upgrade()}
+          >
+            {ai.upgrading ? "正在备份并启用…" : "备份并启用 AI 协作"}
+          </button>
+        </section>
+      ) : null}
+      {ai.upgradeMessage ? <p role="status">{ai.upgradeMessage}</p> : null}
       <p>
         每次生成 200–300
         字，先保留为候选，由你确认后写入正文。任务和候选会保存在本机，可关闭后继续。
       </p>
+      {ai.error || formError ? (
+        <p role="alert">{ai.error || formError}</p>
+      ) : null}
       <AIModelSettings
         models={ai.models}
-        onSaved={ai.modelSaved}
+        disabled={ai.busy || ai.upgradeRequired}
+        onUpgradeRequired={ai.modelError}
+        onSaved={(saved) => {
+          ai.modelSaved(saved);
+          setProfileId(saved.id);
+        }}
         client={client}
       />
       <label htmlFor="ai-profile">使用模型</label>
@@ -139,9 +169,6 @@ export function AIWorkflowAssistant({
         先准备上下文，再确认生成。每次采纳后可选择继续下一段，达到本轮上限即停止。
       </p>
       {ai.loading ? <p role="status">正在读取模型与已保存任务…</p> : null}
-      {ai.error || formError ? (
-        <p role="alert">{ai.error || formError}</p>
-      ) : null}
       <button
         type="button"
         disabled={ai.busy}

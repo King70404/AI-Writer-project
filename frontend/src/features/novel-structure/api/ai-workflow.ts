@@ -268,16 +268,52 @@ export function parseWorkflowRun(
     last_error: value.last_error,
   };
 }
-async function request<T>(action: () => Promise<{ data: T }>): Promise<T> {
+async function request<T>(
+  action: () => Promise<{ data: T }>,
+  context: "workflow" | "model" = "workflow",
+): Promise<T> {
   try {
     return (await action()).data;
   } catch (error) {
     if (error instanceof ApiError) {
       if ([401, 403].includes(error.status)) securitySession.clear();
+      if (error.code === "INVALID_RESPONSE") invalid();
       if (error.code === "AI_WORKFLOW_SCHEMA_REQUIRED")
         throw new AIWritingError(
-          "当前数据库需要升级后才能使用 AI 协作。请停止服务，备份后升级，再重新启动；手动写作仍可使用。",
+          "当前数据库需要升级后才能使用 AI 协作。请点击“备份并启用 AI 协作”；手动写作仍可使用。",
+          error.code,
         );
+      if (error.code === "AI_WORKFLOW_UPGRADE_FAILED")
+        throw new AIWritingError(
+          "AI 协作启用未完成，请保留本机数据和备份，点击“备份并启用 AI 协作”重试；若仍失败，请联系维护者。手动写作仍可使用。",
+          error.code,
+        );
+      if (error.code === "AI_WORKFLOW_UPGRADE_UNSUPPORTED")
+        throw new AIWritingError(
+          "当前数据库状态不支持自动启用，请保留数据并联系维护者；手动写作仍可使用。",
+          error.code,
+        );
+      if (error.code === "AI_WORKFLOW_UPGRADE_BUSY")
+        throw new AIWritingError(
+          "数据库正在处理其他写入或启用请求，请等待完成后点击“备份并启用 AI 协作”重试；手动写作仍可使用。",
+          error.code,
+        );
+      if (context === "model") {
+        const modelErrors: Record<string, string> = {
+          MODEL_CREDENTIAL_UNAVAILABLE:
+            "Windows 密钥保护失败，未能保存模型密钥。请确认使用启动应用的同一个 Windows 账户后重试。",
+          MODEL_CONFIGURATION_UNAVAILABLE:
+            "本机模型配置无法读写，请检查应用启动窗口的错误提示后重试。",
+          INVALID_MODEL_PROFILE:
+            "模型配置无效，请检查服务位置、完整服务地址、模型名称和输出上限。",
+        };
+        if (modelErrors[error.code])
+          throw new AIWritingError(modelErrors[error.code]);
+        if ([401, 403].includes(error.status))
+          throw new AIWritingError(
+            "页面会话已失效，请刷新页面后重新保存模型配置。",
+          );
+      }
       const messages: Record<number, string> = {
         404: "任务、模型或章节已不存在，请刷新。",
         409: "任务状态或正文已变化，请重新加载；旧候选不会覆盖正文。",
@@ -293,7 +329,11 @@ async function request<T>(action: () => Promise<{ data: T }>): Promise<T> {
     }
     throw error instanceof AIWritingError
       ? error
-      : new AIWritingError("连接中断，任务仍保存在本地；请刷新确认状态。");
+      : new AIWritingError(
+          context === "model"
+            ? "无法连接本机服务，未能确认模型配置是否保存。请重新运行“启动 AI 网文助手.cmd”，保持启动窗口开启，再刷新页面确认保存结果。"
+            : "连接中断，任务仍保存在本地；请刷新确认状态。",
+        );
   }
 }
 async function mutate<T>(
@@ -302,6 +342,7 @@ async function mutate<T>(
   decode: (value: unknown) => T,
   method: "POST" | "PUT" = "POST",
   headers?: Record<string, string>,
+  context: "workflow" | "model" = "workflow",
 ) {
   return request(async () => {
     const proof = await securitySession.getValidSession();
@@ -309,7 +350,7 @@ async function mutate<T>(
     return call(path, body, decode, {
       headers: { "X-CSRF-Token": proof.csrfToken, ...headers },
     });
-  });
+  }, context);
 }
 function runPath(chapterId: string, runId?: string) {
   if (!identifier(chapterId) || (runId !== undefined && !identifier(runId)))
@@ -317,12 +358,18 @@ function runPath(chapterId: string, runId?: string) {
   return `chapters/${chapterId}/ai/runs${runId === undefined ? "" : `/${runId}`}`;
 }
 export const aiWorkflowClient = {
+  upgrade: () =>
+    mutate("ai/workflow-setup/upgrade", { confirm_backup: true }, (value) => {
+      if (!record(value) || value.status !== "ready") invalid();
+    }),
   models: () =>
-    request(() =>
-      getJson("ai/models", (value) => {
-        if (!record(value) || !Array.isArray(value.items)) invalid();
-        return value.items.map(parseModelProfile);
-      }),
+    request(
+      () =>
+        getJson("ai/models", (value) => {
+          if (!record(value) || !Array.isArray(value.items)) invalid();
+          return value.items.map(parseModelProfile);
+        }),
+      "model",
     ),
   saveModel: (input: ModelInput, id?: string) => {
     if (id !== undefined && !identifier(id)) invalid();
@@ -331,6 +378,8 @@ export const aiWorkflowClient = {
       input,
       parseModelProfile,
       id ? "PUT" : "POST",
+      undefined,
+      "model",
     );
   },
   list: (chapterId: string) =>

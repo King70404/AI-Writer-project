@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from aiwebnovel.ai_writing.composition import compose_ai_workflow, compose_ai_writing
 from aiwebnovel.ai_writing.errors import AIWorkflowSchemaRequired
+from aiwebnovel.ai_writing.setup_web import AIWorkflowSetupService, create_ai_setup_router
 from aiwebnovel.ai_writing.web import create_ai_writing_router
 from aiwebnovel.ai_writing.workflow_web import create_ai_workflow_router
 from aiwebnovel.character.application.history_service import (
@@ -24,9 +25,16 @@ from aiwebnovel.character.application.services import (
 from aiwebnovel.character.identifiers import CharacterId, CharacterRevisionId
 from aiwebnovel.character.web import create_character_history_router, create_character_router
 from aiwebnovel.core.config import Settings, get_settings
-from aiwebnovel.core.errors import internal_error_handler, register_error_handlers
+from aiwebnovel.core.errors import AppError, internal_error_handler, register_error_handlers
 from aiwebnovel.core.logging import configure_logging, get_logger
 from aiwebnovel.core.middleware import RequestIdMiddleware
+from aiwebnovel.db.ai_workflow_upgrade import (
+    AIWorkflowUpgradeBusy,
+    AIWorkflowUpgradeFailed,
+    AIWorkflowUpgradeUnsupported,
+    StorageUpgradeChecks,
+    upgrade_ai_workflow_database,
+)
 from aiwebnovel.db.engine import create_database_engine, resolve_database_url
 from aiwebnovel.db.health import check_database_health
 from aiwebnovel.db.session import create_database_session_factory
@@ -69,7 +77,11 @@ from aiwebnovel.security import (
 )
 from aiwebnovel.security.redaction import redact_text, safe_request_path
 from aiwebnovel.storage.health import check_storage_health
-from aiwebnovel.storage.initializer import initialize_storage
+from aiwebnovel.storage.initializer import (
+    initialize_storage,
+    is_reparse_point,
+    validate_storage_layout,
+)
 from aiwebnovel.storage.paths import StoragePaths
 from aiwebnovel.story_bible.application.history_service import (
     StoryBibleRevisionHistoryQueryService,
@@ -403,6 +415,69 @@ def create_app(
                             application.state.ai_workflow_runtime,
                         ) = workflow
 
+                    # Capture this lifespan's engine: the request cannot choose a path,
+                    # database URL or migration revision.
+                    setup_engine = runtime_engine
+                    assert setup_engine is not None
+
+                    def enable_ai_workflow(engine: Engine = setup_engine) -> None:
+                        try:
+                            upgrade_ai_workflow_database(
+                                engine,
+                                storage_paths,
+                                StorageUpgradeChecks(validate_storage_layout, is_reparse_point),
+                            )
+                        except AIWorkflowUpgradeUnsupported:
+                            raise AppError(
+                                code="AI_WORKFLOW_UPGRADE_UNSUPPORTED",
+                                message="The database state does not support this AI upgrade.",
+                                status_code=409,
+                            ) from None
+                        except AIWorkflowUpgradeBusy:
+                            raise AppError(
+                                code="AI_WORKFLOW_UPGRADE_BUSY",
+                                message="The database is busy. Wait and retry AI setup.",
+                                status_code=409,
+                            ) from None
+                        except AIWorkflowUpgradeFailed:
+                            raise AppError(
+                                code="AI_WORKFLOW_UPGRADE_FAILED",
+                                message="AI database backup or upgrade did not complete.",
+                                status_code=503,
+                            ) from None
+                        if application.state.ai_workflow_service is not None:
+                            return
+                        try:
+                            enabled = compose_ai_workflow(
+                                resolved_settings,
+                                storage_paths,
+                                engine,
+                                session_factory,
+                                application.state.novel_structure_query_service,
+                                application.state.project_query_service,
+                                application.state.story_bible_query_service,
+                                application.state.character_query_service,
+                            )
+                        except Exception as exc:  # noqa: BLE001 - no author data in errors.
+                            logger.error("AI activation failed error_type=%s", type(exc).__name__)
+                            enabled = None
+                        if enabled is None:
+                            raise AppError(
+                                code="AI_WORKFLOW_UPGRADE_FAILED",
+                                message="Database upgraded, but AI activation failed. Retry setup.",
+                                status_code=503,
+                            )
+                        (
+                            application.state.ai_workflow_service,
+                            application.state.model_gateway_service,
+                            application.state.ai_workflow_runtime,
+                        ) = enabled
+                        application.state.ai_workflow_schema_required = False
+
+                    application.state.ai_workflow_setup_service = AIWorkflowSetupService(
+                        enable_ai_workflow
+                    )
+
         application.state.initialized = True
         try:
             yield
@@ -422,6 +497,7 @@ def create_app(
             application.state.novel_structure_query_service = None
             application.state.ai_writing_service = None
             application.state.ai_workflow_service = None
+            application.state.ai_workflow_setup_service = None
             application.state.model_gateway_service = None
             if application.state.ai_workflow_runtime is not None:
                 application.state.ai_workflow_runtime.close()
@@ -461,6 +537,7 @@ def create_app(
     application.state.novel_structure_query_service = None
     application.state.ai_writing_service = None
     application.state.ai_workflow_service = None
+    application.state.ai_workflow_setup_service = None
     application.state.ai_workflow_schema_required = False
     application.state.model_gateway_service = None
     application.state.ai_workflow_runtime = None
@@ -527,6 +604,7 @@ def create_app(
     application.include_router(create_chapter_content_router(api_prefix=api_prefix))
     application.include_router(create_ai_writing_router(api_prefix=api_prefix))
     application.include_router(create_ai_workflow_router(api_prefix=api_prefix))
+    application.include_router(create_ai_setup_router(api_prefix=api_prefix))
     application.include_router(create_model_gateway_router(api_prefix=api_prefix))
     application.include_router(create_export_router(api_prefix=api_prefix))
 

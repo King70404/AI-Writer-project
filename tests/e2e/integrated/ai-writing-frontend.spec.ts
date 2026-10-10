@@ -74,12 +74,85 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     await chapter.getByLabel("标题").fill("归途");
     await chapter.getByRole("button", { name: "创建章" }).click();
     await expect(page.getByText("章已创建。已选中新章。")).toBeVisible();
+    const writingPath = await page
+      .getByRole("link", { name: "写正文" })
+      .getAttribute("href");
+    const oldChapterId = writingPath?.match(
+      /\/chapters\/(chp_[0-9A-HJKMNP-TV-Z]{26})\/write$/u,
+    )?.[1];
+    expect(oldChapterId).toBeTruthy();
+    browserAudit.allowExpectedConsoleHttpFailure("/api/v1/ai/models", 503);
+    browserAudit.allowExpectedConsoleHttpFailure(
+      `/api/v1/chapters/${oldChapterId}/ai/runs`,
+      503,
+    );
     await page.getByRole("link", { name: "写正文" }).click();
     const editor = page.getByLabel("章节正文");
     const status = page.getByRole("status", { name: "保存状态" });
     const initial = "雨停后，旅人推开了旧院的木门。";
     await editor.fill(initial);
     await expect(status).toHaveText("已保存");
+    const enableAI = page.getByRole("button", {
+      name: "备份并启用 AI 协作",
+      exact: true,
+    });
+    await expect(enableAI).toBeVisible();
+    await enableAI.click();
+    await expect(enableAI).toHaveCount(0);
+    await expect(editor).toHaveValue(initial);
+    await page.getByText("模型配置", { exact: true }).click();
+    await page.getByLabel("配置名称", { exact: true }).fill("云端配置保存测试");
+    await page.getByLabel("服务位置", { exact: true }).selectOption("cloud");
+    await page
+      .getByLabel("服务地址", { exact: true })
+      .fill("https://api.example.com");
+    await page.getByLabel("模型名称", { exact: true }).fill("cloud-test-model");
+    await page
+      .getByLabel("API Key（留空保留已有密钥）")
+      .fill("e2e-placeholder-not-a-real-key");
+    await page
+      .getByRole("button", { name: "保存模型配置", exact: true })
+      .click();
+    await expect(
+      page.getByText("模型配置已保存。密钥不会回显。"),
+    ).toBeVisible();
+    await expect(page.getByLabel("API Key（留空保留已有密钥）")).toHaveValue(
+      "",
+    );
+    await expect(
+      page.getByLabel("使用模型").locator("option:checked"),
+    ).toHaveText("云端配置保存测试 · 云端");
+    await page.reload();
+    await expect(
+      page
+        .getByLabel("使用模型")
+        .getByRole("option", { name: "云端配置保存测试 · 云端", exact: true }),
+    ).toHaveCount(1);
+    await page.getByText("模型配置", { exact: true }).click();
+    await page.getByRole("button", { name: "添加新模型", exact: true }).click();
+    await page.getByLabel("配置名称", { exact: true }).fill("新保存的写作模型");
+    await page
+      .getByLabel("服务地址", { exact: true })
+      .fill("http://127.0.0.1:18123");
+    await page.getByLabel("模型名称", { exact: true }).fill("e2e-ai-model");
+    await page
+      .getByRole("button", { name: "保存模型配置", exact: true })
+      .click();
+    await expect(
+      page.getByText("模型配置已保存。密钥不会回显。"),
+    ).toBeVisible();
+    await expect(
+      page.getByLabel("使用模型").locator("option:checked"),
+    ).toHaveText("新保存的写作模型 · 本地");
+    await page.reload();
+    await expect(
+      page
+        .getByLabel("使用模型")
+        .getByRole("option", { name: "新保存的写作模型 · 本地", exact: true }),
+    ).toHaveCount(1);
+    await page
+      .getByLabel("使用模型")
+      .selectOption({ label: "新保存的写作模型 · 本地" });
     await page.getByLabel("额外要求（可选）").fill("增加紧张感");
     await page.getByRole("button", { name: "续写", exact: true }).click();
     await expect(page.getByLabel("本次发送的小说上下文")).toHaveValue(

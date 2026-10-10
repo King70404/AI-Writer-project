@@ -20,7 +20,14 @@ export interface AICandidate {
   };
 }
 
-export class AIWritingError extends Error {}
+export class AIWritingError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string,
+  ) {
+    super(message);
+  }
+}
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

@@ -16,8 +16,8 @@ def test_production_api_has_exactly_thirty_eight_operations_and_six_character_ro
         for method in path_operations
         if method in {"get", "post", "put", "patch", "delete"}
     }
-    assert len(operations) == 50
-    assert len(AI_WORKFLOW_OPERATIONS) == 12
+    assert len(operations) == 51
+    assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert operations >= AI_WORKFLOW_OPERATIONS
     assert {
         ("GET", "/api/v1/projects/{project_id}/characters"),

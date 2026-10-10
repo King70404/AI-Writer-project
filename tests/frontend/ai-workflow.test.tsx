@@ -108,6 +108,7 @@ const adopted: WorkflowRun = {
 };
 function client(initial: WorkflowRun[] = []): AIWorkflowClient {
   return {
+    upgrade: vi.fn().mockResolvedValue(undefined),
     models: vi.fn().mockResolvedValue([model]),
     saveModel: vi.fn().mockResolvedValue(model),
     list: vi.fn().mockResolvedValue(initial),
@@ -123,6 +124,72 @@ function setup(api = client(), content = writingClient()) {
   });
   return { ...hook, api, content };
 }
+
+it("keeps available models when persisted task loading fails", async () => {
+  const api = client();
+  vi.mocked(api.list).mockRejectedValue(new Error("任务读取失败"));
+  const { result } = setup(api);
+  await waitFor(() => expect(result.current.ai.loading).toBe(false));
+  expect(result.current.ai.models).toEqual([model]);
+  expect(result.current.ai.error).toBeTruthy();
+});
+
+it("does not erase a saved model when an older refresh finishes later", async () => {
+  const api = client();
+  const oldModels = deferred<ModelProfile[]>();
+  vi.mocked(api.models).mockReturnValue(oldModels.promise);
+  const { result } = setup(api);
+  await waitFor(() => expect(api.models).toHaveBeenCalledOnce());
+  act(() => result.current.ai.modelSaved(model));
+  await act(async () => {
+    oldModels.resolve([]);
+    await oldModels.promise;
+  });
+  await waitFor(() => expect(result.current.ai.loading).toBe(false));
+  expect(result.current.ai.models).toEqual([model]);
+});
+
+it("selects a saved model even when task history is unavailable", async () => {
+  const api = client();
+  vi.mocked(api.models).mockResolvedValue([]);
+  vi.mocked(api.list).mockRejectedValue(new Error("任务读取失败"));
+  function Harness() {
+    const writing = useChapterWriting(written("甲乙丙丁"), writingClient());
+    return (
+      <AIWorkflowAssistant
+        chapterId={chapterId}
+        writing={writing}
+        selection={null}
+        client={api}
+      />
+    );
+  }
+  render(<Harness />);
+  await waitFor(() =>
+    expect(
+      screen.queryByText("正在读取模型与已保存任务…"),
+    ).not.toBeInTheDocument(),
+  );
+  fireEvent.click(screen.getByText("模型配置"));
+  fireEvent.change(screen.getByLabelText("配置名称"), {
+    target: { value: model.name },
+  });
+  fireEvent.change(screen.getByLabelText("模型名称"), {
+    target: { value: model.model },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "保存模型配置" }));
+  await waitFor(() =>
+    expect(screen.getByLabelText("使用模型")).toHaveValue(model.id),
+  );
+  expect(
+    screen.getByText("模型配置已保存。密钥不会回显。"),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("option", { name: "请先添加模型" }),
+  ).not.toBeInTheDocument();
+  expect(api.saveModel).toHaveBeenCalledOnce();
+  expect(api.action).not.toHaveBeenCalled();
+});
 
 it("model settings save an explicit cloud key once and clear it from the form", async () => {
   const api = client();

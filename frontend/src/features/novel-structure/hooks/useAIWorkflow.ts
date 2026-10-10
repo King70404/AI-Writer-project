@@ -21,8 +21,12 @@ export function useAIWorkflow(
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [upgradeRequired, setUpgradeRequired] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState("");
   const lock = useRef(false);
   const alive = useRef(false);
+  const modelRevision = useRef(0);
   const keys = useRef(new Map<string, string>());
   const paused = useRef(false);
   const publish = useCallback((run: WorkflowRun) => {
@@ -34,33 +38,55 @@ export function useAIWorkflow(
     setActiveId(run.run_id);
   }, []);
   const refresh = useCallback(async () => {
-    const [nextModels, nextRuns] = await Promise.all([
+    const requestedModelRevision = modelRevision.current;
+    const [nextModels, nextRuns] = await Promise.allSettled([
       client.models(),
       client.list(chapterId),
     ]);
     if (!alive.current) return;
-    setModels(nextModels);
-    setRuns(nextRuns);
-    setActiveId((id) =>
-      nextRuns.some((run) => run.run_id === id)
-        ? id
-        : (nextRuns[0]?.run_id ?? null),
-    );
+    if (
+      [nextModels, nextRuns].some(
+        (result) =>
+          result.status === "rejected" &&
+          result.reason instanceof AIWritingError &&
+          result.reason.code === "AI_WORKFLOW_SCHEMA_REQUIRED",
+      )
+    )
+      setUpgradeRequired(true);
+    if (
+      nextModels.status === "fulfilled" &&
+      requestedModelRevision === modelRevision.current
+    )
+      setModels(nextModels.value);
+    if (nextRuns.status === "fulfilled") {
+      setRuns(nextRuns.value);
+      setActiveId((id) =>
+        nextRuns.value.some((run) => run.run_id === id)
+          ? id
+          : (nextRuns.value[0]?.run_id ?? null),
+      );
+    }
+    if (nextModels.status === "rejected") throw nextModels.reason;
+    if (nextRuns.status === "rejected") throw nextRuns.reason;
+    setUpgradeRequired(false);
   }, [chapterId, client]);
   useEffect(() => {
     alive.current = true;
-    void refresh()
-      .catch((failure: unknown) => {
-        if (alive.current)
-          setError(
-            failure instanceof AIWritingError
-              ? failure.message
-              : "协作任务读取失败，请点击刷新；手动写作仍可使用。",
-          );
-      })
-      .finally(() => {
-        if (alive.current) setLoading(false);
-      });
+    queueMicrotask(() => {
+      if (!alive.current) return;
+      void refresh()
+        .catch((failure: unknown) => {
+          if (alive.current)
+            setError(
+              failure instanceof AIWritingError
+                ? failure.message
+                : "协作任务读取失败，请点击刷新；手动写作仍可使用。",
+            );
+        })
+        .finally(() => {
+          if (alive.current) setLoading(false);
+        });
+    });
     return () => {
       alive.current = false;
     };
@@ -73,12 +99,18 @@ export function useAIWorkflow(
     try {
       await action();
     } catch (failure) {
-      if (alive.current)
+      if (alive.current) {
+        if (
+          failure instanceof AIWritingError &&
+          failure.code === "AI_WORKFLOW_SCHEMA_REQUIRED"
+        )
+          setUpgradeRequired(true);
         setError(
           failure instanceof Error
             ? failure.message
             : "操作失败，请刷新后重试。",
         );
+      }
     } finally {
       lock.current = false;
       if (alive.current) setBusy(false);
@@ -177,6 +209,32 @@ export function useAIWorkflow(
     busy,
     loading,
     error,
+    upgradeRequired,
+    upgrading,
+    upgradeMessage,
+    upgrade: () =>
+      execute(async () => {
+        setUpgradeMessage("");
+        if (!(await writing.flush()))
+          throw new AIWritingError(
+            "请先保存当前正文并处理版本冲突，再启用 AI 协作。",
+          );
+        setUpgrading(true);
+        try {
+          await client.upgrade();
+          await refresh();
+          if (alive.current)
+            setUpgradeMessage("AI 协作已启用，可以保存模型配置。");
+        } finally {
+          if (alive.current) setUpgrading(false);
+        }
+      }),
+    modelError: (failure: AIWritingError) => {
+      if (!alive.current) return;
+      setUpgradeRequired(true);
+      setUpgradeMessage("");
+      setError(failure.message);
+    },
     prepare,
     generate,
     adopt,
@@ -201,6 +259,13 @@ export function useAIWorkflow(
           await client.candidate(chapterId, candidate.candidate_id, "discard"),
         ),
       ),
-    modelSaved: refresh,
+    modelSaved: (saved: ModelProfile) => {
+      if (!alive.current) return;
+      modelRevision.current += 1;
+      setModels((current) => [
+        saved,
+        ...current.filter((item) => item.id !== saved.id),
+      ]);
+    },
   };
 }

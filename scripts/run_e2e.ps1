@@ -1129,6 +1129,8 @@ function Start-OwnedService {
         [string]$DataRoot = "",
         [switch]$ServeFrontend,
         [switch]$MigrateDatabase,
+        [ValidateSet("head", "0006_add_chapter_manuscript_content")]
+        [string]$MigrationRevision = "head",
         [string]$FrontendDistPath = "",
         [int]$AIProviderPort = 0
     )
@@ -1181,6 +1183,7 @@ function Start-OwnedService {
     }
     if ($MigrateDatabase) {
         $arguments += "-MigrateDatabase"
+        $arguments += @("-MigrationRevision", $MigrationRevision)
     }
 
     $capture = Start-OwnedProcess `
@@ -1833,7 +1836,9 @@ function Invoke-E2EScenario {
             $integratedPort = 18121
             $frontendDist = Join-Path $script:FrontendRoot "dist"
             $aiProviderPort = 0
+            $migrationRevision = "head"
             if ($SelectedScenario -eq "E2E-INT-019") {
+                $migrationRevision = "0006_add_chapter_manuscript_content"
                 $aiProviderPort = 18123
                 Assert-PortAvailable -Port $aiProviderPort
                 $null = $script:OwnedPorts.Add($aiProviderPort)
@@ -1847,6 +1852,7 @@ function Invoke-E2EScenario {
                 -DataRoot $dataRoot `
                 -ServeFrontend `
                 -MigrateDatabase:$isBusinessApi `
+                -MigrationRevision $migrationRevision `
                 -FrontendDistPath $frontendDist `
                 -AIProviderPort $aiProviderPort
             Wait-ServiceUrl `

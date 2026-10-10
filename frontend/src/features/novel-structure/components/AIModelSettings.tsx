@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { AIWritingError } from "../api/ai-writing";
 import {
   aiWorkflowClient,
   type AIWorkflowClient,
@@ -8,10 +9,14 @@ import {
 export function AIModelSettings({
   models,
   onSaved,
+  onUpgradeRequired,
+  disabled = false,
   client = aiWorkflowClient,
 }: {
   readonly models: readonly ModelProfile[];
-  readonly onSaved: () => Promise<void>;
+  readonly onSaved: (saved: ModelProfile) => void;
+  readonly onUpgradeRequired?: (failure: AIWritingError) => void;
+  readonly disabled?: boolean;
   readonly client?: AIWorkflowClient;
 }) {
   const [id, setId] = useState<string | undefined>();
@@ -39,7 +44,7 @@ export function AIModelSettings({
     setError("");
   };
   const save = async () => {
-    if (saving.current) return;
+    if (saving.current || disabled) return;
     const outputTokens = Number(tokens);
     if (
       !name.trim() ||
@@ -72,11 +77,19 @@ export function AIModelSettings({
       setId(saved.id);
       setKey("");
       setClearKey(false);
-      await onSaved();
+      onSaved(saved);
       setMessage("模型配置已保存。密钥不会回显。");
     } catch (failure) {
+      if (
+        failure instanceof AIWritingError &&
+        failure.code === "AI_WORKFLOW_SCHEMA_REQUIRED" &&
+        onUpgradeRequired
+      ) {
+        onUpgradeRequired(failure);
+        return;
+      }
       setError(
-        failure instanceof Error ? failure.message : "模型配置保存失败。",
+        `模型配置保存未确认：${failure instanceof Error ? failure.message : "请重试。"}`,
       );
     } finally {
       saving.current = false;
@@ -99,13 +112,17 @@ export function AIModelSettings({
                 ? "已保存密钥"
                 : "未保存密钥"
               : "本地"}
-            <button type="button" disabled={busy} onClick={() => edit(profile)}>
+            <button
+              type="button"
+              disabled={busy || disabled}
+              onClick={() => edit(profile)}
+            >
               编辑 {profile.name}
             </button>
           </li>
         ))}
       </ul>
-      <button type="button" disabled={busy} onClick={() => edit()}>
+      <button type="button" disabled={busy || disabled} onClick={() => edit()}>
         添加新模型
       </button>
       <form
@@ -115,7 +132,7 @@ export function AIModelSettings({
           void save();
         }}
       >
-        <fieldset disabled={busy}>
+        <fieldset disabled={busy || disabled}>
           <legend>{id ? "编辑模型" : "添加模型"}</legend>
           <label htmlFor="ai-model-name">配置名称</label>
           <input
@@ -188,7 +205,7 @@ export function AIModelSettings({
               ) : null}
             </>
           ) : null}
-          <button type="submit" disabled={busy}>
+          <button type="submit" disabled={busy || disabled}>
             {busy ? "正在保存模型…" : "保存模型配置"}
           </button>
         </fieldset>
