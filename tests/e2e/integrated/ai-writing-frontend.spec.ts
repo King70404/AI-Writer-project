@@ -13,6 +13,7 @@ test("E2E-INT-019 AI writing assistance flow", async ({
   }[] = [];
   const continued = "续写候选文本：门外传来轻轻的脚步声。".repeat(12);
   const rewritten = "改写候选文本：夜雨终于停歇。".repeat(16);
+  let rejectRequest = false;
   const server = createServer((request, response) => {
     let body = "";
     request.setEncoding("utf8");
@@ -21,6 +22,11 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     });
     request.on("end", () => {
       requests.push({ method: request.method, path: request.url, body });
+      if (rejectRequest) {
+        response.writeHead(429, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ error: { message: "test rate limit" } }));
+        return;
+      }
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(
         JSON.stringify({
@@ -219,6 +225,40 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     await page.reload();
     await expect(editor).toHaveValue(final);
     await expect(status).toHaveText("已保存");
+    const preparing = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/ai/runs") &&
+        response.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "续写", exact: true }).click();
+    const prepared = await preparing;
+    const run = (await prepared.json()) as { run_id: string };
+    const generatePath = `/api/v1/chapters/${oldChapterId}/ai/runs/${run.run_id}/generate`;
+    browserAudit.allowExpectedConsoleHttpFailure(generatePath, 502);
+    rejectRequest = true;
+    const currentTask = page.getByRole("region", { name: "当前AI任务" });
+    const taskStatus = currentTask
+      .getByRole("status")
+      .filter({ hasText: "已生成" });
+    await currentTask
+      .getByRole("button", { name: "确认发送并生成", exact: true })
+      .click();
+    await expect(currentTask.getByRole("alert")).toContainText("频繁");
+    await expect(currentTask.getByRole("alert")).toBeInViewport();
+    await expect(taskStatus).toContainText("已暂停");
+    await expect(taskStatus).toContainText("1/5");
+    await expect(editor).toHaveValue(final);
+    expect(requests).toHaveLength(3);
+    await currentTask.getByRole("button", { name: "恢复任务" }).click();
+    await expect(taskStatus).toContainText("可以生成下一段");
+    expect(requests).toHaveLength(3);
+    rejectRequest = false;
+    await currentTask
+      .getByRole("button", { name: "确认发送并生成", exact: true })
+      .click();
+    await expect(page.getByLabel("AI候选文本")).toHaveValue(rewritten);
+    await expect(editor).toHaveValue(final);
+    expect(requests).toHaveLength(4);
     expectCleanBrowserAudit(browserAudit);
   } finally {
     server.closeAllConnections();

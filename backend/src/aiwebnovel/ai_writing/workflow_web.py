@@ -17,6 +17,13 @@ from aiwebnovel.ai_writing.web import map_error, require_json
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
 from aiwebnovel.domain.errors import ConcurrencyConflict, DomainError
+from aiwebnovel.model_gateway.errors import (
+    InvalidModelProfile,
+    ModelConfigurationUnavailable,
+    ModelCredentialUnavailable,
+    ModelProfileNotFound,
+)
+from aiwebnovel.model_gateway.web import map_model_error
 from aiwebnovel.novel_structure.web.dependencies import get_required_version
 
 
@@ -61,6 +68,16 @@ def _invoke[T](response: Response, call: Callable[[], T]) -> T:
     try:
         return call()
     except DomainError as error:
+        if isinstance(
+            error,
+            (
+                InvalidModelProfile,
+                ModelConfigurationUnavailable,
+                ModelCredentialUnavailable,
+                ModelProfileNotFound,
+            ),
+        ):
+            raise map_model_error(error) from None
         if isinstance(error, WorkflowConflict):
             raise AppError(
                 code="AI_WORKFLOW_CONFLICT", message=error.message, status_code=409

@@ -9,9 +9,15 @@ from aiwebnovel.ai_writing.application.models import GenerationCandidate
 from aiwebnovel.ai_writing.application.services import AIWritingService
 from aiwebnovel.ai_writing.errors import (
     AIContextChanged,
+    AIProviderAccessDenied,
+    AIProviderAuthFailed,
     AIProviderConfigurationInvalid,
+    AIProviderEndpointInvalid,
     AIProviderInvalidResponse,
     AIProviderNotConfigured,
+    AIProviderPaymentRequired,
+    AIProviderRateLimited,
+    AIProviderRequestRejected,
     AIProviderTimeout,
     AIProviderUnavailable,
     InvalidAIInput,
@@ -88,6 +94,24 @@ def map_error(error: DomainError) -> AppError:
             AIProviderConfigurationInvalid.message,
         ),
         AIProviderUnavailable: (502, "AI_PROVIDER_UNAVAILABLE", AIProviderUnavailable.message),
+        AIProviderAuthFailed: (502, "AI_PROVIDER_AUTH_FAILED", AIProviderAuthFailed.message),
+        AIProviderAccessDenied: (502, "AI_PROVIDER_ACCESS_DENIED", AIProviderAccessDenied.message),
+        AIProviderPaymentRequired: (
+            502,
+            "AI_PROVIDER_PAYMENT_REQUIRED",
+            AIProviderPaymentRequired.message,
+        ),
+        AIProviderRateLimited: (502, "AI_PROVIDER_RATE_LIMITED", AIProviderRateLimited.message),
+        AIProviderEndpointInvalid: (
+            502,
+            "AI_PROVIDER_ENDPOINT_INVALID",
+            AIProviderEndpointInvalid.message,
+        ),
+        AIProviderRequestRejected: (
+            502,
+            "AI_PROVIDER_REQUEST_REJECTED",
+            AIProviderRequestRejected.message,
+        ),
         AIProviderInvalidResponse: (
             502,
             "AI_PROVIDER_INVALID_RESPONSE",

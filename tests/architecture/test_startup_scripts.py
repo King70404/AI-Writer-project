@@ -902,7 +902,7 @@ def test_doctor_required_security_and_hygiene_use_real_commands() -> None:
         ],
         cwd=_REPOSITORY_ROOT,
     )
-    assert result.returncode in (0, 1), result.stderr
+    assert result.returncode in (0, 1), result.stdout + result.stderr
     report = json.loads(result.stdout)
     checks = {check["check_id"]: check for check in report["checks"]}
     for identity in ("ENV-007", "ENV-012"):
