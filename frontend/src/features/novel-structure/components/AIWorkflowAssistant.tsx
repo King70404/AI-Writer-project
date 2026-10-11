@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   aiWorkflowClient,
+  workflowFailureMessage,
   type AIWorkflowClient,
   type WorkflowRun,
 } from "../api/ai-workflow";
@@ -77,6 +78,16 @@ export function AIWorkflowAssistant({
   };
   const canSend =
     runProfile?.kind !== "cloud" || confirmedRunId === run?.run_id;
+  const taskError = ai.errorRunId === run?.run_id ? ai.error : "";
+  const sendBlockedReason = writing.state.reloadFailed
+    ? "正文读取失败，请先重新加载服务器正文，再继续生成。"
+    : writing.state.reloading
+      ? "正在读取最新正文，请稍候。"
+      : !runProfile
+        ? "原模型配置不可用，请选择可用模型并重新准备任务。"
+        : !canSend
+          ? "请先勾选上面的发送同意，再确认生成。"
+          : "";
   return (
     <section
       aria-label="AI写作助手"
@@ -109,8 +120,8 @@ export function AIWorkflowAssistant({
         每次生成 200–300
         字，先保留为候选，由你确认后写入正文。任务和候选会保存在本机，可关闭后继续。
       </p>
-      {ai.error || formError ? (
-        <p role="alert">{ai.error || formError}</p>
+      {(ai.error && !taskError) || formError ? (
+        <p role="alert">{formError || ai.error}</p>
       ) : null}
       <AIModelSettings
         models={ai.models}
@@ -309,13 +320,18 @@ export function AIWorkflowAssistant({
               </label>
             </div>
           ) : null}
-          {run.last_error ? (
+          {taskError || run.last_error ? (
             <p role="alert">
-              上一步未完成：{run.last_error}。未自动重新调用模型。
+              {taskError || workflowFailureMessage(run.last_error!)}
             </p>
           ) : null}
+          {sendBlockedReason ? <p>{sendBlockedReason}</p> : null}
           {ai.busy ? (
-            <p role="status">正在处理，请稍候。可以暂停后续生成。</p>
+            <p role="status">
+              {ai.generating
+                ? "正在发送请求并等待模型回复，请勿重复点击。可以暂停后续生成。"
+                : "正在处理，请稍候。可以暂停后续生成。"}
+            </p>
           ) : null}
           {run.status === "ready" && !pending ? (
             <button

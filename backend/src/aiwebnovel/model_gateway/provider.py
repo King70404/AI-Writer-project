@@ -11,8 +11,14 @@ from urllib.parse import urlsplit
 
 from aiwebnovel.ai_writing.application.models import GeneratedText, GenerationMessage
 from aiwebnovel.ai_writing.errors import (
+    AIProviderAccessDenied,
+    AIProviderAuthFailed,
     AIProviderConfigurationInvalid,
+    AIProviderEndpointInvalid,
     AIProviderInvalidResponse,
+    AIProviderPaymentRequired,
+    AIProviderRateLimited,
+    AIProviderRequestRejected,
     AIProviderTimeout,
     AIProviderUnavailable,
     InvalidAIInput,
@@ -85,7 +91,10 @@ def endpoint_for(kind: str, base_url: str) -> Endpoint:
         else:
             if not _public_address(host):
                 raise InvalidModelProfile
-        return Endpoint("https", host, url.port or 443, url.path.rstrip("/") + "/chat/completions")
+        path = url.path.rstrip("/")
+        if not path.endswith("/chat/completions"):
+            path += "/chat/completions"
+        return Endpoint("https", host, url.port or 443, path)
     except ValueError:
         raise InvalidModelProfile from None
 
@@ -160,6 +169,20 @@ def generate_text(
         connection.request("POST", endpoint.path, body=payload, headers=headers)
         response = connection.getresponse()
         if response.status != 200:
+            # Only status codes cross the boundary: upstream bodies can contain keys
+            # or submitted prose. These are provider failures, not local session errors.
+            failures = {
+                400: AIProviderRequestRejected,
+                401: AIProviderAuthFailed,
+                402: AIProviderPaymentRequired,
+                403: AIProviderAccessDenied,
+                404: AIProviderEndpointInvalid,
+                405: AIProviderEndpointInvalid,
+                422: AIProviderRequestRejected,
+                429: AIProviderRateLimited,
+            }
+            if failure := failures.get(response.status):
+                raise failure
             raise AIProviderUnavailable
         raw = response.read(MAX_RESPONSE_BYTES + 1)
         if len(raw) > MAX_RESPONSE_BYTES:

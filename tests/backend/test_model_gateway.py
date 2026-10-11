@@ -15,8 +15,14 @@ from tests.backend.test_ai_writing_provider import mock_server
 
 from aiwebnovel.ai_writing.application.models import GenerationMessage
 from aiwebnovel.ai_writing.errors import (
+    AIProviderAccessDenied,
+    AIProviderAuthFailed,
+    AIProviderEndpointInvalid,
     AIProviderInvalidResponse,
     AIProviderNotConfigured,
+    AIProviderPaymentRequired,
+    AIProviderRateLimited,
+    AIProviderRequestRejected,
     AIProviderTimeout,
     AIProviderUnavailable,
     InvalidAIInput,
@@ -313,19 +319,54 @@ def test_transport_failures_are_safe_and_closed(
     connection.close.assert_called_once()
 
 
-@pytest.mark.parametrize("status", [301, 307, 401, 429, 500])
+@pytest.mark.parametrize(
+    "status,expected",
+    [
+        (301, AIProviderUnavailable),
+        (307, AIProviderUnavailable),
+        (400, AIProviderRequestRejected),
+        (401, AIProviderAuthFailed),
+        (402, AIProviderPaymentRequired),
+        (403, AIProviderAccessDenied),
+        (404, AIProviderEndpointInvalid),
+        (405, AIProviderEndpointInvalid),
+        (422, AIProviderRequestRejected),
+        (429, AIProviderRateLimited),
+        (500, AIProviderUnavailable),
+        (503, AIProviderUnavailable),
+    ],
+)
 def test_cloud_redirect_or_upstream_failure_is_never_followed(
-    status: int, monkeypatch: pytest.MonkeyPatch
+    status: int, expected: type[Exception], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     connection = Mock()
     connection.getresponse.return_value.status = status
     factory = Mock(return_value=connection)
     monkeypatch.setattr(provider, "_PublicHTTPSConnection", factory)
     profile = ModelProfile("a" * 32, "Cloud", "cloud", CLOUD["base_url"], "model", 2048, True)
-    with pytest.raises(AIProviderUnavailable):
+    with pytest.raises(expected):
         generate_text(profile, MESSAGES, api_key=KEY, max_output_tokens=100)
     assert factory.call_count == 1 and connection.request.call_count == 1
     connection.getresponse.return_value.read.assert_not_called()
+    connection.close.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        ("", "/chat/completions"),
+        ("/", "/chat/completions"),
+        ("/v1", "/v1/chat/completions"),
+        ("/v1/", "/v1/chat/completions"),
+        ("/chat/completions", "/chat/completions"),
+        ("/v1/chat/completions/", "/v1/chat/completions"),
+    ],
+)
+def test_cloud_full_endpoint_is_not_appended_twice(path: str, expected: str) -> None:
+    endpoint = endpoint_for("cloud", "https://api.example.com" + path)
+    assert endpoint.host == "api.example.com"
+    assert endpoint.scheme == "https" and endpoint.port == 443
+    assert endpoint.path == expected
 
 
 @pytest.mark.parametrize(

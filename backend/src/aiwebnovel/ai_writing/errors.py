@@ -19,6 +19,30 @@ class AIProviderUnavailable(DomainError):
     message = "AI provider connection or upstream request failed."
 
 
+class AIProviderAuthFailed(DomainError):
+    message = "AI provider rejected the API credential."
+
+
+class AIProviderAccessDenied(DomainError):
+    message = "AI provider denied access to the requested model."
+
+
+class AIProviderPaymentRequired(DomainError):
+    message = "AI provider account balance is insufficient."
+
+
+class AIProviderRateLimited(DomainError):
+    message = "AI provider request rate limit was reached."
+
+
+class AIProviderEndpointInvalid(DomainError):
+    message = "AI provider endpoint or model was not found."
+
+
+class AIProviderRequestRejected(DomainError):
+    message = "AI provider rejected the model or request parameters."
+
+
 class AIProviderInvalidResponse(DomainError):
     message = "AI provider returned an invalid response."
 

@@ -21,6 +21,8 @@ export function useAIWorkflow(
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [errorRunId, setErrorRunId] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
   const [upgradeRequired, setUpgradeRequired] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
@@ -91,15 +93,20 @@ export function useAIWorkflow(
       alive.current = false;
     };
   }, [refresh]);
-  const execute = async (action: () => Promise<void>) => {
+  const execute = async (
+    action: () => Promise<void>,
+    taskId: string | null = null,
+  ) => {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
     setError("");
+    setErrorRunId(null);
     try {
       await action();
     } catch (failure) {
       if (alive.current) {
+        setErrorRunId(taskId);
         if (
           failure instanceof AIWritingError &&
           failure.code === "AI_WORKFLOW_SCHEMA_REQUIRED"
@@ -117,6 +124,34 @@ export function useAIWorkflow(
     }
   };
   const active = runs.find((run) => run.run_id === activeId) ?? null;
+  const requestGeneration = async (run: WorkflowRun) => {
+    setGenerating(true);
+    try {
+      publish(await client.action(chapterId, run.run_id, "generate"));
+    } catch (failure) {
+      // A failed or lost response may have changed the persisted task. Only
+      // read its result; another provider call requires a new author action.
+      if (alive.current) {
+        setErrorRunId(run.run_id);
+        setError(
+          failure instanceof Error
+            ? failure.message
+            : "生成失败，请刷新确认任务状态。",
+        );
+        setGenerating(false);
+      }
+      try {
+        const latest = await client.list(chapterId);
+        const updated = latest.find((item) => item.run_id === run.run_id);
+        if (updated) publish(updated);
+      } catch {
+        // Preserve the generation failure if reading its status also fails.
+      }
+      throw failure;
+    } finally {
+      if (alive.current) setGenerating(false);
+    }
+  };
   const prepare = (
     operation: AIOperation,
     profileId: string,
@@ -157,8 +192,8 @@ export function useAIWorkflow(
           "正文有未保存修改，请先保存，再为最新正文准备任务。",
         );
       paused.current = false;
-      publish(await client.action(chapterId, run.run_id, "generate"));
-    });
+      await requestGeneration(run);
+    }, run?.run_id);
   const adopt = (candidate: WorkflowCandidate, continueAfter: boolean) =>
     execute(async () => {
       if (!active) return;
@@ -187,14 +222,15 @@ export function useAIWorkflow(
         !paused.current &&
         alive.current
       )
-        publish(await client.action(chapterId, next.run_id, "generate"));
-    });
+        await requestGeneration(next);
+    }, active?.run_id);
   const pause = async () => {
     if (!active) return;
     paused.current = true;
     try {
       publish(await client.action(chapterId, active.run_id, "pause"));
     } catch (failure) {
+      setErrorRunId(active.run_id);
       setError(
         failure instanceof Error
           ? failure.message
@@ -209,6 +245,8 @@ export function useAIWorkflow(
     busy,
     loading,
     error,
+    errorRunId,
+    generating,
     upgradeRequired,
     upgrading,
     upgradeMessage,
@@ -234,6 +272,7 @@ export function useAIWorkflow(
       setUpgradeRequired(true);
       setUpgradeMessage("");
       setError(failure.message);
+      setErrorRunId(null);
     },
     prepare,
     generate,
@@ -243,6 +282,7 @@ export function useAIWorkflow(
       if (!lock.current) {
         setActiveId(id);
         setError("");
+        setErrorRunId(null);
       }
     },
     refresh: () => execute(refresh),
@@ -252,12 +292,18 @@ export function useAIWorkflow(
           paused.current = false;
           publish(await client.action(chapterId, active.run_id, "resume"));
         }
-      }),
+      }, active?.run_id),
     discard: (candidate: WorkflowCandidate) =>
-      execute(async () =>
-        publish(
-          await client.candidate(chapterId, candidate.candidate_id, "discard"),
-        ),
+      execute(
+        async () =>
+          publish(
+            await client.candidate(
+              chapterId,
+              candidate.candidate_id,
+              "discard",
+            ),
+          ),
+        active?.run_id,
       ),
     modelSaved: (saved: ModelProfile) => {
       if (!alive.current) return;

@@ -159,10 +159,15 @@ export function AIModelSettings({
           <input
             id="ai-model-url"
             type="url"
+            aria-describedby="ai-model-url-help"
             autoComplete="off"
             value={url}
             onChange={(event) => setUrl(event.target.value)}
           />
+          <p id="ai-model-url-help">
+            填写服务的基础地址（Base URL）。DeepSeek 可填
+            https://api.deepseek.com 或 https://api.deepseek.com/v1。
+          </p>
           <label htmlFor="ai-model-id">模型名称</label>
           <input
             id="ai-model-id"

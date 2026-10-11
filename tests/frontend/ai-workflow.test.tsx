@@ -5,6 +5,7 @@ import {
   renderHook,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { AIWorkflowAssistant } from "../../frontend/src/features/novel-structure/components/AIWorkflowAssistant";
@@ -15,10 +16,12 @@ import { useChapterWriting } from "../../frontend/src/features/novel-structure/h
 import {
   aiWorkflowClient,
   parseWorkflowRun,
+  workflowFailureMessage,
   type AIWorkflowClient,
   type ModelProfile,
   type WorkflowRun,
 } from "../../frontend/src/features/novel-structure/api/ai-workflow";
+import { AIWritingError } from "../../frontend/src/features/novel-structure/api/ai-writing";
 import { chapterId } from "./novel-structure-support";
 import { deferred, written, writingClient } from "./chapter-writing-support";
 
@@ -537,6 +540,208 @@ it("cloud UI requires visible transmission consent before sending", async () => 
       "generate",
     ),
   );
+});
+
+it("shows cloud generation progress and errors next to the clicked button and reads persisted failure without retry", async () => {
+  const cloudRun: WorkflowRun = {
+    ...run,
+    model_snapshot: {
+      ...model,
+      kind: "cloud",
+      base_url: "https://api.example.com",
+    },
+  };
+  const failed: WorkflowRun = {
+    ...cloudRun,
+    status: "interrupted",
+    generated_steps: 1,
+    last_error: "AIProviderAuthFailed",
+  };
+  const api = client([cloudRun]);
+  vi.mocked(api.list)
+    .mockResolvedValueOnce([cloudRun])
+    .mockResolvedValue([failed]);
+  const response = deferred<WorkflowRun>();
+  vi.mocked(api.action).mockReturnValue(response.promise);
+  function Harness() {
+    const writing = useChapterWriting(written("甲乙丙丁"), writingClient());
+    return (
+      <AIWorkflowAssistant
+        chapterId={chapterId}
+        writing={writing}
+        selection={null}
+        client={api}
+      />
+    );
+  }
+  render(<Harness />);
+  const generate = await screen.findByRole("button", {
+    name: "确认发送并生成",
+  });
+  fireEvent.click(
+    screen.getByRole("checkbox", {
+      name: "我同意本轮任务向该模型发送上述内容",
+    }),
+  );
+  fireEvent.click(generate);
+  const task = within(screen.getByRole("region", { name: "当前AI任务" }));
+  expect(task.getByText(/正在发送请求并等待模型回复/u)).toBeVisible();
+  expect(generate).toBeDisabled();
+  await act(async () => {
+    response.reject(
+      new AIWritingError("模型服务拒绝了 API Key", "AI_PROVIDER_AUTH_FAILED"),
+    );
+    await response.promise.catch(() => undefined);
+  });
+  await waitFor(() =>
+    expect(task.getByRole("status")).toHaveTextContent("中断"),
+  );
+  expect(task.getByRole("alert")).toHaveTextContent("模型服务拒绝了 API Key");
+  expect(screen.getAllByRole("alert")).toHaveLength(1);
+  expect(task.getByRole("status")).toHaveTextContent("1/5");
+  expect(task.getByRole("button", { name: "恢复任务" })).toBeEnabled();
+  expect(api.action).toHaveBeenCalledExactlyOnceWith(
+    chapterId,
+    run.run_id,
+    "generate",
+  );
+  expect(api.list).toHaveBeenCalledTimes(2);
+  expect(api.candidate).not.toHaveBeenCalled();
+});
+
+it("explains unsaved prose at the send button before any provider request", async () => {
+  const api = client([run]);
+  function Harness() {
+    const writing = useChapterWriting(written("甲乙丙丁"), writingClient());
+    return (
+      <>
+        <button onClick={() => writing.edit("作者尚未保存的修改")}>
+          修改正文
+        </button>
+        <AIWorkflowAssistant
+          chapterId={chapterId}
+          writing={writing}
+          selection={null}
+          client={api}
+        />
+      </>
+    );
+  }
+  render(<Harness />);
+  const generate = await screen.findByRole("button", {
+    name: "确认发送并生成",
+  });
+  fireEvent.click(screen.getByRole("button", { name: "修改正文" }));
+  fireEvent.click(generate);
+  const task = within(screen.getByRole("region", { name: "当前AI任务" }));
+  await waitFor(() =>
+    expect(task.getByRole("alert")).toHaveTextContent("正文有未保存修改"),
+  );
+  expect(api.action).not.toHaveBeenCalled();
+  expect(api.list).toHaveBeenCalledOnce();
+});
+
+it.each(["read-failed", "candidate-saved", "run-missing"])(
+  "reconciles a lost generation response safely when %s",
+  async (outcome) => {
+    const api = client([run]);
+    vi.mocked(api.action).mockRejectedValue(new AIWritingError("连接中断"));
+    const { result } = setup(api);
+    await waitFor(() => expect(result.current.ai.loading).toBe(false));
+    if (outcome === "read-failed")
+      vi.mocked(api.list).mockRejectedValue(new Error("读取失败"));
+    else
+      vi.mocked(api.list).mockResolvedValue(
+        outcome === "candidate-saved" ? [pending] : [],
+      );
+    await act(() => result.current.ai.generate());
+    expect(result.current.ai.error).toBe("连接中断");
+    expect(result.current.ai.errorRunId).toBe(run.run_id);
+    expect(result.current.ai.active).toEqual(
+      outcome === "candidate-saved" ? pending : run,
+    );
+    expect(result.current.ai.busy).toBe(false);
+    expect(api.action).toHaveBeenCalledOnce();
+    expect(api.candidate).not.toHaveBeenCalled();
+  },
+);
+
+it("refreshes failure after adoption and next generation without duplicating adoption", async () => {
+  const api = client([pending]);
+  vi.mocked(api.action).mockRejectedValue(new AIWritingError("请求过于频繁"));
+  const { result } = setup(
+    api,
+    writingClient({
+      getChapterContent: vi.fn().mockResolvedValue(written("服务器已采纳", 2)),
+    }),
+  );
+  await waitFor(() => expect(result.current.ai.loading).toBe(false));
+  vi.mocked(api.list).mockResolvedValue([
+    {
+      ...adopted,
+      status: "interrupted",
+      generated_steps: 2,
+      last_error: "AIProviderRateLimited",
+    },
+  ]);
+  await act(() => result.current.ai.adopt(pending.candidates[0], true));
+  expect(result.current.ai.error).toBe("请求过于频繁");
+  expect(result.current.ai.active?.status).toBe("interrupted");
+  expect(result.current.ai.active?.generated_steps).toBe(2);
+  expect(result.current.writing.state.content).toBe("服务器已采纳");
+  expect(api.action).toHaveBeenCalledExactlyOnceWith(
+    chapterId,
+    run.run_id,
+    "generate",
+  );
+  expect(api.candidate).toHaveBeenCalledOnce();
+});
+
+it.each([
+  ["AI_PROVIDER_AUTH_FAILED", "API Key"],
+  ["AI_PROVIDER_ACCESS_DENIED", "权限"],
+  ["AI_PROVIDER_PAYMENT_REQUIRED", "余额"],
+  ["AI_PROVIDER_RATE_LIMITED", "频繁"],
+  ["AI_PROVIDER_ENDPOINT_INVALID", "地址"],
+  ["AI_PROVIDER_REQUEST_REJECTED", "参数"],
+  ["AI_PROVIDER_UNAVAILABLE", "网络"],
+  ["AI_PROVIDER_INVALID_RESPONSE", "无法读取"],
+  ["AI_PROVIDER_TIMEOUT", "超时"],
+  ["AI_OUTPUT_LENGTH_INVALID", "200–300"],
+  ["MODEL_CREDENTIAL_UNAVAILABLE", "Windows"],
+])("preserves safe generation diagnosis for %s", async (code, message) => {
+  vi.spyOn(securitySession, "getValidSession").mockResolvedValue({
+    csrfToken: "test-proof",
+    expiresAtMilliseconds: 10000,
+  });
+  const request = vi.fn<typeof fetch>().mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        error: {
+          code,
+          message: "PRIVATE_UPSTREAM_DETAIL",
+          details: {},
+          suggested_action: null,
+          retryable: false,
+        },
+        request_id: "isolated-request",
+      }),
+      { status: 502, headers: { "Content-Type": "application/json" } },
+    ),
+  );
+  vi.stubGlobal("fetch", request);
+  const failure = aiWorkflowClient.action(chapterId, run.run_id, "generate");
+  await expect(failure).rejects.toThrow(message);
+  await expect(failure).rejects.toHaveProperty("code", code);
+  expect(workflowFailureMessage(code)).toContain(message);
+  expect(workflowFailureMessage(code)).not.toContain("PRIVATE_UPSTREAM_DETAIL");
+  expect(request).toHaveBeenCalledOnce();
+});
+
+it("explains persisted provider failures and safely handles legacy errors", () => {
+  expect(workflowFailureMessage("AIProviderAuthFailed")).toContain("API Key");
+  expect(workflowFailureMessage("AIProviderRateLimited")).toContain("频繁");
+  expect(workflowFailureMessage("PROCESS_INTERRUPTED")).toContain("手动恢复");
 });
 
 it("previews the saved rewrite text, exact source excerpt and omitted reason before cloud consent", async () => {

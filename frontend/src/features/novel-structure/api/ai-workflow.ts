@@ -268,6 +268,61 @@ export function parseWorkflowRun(
     last_error: value.last_error,
   };
 }
+const WORKFLOW_ERRORS: Record<string, string> = {
+  AI_PROVIDER_NOT_CONFIGURED: "模型尚未配置，请添加模型后重新准备任务。",
+  AI_PROVIDER_CONFIG_INVALID:
+    "模型配置无效，请检查服务地址和模型名称，修改后重新准备任务。",
+  AI_PROVIDER_AUTH_FAILED:
+    "模型服务拒绝了 API Key，请编辑模型并重新保存有效密钥后手动恢复任务。",
+  AI_PROVIDER_ACCESS_DENIED:
+    "当前 API Key 没有访问该模型的权限，请检查服务商的模型权限。",
+  AI_PROVIDER_PAYMENT_REQUIRED:
+    "模型账户余额不足，请在服务商处检查余额后手动恢复任务。",
+  AI_PROVIDER_RATE_LIMITED:
+    "模型服务提示请求过于频繁，请稍后手动恢复任务；应用不会自动重发请求。",
+  AI_PROVIDER_ENDPOINT_INVALID:
+    "模型服务地址或模型名称不可用，请检查配置，修改后重新准备任务。",
+  AI_PROVIDER_REQUEST_REJECTED:
+    "模型服务拒绝了请求参数，请检查模型名称和输出 Token 上限，修改后重新准备任务。",
+  AI_PROVIDER_UNAVAILABLE:
+    "未能连接模型服务，或服务暂时不可用，请检查网络和服务地址后手动恢复任务。",
+  AI_PROVIDER_INVALID_RESPONSE:
+    "模型返回了无法读取的候选，请检查模型是否支持文本输出后手动恢复任务。",
+  AI_PROVIDER_TIMEOUT:
+    "等待模型回复超时，任务已保留；请确认服务商请求状态后手动恢复，避免重复费用。",
+  AI_OUTPUT_LENGTH_INVALID:
+    "模型已返回内容，但未满足本段 200–300 字要求。请调整创作要求后重新准备任务。",
+  MODEL_CREDENTIAL_UNAVAILABLE:
+    "无法读取本机保存的 API Key，请使用启动应用的 Windows 账户编辑模型并重新保存密钥。",
+  MODEL_CONFIGURATION_UNAVAILABLE:
+    "无法读取本机模型配置，请检查应用启动窗口后重试。",
+  AI_WORKFLOW_CONFLICT:
+    "任务状态或模型配置已变化，请刷新确认；修改模型配置后需要重新准备任务。",
+  AI_CONTEXT_CHANGED: "正文或上下文已变化，请为最新正文重新准备任务。",
+};
+const PERSISTED_FAILURES: Record<string, string> = {
+  AIProviderNotConfigured: "AI_PROVIDER_NOT_CONFIGURED",
+  AIProviderConfigurationInvalid: "AI_PROVIDER_CONFIG_INVALID",
+  AIProviderAuthFailed: "AI_PROVIDER_AUTH_FAILED",
+  AIProviderAccessDenied: "AI_PROVIDER_ACCESS_DENIED",
+  AIProviderPaymentRequired: "AI_PROVIDER_PAYMENT_REQUIRED",
+  AIProviderRateLimited: "AI_PROVIDER_RATE_LIMITED",
+  AIProviderEndpointInvalid: "AI_PROVIDER_ENDPOINT_INVALID",
+  AIProviderRequestRejected: "AI_PROVIDER_REQUEST_REJECTED",
+  AIProviderUnavailable: "AI_PROVIDER_UNAVAILABLE",
+  AIProviderInvalidResponse: "AI_PROVIDER_INVALID_RESPONSE",
+  AIProviderTimeout: "AI_PROVIDER_TIMEOUT",
+  WorkflowOutputInvalid: "AI_OUTPUT_LENGTH_INVALID",
+  ModelCredentialUnavailable: "MODEL_CREDENTIAL_UNAVAILABLE",
+  ModelConfigurationUnavailable: "MODEL_CONFIGURATION_UNAVAILABLE",
+};
+export function workflowFailureMessage(code: string): string {
+  return (
+    WORKFLOW_ERRORS[PERSISTED_FAILURES[code] ?? code] ??
+    "上次生成未完成，请检查模型设置并手动恢复任务；不会自动重新调用模型。"
+  );
+}
+
 async function request<T>(
   action: () => Promise<{ data: T }>,
   context: "workflow" | "model" = "workflow",
@@ -308,13 +363,18 @@ async function request<T>(
             "模型配置无效，请检查服务位置、完整服务地址、模型名称和输出上限。",
         };
         if (modelErrors[error.code])
-          throw new AIWritingError(modelErrors[error.code]);
+          throw new AIWritingError(modelErrors[error.code], error.code);
         if ([401, 403].includes(error.status))
           throw new AIWritingError(
             "页面会话已失效，请刷新页面后重新保存模型配置。",
+            error.code,
           );
       }
+      if (WORKFLOW_ERRORS[error.code])
+        throw new AIWritingError(WORKFLOW_ERRORS[error.code], error.code);
       const messages: Record<number, string> = {
+        401: "页面会话已失效，请刷新页面后重新确认发送。",
+        403: "当前页面无法发送请求，请刷新应用页面后重新确认发送。",
         404: "任务、模型或章节已不存在，请刷新。",
         409: "任务状态或正文已变化，请重新加载；旧候选不会覆盖正文。",
         412: "正文版本已变化，请重新生成候选。",
@@ -325,6 +385,7 @@ async function request<T>(
       };
       throw new AIWritingError(
         messages[error.status] ?? "操作未完成，已保存内容不会被覆盖，请重试。",
+        error.code,
       );
     }
     throw error instanceof AIWritingError
@@ -333,6 +394,7 @@ async function request<T>(
           context === "model"
             ? "无法连接本机服务，未能确认模型配置是否保存。请重新运行“启动 AI 网文助手.cmd”，保持启动窗口开启，再刷新页面确认保存结果。"
             : "连接中断，任务仍保存在本地；请刷新确认状态。",
+          "NETWORK_ERROR",
         );
   }
 }
