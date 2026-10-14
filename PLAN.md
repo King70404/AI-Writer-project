@@ -1,23 +1,21 @@
 # 当前交付
 
-更新：2026-10-13。活动任务：[范文对照分析与长篇章节规划 #28](https://github.com/King70404/AI-Writer-project/issues/28)。用户已确认范文采用粘贴输入。本阶段承接故事规划 RF-01–05，将分析、作者确认的写作规则、章节重点、场景节拍与现有 AI 协作贯通；不在内部步骤之间停顿。规则见 `AGENTS.md`。
+更新：2026-10-14。[范文对照分析与长篇章节规划 #28](https://github.com/King70404/AI-Writer-project/issues/28) 已完成，本地完整交付验证 PASS，[PR #29](https://github.com/King70404/AI-Writer-project/pull/29) 已合并。下一阶段为长篇记忆与评审。规则见 `AGENTS.md`。
 
 ## 已有能力与最新有效证据
 
 - 小说、设定、人物、大纲、卷章、正文自动保存、历史版本与 TXT 导出。
 - 模型配置与受保护 Key、冻结上下文预览、持久任务/候选、作者确认后的原子幂等采纳、每段 200–300 字的连续生成与暂停恢复。旧库可明确备份升级；普通启动不自动迁移已有库。
-- V1 与 AI 协作 RF-06–10 已 PASS 并合并，[阶段 #24](https://github.com/King70404/AI-Writer-project/issues/24) 已关闭。模型配置恢复见 [PR #26](https://github.com/King70404/AI-Writer-project/pull/26)。
-- 最近修复“确认发送并生成没有反馈”见 [PR #27](https://github.com/King70404/AI-Writer-project/pull/27)：验收代码 `b17b77453a243d2235d3fb47e89a069324b29ebf`，合并 `69f77d0d47cf2692862df85db9ff835c277016ad`。本地 IncludeE2E PASS：后端 2,915 项（语句/分支 97.15%/92.30%）、前端 736 项（94.87%/90.93%）、24 个浏览器场景及清理。[GitHub 完整检查](https://github.com/King70404/AI-Writer-project/actions/runs/38129250309) 已确认 success。受控 HTTP 传输和浏览器实测，不冒充付费 DeepSeek 实测。
+- V1 与 AI 协作 RF-06–10 已 PASS 并合并，交付证据见 [#24](https://github.com/King70404/AI-Writer-project/issues/24)；模型保存及发送反馈修复已合并。
+- 新增粘贴范文逐句/逐段分析、作者确认的不可变规则版本，以及包含重点、冲突、场景/节拍和人物/设定关联的章节规划；规划与规则进入冻结上下文，贯通生成、采纳和保存。入口与限制见 [使用说明](docs/REFERENCE_WRITING.md)。
+- 本次验收代码 `90e396745dd107781ee2d70bcb9ce0a99373a739`，Git 树 `bc2e8ceb61ef6cfe5f4144ddabce65305f52e9dc`。完整 IncludeE2E PASS：后端 3,005 项，语句/分支覆盖率 97.29%/92.61%；前端 781 项，94.74%/90.77%；24 个浏览器场景及清理全部通过。本地日志 `.runtime/reference-quality-full-6.log`，详细证据同步 #28。
+- E2E-INT-019 用时 12.1 秒，覆盖粘贴、真实受控 HTTP 分析、确认规则、保存规划、冻结请求、生成与作者采纳；不代表付费 DeepSeek 或长篇文学质量验证。
 
-## 活动工作与完成定义
+## 交付状态
 
-1. 粘贴并保存范文；按原文位置逐句/逐段分析，区分可观察效果与推测意图，展示实际发送内容和模型，明确操作才调用。
-2. 编辑并确认可迁移的写作方法，保存不可变规则版本；正文生成不默认发送原范文。
-3. 保存本章 1–3 个重点、主要冲突、目标字数、场景/节拍、既有人物/设定关联与连续性要求；按章选择规则版本，刷新可恢复。
-4. 规划、关联资料和规则版本进入冻结上下文预览，接上生成、采纳；后续编辑不能偷偷改变已准备任务。
-5. 完成前后端、版本/归属/并发、旧库显式备份升级、真实受控模型及浏览器流程；运行受影响检查和一次完整 IncludeE2E，精确 SHA 与证据同步 #28。
+代码与 [验收证据](https://github.com/King70404/AI-Writer-project/issues/28#issuecomment-6171615312) 已同步，合并提交 `a3f755e08feb1ebdb599f0944b5e097364f047c8` 的树与验收树完全一致。本阶段按本地完整 PASS 交付；[GitHub 检查](https://github.com/King70404/AI-Writer-project/actions/runs/38587274814) 在本次状态更新时仍运行中，尚未记录远端 PASS。没有产品开发阻断；仅状态文档更新复用现有本地证据。
 
-当前没有外部阻断；实现和验证进行中，尚未宣布新功能交付。阶段详细范围见 #28，能力判断见 [功能索引](docs/FEATURE_REALITY_MATRIX.md)。
+阶段范围见 #28，能力判断见 [功能索引](docs/FEATURE_REALITY_MATRIX.md)。
 
 ## 下一阶段
 

@@ -1,6 +1,6 @@
 # 当前能力与明确限制
 
-核验日期：2026-10-13。当前交付状态见 [PLAN.md](../PLAN.md)，开发顺序见 [交付路线](REFRACTOR_ROADMAP.md)。本页区分已冻结基线与新增实现；最终 PASS 以精确 SHA 的证据为准。
+核验日期：2026-10-14。当前交付状态见 [PLAN.md](../PLAN.md)，开发顺序见 [交付路线](REFRACTOR_ROADMAP.md)。范文与规划实现已通过本地完整交付验证并通过 [PR #29](https://github.com/King70404/AI-Writer-project/pull/29) 合并；远端检查的最新状态单独记录在 PLAN 与 #28。
 
 ## 基础创作闭环
 
@@ -10,7 +10,7 @@ M7/V1 已验收：本地 Windows 单用户运行、SQLite 持久化、小说/设
 
 ## AI 协作实现（RF-06–10）
 
-已最终 PASS 并通过 [PR #25](https://github.com/King70404/AI-Writer-project/pull/25) 合并：精确候选完整 CI 的后端 2,866 项、前端 693 项、24 个 E2E 场景全部通过，隔离作者流程已验证；SHA、完整结果与边界见已关闭的交付任务 [#24](https://github.com/King70404/AI-Writer-project/issues/24)。
+已 PASS 并通过 [PR #25](https://github.com/King70404/AI-Writer-project/pull/25) 合并，完整结果与边界见已关闭的交付任务 [#24](https://github.com/King70404/AI-Writer-project/issues/24)。后续模型保存和发送反馈修复已合并；最新有效验证统一见 PLAN。
 
 | 能力 | 当前实现 | 边界 |
 | --- | --- | --- |
@@ -25,7 +25,7 @@ M7/V1 已验收：本地 Windows 单用户运行、SQLite 持久化、小说/设
 
 已有单次 AI 接口保留兼容；章节页面使用新的持久协作流程。候选不进入正文或 TXT 导出，只有采纳后的已保存正文才会导出。
 
-## 范文学习与章节规划（当前交付 #28）
+## 范文学习与章节规划（#28，已交付）
 
 | 能力 | 当前实现 | 边界 |
 | --- | --- | --- |
@@ -36,7 +36,7 @@ M7/V1 已验收：本地 Windows 单用户运行、SQLite 持久化、小说/设
 | 冻结上下文 | 规划、资产和规则进入实际预览，标明截断与省略；后续编辑不影响已准备任务 | 总预算仍 60000 字符，规则/规划/关联资料各自有上限；无全书自动召回 |
 | 数据兼容 | 明确备份后从 0006/0007 升级到 0008，保留正文、历史、模型与已有任务 | 普通启动不迁移旧库；开发验证只用隔离数据 |
 
-使用方法见 [范文分析与章节规划](REFERENCE_WRITING.md)。代码和测试证据在 [#28](https://github.com/King70404/AI-Writer-project/issues/28) 汇总，当前最终验证状态以 PLAN 为准。
+验收代码 `90e396745dd107781ee2d70bcb9ce0a99373a739`：后端 3,005 项、前端 781 项、24 个浏览器场景及清理全部通过。E2E-INT-019 在真实受控 HTTP 服务上贯通分析、生成和作者采纳；不代表付费 DeepSeek 实测。使用方法见 [范文分析与章节规划](REFERENCE_WRITING.md)，精确 Git 树、覆盖率和日志见 [PLAN](../PLAN.md)，证据与 GitHub 同步状态在 [#28](https://github.com/King70404/AI-Writer-project/issues/28) 汇总。
 
 ## 下一阶段
 
