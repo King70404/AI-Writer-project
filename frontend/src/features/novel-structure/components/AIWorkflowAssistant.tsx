@@ -9,6 +9,7 @@ import { useAIWorkflow } from "../hooks/useAIWorkflow";
 import type { SelectionSnapshot } from "../hooks/useAIWriting";
 import type { useChapterWriting } from "../hooks/useChapterWriting";
 import { AIModelSettings } from "./AIModelSettings";
+import { ReferenceWritingWorkbench } from "./ReferenceWritingWorkbench";
 
 const STATUS: Record<WorkflowRun["status"], string> = {
   ready: "可以生成下一段",
@@ -25,6 +26,9 @@ const SOURCE_LABELS: Record<string, string> = {
   previous_chapter: "前一章",
   characters: "人物",
   project: "小说简介",
+  chapter_plan: "章节规划",
+  planning_assets: "规划关联人物与设定",
+  writing_rules: "已确认的写作规则",
 };
 
 export function AIWorkflowAssistant({
@@ -44,6 +48,9 @@ export function AIWorkflowAssistant({
   const [steps, setSteps] = useState("5");
   const [confirmedRunId, setConfirmedRunId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+  const [preparationOpen, setPreparationOpen] = useState(false);
+  const [preparationMounted, setPreparationMounted] = useState(false);
+  const [planningDirty, setPlanningDirty] = useState(false);
   const profile = ai.models.find(
     (item) => item.id === (profileId || ai.models[0]?.id),
   );
@@ -61,6 +68,10 @@ export function AIWorkflowAssistant({
     writing.state.reloading ||
     writing.state.reloadFailed;
   const prepare = (operation: "continue" | "rewrite") => {
+    if (planningDirty) {
+      setFormError("章节规划尚未保存，请保存规划后再准备 AI 任务。");
+      return;
+    }
     const limit = Number(steps);
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 10) {
       setFormError("本轮段数须为 1–10。");
@@ -147,6 +158,31 @@ export function AIWorkflowAssistant({
           </option>
         ))}
       </select>
+      <button
+        type="button"
+        disabled={unavailable}
+        aria-expanded={preparationOpen}
+        onClick={() => {
+          setPreparationMounted(true);
+          setPreparationOpen((value) => !value);
+        }}
+      >
+        {preparationOpen ? "收起范文分析与章节规划" : "打开范文分析与章节规划"}
+      </button>
+      {preparationMounted ? (
+        <div hidden={!preparationOpen}>
+          <ReferenceWritingWorkbench
+            projectId={writing.state.snapshot.resource.project_id}
+            chapterId={chapterId}
+            profile={profile}
+            content={writing.state.content}
+            onDirty={setPlanningDirty}
+          />
+        </div>
+      ) : null}
+      {planningDirty ? (
+        <p role="status">章节规划有未保存修改；保存后再准备新任务。</p>
+      ) : null}
       <label htmlFor="ai-instruction">额外要求（可选）</label>
       <textarea
         id="ai-instruction"
@@ -164,14 +200,16 @@ export function AIWorkflowAssistant({
       />
       <button
         type="button"
-        disabled={unavailable || !profile}
+        disabled={unavailable || !profile || planningDirty}
         onClick={() => prepare("continue")}
       >
         续写
       </button>
       <button
         type="button"
-        disabled={unavailable || !profile || !selection?.text.trim()}
+        disabled={
+          unavailable || !profile || planningDirty || !selection?.text.trim()
+        }
         onClick={() => prepare("rewrite")}
       >
         改写选中文本

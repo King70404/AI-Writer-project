@@ -14,6 +14,8 @@ RF-06–10 的 AI 协作流程已完成，通过完整 CI 与隔离作者流程�
 
 需自备 OpenAI-compatible 模型服务；云端 API Key 受 Windows DPAPI 保护。任务与候选持久保存，连续生成每段 200–300 字，未经作者确认不写入正文。使用方法和限制见 [AI 协作说明](docs/AI_COLLABORATION.md)；长期故事记忆仍属后续阶段。
 
+范文学习与长篇准备的使用入口见 [范文分析与章节规划](docs/REFERENCE_WRITING.md)：粘贴句段、对照分析、确认可复用的方法，再按章选用规则、场景与连续性要求。当前实现及验证状态以 [PLAN.md](PLAN.md) 为准。
+
 当前交付状态见 [PLAN.md](PLAN.md)，能力边界见 [功能索引](docs/FEATURE_REALITY_MATRIX.md)。
 
 ## 从哪里开始

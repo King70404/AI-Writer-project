@@ -14,6 +14,7 @@ test("E2E-INT-019 AI writing assistance flow", async ({
   const continued = "续写候选文本：门外传来轻轻的脚步声。".repeat(12);
   const rewritten = "改写候选文本：夜雨终于停歇。".repeat(16);
   let rejectRequest = false;
+  let analysisReply: string | null = null;
   const server = createServer((request, response) => {
     let body = "";
     request.setEncoding("utf8");
@@ -33,7 +34,9 @@ test("E2E-INT-019 AI writing assistance flow", async ({
           choices: [
             {
               message: {
-                content: requests.length === 1 ? continued : rewritten,
+                content:
+                  analysisReply ??
+                  (requests.length === 1 ? continued : rewritten),
               },
             },
           ],
@@ -259,6 +262,146 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     await expect(page.getByLabel("AI候选文本")).toHaveValue(rewritten);
     await expect(editor).toHaveValue(final);
     expect(requests).toHaveLength(4);
+
+    await page.getByRole("button", { name: "丢弃", exact: true }).click();
+    await page
+      .getByLabel("使用模型")
+      .selectOption({ label: "新保存的写作模型 · 本地" });
+    await page.getByRole("button", { name: "打开范文分析与章节规划" }).click();
+    const workbench = page.getByRole("region", {
+      name: "范文分析与章节规划",
+      exact: true,
+    });
+    const sourceText = "旅人敲了两下门。屋内的人没有答话，只把烛火移到窗后。";
+    await workbench
+      .getByLabel("范文名称", { exact: true })
+      .fill("迟疑与动作的范文");
+    await workbench
+      .getByRole("textbox", { name: "范文原文", exact: true })
+      .fill(sourceText);
+    await workbench.getByRole("button", { name: "保存范文并准备分析" }).click();
+    await expect(
+      workbench.getByRole("button", { name: "确认发送并分析范文" }),
+    ).toBeEnabled();
+    expect(requests).toHaveLength(4);
+    analysisReply = JSON.stringify({
+      units: ["旅人敲了两下门。", "屋内的人没有答话，只把烛火移到窗后。"].map(
+        (text, index) => ({
+          unit_id: `u${index + 1}`,
+          quote: text.slice(0, 3),
+          function: "用动作延迟信息揭示",
+          effect: "读者察觉人物有所保留",
+          rationale: "可能让迟疑以可见行动表现出来",
+          transfer: "新场景用物件动作承接人物的试探",
+        }),
+      ),
+      long_form_notes: "围绕本章重点持续表现人物意图，跨章保留后果。",
+      rules: [
+        {
+          name: "动作承接",
+          instruction: "先写试探动作，再给有限回答。",
+          applies_to: "盘问与对峙",
+        },
+      ],
+    });
+    await workbench.getByRole("button", { name: "确认发送并分析范文" }).click();
+    await expect(
+      workbench.getByText("写作原因（推测）", { exact: true }),
+    ).toHaveCount(2);
+    expect(requests).toHaveLength(5);
+    expect(JSON.stringify(JSON.parse(requests[4].body))).toContain(
+      "旅人敲了两下门",
+    );
+    await expect(editor).toHaveValue(final);
+    await workbench
+      .getByRole("button", { name: "编辑并提炼这份范文的写作规则" })
+      .click();
+    await workbench
+      .getByLabel("规则集名称", { exact: true })
+      .fill("迟疑与行动方法");
+    await workbench
+      .getByRole("textbox", { name: "规则 1 操作方法", exact: true })
+      .fill("用试探动作承接对话，重要回答保留余地。");
+    await workbench
+      .getByRole("button", { name: "确认保存写作规则", exact: true })
+      .click();
+    await workbench
+      .getByRole("checkbox", { name: "迟疑与行动方法 · 版本 1", exact: true })
+      .check();
+    await workbench
+      .getByLabel("章节重点 1", { exact: true })
+      .fill("旅人决定查清渡口失踪事件");
+    await workbench.getByLabel("本章目标字数", { exact: true }).fill("3200");
+    await workbench
+      .getByRole("textbox", { name: "核心冲突", exact: true })
+      .fill("得到消息与保护证人的冲突");
+    await workbench
+      .getByRole("textbox", { name: "承接前文与后续伏笔", exact: true })
+      .fill("保留上一章手腕受伤的影响");
+    await workbench
+      .getByRole("button", { name: "增加场景", exact: true })
+      .click();
+    await workbench.getByLabel("场景 1 名称", { exact: true }).fill("渡口试探");
+    await workbench
+      .getByRole("button", { name: "为场景 1 增加推进点", exact: true })
+      .click();
+    await workbench
+      .getByRole("textbox", { name: "场景 1 推进点 1 行动", exact: true })
+      .fill("借搬货接近证人");
+    await workbench
+      .getByRole("textbox", { name: "场景 1 推进点 1 变化", exact: true })
+      .fill("证人愿意透露船名");
+    await expect(
+      page.getByRole("button", { name: "续写", exact: true }),
+    ).toBeDisabled();
+    await workbench
+      .getByRole("button", { name: "保存章节规划", exact: true })
+      .click();
+    await expect(workbench.getByText(/规划已保存 · 版本 1/u)).toBeVisible();
+    await page.reload();
+    await page.getByRole("button", { name: "打开范文分析与章节规划" }).click();
+    await expect(
+      workbench.getByLabel("场景 1 名称", { exact: true }),
+    ).toHaveValue("渡口试探");
+    await expect(
+      workbench.getByRole("checkbox", {
+        name: "迟疑与行动方法 · 版本 1",
+        exact: true,
+      }),
+    ).toBeChecked();
+    expect(requests).toHaveLength(5);
+    await page
+      .getByLabel("使用模型")
+      .selectOption({ label: "新保存的写作模型 · 本地" });
+    await page.getByRole("button", { name: "续写", exact: true }).click();
+    await expect(page.getByLabel("本次发送的小说上下文")).toHaveValue(
+      /用试探动作承接对话/u,
+    );
+    const frozen = await page.getByLabel("本次发送的小说上下文").inputValue();
+    expect(frozen).toContain("渡口试探");
+    expect(frozen).not.toContain(sourceText);
+    await workbench
+      .getByRole("textbox", { name: "核心冲突", exact: true })
+      .fill("准备之后修改的冲突");
+    await workbench
+      .getByRole("button", { name: "保存章节规划", exact: true })
+      .click();
+    await expect(workbench.getByText(/规划已保存 · 版本 2/u)).toBeVisible();
+    await expect(page.getByLabel("本次发送的小说上下文")).toHaveValue(frozen);
+    analysisReply = null;
+    await currentTask
+      .getByRole("button", { name: "确认发送并生成", exact: true })
+      .click();
+    await expect(page.getByLabel("AI候选文本")).toHaveValue(rewritten);
+    expect(requests).toHaveLength(6);
+    const generationPayload = JSON.stringify(JSON.parse(requests[5].body));
+    expect(generationPayload).toContain("用试探动作承接对话");
+    expect(generationPayload).not.toContain("准备之后修改的冲突");
+    expect(generationPayload).not.toContain("旅人敲了两下门");
+    await expect(editor).toHaveValue(final);
+    await page.getByRole("button", { name: "追加到正文", exact: true }).click();
+    await expect(editor).toHaveValue(`${final}\n\n${rewritten}`);
+    await expect(status).toHaveText("已保存");
     expectCleanBrowserAudit(browserAudit);
   } finally {
     server.closeAllConnections();

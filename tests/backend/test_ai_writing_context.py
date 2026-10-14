@@ -11,7 +11,31 @@ from aiwebnovel.ai_writing.application.context import (
     CURRENT_CONTENT_LIMIT,
     _Assembly,
 )
+from aiwebnovel.ai_writing.application.models import ContextSource
 from aiwebnovel.ai_writing.errors import AIContextChanged
+
+
+def test_selected_planning_sources_keep_frozen_provenance_and_budget_diagnostics() -> None:
+    s = sources()
+    sources_to_add = (
+        ContextSource(
+            "chapter_plan", (("chapter", "plan-v1"),), "章节重点", "选用规划", None, False
+        ),
+        ContextSource(
+            "writing_rules", (("rule", "rule-v2"),), "方" * 13000, "规则二版", None, False
+        ),
+        ContextSource("planning_assets", (("asset", "v1"),), "", "选用资料", "原预算用完", True),
+    )
+    s.builder._extra_source_reader = lambda chapter_id: sources_to_add
+    context = s.builder.build(CHAPTER)
+    manifest = context.manifest
+    plan, rule, omitted = manifest.sources[2:5]
+    assert plan.references == (("chapter", "plan-v1"),) and plan.reason == "选用规划"
+    assert len(rule.text) == 12000 and rule.truncated and rule.reason == "规则二版"
+    assert omitted.source == "planning_assets" and omitted.truncated
+    assert omitted.references == (("asset", "v1"),) and omitted.omitted_reason == "原预算用完"
+    assert manifest.truncated and manifest.character_count == len(context.text) <= 60000
+    assert context.text.index("[chapter_plan]") < context.text.index("[volume]")
 
 
 def test_minimal_context_optional_omissions_and_read_only_calls() -> None:

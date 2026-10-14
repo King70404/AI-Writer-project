@@ -13,6 +13,7 @@ from aiwebnovel.ai_writing.application.workflow_models import ModelSnapshot
 from aiwebnovel.ai_writing.errors import AIWorkflowSchemaRequired
 from aiwebnovel.ai_writing.provider import LocalOpenAICompatibleProvider
 from aiwebnovel.ai_writing.runtime import WorkflowRuntimeLock
+from aiwebnovel.chapter_planning.service import ChapterPlanningService
 from aiwebnovel.character.application.services import CharacterQueryService
 from aiwebnovel.core.config import Settings
 from aiwebnovel.db.engine import database_file_path
@@ -21,6 +22,8 @@ from aiwebnovel.novel_structure.application.services import NovelStructureQueryS
 from aiwebnovel.project.application.services import ProjectQueryService
 from aiwebnovel.storage.paths import StoragePaths
 from aiwebnovel.story_bible.application.services import StoryBibleQueryService
+from aiwebnovel.writing_studio.application.service import WritingStudioService
+from aiwebnovel.writing_studio.composition import compose_writing_studio
 
 
 def compose_ai_writing(
@@ -45,13 +48,28 @@ def compose_ai_workflow(
     projects: ProjectQueryService,
     story_bibles: StoryBibleQueryService,
     characters: CharacterQueryService,
-) -> tuple[AIWorkflowService, ModelGatewayService, WorkflowRuntimeLock] | None:
+) -> (
+    tuple[
+        AIWorkflowService,
+        ModelGatewayService,
+        WorkflowRuntimeLock,
+        WritingStudioService,
+        ChapterPlanningService,
+    ]
+    | None
+):
     # Runtime composition must not create or migrate an empty database. The launcher
     # initializes its schema explicitly; readiness owns the first connection otherwise.
     database_path = database_file_path(engine.url)
     if database_path is None or not database_path.is_file():
         return None
-    if not {"ai_workflow_runs", "ai_workflow_candidates"} <= set(inspect(engine).get_table_names()):
+    if not {
+        "ai_workflow_runs",
+        "ai_workflow_candidates",
+        "writing_references",
+        "writing_rule_versions",
+        "chapter_plan_revisions",
+    } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
 
@@ -97,15 +115,20 @@ def compose_ai_workflow(
                 profile.max_output_tokens,
             )
 
+        studio, planning = compose_writing_studio(
+            session_factory, structure, projects, characters, story_bibles, generate, read_model
+        )
         service = AIWorkflowService(
             SqlAlchemyWorkflowRepository(session_factory),
-            ChapterWritingContextBuilder(structure, projects, story_bibles, characters),
+            ChapterWritingContextBuilder(
+                structure, projects, story_bibles, characters, planning.context_sources
+            ),
             structure,
             generate,
             read_model,
         )
         service.recover_interrupted()
-        return service, gateway, runtime
+        return service, gateway, runtime, studio, planning
     except BaseException:
         runtime.close()
         raise

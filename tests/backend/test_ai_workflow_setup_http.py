@@ -27,19 +27,24 @@ SETUP = "/api/v1/ai/workflow-setup/upgrade"
 
 
 @contextmanager
-def old_app(tmp_path: Path):
+def old_app(tmp_path: Path, revision: str = "0006_add_chapter_manuscript_content"):
     settings = create_test_settings(data_root=tmp_path / "author-fixture", database_url=None)
     paths = StoragePaths.from_settings(settings)
     initialize_storage(paths)
-    result = _run_alembic(paths.database_file, "upgrade", "0006_add_chapter_manuscript_content")
+    result = _run_alembic(paths.database_file, "upgrade", revision)
     assert result.returncode == 0, result.stderr
     app = app_module.create_app(settings)
     with TestClient(app) as client:
         yield app, client, paths, issue_write_headers(client)
 
 
-def test_old_database_author_can_upgrade_save_model_generate_and_adopt_without_restart(tmp_path):
-    with old_app(tmp_path) as (app, client, paths, headers):
+@pytest.mark.parametrize(
+    "revision", ["0006_add_chapter_manuscript_content", "0007_add_ai_workflows"]
+)
+def test_old_database_author_can_upgrade_save_model_generate_and_adopt_without_restart(
+    tmp_path, revision
+):
+    with old_app(tmp_path, revision) as (app, client, paths, headers):
         assert client.get("/api/v1/ai/models").status_code == 503
         project = client.post("/api/v1/projects", headers=headers, json={"title": "升级保留正文"})
         assert project.status_code == 201
@@ -78,12 +83,15 @@ def test_old_database_author_can_upgrade_save_model_generate_and_adopt_without_r
         assert upgraded.json() == {"status": "ready"}
         assert upgraded.headers["Cache-Control"] == "no-store"
         assert client.get(chapter_path + "/content").json() == saved.json()
+        assert client.get(project_path + "/writing/references").json() == []
+        assert client.get(project_path + "/writing/rules").json() == []
+        assert client.get(chapter_path + "/planning").json() is None
         backups = list(paths.backups.glob("*.sqlite3"))
         assert len(backups) == 1
         with closing(sqlite3.connect(backups[0])) as backup:
             assert backup.execute("PRAGMA quick_check").fetchone() == ("ok",)
             assert backup.execute("SELECT version_num FROM alembic_version").fetchone() == (
-                "0006_add_chapter_manuscript_content",
+                revision,
             )
             assert backup.execute("SELECT COUNT(*) FROM chapter_revisions").fetchone()[0] == 2
         model = client.post(
@@ -140,6 +148,70 @@ def test_activation_failure_keeps_backup_and_can_retry_without_second_migration(
         assert client.post(SETUP, headers=headers, json={"confirm_backup": True}).status_code == 200
         assert client.get("/api/v1/ai/models").status_code == 200
         assert list(paths.backups.glob("*.sqlite3")) == backups
+
+
+def test_0007_upgrade_retains_existing_model_task_candidate_and_manuscript(tmp_path):
+    with old_app(tmp_path) as (app, client, paths, headers):
+        assert client.post(SETUP, headers=headers, json={"confirm_backup": True}).status_code == 200
+        project = client.post(
+            "/api/v1/projects", headers=headers, json={"title": "已有协作小说"}
+        ).json()
+        project_path = "/api/v1/projects/" + project["project_id"]
+        volume = client.post(
+            project_path + "/volumes",
+            headers=headers,
+            json={"title": "卷", "summary": "", "position": 1},
+        ).json()
+        chapter = client.post(
+            project_path + "/volumes/" + volume["volume_id"] + "/chapters",
+            headers=headers,
+            json={"title": "章", "summary": "", "position": 1},
+        )
+        chapter_path = "/api/v1/chapters/" + chapter.json()["chapter_id"]
+        content = client.put(
+            chapter_path + "/content",
+            headers={**headers, "If-Match": chapter.headers["ETag"]},
+            json={"content": "规划升级前的正文😀。"},
+        ).json()
+        model = client.post(
+            "/api/v1/ai/models",
+            headers=headers,
+            json={
+                "name": "原有模型",
+                "kind": "local",
+                "base_url": "http://127.0.0.1:18123",
+                "model": "owned-model",
+            },
+        ).json()
+        run = client.post(
+            chapter_path + "/ai/runs", headers=headers, json={"profile_id": model["id"]}
+        ).json()
+        app.state.ai_workflow_service._provider = lambda *_: GeneratedText(
+            "升级前候选。" * 40, "owned-model"
+        )
+        run_path = chapter_path + "/ai/runs/" + run["run_id"]
+        candidate = client.post(run_path + "/generate", headers=headers, json={})
+        assert candidate.status_code == 200, candidate.text
+        snapshot = candidate.json()
+    # Owned fixture: retain the original collaboration tables and rows while
+    # removing only the newly introduced, still empty writing-preparation tables.
+    downgrade = _run_alembic(paths.database_file, "downgrade", "0007_add_ai_workflows")
+    assert downgrade.returncode == 0, downgrade.stderr
+    with TestClient(app) as client:
+        headers = issue_write_headers(client)
+        assert client.get(run_path).status_code == 503
+        assert client.get(chapter_path + "/content").json() == content
+        assert client.post(SETUP, headers=headers, json={"confirm_backup": True}).status_code == 200
+        assert client.get(run_path).json() == snapshot
+        assert model in client.get("/api/v1/ai/models").json()["items"]
+        assert client.get(chapter_path + "/content").json() == content
+        versions = []
+        for backup_path in paths.backups.glob("*.sqlite3"):
+            with closing(sqlite3.connect(backup_path)) as backup:
+                versions.append(
+                    backup.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+                )
+        assert sorted(versions) == ["0006_add_chapter_manuscript_content", "0007_add_ai_workflows"]
 
 
 def test_upgrade_rejects_overlapping_calls_and_releases_lock_on_failure():

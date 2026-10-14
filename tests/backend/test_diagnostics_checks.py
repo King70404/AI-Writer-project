@@ -153,7 +153,9 @@ def _successful_handler(
             )
         if argv == ("npm.cmd", "--version"):
             return _ok("11.1.0\n")
-        if argv == ("npm.cmd", "ls", "--depth=0"):
+        if argv == ("npm.cmd", "ls", "--depth=0", "--offline", "--no-update-notifier"):
+            if "npm-timeout" in controlled_failures:
+                return CommandResult(returncode=124, stdout="", stderr="")
             return _failed() if "npm-ls" in controlled_failures else _ok("ok\n")
         if argv[:2] == ("node", "-e"):
             if "playwright" in controlled_failures:
@@ -257,6 +259,7 @@ def test_all_twelve_checks_pass_in_stable_order_with_controlled_tools(tmp_path: 
         ("pip-check", "ENV-004"),
         ("node-version", "ENV-005"),
         ("npm-ls", "ENV-005"),
+        ("npm-timeout", "ENV-005"),
         ("security-baseline", "ENV-007"),
         ("storage-cleanup", "ENV-008"),
         ("cleanup-command", "ENV-008"),
@@ -281,6 +284,30 @@ def test_controlled_tool_failures_are_not_reported_as_pass(
 
     matching = next(check for check in report.checks if check.check_id == check_id)
     assert matching.status is CheckStatus.FAIL
+    assert report.overall_status is OverallStatus.NOT_READY
+
+
+def test_local_dependency_probe_is_offline_and_timeout_remains_a_failure(tmp_path: Path) -> None:
+    root = tmp_path / "repository"
+    root.mkdir()
+    _create_repository(root)
+    dependencies = _dependencies(root, {"npm-timeout"})
+    report = run_diagnostics(
+        DiagnosticContext(root, DiagnosticMode.INTEGRATED), dependencies, clock_ns=lambda: 0
+    )
+    runner = dependencies.command_runner
+    assert isinstance(runner, ControlledRunner)
+    tree_calls = [call for call in runner.calls if call[:2] == ("npm.cmd", "ls")]
+    assert tree_calls == [("npm.cmd", "ls", "--depth=0", "--offline", "--no-update-notifier")]
+    check = next(check for check in report.checks if check.check_id == "ENV-005")
+    assert check.status is CheckStatus.FAIL
+    assert "timed out" in check.summary
+    assert "Install" not in check.remediation
+    assert dict(check.details) == {
+        "node_exit_code": 0,
+        "npm_exit_code": 0,
+        "dependency_tree_exit_code": 124,
+    }
     assert report.overall_status is OverallStatus.NOT_READY
 
 

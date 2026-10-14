@@ -18,13 +18,20 @@ from sqlalchemy.exc import DBAPIError
 from aiwebnovel.db.model_registry import (
     AI_WORKFLOW_TABLE_NAMES,
     BUSINESS_TABLE_NAMES,
+    WRITING_STUDIO_TABLE_NAMES,
     load_model_metadata,
 )
 from aiwebnovel.storage.paths import StoragePaths
 
 _PREVIOUS_REVISION = "0006_add_chapter_manuscript_content"
-_TARGET_REVISION = "0007_add_ai_workflows"
-_PREVIOUS_TABLES = BUSINESS_TABLE_NAMES - AI_WORKFLOW_TABLE_NAMES
+_WORKFLOW_REVISION = "0007_add_ai_workflows"
+_TARGET_REVISION = "0008_add_writing_studio"
+_PREVIOUS_TABLES = BUSINESS_TABLE_NAMES - AI_WORKFLOW_TABLE_NAMES - WRITING_STUDIO_TABLE_NAMES
+_SCHEMA_TABLES = {
+    _PREVIOUS_REVISION: _PREVIOUS_TABLES,
+    _WORKFLOW_REVISION: BUSINESS_TABLE_NAMES - WRITING_STUDIO_TABLE_NAMES,
+    _TARGET_REVISION: BUSINESS_TABLE_NAMES,
+}
 _TABLE_QUERY = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
 
 
@@ -78,13 +85,11 @@ def _check_schema(connection: Connection) -> str:
     if "alembic_version" not in tables:
         raise AIWorkflowUpgradeUnsupported("The database version is not supported")
     versions = list(connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalars())
-    if versions == [_TARGET_REVISION] and tables == BUSINESS_TABLE_NAMES | {"alembic_version"}:
-        expected_tables = BUSINESS_TABLE_NAMES
-        revision = _TARGET_REVISION
-    elif versions == [_PREVIOUS_REVISION] and tables == _PREVIOUS_TABLES | {"alembic_version"}:
-        expected_tables = _PREVIOUS_TABLES
-        revision = _PREVIOUS_REVISION
-    else:
+    if len(versions) != 1 or versions[0] not in _SCHEMA_TABLES:
+        raise AIWorkflowUpgradeUnsupported("The database version or tables are not supported")
+    revision = str(versions[0])
+    expected_tables = _SCHEMA_TABLES[revision]
+    if tables != expected_tables | {"alembic_version"}:
         raise AIWorkflowUpgradeUnsupported("The database version or tables are not supported")
     metadata = load_model_metadata()
     for table in sorted(expected_tables):
@@ -99,7 +104,9 @@ def _backup_progress(status: int, _remaining: int, _total: int) -> None:
         raise AIWorkflowUpgradeBusy("The database is busy; no upgrade was applied")
 
 
-def _create_verified_backup(paths: StoragePaths, checks: StorageUpgradeChecks) -> None:
+def _create_verified_backup(
+    paths: StoragePaths, checks: StorageUpgradeChecks, revision: str
+) -> None:
     """Read committed WAL state on a separate connection while the writer is reserved."""
     checks.validate_layout(paths)
     backup = paths.backups / f"before-ai-workflow-{uuid4().hex}.sqlite3"
@@ -116,9 +123,9 @@ def _create_verified_backup(paths: StoragePaths, checks: StorageUpgradeChecks) -
         if destination.execute("PRAGMA quick_check").fetchall() != [("ok",)]:
             raise AIWorkflowUpgradeFailed("The recovery copy did not pass integrity verification")
         tables = {row[0] for row in destination.execute(_TABLE_QUERY)}
-        if tables != _PREVIOUS_TABLES | {"alembic_version"} or destination.execute(
+        if tables != _SCHEMA_TABLES[revision] | {"alembic_version"} or destination.execute(
             "SELECT version_num FROM alembic_version"
-        ).fetchall() != [(_PREVIOUS_REVISION,)]:
+        ).fetchall() != [(revision,)]:
             raise AIWorkflowUpgradeFailed("The recovery copy has an unexpected schema")
     # Windows _commit (used by os.fsync) requires a writable file descriptor.
     with backup.open("r+b") as recovery_file:
@@ -135,10 +142,10 @@ def _migrate(connection: Connection) -> None:
 def upgrade_ai_workflow_database(
     engine: Engine, storage_paths: StoragePaths, checks: StorageUpgradeChecks
 ) -> None:
-    """Back up 0006 and atomically apply its existing 0007 migration on author request.
+    """Back up a supported 0006/0007 database and atomically upgrade on author request.
 
     The caller serializes in-process upgrade requests. No path or connection is
-    selected from environment variables. A ready 0007 database is a no-op. Failed
+    selected from environment variables. A ready 0008 database is a no-op. Failed
     upgrades retain any recovery copy and never replace the author's database.
     """
     try:
@@ -148,10 +155,11 @@ def upgrade_ai_workflow_database(
             # and excludes other writers until both the backup and migration finish.
             connection.exec_driver_sql("BEGIN IMMEDIATE")
             try:
-                if _check_schema(connection) == _TARGET_REVISION:
+                revision = _check_schema(connection)
+                if revision == _TARGET_REVISION:
                     connection.rollback()
                     return
-                _create_verified_backup(storage_paths, checks)
+                _create_verified_backup(storage_paths, checks, revision)
                 _migrate(connection)
                 if _check_schema(connection) != _TARGET_REVISION:
                     raise AIWorkflowUpgradeFailed("The upgraded schema did not pass verification")

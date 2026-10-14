@@ -408,12 +408,13 @@ def test_application_and_list_reader_imports_have_no_runtime_or_schema_side_effe
     evidence = completed.stdout.strip()
     expected_tables = (
         '["ai_workflow_candidates", "ai_workflow_runs", '
-        '"chapter_heads", "chapter_revisions", "chapters", '
+        '"chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
         '"character_heads", "character_revisions", "characters", '
         '"outline_heads", "outline_revisions", "outlines", '
         '"project_heads", "project_revisions", "projects", '
         '"story_bible_heads", "story_bible_revisions", "story_bibles", '
-        '"volume_heads", "volume_revisions", "volumes"]'
+        '"volume_heads", "volume_revisions", "volumes", '
+        '"writing_references", "writing_rule_versions"]'
     )
     assert f'"before": {expected_tables}' in evidence
     assert f'"after": {expected_tables}' in evidence
@@ -451,12 +452,13 @@ def test_character_web_import_has_no_runtime_or_schema_side_effects(
     evidence = completed.stdout.strip()
     expected_tables = (
         '["ai_workflow_candidates", "ai_workflow_runs", '
-        '"chapter_heads", "chapter_revisions", "chapters", '
+        '"chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
         '"character_heads", "character_revisions", "characters", '
         '"outline_heads", "outline_revisions", "outlines", '
         '"project_heads", "project_revisions", "projects", '
         '"story_bible_heads", "story_bible_revisions", "story_bibles", '
-        '"volume_heads", "volume_revisions", "volumes"]'
+        '"volume_heads", "volume_revisions", "volumes", '
+        '"writing_references", "writing_rule_versions"]'
     )
     assert f'"before": {expected_tables}' in evidence
     assert f'"after": {expected_tables}' in evidence
