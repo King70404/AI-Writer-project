@@ -424,7 +424,11 @@ def check_node(
         cwd=context.repository_root,
     )
     npm_result = runner.run(("npm.cmd", "--version"), cwd=frontend)
-    npm_tree_result = runner.run(("npm.cmd", "ls", "--depth=0"), cwd=frontend)
+    # Inspect the installed tree without npm's unrelated registry update probe.
+    # Keep the normal command deadline and report actual dependency failures.
+    npm_tree_result = runner.run(
+        ("npm.cmd", "ls", "--depth=0", "--offline", "--no-update-notifier"), cwd=frontend
+    )
     payload = _json_object(node_result)
     version_value = str(payload.get("version", "")) if payload is not None else ""
     version_match = _NODE_VERSION_PATTERN.fullmatch(version_value)
@@ -441,10 +445,26 @@ def check_node(
         and (frontend / "node_modules").is_dir()
     )
     if not valid:
+        timed_out = any(
+            result.returncode == 124 for result in (node_result, npm_result, npm_tree_result)
+        )
         return CheckResult(
             status=CheckStatus.FAIL,
-            summary="Node.js 24 x64, npm, or frontend dependencies are unavailable.",
-            remediation="Install Node.js 24 LTS and restore frontend dependencies manually.",
+            summary=(
+                "A local Node.js or npm diagnostic command timed out."
+                if timed_out
+                else "Node.js 24 x64, npm, or frontend dependencies are unavailable."
+            ),
+            details=detail_items(
+                node_exit_code=node_result.returncode,
+                npm_exit_code=npm_result.returncode,
+                dependency_tree_exit_code=npm_tree_result.returncode,
+            ),
+            remediation=(
+                "Check local tool responsiveness and system load before repeating diagnostics."
+                if timed_out
+                else "Install Node.js 24 LTS and restore frontend dependencies manually."
+            ),
         )
     return CheckResult(
         status=CheckStatus.PASS,

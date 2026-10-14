@@ -24,7 +24,11 @@ from aiwebnovel.db.ai_workflow_upgrade import (
     upgrade_ai_workflow_database as _upgrade_database,
 )
 from aiwebnovel.db.engine import create_database_engine
-from aiwebnovel.db.model_registry import AI_WORKFLOW_TABLE_NAMES, BUSINESS_TABLE_NAMES
+from aiwebnovel.db.model_registry import (
+    AI_WORKFLOW_TABLE_NAMES,
+    BUSINESS_TABLE_NAMES,
+    WRITING_STUDIO_TABLE_NAMES,
+)
 from aiwebnovel.storage.initializer import initialize_storage
 from aiwebnovel.storage.paths import StoragePaths
 
@@ -32,8 +36,8 @@ from .test_novel_structure_migration import _run_alembic
 
 pytestmark = pytest.mark.integration
 _OLD = "0006_add_chapter_manuscript_content"
-_NEW = "0007_add_ai_workflows"
-_AUTHOR_TABLES = BUSINESS_TABLE_NAMES - AI_WORKFLOW_TABLE_NAMES
+_NEW = "0008_add_writing_studio"
+_AUTHOR_TABLES = BUSINESS_TABLE_NAMES - AI_WORKFLOW_TABLE_NAMES - WRITING_STUDIO_TABLE_NAMES
 
 
 def upgrade_ai_workflow_database(engine: Engine, paths: StoragePaths) -> None:
@@ -87,7 +91,7 @@ def _snapshot(path: Path) -> tuple[dict[str, list[tuple]], list[tuple]]:
         objects = connection.execute(
             "SELECT type, name, tbl_name, sql FROM sqlite_master "
             "WHERE name NOT LIKE 'sqlite_%' AND tbl_name NOT LIKE 'ai_workflow_%' "
-            "ORDER BY name"
+            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions') ORDER BY name"
         ).fetchall()
         return data, objects
 

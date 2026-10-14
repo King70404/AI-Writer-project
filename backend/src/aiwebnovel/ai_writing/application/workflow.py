@@ -133,6 +133,19 @@ class AIWorkflowService:
         run = self._repository.claim(chapter_id, run_id)
         limit = min(300, run.max_output_characters - run.generated_characters)
         prompt = CONTINUE_PROMPT if run.operation == "continue" else REWRITE_PROMPT
+        if "chapter_plan" in run.context.manifest.included_sources:
+            prompt += (
+                "章节规划覆盖整章，目标字数指整章而非本次输出。"
+                "优先表现本章记忆重点，维持人物意图、位置、物品与情绪的连续变化。"
+                "重要动作有衔接，重要对话有试探，场景在过程中持续起作用，冲突有铺垫与余波。"
+            )
+            if run.operation == "continue":
+                prompt += "本次只推进已采用正文之后的下一小段，不要把全部场景与节拍压缩在一段内。"
+        if "writing_rules" in run.context.manifest.included_sources:
+            prompt += (
+                "运用作者确认的写作规则中可迁移的方法，结合本小说人物与情节原创表达。"
+                "不要搬用范文的句子、名称、独有意象或情节。不要用重复解释填充字数。"
+            )
         messages: tuple[GenerationMessage, ...] = (
             GenerationMessage(
                 "system", prompt + DATA_BOUNDARY + f"本段必须为200至{limit}个非空白Unicode字符。"

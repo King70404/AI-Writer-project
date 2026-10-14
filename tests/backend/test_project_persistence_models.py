@@ -17,6 +17,7 @@ from aiwebnovel.db.model_registry import (
     NOVEL_STRUCTURE_TABLE_NAMES,
     PROJECT_TABLE_NAMES,
     STORY_BIBLE_TABLE_NAMES,
+    WRITING_STUDIO_TABLE_NAMES,
     load_model_metadata,
 )
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
@@ -89,6 +90,7 @@ def test_model_registry_is_exact_idempotent_and_uses_shared_metadata() -> None:
         "character_heads",
         *NOVEL_STRUCTURE_TABLE_NAMES,
         *AI_WORKFLOW_TABLE_NAMES,
+        *WRITING_STUDIO_TABLE_NAMES,
     }
     assert "alembic_version" not in first.tables
     assert all(table.metadata is first for table in first.tables.values())
@@ -122,12 +124,12 @@ def test_domain_import_does_not_register_models_or_create_database(tmp_path: Pat
         "",
         (
             "ai_workflow_candidates,ai_workflow_runs,"
-            "chapter_heads,chapter_revisions,chapters,"
+            "chapter_heads,chapter_plan_revisions,chapter_revisions,chapters,"
             "character_heads,character_revisions,characters,"
             "outline_heads,outline_revisions,outlines,"
             "project_heads,project_revisions,projects,"
             "story_bible_heads,story_bible_revisions,story_bibles,"
-            "volume_heads,volume_revisions,volumes"
+            "volume_heads,volume_revisions,volumes,writing_references,writing_rule_versions"
         ),
     ]
     assert not database_path.exists()

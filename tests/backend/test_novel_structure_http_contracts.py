@@ -8,7 +8,10 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy.exc import OperationalError
-from tests.backend.ai_workflow_contract_support import AI_WORKFLOW_OPERATIONS
+from tests.backend.ai_workflow_contract_support import (
+    AI_WORKFLOW_OPERATIONS,
+    WRITING_PREPARATION_OPERATIONS,
+)
 from tests.backend.character_http_support import issue_write_headers
 from tests.backend.factories import create_test_app
 from tests.backend.novel_structure_repository_support import (
@@ -659,12 +662,14 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
         ("GET", "/api/v1/chapters/{chapter_id}"),
         ("PUT", "/api/v1/chapters/{chapter_id}"),
     }
-    assert len(operations) == 51
+    assert len(operations) == 60
     assert len(AI_WORKFLOW_OPERATIONS) == 13
+    assert len(WRITING_PREPARATION_OPERATIONS) == 9
     assert operations >= AI_WORKFLOW_OPERATIONS
+    assert operations >= WRITING_PREPARATION_OPERATIONS
     assert {
         operation
-        for operation in operations
+        for operation in operations - WRITING_PREPARATION_OPERATIONS
         if any(word in operation[1] for word in ("outline", "volume", "chapter"))
         and not operation[1].endswith("/content")
         and "/ai/" not in operation[1]

@@ -15,3 +15,15 @@ AI_WORKFLOW_OPERATIONS = {
     ("POST", "/api/v1/chapters/{chapter_id}/ai/candidates/{candidate_id}/adopt"),
     ("POST", "/api/v1/chapters/{chapter_id}/ai/candidates/{candidate_id}/discard"),
 }
+
+WRITING_PREPARATION_OPERATIONS = {
+    ("GET", "/api/v1/projects/{project_id}/writing/references"),
+    ("POST", "/api/v1/projects/{project_id}/writing/references"),
+    ("GET", "/api/v1/projects/{project_id}/writing/references/{reference_id}"),
+    ("POST", "/api/v1/projects/{project_id}/writing/references/{reference_id}/analyze"),
+    ("GET", "/api/v1/projects/{project_id}/writing/rules"),
+    ("POST", "/api/v1/projects/{project_id}/writing/rules"),
+    ("POST", "/api/v1/projects/{project_id}/writing/rules/{rule_id}/versions"),
+    ("GET", "/api/v1/chapters/{chapter_id}/planning"),
+    ("PUT", "/api/v1/chapters/{chapter_id}/planning"),
+}

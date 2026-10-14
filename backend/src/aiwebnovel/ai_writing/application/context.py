@@ -1,5 +1,8 @@
 """Bounded current snapshots, read only through public application services."""
 
+from collections.abc import Callable
+from dataclasses import replace
+
 from aiwebnovel.ai_writing.application.models import (
     ChapterWritingContext,
     ContextManifest,
@@ -101,11 +104,13 @@ class ChapterWritingContextBuilder:
         projects: ProjectQueryService,
         story_bibles: StoryBibleQueryService,
         characters: CharacterQueryService,
+        extra_source_reader: Callable[[str], tuple[ContextSource, ...]] | None = None,
     ) -> None:
         self._structure = structure
         self._projects = projects
         self._story_bibles = story_bibles
         self._characters = characters
+        self._extra_source_reader = extra_source_reader
 
     def build(self, chapter_id: str) -> ChapterWritingContext:
         chapter = self._structure.get_chapter(GetChapterQuery(chapter_id))
@@ -130,6 +135,24 @@ class ChapterWritingContextBuilder:
             tail=True,
             references=((chapter.chapter_id, content.current_revision_id),),
         )
+        if self._extra_source_reader is not None:
+            # Author-selected plans and immutable rule versions take priority over
+            # broad background. Preserve their provenance and omission diagnostics.
+            for source in self._extra_source_reader(chapter_id):
+                result.add(
+                    source.source,
+                    None if source.omitted_reason is not None else source.text,
+                    12_000,
+                    references=source.references,
+                )
+                assembled = result.sources[-1]
+                result.sources[-1] = replace(
+                    assembled,
+                    reason=source.reason,
+                    omitted_reason=source.omitted_reason or assembled.omitted_reason,
+                    truncated=assembled.truncated or source.truncated,
+                )
+                result.truncated |= source.truncated
         try:
             outline = self._structure.get_outline_for_project(
                 GetOutlineForProjectQuery(chapter.project_id)
