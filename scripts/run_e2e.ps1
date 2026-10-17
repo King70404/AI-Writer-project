@@ -1669,6 +1669,7 @@ function Invoke-E2EScenario {
             "E2E-INT-018",
             "E2E-INT-019",
             "E2E-INT-020",
+            "E2E-INT-021",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -1696,7 +1697,8 @@ function Invoke-E2EScenario {
         "E2E-INT-017",
         "E2E-INT-018",
         "E2E-INT-019",
-        "E2E-INT-020"
+        "E2E-INT-020",
+        "E2E-INT-021"
     )
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
@@ -1837,8 +1839,10 @@ function Invoke-E2EScenario {
             $frontendDist = Join-Path $script:FrontendRoot "dist"
             $aiProviderPort = 0
             $migrationRevision = "head"
-            if ($SelectedScenario -eq "E2E-INT-019") {
-                $migrationRevision = "0006_add_chapter_manuscript_content"
+            if ($SelectedScenario -in @("E2E-INT-019", "E2E-INT-021")) {
+                if ($SelectedScenario -eq "E2E-INT-019") {
+                    $migrationRevision = "0006_add_chapter_manuscript_content"
+                }
                 $aiProviderPort = 18123
                 Assert-PortAvailable -Port $aiProviderPort
                 $null = $script:OwnedPorts.Add($aiProviderPort)
@@ -2036,6 +2040,7 @@ try {
         "E2E-INT-018" = "Integrated"
         "E2E-INT-019" = "Integrated"
         "E2E-INT-020" = "Integrated"
+        "E2E-INT-021" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -2060,6 +2065,7 @@ try {
         "E2E-INT-018",
         "E2E-INT-019",
         "E2E-INT-020",
+        "E2E-INT-021",
         "E2E-STARTUP-001"
     )
 

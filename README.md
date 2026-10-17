@@ -16,6 +16,8 @@ RF-06–10 的 AI 协作流程已完成，通过完整 CI 与隔离作者流程�
 
 范文学习与长篇准备的使用入口见 [范文分析与章节规划](docs/REFERENCE_WRITING.md)：粘贴句段、对照分析、确认可复用的方法，再按章选用规则、场景与连续性要求。当前实现及验证状态以 [PLAN.md](PLAN.md) 为准。
 
+章节内的 [长篇记忆与一致性评审](docs/LONGFORM_MEMORY.md) 支持候选事实确认、前文事实召回、显式评审、定向改写和来源变化复核。当前阶段交付状态仍以 PLAN 为准。
+
 当前交付状态见 [PLAN.md](PLAN.md)，能力边界见 [功能索引](docs/FEATURE_REALITY_MATRIX.md)。
 
 ## 从哪里开始

@@ -39,7 +39,8 @@ def old_app(tmp_path: Path, revision: str = "0006_add_chapter_manuscript_content
 
 
 @pytest.mark.parametrize(
-    "revision", ["0006_add_chapter_manuscript_content", "0007_add_ai_workflows"]
+    "revision",
+    ["0006_add_chapter_manuscript_content", "0007_add_ai_workflows", "0008_add_writing_studio"],
 )
 def test_old_database_author_can_upgrade_save_model_generate_and_adopt_without_restart(
     tmp_path, revision

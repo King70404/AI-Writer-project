@@ -10,6 +10,7 @@ import type { SelectionSnapshot } from "../hooks/useAIWriting";
 import type { useChapterWriting } from "../hooks/useChapterWriting";
 import { AIModelSettings } from "./AIModelSettings";
 import { ReferenceWritingWorkbench } from "./ReferenceWritingWorkbench";
+import { StoryMemoryWorkbench } from "./StoryMemoryWorkbench";
 
 const STATUS: Record<WorkflowRun["status"], string> = {
   ready: "可以生成下一段",
@@ -29,6 +30,7 @@ const SOURCE_LABELS: Record<string, string> = {
   chapter_plan: "章节规划",
   planning_assets: "规划关联人物与设定",
   writing_rules: "已确认的写作规则",
+  story_memory: "已确认的前文事实",
 };
 
 export function AIWorkflowAssistant({
@@ -51,6 +53,8 @@ export function AIWorkflowAssistant({
   const [preparationOpen, setPreparationOpen] = useState(false);
   const [preparationMounted, setPreparationMounted] = useState(false);
   const [planningDirty, setPlanningDirty] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [memoryMounted, setMemoryMounted] = useState(false);
   const profile = ai.models.find(
     (item) => item.id === (profileId || ai.models[0]?.id),
   );
@@ -182,6 +186,54 @@ export function AIWorkflowAssistant({
       ) : null}
       {planningDirty ? (
         <p role="status">章节规划有未保存修改；保存后再准备新任务。</p>
+      ) : null}
+      <button
+        type="button"
+        disabled={unavailable}
+        aria-expanded={memoryOpen}
+        onClick={() => {
+          setMemoryMounted(true);
+          setMemoryOpen((value) => !value);
+        }}
+      >
+        {memoryOpen ? "收起长篇记忆与评审" : "打开长篇记忆与评审"}
+      </button>
+      {memoryMounted ? (
+        <div hidden={!memoryOpen}>
+          <StoryMemoryWorkbench
+            projectId={writing.state.snapshot.resource.project_id}
+            chapterId={chapterId}
+            sourceRevision={writing.state.snapshot.resource.current_revision_id}
+            profile={profile}
+            disabled={
+              unavailable || planningDirty || writing.state.status !== "saved"
+            }
+            onRewrite={(quote, requirement, revision) => {
+              const content = writing.getContent(),
+                start = content.indexOf(quote);
+              if (
+                writing.state.status !== "saved" ||
+                revision !==
+                  writing.state.snapshot.resource.current_revision_id ||
+                start < 0 ||
+                content.indexOf(quote, start + 1) >= 0
+              ) {
+                setFormError(
+                  "评审引文已改变或出现多次，请重新评审，或手动选择要改写的正文。",
+                );
+                return;
+              }
+              setFormError("");
+              setInstruction(requirement);
+              setConfirmedRunId(null);
+              void ai.prepare("rewrite", profile?.id ?? "", requirement, 1, {
+                start,
+                end: start + quote.length,
+                text: quote,
+              });
+            }}
+          />
+        </div>
       ) : null}
       <label htmlFor="ai-instruction">额外要求（可选）</label>
       <textarea

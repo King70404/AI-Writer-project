@@ -6,7 +6,7 @@ from sqlalchemy import Engine, inspect
 from sqlalchemy.orm import Session
 
 from aiwebnovel.ai_writing.application.context import ChapterWritingContextBuilder
-from aiwebnovel.ai_writing.application.models import GeneratedText, GenerationMessage
+from aiwebnovel.ai_writing.application.models import ContextSource, GeneratedText, GenerationMessage
 from aiwebnovel.ai_writing.application.services import AIWritingService
 from aiwebnovel.ai_writing.application.workflow import AIWorkflowService
 from aiwebnovel.ai_writing.application.workflow_models import ModelSnapshot
@@ -22,6 +22,8 @@ from aiwebnovel.novel_structure.application.services import NovelStructureQueryS
 from aiwebnovel.project.application.services import ProjectQueryService
 from aiwebnovel.storage.paths import StoragePaths
 from aiwebnovel.story_bible.application.services import StoryBibleQueryService
+from aiwebnovel.story_memory.composition import compose_story_memory
+from aiwebnovel.story_memory.service import StoryMemoryService
 from aiwebnovel.writing_studio.application.service import WritingStudioService
 from aiwebnovel.writing_studio.composition import compose_writing_studio
 
@@ -55,6 +57,7 @@ def compose_ai_workflow(
         WorkflowRuntimeLock,
         WritingStudioService,
         ChapterPlanningService,
+        StoryMemoryService,
     ]
     | None
 ):
@@ -69,6 +72,7 @@ def compose_ai_workflow(
         "writing_references",
         "writing_rule_versions",
         "chapter_plan_revisions",
+        "story_memory_revisions",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
@@ -118,17 +122,33 @@ def compose_ai_workflow(
         studio, planning = compose_writing_studio(
             session_factory, structure, projects, characters, story_bibles, generate, read_model
         )
+
+        def generation_sources(chapter_id: str) -> tuple[ContextSource, ...]:
+            return tuple(
+                source
+                for run in service.list(chapter_id)
+                for source in run.context.manifest.sources
+                if source.source == "story_memory" and source.omitted_reason is None
+            )
+
+        memory = compose_story_memory(
+            session_factory, projects, structure, generate, read_model, generation_sources
+        )
+
+        def extra_sources(chapter_id: str) -> tuple[ContextSource, ...]:
+            return planning.context_sources(chapter_id) + memory.context_sources(chapter_id)
+
         service = AIWorkflowService(
             SqlAlchemyWorkflowRepository(session_factory),
             ChapterWritingContextBuilder(
-                structure, projects, story_bibles, characters, planning.context_sources
+                structure, projects, story_bibles, characters, extra_sources
             ),
             structure,
             generate,
             read_model,
         )
         service.recover_interrupted()
-        return service, gateway, runtime, studio, planning
+        return service, gateway, runtime, studio, planning, memory
     except BaseException:
         runtime.close()
         raise

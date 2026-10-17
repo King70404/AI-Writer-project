@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
+    STORY_MEMORY_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
 from tests.backend.factories import create_test_app
@@ -62,7 +63,9 @@ def test_production_api_inventory_has_exactly_fifty_routes(tmp_path: Path) -> No
         for method in operations
         if method in {"get", "post", "put", "patch", "delete"}
     }
-    assert routes == EXPECTED_ROUTES | AI_WORKFLOW_OPERATIONS | WRITING_PREPARATION_OPERATIONS
+    assert routes == EXPECTED_ROUTES | AI_WORKFLOW_OPERATIONS | (
+        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS
+    )
 
 
 def test_openapi_documents_history_keyset_and_read_only_schemas(tmp_path: Path) -> None:

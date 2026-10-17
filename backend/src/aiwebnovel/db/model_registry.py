@@ -36,6 +36,7 @@ AI_WORKFLOW_TABLE_NAMES = frozenset({"ai_workflow_runs", "ai_workflow_candidates
 WRITING_STUDIO_TABLE_NAMES = frozenset(
     {"writing_references", "writing_rule_versions", "chapter_plan_revisions"}
 )
+STORY_MEMORY_TABLE_NAMES = frozenset({"story_memory_revisions"})
 BUSINESS_TABLE_NAMES = (
     PROJECT_TABLE_NAMES
     | STORY_BIBLE_TABLE_NAMES
@@ -43,6 +44,7 @@ BUSINESS_TABLE_NAMES = (
     | NOVEL_STRUCTURE_TABLE_NAMES
     | AI_WORKFLOW_TABLE_NAMES
     | WRITING_STUDIO_TABLE_NAMES
+    | STORY_MEMORY_TABLE_NAMES
 )
 
 
@@ -79,6 +81,7 @@ def load_model_metadata() -> MetaData:
         StoryBibleRecord,
         StoryBibleRevisionRecord,
     )
+    from aiwebnovel.story_memory.persistence import StoryMemoryRevisionRecord
     from aiwebnovel.writing_studio.persistence.models import (
         WritingReferenceRecord,
         WritingRuleVersionRecord,
@@ -90,6 +93,7 @@ def load_model_metadata() -> MetaData:
         WritingReferenceRecord,
         WritingRuleVersionRecord,
         ChapterPlanRevisionRecord,
+        StoryMemoryRevisionRecord,
         ProjectRecord,
         ProjectRevisionRecord,
         ProjectHeadRecord,

@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from starlette.requests import Request
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
+    STORY_MEMORY_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
 from tests.backend.ai_writing_support import CHAPTER, FakeProvider, sources
@@ -164,12 +165,14 @@ def test_openapi_preserves_all_m5_operations_adds_exactly_two(tmp_path: Path) ->
         if m in {"get", "post", "put", "patch", "delete"}
     }
     old = {(i["method"], i["path"]) for i in baseline["production_api_operations"]}
-    assert len(operations) == 60
+    assert len(operations) == 65
     assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
     assert operations >= AI_WORKFLOW_OPERATIONS
-    assert operations >= WRITING_PREPARATION_OPERATIONS
-    assert operations - AI_WORKFLOW_OPERATIONS - WRITING_PREPARATION_OPERATIONS - old - {
+    assert operations >= (WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS)
+    assert operations - AI_WORKFLOW_OPERATIONS - (
+        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS
+    ) - old - {
         ("GET", "/api/v1/projects/{project_id}/export.txt"),
         ("POST", "/api/v1/projects/{project_id}/delete"),
     } == {
