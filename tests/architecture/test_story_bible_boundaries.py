@@ -466,7 +466,7 @@ def test_application_package_import_has_no_runtime_or_schema_side_effects(
         '"character_heads", "character_revisions", "characters", '
         '"outline_heads", "outline_revisions", "outlines", '
         '"project_heads", "project_revisions", "projects", '
-        '"story_bible_heads", "story_bible_revisions", "story_bibles", '
+        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_memory_revisions", '
         '"volume_heads", "volume_revisions", "volumes", '
         '"writing_references", "writing_rule_versions"]'
     )
@@ -510,7 +510,7 @@ def test_web_package_import_has_no_runtime_or_schema_side_effects(
         '"character_heads", "character_revisions", "characters", '
         '"outline_heads", "outline_revisions", "outlines", '
         '"project_heads", "project_revisions", "projects", '
-        '"story_bible_heads", "story_bible_revisions", "story_bibles", '
+        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_memory_revisions", '
         '"volume_heads", "volume_revisions", "volumes", '
         '"writing_references", "writing_rule_versions"]'
     )

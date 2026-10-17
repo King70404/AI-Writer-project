@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.engine import URL
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
+    STORY_MEMORY_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
 from tests.backend.character_http_support import issue_write_headers
@@ -95,7 +96,7 @@ def test_real_export_is_utf8_current_heads_and_changes_no_database_rows(
                     connection.execute(
                         "select count(*) from sqlite_master where type='trigger'"
                     ).fetchone()[0]
-                    == 16
+                    == 18
                 )
             files_before = {p.relative_to(tmp_path) for p in tmp_path.rglob("*") if p.is_file()}
             for _ in range(2):
@@ -134,13 +135,15 @@ def test_openapi_preserves_m6_with_exact_export_and_project_deletion_additions(
     }
     old = {(item["method"], item["path"]) for item in baseline["production_api_operations"]}
     assert len(old) == 36
-    assert len(operations) == 60
+    assert len(operations) == 65
     assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
     assert operations >= AI_WORKFLOW_OPERATIONS
-    assert operations >= WRITING_PREPARATION_OPERATIONS
+    assert operations >= (WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS)
     assert old < operations
-    assert operations - AI_WORKFLOW_OPERATIONS - WRITING_PREPARATION_OPERATIONS - old == {
+    assert operations - AI_WORKFLOW_OPERATIONS - (
+        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS
+    ) - old == {
         ("GET", "/api/v1/projects/{project_id}/export.txt"),
         ("POST", "/api/v1/projects/{project_id}/delete"),
     }

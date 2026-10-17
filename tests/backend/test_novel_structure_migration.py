@@ -19,6 +19,7 @@ from aiwebnovel.db.engine import create_database_engine
 from aiwebnovel.db.model_registry import (
     AI_WORKFLOW_TABLE_NAMES,
     BUSINESS_TABLE_NAMES,
+    STORY_MEMORY_TABLE_NAMES,
     WRITING_STUDIO_TABLE_NAMES,
     load_model_metadata,
 )
@@ -28,7 +29,12 @@ pytestmark = pytest.mark.integration
 _PREVIOUS_REVISION = "0004_create_character_foundation"
 _NOVEL_STRUCTURE_REVISION = "0005_create_novel_structure_foundation"
 _CURRENT_NOVEL_STRUCTURE_REVISION = "0006_add_chapter_manuscript_content"
-_PRE_AI_TABLE_NAMES = BUSINESS_TABLE_NAMES - AI_WORKFLOW_TABLE_NAMES - WRITING_STUDIO_TABLE_NAMES
+_PRE_AI_TABLE_NAMES = (
+    BUSINESS_TABLE_NAMES
+    - AI_WORKFLOW_TABLE_NAMES
+    - WRITING_STUDIO_TABLE_NAMES
+    - STORY_MEMORY_TABLE_NAMES
+)
 _NEW_TABLES = {
     "outlines",
     "outline_revisions",
@@ -135,7 +141,7 @@ def _migrated_database_fixture(
 def test_metadata_registers_authorized_tables_with_unchanged_author_schema() -> None:
     metadata = load_model_metadata()
 
-    assert len(BUSINESS_TABLE_NAMES) == 23
+    assert len(BUSINESS_TABLE_NAMES) == 24
     assert len(_PRE_AI_TABLE_NAMES) == 18
     assert frozenset(metadata.tables) == BUSINESS_TABLE_NAMES
     assert _NEW_TABLES <= BUSINESS_TABLE_NAMES

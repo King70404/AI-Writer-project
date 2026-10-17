@@ -27,3 +27,11 @@ WRITING_PREPARATION_OPERATIONS = {
     ("GET", "/api/v1/chapters/{chapter_id}/planning"),
     ("PUT", "/api/v1/chapters/{chapter_id}/planning"),
 }
+
+STORY_MEMORY_OPERATIONS = {
+    ("GET", "/api/v1/chapters/{chapter_id}/memory"),
+    ("POST", "/api/v1/chapters/{chapter_id}/memory/facts"),
+    ("PUT", "/api/v1/chapters/{chapter_id}/memory/facts/{fact_id}"),
+    ("POST", "/api/v1/chapters/{chapter_id}/memory/reviews"),
+    ("POST", "/api/v1/chapters/{chapter_id}/memory/reviews/{review_id}/send"),
+}
