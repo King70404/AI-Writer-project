@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
+    BACKUP_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
@@ -64,9 +65,9 @@ def test_route_inventory_contains_all_declared_business_routes(tmp_path: Path) -
         ("POST", "/api/v1/chapters/{chapter_id}/ai/continue"),
         ("POST", "/api/v1/chapters/{chapter_id}/ai/rewrite"),
     }
-    assert len(routes) == 65
+    assert len(routes) == 70
     assert routes == expected_routes | AI_WORKFLOW_OPERATIONS | (
-        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS
+        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS | BACKUP_OPERATIONS
     )
     assert routes.isdisjoint(
         {

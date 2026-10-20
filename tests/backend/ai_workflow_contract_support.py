@@ -35,3 +35,11 @@ STORY_MEMORY_OPERATIONS = {
     ("POST", "/api/v1/chapters/{chapter_id}/memory/reviews"),
     ("POST", "/api/v1/chapters/{chapter_id}/memory/reviews/{review_id}/send"),
 }
+
+BACKUP_OPERATIONS = {
+    ("GET", "/api/v1/backups"),
+    ("POST", "/api/v1/backups"),
+    ("POST", "/api/v1/backups/{backup_id}/verify"),
+    ("GET", "/api/v1/backups/{backup_id}/download"),
+    ("POST", "/api/v1/backups/{backup_id}/restore"),
+}

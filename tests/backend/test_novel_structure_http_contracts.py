@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from sqlalchemy.exc import OperationalError
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
+    BACKUP_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
@@ -663,14 +664,18 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
         ("GET", "/api/v1/chapters/{chapter_id}"),
         ("PUT", "/api/v1/chapters/{chapter_id}"),
     }
-    assert len(operations) == 65
+    assert len(operations) == 70
     assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
+    assert len(BACKUP_OPERATIONS) == 5
     assert operations >= AI_WORKFLOW_OPERATIONS
-    assert operations >= (WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS)
+    assert operations >= (
+        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS | BACKUP_OPERATIONS
+    )
     assert {
         operation
-        for operation in operations - (WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS)
+        for operation in operations
+        - (WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS | BACKUP_OPERATIONS)
         if any(word in operation[1] for word in ("outline", "volume", "chapter"))
         and not operation[1].endswith("/content")
         and "/ai/" not in operation[1]

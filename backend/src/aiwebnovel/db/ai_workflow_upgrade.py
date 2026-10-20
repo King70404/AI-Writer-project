@@ -15,34 +15,18 @@ from alembic.config import Config
 from sqlalchemy import Connection, Engine
 from sqlalchemy.exc import DBAPIError
 
-from aiwebnovel.db.model_registry import (
-    AI_WORKFLOW_TABLE_NAMES,
-    BUSINESS_TABLE_NAMES,
-    STORY_MEMORY_TABLE_NAMES,
-    WRITING_STUDIO_TABLE_NAMES,
-    load_model_metadata,
+from aiwebnovel.db.author_schema import (
+    CURRENT_REVISION,
+    SUPPORTED_SCHEMA_TABLES,
+    TABLE_QUERY,
 )
+from aiwebnovel.db.model_registry import load_model_metadata
 from aiwebnovel.storage.paths import StoragePaths
 
-_PREVIOUS_REVISION = "0006_add_chapter_manuscript_content"
-_WORKFLOW_REVISION = "0007_add_ai_workflows"
-_STUDIO_REVISION = "0008_add_writing_studio"
-_TARGET_REVISION = "0009_add_story_memory"
-_PREVIOUS_TABLES = (
-    BUSINESS_TABLE_NAMES
-    - AI_WORKFLOW_TABLE_NAMES
-    - WRITING_STUDIO_TABLE_NAMES
-    - STORY_MEMORY_TABLE_NAMES
-)
-_SCHEMA_TABLES = {
-    _PREVIOUS_REVISION: _PREVIOUS_TABLES,
-    _WORKFLOW_REVISION: BUSINESS_TABLE_NAMES
-    - WRITING_STUDIO_TABLE_NAMES
-    - STORY_MEMORY_TABLE_NAMES,
-    _STUDIO_REVISION: BUSINESS_TABLE_NAMES - STORY_MEMORY_TABLE_NAMES,
-    _TARGET_REVISION: BUSINESS_TABLE_NAMES,
-}
-_TABLE_QUERY = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+_TARGET_REVISION = CURRENT_REVISION
+# The backup and restore checks recognize the same revisions as this upgrade.
+_SCHEMA_TABLES = SUPPORTED_SCHEMA_TABLES
+_TABLE_QUERY = TABLE_QUERY
 
 
 class AIWorkflowUpgradeFailed(RuntimeError):

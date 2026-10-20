@@ -15,6 +15,8 @@ from aiwebnovel.ai_writing.errors import AIWorkflowSchemaRequired
 from aiwebnovel.ai_writing.setup_web import AIWorkflowSetupService, create_ai_setup_router
 from aiwebnovel.ai_writing.web import create_ai_writing_router
 from aiwebnovel.ai_writing.workflow_web import create_ai_workflow_router
+from aiwebnovel.backup.composition import compose_backup_service
+from aiwebnovel.backup.web import create_backup_router
 from aiwebnovel.chapter_planning.web import create_chapter_planning_router
 from aiwebnovel.character.application.history_service import (
     CharacterRevisionHistoryQueryService,
@@ -269,6 +271,12 @@ def create_app(
             else:
                 application.state.storage_initialized = True
                 try:
+                    application.state.author_backup_service = compose_backup_service(
+                        resolved_settings, storage_paths
+                    )
+                except Exception as exc:  # noqa: BLE001 - backups stay unavailable safely.
+                    logger.info("author backups unavailable error_type=%s", type(exc).__name__)
+                try:
                     database_url = resolve_database_url(resolved_settings, storage_paths)
                     runtime_engine = create_database_engine(
                         resolved_settings,
@@ -510,6 +518,7 @@ def create_app(
             application.state.chapter_planning_service = None
             application.state.story_memory_service = None
             application.state.ai_workflow_setup_service = None
+            application.state.author_backup_service = None
             application.state.model_gateway_service = None
             if application.state.ai_workflow_runtime is not None:
                 application.state.ai_workflow_runtime.close()
@@ -553,6 +562,7 @@ def create_app(
     application.state.chapter_planning_service = None
     application.state.story_memory_service = None
     application.state.ai_workflow_setup_service = None
+    application.state.author_backup_service = None
     application.state.ai_workflow_schema_required = False
     application.state.model_gateway_service = None
     application.state.ai_workflow_runtime = None
@@ -625,6 +635,7 @@ def create_app(
     application.include_router(create_ai_setup_router(api_prefix=api_prefix))
     application.include_router(create_model_gateway_router(api_prefix=api_prefix))
     application.include_router(create_export_router(api_prefix=api_prefix))
+    application.include_router(create_backup_router(api_prefix=api_prefix))
 
     @application.get(f"{api_prefix}/health/live")
     async def live() -> dict[str, str]:
