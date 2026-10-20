@@ -20,6 +20,7 @@ import {
   ChapterWritingPage,
   NovelStructurePage,
 } from "../features/novel-structure";
+import { BackupsPage } from "../features/author-backup";
 import { AppShell } from "./AppShell";
 
 export function AppRouter() {
@@ -61,6 +62,7 @@ export function AppRouter() {
           path="projects/:projectId/chapters/:chapterId/write"
           element={<ChapterWritingPage />}
         />
+        <Route path="backups" element={<BackupsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

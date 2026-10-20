@@ -121,3 +121,52 @@ describe("export-specific browser download audit", () => {
     );
   });
 });
+
+describe("backup-specific browser download audit", () => {
+  const backupId = "20261020T083000Z-0123456789ab";
+  const filename = `aiwebnovel-backup-${backupId}.zip`;
+  const url = `http://127.0.0.1:18120/api/v1/backups/${backupId}/download`;
+  const title = "E2E-INT-022 Author backup flow";
+
+  it("permits exactly one same-origin backup archive download", async () => {
+    const { audit, handler, finalize } = await fixture(title);
+    audit.allowOneExpectedBackupDownload();
+    const event = download(filename, url);
+    handler(event.value);
+    expect(event.cancel).not.toHaveBeenCalled();
+    await expect(finalize()).resolves.toBeUndefined();
+  });
+
+  it("is limited to the backup scenario and a single allowance", async () => {
+    const other = await fixture();
+    expect(() => other.audit.allowOneExpectedBackupDownload()).toThrow();
+    const { audit } = await fixture(title);
+    audit.allowOneExpectedBackupDownload();
+    expect(() => audit.allowOneExpectedBackupDownload()).toThrow();
+    expect(() =>
+      audit.allowOneExpectedManuscriptDownload("归途.txt"),
+    ).toThrow();
+  });
+
+  it.each([
+    ["aiwebnovel-backup-x.zip", url],
+    [filename, "http://127.0.0.1:18120/api/v1/backups/other/download"],
+    [filename, `blob:http://127.0.0.1:18120/${backupId}`],
+    [filename, `https://example.invalid/api/v1/backups/${backupId}/download`],
+  ])("rejects a mismatched backup download %s %s", async (name, target) => {
+    const { audit, handler, finalize } = await fixture(title);
+    audit.allowOneExpectedBackupDownload();
+    const event = download(name, target);
+    handler(event.value);
+    expect(event.cancel).toHaveBeenCalledOnce();
+    await expect(finalize()).rejects.toThrow("Unexpected download");
+  });
+
+  it("fails when the expected backup download never occurs", async () => {
+    const { audit, finalize } = await fixture(title);
+    audit.allowOneExpectedBackupDownload();
+    await expect(finalize()).rejects.toThrow(
+      "Expected backup download was not observed",
+    );
+  });
+});
