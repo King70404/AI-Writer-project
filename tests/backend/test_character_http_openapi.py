@@ -4,6 +4,7 @@ from pathlib import Path
 
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
+    BACKUP_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
@@ -20,11 +21,12 @@ def test_production_api_has_exactly_thirty_eight_operations_and_six_character_ro
         for method in path_operations
         if method in {"get", "post", "put", "patch", "delete"}
     }
-    assert len(operations) == 65
+    assert len(operations) == 70
     assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
+    assert len(BACKUP_OPERATIONS) == 5
     assert operations >= AI_WORKFLOW_OPERATIONS | (
-        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS
+        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS | BACKUP_OPERATIONS
     )
     assert {
         ("GET", "/api/v1/projects/{project_id}/characters"),

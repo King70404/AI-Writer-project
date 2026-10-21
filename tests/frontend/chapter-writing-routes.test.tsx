@@ -23,7 +23,7 @@ import { flushReact, contentResponse } from "./chapter-writing-support";
 import { jsonResponse, projectResponse } from "./project-detail-support";
 
 describe("Chapter writing route inventory", () => {
-  it("has exactly twelve routes with one writing route and no other writing endpoints", () => {
+  it("has exactly thirteen routes with one writing route and no other writing endpoints", () => {
     const root = AppRouter() as ReactElement<{ readonly children: ReactNode }>;
     const children = createRoutesFromChildren(root.props.children)[0].children!;
     expect(
@@ -42,6 +42,7 @@ describe("Chapter writing route inventory", () => {
       "/projects/:projectId/characters/:characterId/history",
       "/projects/:projectId/structure",
       "/projects/:projectId/chapters/:chapterId/write",
+      "/backups",
       "*",
     ]);
     expect(chapterWritingPath(structureProjectId, chapterId)).toBe(

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
+    BACKUP_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
@@ -64,7 +65,7 @@ def test_production_api_inventory_has_exactly_fifty_routes(tmp_path: Path) -> No
         if method in {"get", "post", "put", "patch", "delete"}
     }
     assert routes == EXPECTED_ROUTES | AI_WORKFLOW_OPERATIONS | (
-        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS
+        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS | BACKUP_OPERATIONS
     )
 
 

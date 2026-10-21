@@ -41,6 +41,7 @@ export interface BrowserAudit {
   readonly allowOneExpectedLocalCancellation: (path: string) => void;
   readonly allowOneExpectedSessionCookie: () => void;
   readonly allowOneExpectedManuscriptDownload: (filename: string) => void;
+  readonly allowOneExpectedBackupDownload: () => void;
   readonly allowExpectedConsoleHttpFailure: (
     path: string,
     status: number,
@@ -192,6 +193,9 @@ function isExpectedLocalCancellation(
   return expected;
 }
 
+const BACKUP_ALLOWANCE = "\u0000backup";
+const BACKUP_DOWNLOAD = /^aiwebnovel-backup-(\d{8}T\d{6}Z-[0-9a-f]{12})\.zip$/u;
+
 function addPageDiagnostics(
   page: Page,
   audit: BrowserAudit,
@@ -238,6 +242,17 @@ function addPageDiagnostics(
     }
   });
   page.on("download", (download) => {
+    const backupMatch = BACKUP_DOWNLOAD.exec(download.suggestedFilename());
+    if (
+      expectedDownloads.length === 1 &&
+      expectedDownloads[0] === BACKUP_ALLOWANCE &&
+      backupMatch !== null &&
+      download.url() ===
+        `${endpoint.origin}/api/v1/backups/${backupMatch[1]}/download`
+    ) {
+      expectedDownloads.pop();
+      return;
+    }
     if (
       expectedDownloads.length === 1 &&
       download.suggestedFilename() === expectedDownloads[0] &&
@@ -317,6 +332,16 @@ export async function installBrowserAudit(
       }
       downloadAllowanceIssued = true;
       expectedDownloads.push(filename);
+    },
+    allowOneExpectedBackupDownload: () => {
+      if (
+        !testInfo.title.startsWith("E2E-INT-022 ") ||
+        downloadAllowanceIssued
+      ) {
+        throw new Error("Only INT-022 may permit one backup archive download.");
+      }
+      downloadAllowanceIssued = true;
+      expectedDownloads.push(BACKUP_ALLOWANCE);
     },
     allowOneExpectedHealthCancellation: () => {
       expectedHealthCancellations.count += 1;
@@ -451,7 +476,9 @@ export async function installBrowserAudit(
     finalize: async () => {
       if (expectedDownloads.length > 0) {
         audit.unexpectedDownloads.push(
-          "Expected manuscript download was not observed.",
+          expectedDownloads[0] === BACKUP_ALLOWANCE
+            ? "Expected backup download was not observed."
+            : "Expected manuscript download was not observed.",
         );
       }
       const cookies = await context.cookies();

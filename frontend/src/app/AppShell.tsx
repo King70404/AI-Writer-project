@@ -21,6 +21,7 @@ export function AppShell() {
           工程基础
         </NavLink>
         <NavLink to="/projects">项目</NavLink>
+        <NavLink to="/backups">数据备份</NavLink>
       </nav>
 
       <main className="app-shell__main" id="main-content" tabIndex={-1}>

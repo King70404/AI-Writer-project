@@ -45,7 +45,7 @@ AIWebNovel/
 - `runtime/temp/`：后续可删除的中间文件和短期产物；
 - `runtime/locks/`：后续单实例、维护、迁移和恢复锁；
 - `models/`：后续本地检测模型；
-- `backups/`：后续自动或手动备份；
+- `backups/`：作者手动创建的备份 ZIP（RF-15，格式与规则见 [作者备份](AUTHOR_BACKUP.md)）；
 - `exports/`：后续用户主动导出的文件；
 - `logs/`：后续本地诊断日志；
 - `config/`：后续非敏感本地配置。
@@ -76,7 +76,9 @@ AIWEBNOVEL_DATA_ROOT
 
 ## 运行时与权威数据
 
-`runtime/` 只容纳可重建或短期运行数据。权威 SQLite 数据库位于 `data/`；备份、导出和模型即使以后实现，也分别位于 `backups/`、`exports/` 和 `models/`，不得放入 `runtime/`。
+`runtime/` 只容纳可重建或短期运行数据。权威 SQLite 数据库位于 `data/`；备份、导出和模型分别位于 `backups/`、`exports/` 和 `models/`，不得放入 `runtime/`。备份创建与校验的中间快照只短暂写入 `runtime/temp/`，操作结束即删除。
+
+作者备份只包含 `data/aiwebnovel.sqlite3` 的一致快照，不包含 `config/` 中的模型配置或 Key。恢复从不写当前数据根，而是在新的或空的文件夹中建立独立数据根，见 [作者备份](AUTHOR_BACKUP.md)。
 
 DEV-0.8 仅区分 `runtime/app`、`runtime/temp` 和 `runtime/locks` 并创建空目录，不实现单实例锁、锁协议、任务沙箱、临时文件清理或崩溃恢复。
 
