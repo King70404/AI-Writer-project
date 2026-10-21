@@ -13,6 +13,7 @@
 | `check_e2e_cleanup.ps1`                    | 复核 E2E 自有端口、数据和成功产物的清理。              |
 | `format_code.ps1`                          | 显式修改受管理源码与测试的格式；之后审查差异。         |
 | `author_backup.ps1 <命令> -DataRoot <根>`  | 作者备份创建/列出/校验/恢复为新副本；必须显式给数据根。 |
+| `longform_eval.ps1 -WorkRoot <根> [-Scale small\|full]` | RF-16 长篇规模评测（隔离数据+本地假模型）；默认 small 冒烟，契约结论只来自 full。 |
 
 启动服务保持在前台，使用 `Ctrl+C` 停止；脚本核对 PID 和启动时间，只终止自己启动的进程。服务只绑定环回地址。
 
