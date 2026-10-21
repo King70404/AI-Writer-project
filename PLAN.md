@@ -1,6 +1,6 @@
 # 当前交付
 
-更新：2026-10-21。[长篇记忆与评审 RF-11–14 / #30](https://github.com/King70404/AI-Writer-project/issues/30) 已通过 [PR #31](https://github.com/King70404/AI-Writer-project/pull/31) 合并。当前阶段 RF-15–17（分支 `feature/rf15-17-backup-longform-release`）：RF-15 作者备份/校验/恢复与 RF-16 十万字规模评测已在 Linux 本地完成，待作者 Windows 机器完整门禁；下一项 RF-17 发布验收。规则见 `AGENTS.md`。
+更新：2026-10-21。[长篇记忆与评审 RF-11–14 / #30](https://github.com/King70404/AI-Writer-project/issues/30) 已通过 [PR #31](https://github.com/King70404/AI-Writer-project/pull/31) 合并。当前阶段 RF-15–17（分支 `feature/rf15-17-backup-longform-release`）：RF-15 作者备份/校验/恢复、RF-16 十万字规模评测与 RF-17 发布验收准备均已在 Linux 本地完成；发布验收待作者 Windows 机器完整门禁与作者评估，见 [发布验收](docs/RELEASE_ACCEPTANCE.md)。**未授权任何外部发布动作**（推送、PR、合并、tag、Release）。规则见 `AGENTS.md`。
 
 ## 当前已交付能力
 
@@ -21,7 +21,7 @@
 
 E2E-INT-021 用时 5.8 秒，三次受控真实 HTTP 调用贯通跨章事实、评审、改写、作者采用和来源失效；不代表付费 DeepSeek 或长篇文学质量实测。[GitHub 源码检查](https://github.com/King70404/AI-Writer-project/actions/runs/39019225397) 在本次状态更新时仍运行中，尚未记录远端 PASS。仅状态文档更新复用有效本地证据。
 
-## 活动工作：RF-15–17
+## 活动工作：RF-15–17（本地完成，发布验收待 Windows 与作者）
 
 Linux 本地证据（分支未推送，非共享事实）：
 
@@ -29,7 +29,9 @@ Linux 本地证据（分支未推送，非共享事实）：
 - RF-16：`--scale full` 预登记 13 项阈值 13/13 PASS（测量提交 `90876e3`，墙钟 37.7 s，峰值内存 118 MiB；结果见 [评测 §6](docs/LONGFORM_EVALUATION.md)）；新增 PowerShell 包装器、架构静态检查及 small 规模冒烟测试。
 - 后端（含 RF-16 新增 11 项）：3060 通过、1 跳过，85 项失败均为既有 Windows 专属用例（powershell.exe、Windows 路径、SO_EXCLUSIVEADDRUSE），与基线集合一致；语句/分支 97.22%/92.40%，`check_backend_coverage.py` 通过；ruff format/lint、mypy --platform win32、security AST 通过。
 
-待办阻断：作者 Windows 机器运行 `scripts/quality_gate.ps1 -IncludeE2E`（26 个场景、PowerShell 检查、数据库验后检查，以及 `longform_eval.ps1` 冒烟）后记录精确 SHA，再推送/开 PR。下一项 RF-17 发布验收。召回有数量和字符预算，不宣称全书事实全覆盖或百万字一致性。
+- RF-17：新增 [发布验收清单与报告](docs/RELEASE_ACCEPTANCE.md) 和 [发布说明](docs/RELEASE_NOTES.md)；版本保持 `0.0.0`（仓库无发版约定）。Linux 终验（代码 `9739c78`）：前端 `npm run quality` 864 项，94.46%/90.40%；Linux 等效运行器 26 个场景中 25 个通过（INT-001–018、020–022，DEV-001–003，STARTUP-001），E2E-INT-019 仅因无 DPAPI 失败；security AST、ruff、mypy --platform win32 通过；冻结文件无改动。
+
+待办阻断：按 [发布验收 §3](docs/RELEASE_ACCEPTANCE.md) 在作者 Windows 机器对精确 SHA 运行 `scripts/quality_gate.ps1 -IncludeE2E`（26 个场景含 E2E-INT-019、PowerShell 卫生/安全/启动检查、数据库验后检查）、启动烟测、隔离真实启动器作者流程，以及 `author_backup.ps1`、`longform_eval.ps1` 首次真实运行，结果记入报告 §5 与活动 Issue；文学质量与真实付费模型费用由作者评估。全部通过后仍需作者授权才推送/开 PR，合并与发布另行授权。召回有数量和字符预算，不宣称全书事实全覆盖或百万字一致性。
 
 ## 必须守住
 
