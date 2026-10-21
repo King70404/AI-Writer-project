@@ -131,6 +131,7 @@ class Scale:
     review_chapters: tuple[int, ...]
     probe_sources: tuple[int, ...]
     probe_gaps: tuple[int, ...]
+    min_probes: int
 
 
 SCALES = {
@@ -141,8 +142,9 @@ SCALES = {
         characters_per_chapter=2_300,
         ai_chapters=(9, 21, 33, 45),
         review_chapters=(14, 26, 38, 47),
-        probe_sources=tuple(range(0, 36, 3)),
+        probe_sources=tuple(range(0, 36, 2)),
         probe_gaps=(6, 10, 14, 18, 22),
+        min_probes=12,
     ),
     "small": Scale(
         "small",
@@ -153,6 +155,7 @@ SCALES = {
         review_chapters=(6,),
         probe_sources=(0, 1, 2),
         probe_gaps=(4,),
+        min_probes=2,
     ),
 }
 
@@ -300,6 +303,8 @@ def generate_sample(scale_name: str) -> Sample:
         target = source + scale.probe_gaps[number % len(scale.probe_gaps)]
         if target < total and target not in scale.ai_chapters:
             probes.append(Probe(source, target, f"c{source}-item"))
+    if len(probes) < scale.min_probes:
+        raise ValueError(f"sample has {len(probes)} recall probes, needs {scale.min_probes}")
     reminders: dict[int, list[str]] = {}
     for probe in probes:
         source_place = PLACES[probe.source_chapter % len(PLACES)]
@@ -606,6 +611,22 @@ def revision_counts(database: Path) -> dict[str, int]:
         )
 
 
+def confirmed_fact_ids(database: Path) -> set[str]:
+    """Fact ids whose latest stored revision is confirmed (all projects)."""
+    uri = database.resolve().as_uri() + "?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True)) as connection:
+        return {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT item.entity_id FROM story_memory_revisions AS item "
+                "WHERE json_extract(item.payload, '$.kind') = 'fact' "
+                "AND json_extract(item.payload, '$.status') = 'confirmed' "
+                "AND item.version = (SELECT MAX(latest.version) "
+                "FROM story_memory_revisions AS latest WHERE latest.entity_id = item.entity_id)"
+            )
+        }
+
+
 def percentile(values: list[float], fraction: float) -> float:
     if not values:
         return 0.0
@@ -696,6 +717,7 @@ class LongformEvaluation:
         self.chapters: list[ChapterState] = []
         self.facts: dict[str, FactState] = {}
         self.control_facts: set[str] = set()
+        self.author_confirmed: set[str] = set()
         self.control_chapters: list[str] = []
         self.control_states: list[ChapterState] = []
         self.server: FakeModelServer  # bound in run() before any HTTP step
@@ -810,6 +832,7 @@ class LongformEvaluation:
         ).json()
         if status == "confirmed":
             self.actions["confirm"] += 1
+            self.author_confirmed.add(fact.fact_id)
         fact.revision_id, fact.version = body["revision_id"], body["version"]
         fact.status, fact.source_revision, fact.text = (
             body["status"],
@@ -1256,6 +1279,10 @@ class LongformEvaluation:
         self.log("[longform] phase 5/6 change impact")
         hit_sources = [probe.source_chapter for probe in hits] or [0]
         self._changes(hit_sources[0], database)
+        stored_confirmed = confirmed_fact_ids(database)
+        data["confirmed_fact_ids_stored"] = len(stored_confirmed)
+        data["confirmed_without_author_action"] = len(stored_confirmed - self.author_confirmed)
+        data["author_confirmed_not_stored"] = len(self.author_confirmed - stored_confirmed)
 
     def _backup(self, database: Path) -> None:
         data = self.results.data
@@ -1461,7 +1488,7 @@ class LongformEvaluation:
             "定向召回探针",
             "命中率 ≥90%",
             {"hits": data["probe_hits"], "probes": probes, "rate": round(rate, 4)},
-            rate >= 0.9,
+            rate >= 0.9 and probes >= self.sample.scale.min_probes,
         )
         scenarios = data["change_scenarios"]
         add(
@@ -1549,21 +1576,25 @@ class LongformEvaluation:
             len(calls) == explicit and silent == 0,
         )
         adopted = self.actions["adopt"]
-        confirmed_now = sum(fact.status == "confirmed" for fact in self.facts.values())
+        confirmed_now = data["confirmed_fact_ids_stored"]
         add(
             "LE-12",
             "作者权限",
-            "评审发送前后事实数不变；采用数 = 显式采用操作数；确认事实均来自显式确认",
+            "评审发送前后事实数不变；采用数 = 显式采用操作数；已确认事实集合 = 显式确认过的事实集合",
             {
                 "facts_before_review_send": data["facts_before_review_send"],
                 "facts_after_review_send": data["facts_after_review_send"],
                 "adopt_actions": adopted,
                 "confirm_actions": self.actions["confirm"],
-                "confirmed_facts": confirmed_now,
+                "distinct_facts_confirmed_by_author": len(self.author_confirmed),
+                "confirmed_facts_stored": confirmed_now,
+                "confirmed_without_author_action": data["confirmed_without_author_action"],
+                "author_confirmed_not_stored": data["author_confirmed_not_stored"],
             },
             data["facts_before_review_send"] == data["facts_after_review_send"]
             and adopted == len(self.sample.scale.ai_chapters)
-            and confirmed_now <= self.actions["confirm"],
+            and data["confirmed_without_author_action"] == 0
+            and data["author_confirmed_not_stored"] == 0,
         )
         rss = data["peak_rss_bytes"]
         add(
