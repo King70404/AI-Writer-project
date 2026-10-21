@@ -1,8 +1,8 @@
 # RF-17 发布验收清单与报告
 
-本页是 RF-15–17 候选（分支 `feature/rf15-17-backup-longform-release`）的发布验收入口：列出发布前必须满足的要求、每项当前状态和证据，以及 Windows 执行与记录方法。规则来源：[交付路线](REFRACTOR_ROADMAP.md) 阶段 5、[稳定性协议](ACCEPTANCE_STABILITY.md)、[质量门禁](QUALITY_GATES.md)、[浏览器端到端测试](E2E_TESTING.md)、[Windows CI](CI.md) 与 `AGENTS.md`。候选内容与限制见 [发布说明](RELEASE_NOTES.md)。
+本页是 RF-15–17（2026-10-21 已合并到 `main` 并发布）的发布验收入口：列出发布前必须满足的要求、每项当前状态和证据，以及 Windows 执行与记录方法。规则来源：[交付路线](REFRACTOR_ROADMAP.md) 阶段 5、[稳定性协议](ACCEPTANCE_STABILITY.md)、[质量门禁](QUALITY_GATES.md)、[浏览器端到端测试](E2E_TESTING.md)、[Windows CI](CI.md) 与 `AGENTS.md`。候选内容与限制见 [发布说明](RELEASE_NOTES.md)。
 
-> 路线定义：候选满足发布验收和交付要求。**测试通过不等于已经证明小说质量，发布验收通过也不自动授权未批准的外部发布动作。** 本页任何 PASS 都不授权推送、合并、打 tag、创建 GitHub Release 或分发安装包；这些动作需要作者另行明确授权。
+> 路线定义：候选满足发布验收和交付要求。**测试通过不等于已经证明小说质量，发布验收通过也不自动授权未批准的外部发布动作。** 本页任何 PASS 都不授权推送、合并、打 tag、创建 GitHub Release 或分发安装包；这些动作需要作者另行明确授权。**2026-10-21 作者已明确授权推送、合并与发布，执行记录见 §5。**
 
 ## 1. 候选与结论
 
@@ -13,7 +13,9 @@
 | Windows 验证所用树 | `a9d4db1` 的树 `4034507`（A1 门禁实际执行的工作树），详见 §5 |
 | 版本号 | `0.0.0`，不升版本：后端 `pyproject.toml`/`aiwebnovel.__version__`、前端 `package.json` 与 E2E 启动环境都固定为 `0.0.0`，仓库没有 CHANGELOG、release 工作流或发版约定 |
 | 交付形态 | 源码仓库 + 根目录 `启动 AI 网文助手.cmd`（复用 `scripts/start_integrated.ps1`，提供 `frontend/dist`）；仓库无安装器或打包步骤，CI 只读，不写 release |
-| 当前总结论 | **Windows 门禁、启动烟测、真实启动器作者流程与两个脚本首次真实运行均已 PASS；A18/A19 作者评估与 A20 外部发布授权仍待作者。** 未获作者授权不得合并、打 tag 或发布 |
+| 合并 | [PR #33](https://github.com/King70404/AI-Writer-project/pull/33) 于 2026-10-21 合并到 `main`，合并提交 `8d13c57955943487f6305188cb7c7823d8ad2f80`（树 `f78fb2b10ed39e0efdbca0097d19556fa20fb952`，与 PR head `57ed00f` 相同） |
+| 发布 | [GitHub Release `rf15-17-backup-longform-release`](https://github.com/King70404/AI-Writer-project/releases/tag/rf15-17-backup-longform-release) |
+| 当前总结论 | **Windows 门禁、启动烟测、真实启动器作者流程与两个脚本首次真实运行均已 PASS；已获作者授权完成推送、合并与发布。** 仅 A18/A19 作者评估仍待作者 |
 
 ## 2. 验收清单
 
@@ -40,7 +42,7 @@
 | A17 | 数据与 Git 边界：无正式数据访问，M0–M7 tag 与 24 份冻结文件未改，工作区无未跟踪产物 | AGENTS | PASS-Windows | Windows 验收只用自有隔离根；冻结文件未改；工作区无未跟踪产物 |
 | A18 | 小说文学质量（情节、文笔、人物一致性） | 路线定义 | PENDING-作者 | 合成样本不具文学价值，任何测试都不能代替 |
 | A19 | 真实付费模型（如 DeepSeek）输出质量、长度遵守与实际费用 | LONGFORM_EVALUATION §4 | PENDING-作者 | 需作者提供 Key 并授权费用；仓库不持久化计费字段 |
-| A20 | 推送、PR、合并、tag、GitHub Release 等外部动作 | AGENTS / 路线定义 | PENDING-作者授权 | 本候选未执行任何外部动作 |
+| A20 | 推送、PR、合并、tag、GitHub Release 等外部动作 | AGENTS / 路线定义 | PASS-作者授权（2026-10-21） | 推送 `a9d4db1`、`57ed00f` 到 PR #33，合并为 `8d13c57`，创建 tag 与 GitHub Release `rf15-17-backup-longform-release` |
 | A21 | 发布说明与本清单 | RF-17 | PASS | [发布说明](RELEASE_NOTES.md)、本页 |
 
 ## 3. Windows 执行步骤（2026-10-21 已在作者 Windows 机器执行完成，结果见 §5）
@@ -82,7 +84,7 @@ A11：新开 `cmd`，`set LOCALAPPDATA=<新建的自有临时目录>` 后运行�
 
 1. 在本页 §5 追加一行：日期、`$sha`、`$tree`、每个 A 项的 PASS/FAIL、退出码、关键数字（后端/前端测试数与覆盖率、E2E 场景数、评测墙钟/内存）、日志文件名（`.runtime\rf17-*.log`，Git 忽略，不提交）。
 2. 同一内容发到活动交付 Issue（RF-15–17 主任务）评论，作为共享事实源；日志中不得出现绝对用户路径、Key、Cookie。
-3. 更新 `PLAN.md` “最新有效证据”为该 SHA。全部 PENDING-Windows 项 PASS 后，才可在作者授权下推送/开 PR；合并与任何发布动作仍需作者单独授权。A18/A19 由作者给出结论后记录在同一 Issue。
+3. 更新 `PLAN.md` “最新有效证据”为该 SHA。全部 PENDING-Windows 项 PASS 后，才可在作者授权下推送/开 PR；合并与任何发布动作仍需作者单独授权。作者已于 2026-10-21 授权并完成推送、合并与发布（见 §5）。A18/A19 由作者给出结论后记录在同一 Issue。
 
 ## 4. Linux 实测结果（本候选）
 
@@ -109,9 +111,16 @@ A11：新开 `cmd`，`set LOCALAPPDATA=<新建的自有临时目录>` 后运行�
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-10-21 | `a9d4db1` / `4034507` | PASS | PASS | PASS | PASS | PASS | PASS | Windows 11 10.0.26200；Python 3.12.10、Node 24.18.0、pwsh 7.6.7、Playwright 1.61.1/Chromium 149。A1 退出码 0、21.1 分钟：后端 3,146 项通过（语句 96.62%）、前端 864 项（94.46%/90.40%/95.65%/95.44%）、26 个 E2E 场景全过（含 DPAPI E2E-INT-019、备份 E2E-INT-022）、清理复核通过；A10 两种模式 PASS；A11 启动器全流程与恢复副本正文核对 PASS；A12 create/list/verify/restore PASS（1 小说/1 章/2 版本）；A13 small/full PASS，full 13/13、33.2 s、112,847 字、DB 10.0 MB、ZIP 0.65 MB、工作台 p95 154.9 ms（Windows 未采集峰值 RSS）。日志 `.runtime/rf17-*.log` |
 
-本次 Windows 验收修复两处真实兼容问题（提交 `a9d4db1`，未推送）：
+本次 Windows 验收修复两处真实兼容问题（提交 `a9d4db1`，已随 PR #33 推送并合并）：
 
 1. `scripts/author_backup.ps1` 在 pwsh 7 下用 `$null` 清除 `AIWEBNOVEL_DATABASE_URL` 会留下空字符串，备份 CLI 因此返回 `CONFIGURATION_UNAVAILABLE`；改用 `[NullString]::Value` 清除环境变量，Windows PowerShell 5.1 与 pwsh 7 行为一致。
 2. `tests/backend/test_author_backup_service.py` 的符号链接目标拒绝用例在无 `SeCreateSymbolicLinkPrivilege` 的普通 Windows 账户下无法创建 symlink（WinError 1314）；按 reparse point 语义回退到目录 junction，断言不变，仅在两种形式都不可用时跳过。
 
 限制：Windows 上 `resource` 模块不可用，长篇评测未采集峰值常驻内存（LE-13 仅墙钟有实测值，未据此声称内存已测）；文学质量与真实付费模型仍由作者评估（A18/A19）。
+
+### 合并与发布（2026-10-21）
+
+- PR #33 head `57ed00f`（树 `f78fb2b`）`Windows Default`（push 运行 39600810457）与 `Windows Full`（PR 运行 39600820555，含 26 个 E2E）检查通过。PR #33 的首次 `Windows Default` 在 CI runner 上出现一次长篇评测 small 计时波动失败（同 SHA 的 `Windows Full` 与 push 运行均通过，本地连续 10 次 small 运行通过），重跑 `Windows Default` 后通过；未降低阈值、未跳过测试，该 runner 波动如实保留。
+- [PR #33](https://github.com/King70404/AI-Writer-project/pull/33) 合并为 `8d13c57955943487f6305188cb7c7823d8ad2f80`；合并提交的树 `f78fb2b10ed39e0efdbca0097d19556fa20fb952` 与候选树相同。合并后 `main` 的 `Windows Default` 运行 [39608471021](https://github.com/King70404/AI-Writer-project/actions/runs/39608471021) 通过。
+- 发布 [GitHub Release `rf15-17-backup-longform-release`](https://github.com/King70404/AI-Writer-project/releases/tag/rf15-17-backup-longform-release)。
+- A18/A19 仍由作者评估；本页任何 PASS 不改变该边界。

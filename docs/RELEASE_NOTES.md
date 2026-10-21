@@ -2,9 +2,11 @@
 
 每个候选一节，最新在上。版本号仍为 `0.0.0`（后端 `pyproject.toml`/`__version__`、前端 `package.json` 均未建立发版约定，本候选不升版本）。验收状态见 [发布验收](RELEASE_ACCEPTANCE.md)。
 
-## RF-15–17 候选（分支 `feature/rf15-17-backup-longform-release`，未合并、未发布）
+## RF-15–17（已合并并发布，2026-10-21）
 
-代码候选 `9739c78`（RF-17 只增加文档）；Windows 验收代码 `a9d4db1`（两处 Windows 兼容修复，详见[发布验收 §5](RELEASE_ACCEPTANCE.md#5-windows-结果记录)）。本节描述候选内容，不代表已经正式发布；未经作者明确授权不创建 GitHub Release、tag 或推送。
+合并：[PR #33](https://github.com/King70404/AI-Writer-project/pull/33) → `main` `8d13c57`（树与候选 `57ed00f` 相同）；发布：[GitHub Release `rf15-17-backup-longform-release`](https://github.com/King70404/AI-Writer-project/releases/tag/rf15-17-backup-longform-release)。
+
+代码候选 `9739c78`（RF-17 只增加文档）；Windows 验收代码 `a9d4db1`（两处 Windows 兼容修复，详见[发布验收 §5](RELEASE_ACCEPTANCE.md#5-windows-结果记录)）。
 
 ### 新增
 
@@ -16,7 +18,7 @@
 
 - 备份不含模型配置与 API Key（DPAPI 按用户保护），恢复后需重新填写；备份未加密，不自动定时、不自动清理；单库上限 8 GiB，列表最多 200 个；切换到恢复副本需作者手动以新数据根启动。
 - 评测样本是无文学价值的合成文本：**不证明小说文学质量**；未调用真实付费模型，token 为估算、未算货币费用；未覆盖百万字、十万字下浏览器渲染、多会话并发及 Windows 峰值内存；Windows 门禁、DPAPI 与脚本首次真实运行已由[发布验收 §5](RELEASE_ACCEPTANCE.md#5-windows-结果记录)复核。召回为确定性二元组关联，有数量和字符预算，不承诺全书事实覆盖。
-- Windows 完整门禁已于 2026-10-21 在作者 Windows 机器执行通过（`quality_gate.ps1 -IncludeE2E` 退出码 0；26 个浏览器场景含 DPAPI 的 `E2E-INT-019` 与备份恢复 `E2E-INT-022`；启动烟测；隔离真实启动器作者流程；`author_backup.ps1` 与 `longform_eval.ps1` 首次真实运行）。A18/A19 作者评估与外部发布动作仍待作者。
+- Windows 完整门禁已于 2026-10-21 在作者 Windows 机器执行通过（`quality_gate.ps1 -IncludeE2E` 退出码 0；26 个浏览器场景含 DPAPI 的 `E2E-INT-019` 与备份恢复 `E2E-INT-022`；启动烟测；隔离真实启动器作者流程；`author_backup.ps1` 与 `longform_eval.ps1` 首次真实运行）。A18/A19 作者评估仍待作者。
 
 ### 升级与兼容
 

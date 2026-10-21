@@ -1,6 +1,6 @@
 # 开发路线：按完整成果交付
 
-目标是让作者在 Windows 本地可控地写完长篇小说。2026-10-17 当前状态：V1、完整 AI 协作、范文分析与章节规划，以及 [RF-11–14 / #30](https://github.com/King70404/AI-Writer-project/issues/30) 的长篇记忆与评审均已交付；本阶段通过本地完整 IncludeE2E，并经 [PR #31](https://github.com/King70404/AI-Writer-project/pull/31) 合并。下一阶段进入 RF-15–17 备份恢复、十万字质量与费用验证。精确证据和远端检查状态以 PLAN 为准。
+目标是让作者在 Windows 本地可控地写完长篇小说。2026-10-21 当前状态：V1、完整 AI 协作、范文分析与章节规划、[RF-11–14 / #30](https://github.com/King70404/AI-Writer-project/issues/30) 的长篇记忆与评审，以及 RF-15–17 的备份恢复、十万字评测与发布验收均已完成；阶段 5 经 [PR #33](https://github.com/King70404/AI-Writer-project/pull/33) 合并并发布。精确证据和远端检查状态以 PLAN 为准。
 
 本路线在 [DOC-GOV-2 / #21](https://github.com/King70404/AI-Writer-project/issues/21) 整理后，依用户最新明确指令调整：**V1 必要修复与 RF-06–10 并行推进，原 RF-01–05 故事规划阶段后移**。当前状态见 [PLAN.md](../PLAN.md)，已有能力见 [功能真实性矩阵](FEATURE_REALITY_MATRIX.md)。两项实施均已获授权，不再停在规划交接。
 
@@ -69,10 +69,12 @@ RF-09 必须先于 RF-10。持续生成不等于自动把未经作者确认的�
 
 本阶段已完成实现和本地完整交付验证，并通过 PR #31 合并。范围与证据统一记录于 [#30](https://github.com/King70404/AI-Writer-project/issues/30) 和 PLAN。操作与明确预算见 [长篇记忆与评审](LONGFORM_MEMORY.md)；内部 RF 连续完成，不另设交接停点。
 
-### 下一阶段：完成长篇验证与发布（RF-15–17）
+### 已交付：完成长篇验证与发布（RF-15–17）
 
 完成升级、备份与恢复，再用持续写作评估检查质量、稳定性、费用与规模限制，最后进入正式发布验收。
 
 长篇验证先以 10 万字为节点，百万字支持作为长期目标；具体样本与资源预算在产品契约中确定，不能把目标规模写成已通过的能力。
 
 完成定义：在自有隔离数据上验证升级和备份恢复，证明已有正文与确认事实受到保护；长篇评测按事先确定的样本、长度、质量与成本标准输出证据及限制；候选满足发布验收和交付要求。测试通过不等于已经证明小说质量，发布验收通过也不自动授权未批准的外部发布动作。
+
+2026-10-21 已交付：Windows 完整 `quality_gate.ps1 -IncludeE2E`（退出码 0，含 26 个 E2E、DPAPI 与备份恢复）、启动烟测、隔离真实启动器作者流程、`author_backup.ps1` 与 `longform_eval.ps1` 首次真实运行均通过；[PR #33](https://github.com/King70404/AI-Writer-project/pull/33) 合并为 `8d13c57` 并发布 [GitHub Release `rf15-17-backup-longform-release`](https://github.com/King70404/AI-Writer-project/releases/tag/rf15-17-backup-longform-release)。证据与限制见 [发布验收](RELEASE_ACCEPTANCE.md)；文学质量与真实付费模型费用仍由作者评估。
