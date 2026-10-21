@@ -6,6 +6,8 @@ import hashlib
 import io
 import json
 import sqlite3
+import subprocess
+import sys
 import zipfile
 from collections.abc import Callable
 from contextlib import closing
@@ -343,6 +345,27 @@ def test_restore_rejects_targets_overlapping_current_data(
     assert not (paths.root / "copy").exists()
 
 
+def _redirected_directory(link: Path, target: Path) -> None:
+    """Create a directory link, falling back to a junction when Windows refuses symlinks.
+
+    Unprivileged Windows accounts cannot create symbolic links (WinError 1314), but a
+    directory junction is also a reparse point and exercises the same redirect checks.
+    """
+    try:
+        link.symlink_to(target, target_is_directory=True)
+        return
+    except OSError as exc:
+        if sys.platform != "win32" or getattr(exc, "winerror", None) != 1314:
+            raise
+    result = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(link), str(target)],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        pytest.skip("Windows denied both symbolic-link and junction creation")
+
+
 def test_restore_rejects_symlinked_targets_and_allowed_parent_escape(
     tmp_path: Path, template: Path
 ) -> None:
@@ -352,7 +375,8 @@ def test_restore_rejects_symlinked_targets_and_allowed_parent_escape(
     real = tmp_path / "real"
     real.mkdir()
     link = tmp_path / "link"
-    link.symlink_to(real, target_is_directory=True)
+    _redirected_directory(link, real)
+    assert link.is_symlink() or link.is_junction()
     with pytest.raises(RestoreTargetInvalid):
         service.restore(backup_id, link)
     with pytest.raises(RestoreTargetInvalid):

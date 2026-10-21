@@ -116,7 +116,12 @@ $childEnvironment = @{
 }
 foreach ($name in $childEnvironment.Keys) {
     $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
-    [Environment]::SetEnvironmentVariable($name, $childEnvironment[$name], "Process")
+    $value = $childEnvironment[$name]
+    if ($null -eq $value) {
+        [Environment]::SetEnvironmentVariable($name, [NullString]::Value, "Process")
+    } else {
+        [Environment]::SetEnvironmentVariable($name, [string]$value, "Process")
+    }
 }
 try {
     $global:LASTEXITCODE = 0
@@ -124,7 +129,12 @@ try {
     $exitCode = $LASTEXITCODE
 } finally {
     foreach ($name in $savedEnvironment.Keys) {
-        [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name], "Process")
+        $value = $savedEnvironment[$name]
+        if ($null -eq $value) {
+            [Environment]::SetEnvironmentVariable($name, [NullString]::Value, "Process")
+        } else {
+            [Environment]::SetEnvironmentVariable($name, [string]$value, "Process")
+        }
     }
 }
 exit $exitCode
