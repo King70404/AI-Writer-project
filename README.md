@@ -12,7 +12,7 @@ RF-06–10 的 AI 协作流程已完成，通过完整 CI 与隔离作者流程�
 
 `配置本地/云端模型 → 预览实际上下文 → 生成并保留候选 → 作者确认采纳 → 继续生成、暂停或恢复`
 
-需自备 OpenAI-compatible 模型服务；云端 API Key 受 Windows DPAPI 保护。任务与候选持久保存，连续生成每段 200–300 字，未经作者确认不写入正文。使用方法和限制见 [AI 协作说明](docs/AI_COLLABORATION.md)；长期故事记忆仍属后续阶段。
+需自备 OpenAI-compatible 模型服务；云端 API Key 受 Windows DPAPI 保护。任务与候选持久保存，连续生成每段 200–300 字，未经作者确认不写入正文。使用方法和限制见 [AI 协作说明](docs/AI_COLLABORATION.md)；已有带来源版本的有限跨章记忆，边界见 [长篇记忆](docs/LONGFORM_MEMORY.md)。
 
 范文学习与长篇准备的使用入口见 [范文分析与章节规划](docs/REFERENCE_WRITING.md)：粘贴句段、对照分析、确认可复用的方法，再按章选用规则、场景与连续性要求。当前实现及验证状态以 [PLAN.md](PLAN.md) 为准。
 
@@ -27,6 +27,7 @@ RF-06–10 的 AI 协作流程已完成，通过完整 CI 与隔离作者流程�
 ## 从哪里开始
 
 - 继续开发：先读 [AGENTS.md](AGENTS.md) 和 [PLAN.md](PLAN.md)。
+- 接手产品体验与 UI 改造：[产品设计交接包](docs/product/README.md)，含功能设定、流程优化和可点击离线原型；这些是待实施设计。
 - 看未来五个交付阶段：[开发路线](docs/REFRACTOR_ROADMAP.md)。
 - 启动、停止、数据隔离：[本地启动](docs/LOCAL_STARTUP.md)。
 - 配置模型、查看上下文、采纳候选与暂停恢复：[AI 协作说明](docs/AI_COLLABORATION.md)。
