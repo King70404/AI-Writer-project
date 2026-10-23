@@ -26,6 +26,7 @@ from aiwebnovel.domain.errors import DomainError
 from aiwebnovel.novel_structure.application.queries import GetChapterContentQuery
 from aiwebnovel.novel_structure.application.services import NovelStructureQueryService
 from aiwebnovel.novel_structure.identifiers import ChapterId
+from aiwebnovel.usage.attribution import usage_attribution
 
 
 class AIWorkflowService:
@@ -161,7 +162,8 @@ class AIWorkflowService:
         if run.operation == "rewrite":
             messages += (GenerationMessage("user", "待改写text:\n" + run.selected_text),)
         try:
-            generated = self._provider(run.profile_id, messages, limit, run.model_snapshot)
+            with usage_attribution("generation", run.run_id, chapter_id=chapter_id):
+                generated = self._provider(run.profile_id, messages, limit, run.model_snapshot)
             if type(generated) is not GeneratedText:
                 raise AIProviderInvalidResponse
             count = sum(not character.isspace() for character in generated.text)

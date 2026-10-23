@@ -9,7 +9,11 @@ import ssl
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from aiwebnovel.ai_writing.application.models import GeneratedText, GenerationMessage
+from aiwebnovel.ai_writing.application.models import (
+    GeneratedText,
+    GenerationMessage,
+    parse_provider_usage,
+)
 from aiwebnovel.ai_writing.errors import (
     AIProviderAccessDenied,
     AIProviderAuthFailed,
@@ -192,7 +196,7 @@ def generate_text(
             text = data["choices"][0]["message"]["content"]
         except (ValueError, KeyError, IndexError, TypeError, RecursionError):
             raise AIProviderInvalidResponse from None
-        return GeneratedText(text, profile.model)
+        return GeneratedText(text, profile.model, parse_provider_usage(data))
     except TimeoutError:
         raise AIProviderTimeout from None
     except (OSError, http.client.HTTPException):

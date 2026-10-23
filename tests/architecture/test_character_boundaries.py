@@ -409,7 +409,7 @@ def test_application_and_list_reader_imports_have_no_runtime_or_schema_side_effe
     expected_tables = (
         '["ai_workflow_candidates", "ai_workflow_runs", '
         '"chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
-        '"character_heads", "character_revisions", "characters", '
+        '"character_heads", "character_revisions", "characters", "model_usage_attempts", '
         '"outline_heads", "outline_revisions", "outlines", '
         '"project_heads", "project_revisions", "projects", '
         '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_memory_revisions", '
@@ -453,7 +453,7 @@ def test_character_web_import_has_no_runtime_or_schema_side_effects(
     expected_tables = (
         '["ai_workflow_candidates", "ai_workflow_runs", '
         '"chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
-        '"character_heads", "character_revisions", "characters", '
+        '"character_heads", "character_revisions", "characters", "model_usage_attempts", '
         '"outline_heads", "outline_revisions", "outlines", '
         '"project_heads", "project_revisions", "projects", '
         '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_memory_revisions", '

@@ -4,6 +4,7 @@ import json
 import os
 import re
 import tempfile
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from threading import RLock
@@ -309,7 +310,10 @@ class ModelGatewayService:
         *,
         max_output_tokens: int | None = None,
         expected_configuration: tuple[str, str, str, int] | None = None,
+        before_send: Callable[[ModelProfile], None] | None = None,
     ) -> GeneratedText:
+        """Generate once. ``before_send`` runs after every local check, right before
+        the provider request, so callers can meter exactly the requests that go out."""
         with self._lock:
             record = self._find(self._read(), profile_id)
             if expected_configuration is not None and expected_configuration != (
@@ -325,4 +329,6 @@ class ModelGatewayService:
         limit = record.profile.max_output_tokens if max_output_tokens is None else max_output_tokens
         if type(limit) is not int or not 1 <= limit <= record.profile.max_output_tokens:
             raise InvalidAIInput
+        if before_send is not None:
+            before_send(record.profile)
         return generate_text(record.profile, messages, api_key=key, max_output_tokens=limit)

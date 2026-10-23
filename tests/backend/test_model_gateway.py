@@ -278,6 +278,35 @@ def test_real_local_generation_sends_cap_without_proxy_or_key(
     assert payload["stream"] is False and "Authorization" not in headers
     with pytest.raises(InvalidAIInput):
         service.generate(profile.id, MESSAGES, max_output_tokens=513)
+    assert result.usage is None  # No usage field is reported as unknown, never zero.
+
+
+def test_provider_reported_usage_and_before_send_hook_follow_local_checks(
+    tmp_path: Path,
+) -> None:
+    response = json.dumps(
+        {
+            "choices": [{"message": {"content": "带用量"}}],
+            "usage": {"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18},
+        }
+    ).encode()
+    service = ModelGatewayService(tmp_path)
+    opened: list[str] = []
+    with mock_server(response) as (url, received):
+        profile = service.create_profile(**{**LOCAL, "base_url": url})
+        with pytest.raises(InvalidAIInput):
+            service.generate(
+                profile.id,
+                MESSAGES,
+                max_output_tokens=513,
+                before_send=lambda p: opened.append(p.id),
+            )
+        assert opened == [] and received == []
+        result = service.generate(profile.id, MESSAGES, before_send=lambda p: opened.append(p.id))
+    assert opened == [profile.id] and len(received) == 1
+    assert result.usage is not None
+    assert (result.usage.input_tokens, result.usage.output_tokens) == (11, 7)
+    assert result.usage.total_tokens == 18
 
 
 def test_cloud_key_only_reaches_authorization_header(

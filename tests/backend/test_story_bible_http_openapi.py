@@ -7,6 +7,7 @@ from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
     BACKUP_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
+    USAGE_OPERATIONS,
     WORKBENCH_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
@@ -70,6 +71,7 @@ def test_production_api_inventory_has_exactly_fifty_routes(tmp_path: Path) -> No
         | STORY_MEMORY_OPERATIONS
         | BACKUP_OPERATIONS
         | WORKBENCH_OPERATIONS
+        | USAGE_OPERATIONS
     )
 
 

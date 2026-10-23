@@ -28,6 +28,7 @@ from aiwebnovel.db.model_registry import (
     AI_WORKFLOW_TABLE_NAMES,
     BUSINESS_TABLE_NAMES,
     STORY_MEMORY_TABLE_NAMES,
+    USAGE_TABLE_NAMES,
     WORKBENCH_TABLE_NAMES,
     WRITING_STUDIO_TABLE_NAMES,
 )
@@ -38,13 +39,14 @@ from .test_novel_structure_migration import _run_alembic
 
 pytestmark = pytest.mark.integration
 _OLD = "0006_add_chapter_manuscript_content"
-_NEW = "0010_add_chapter_editorial_states"
+_NEW = "0011_add_model_usage_ledger"
 _AUTHOR_TABLES = (
     BUSINESS_TABLE_NAMES
     - AI_WORKFLOW_TABLE_NAMES
     - WRITING_STUDIO_TABLE_NAMES
     - STORY_MEMORY_TABLE_NAMES
     - WORKBENCH_TABLE_NAMES
+    - USAGE_TABLE_NAMES
 )
 
 
@@ -118,6 +120,29 @@ def test_story_memory_database_upgrade_adds_empty_immutable_editorial_table(lega
     assert _version(backups[0]) == "0009_add_story_memory"
 
 
+def test_workbench_database_upgrade_adds_empty_settle_once_usage_ledger(legacy):
+    migrated = _run_alembic(
+        legacy.paths.database_file, "upgrade", "0010_add_chapter_editorial_states"
+    )
+    assert migrated.returncode == 0, migrated.stderr
+    before = _snapshot(legacy.paths.database_file)
+    upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert _version(legacy.paths.database_file) == _NEW
+    assert _snapshot(legacy.paths.database_file) == before
+    with closing(sqlite3.connect(legacy.paths.database_file)) as connection:
+        assert connection.execute("SELECT count(*) FROM model_usage_attempts").fetchone() == (0,)
+        assert connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='trigger' "
+            "AND tbl_name='model_usage_attempts' ORDER BY name"
+        ).fetchall() == [
+            ("trg_model_usage_attempts_no_delete",),
+            ("trg_model_usage_attempts_settle_once",),
+        ]
+    backups = list(legacy.paths.backups.glob("before-ai-workflow-*.sqlite3"))
+    assert len(backups) == 1
+    assert _version(backups[0]) == "0010_add_chapter_editorial_states"
+
+
 def upgrade_ai_workflow_database(engine: Engine, paths: StoragePaths) -> None:
     _upgrade_database(
         engine,
@@ -169,7 +194,7 @@ def _snapshot(path: Path) -> tuple[dict[str, list[tuple]], list[tuple]]:
         objects = connection.execute(
             "SELECT type, name, tbl_name, sql FROM sqlite_master "
             "WHERE name NOT LIKE 'sqlite_%' AND tbl_name NOT LIKE 'ai_workflow_%' "
-            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions') ORDER BY name"
+            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions', 'model_usage_attempts') ORDER BY name"
         ).fetchall()
         return data, objects
 

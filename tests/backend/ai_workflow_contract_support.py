@@ -51,3 +51,7 @@ WORKBENCH_OPERATIONS = {
     ("GET", "/api/v1/chapters/{chapter_id}/editorial-state"),
     ("PUT", "/api/v1/chapters/{chapter_id}/editorial-state"),
 }
+
+USAGE_OPERATIONS = {
+    ("GET", "/api/v1/projects/{project_id}/usage"),
+}

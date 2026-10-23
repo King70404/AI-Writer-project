@@ -99,6 +99,7 @@ from aiwebnovel.story_bible.web import (
     create_story_bible_router,
 )
 from aiwebnovel.story_memory.web import create_story_memory_router
+from aiwebnovel.usage.web import create_usage_router
 from aiwebnovel.web.frontend import FrontendStaticService
 from aiwebnovel.workbench.web import create_workbench_router
 from aiwebnovel.writing_studio.web import create_writing_studio_router
@@ -429,6 +430,7 @@ def create_app(
                             application.state.chapter_planning_service,
                             application.state.story_memory_service,
                             application.state.workbench_service,
+                            application.state.usage_ledger_service,
                         ) = workflow
 
                     # Capture this lifespan's engine: the request cannot choose a path,
@@ -491,6 +493,7 @@ def create_app(
                             application.state.chapter_planning_service,
                             application.state.story_memory_service,
                             application.state.workbench_service,
+                            application.state.usage_ledger_service,
                         ) = enabled
                         application.state.ai_workflow_schema_required = False
 
@@ -521,6 +524,7 @@ def create_app(
             application.state.chapter_planning_service = None
             application.state.story_memory_service = None
             application.state.workbench_service = None
+            application.state.usage_ledger_service = None
             application.state.ai_workflow_setup_service = None
             application.state.author_backup_service = None
             application.state.model_gateway_service = None
@@ -566,6 +570,7 @@ def create_app(
     application.state.chapter_planning_service = None
     application.state.story_memory_service = None
     application.state.workbench_service = None
+    application.state.usage_ledger_service = None
     application.state.ai_workflow_setup_service = None
     application.state.author_backup_service = None
     application.state.ai_workflow_schema_required = False
@@ -638,6 +643,7 @@ def create_app(
     application.include_router(create_chapter_planning_router(api_prefix=api_prefix))
     application.include_router(create_story_memory_router(api_prefix=api_prefix))
     application.include_router(create_workbench_router(api_prefix=api_prefix))
+    application.include_router(create_usage_router(api_prefix=api_prefix))
     application.include_router(create_ai_setup_router(api_prefix=api_prefix))
     application.include_router(create_model_gateway_router(api_prefix=api_prefix))
     application.include_router(create_export_router(api_prefix=api_prefix))

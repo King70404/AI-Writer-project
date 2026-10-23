@@ -38,6 +38,7 @@ WRITING_STUDIO_TABLE_NAMES = frozenset(
 )
 STORY_MEMORY_TABLE_NAMES = frozenset({"story_memory_revisions"})
 WORKBENCH_TABLE_NAMES = frozenset({"chapter_editorial_revisions"})
+USAGE_TABLE_NAMES = frozenset({"model_usage_attempts"})
 BUSINESS_TABLE_NAMES = (
     PROJECT_TABLE_NAMES
     | STORY_BIBLE_TABLE_NAMES
@@ -47,6 +48,7 @@ BUSINESS_TABLE_NAMES = (
     | WRITING_STUDIO_TABLE_NAMES
     | STORY_MEMORY_TABLE_NAMES
     | WORKBENCH_TABLE_NAMES
+    | USAGE_TABLE_NAMES
 )
 
 
@@ -84,6 +86,7 @@ def load_model_metadata() -> MetaData:
         StoryBibleRevisionRecord,
     )
     from aiwebnovel.story_memory.persistence import StoryMemoryRevisionRecord
+    from aiwebnovel.usage.persistence import ModelUsageAttemptRecord
     from aiwebnovel.workbench.persistence import ChapterEditorialRevisionRecord
     from aiwebnovel.writing_studio.persistence.models import (
         WritingReferenceRecord,
@@ -98,6 +101,7 @@ def load_model_metadata() -> MetaData:
         ChapterPlanRevisionRecord,
         StoryMemoryRevisionRecord,
         ChapterEditorialRevisionRecord,
+        ModelUsageAttemptRecord,
         ProjectRecord,
         ProjectRevisionRecord,
         ProjectHeadRecord,

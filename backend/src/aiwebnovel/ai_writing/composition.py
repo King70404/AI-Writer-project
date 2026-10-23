@@ -24,6 +24,8 @@ from aiwebnovel.storage.paths import StoragePaths
 from aiwebnovel.story_bible.application.services import StoryBibleQueryService
 from aiwebnovel.story_memory.composition import compose_story_memory
 from aiwebnovel.story_memory.service import StoryMemoryService
+from aiwebnovel.usage.composition import compose_usage_ledger
+from aiwebnovel.usage.service import UsageLedgerService
 from aiwebnovel.workbench.composition import compose_workbench
 from aiwebnovel.workbench.service import WorkbenchService
 from aiwebnovel.writing_studio.application.service import WritingStudioService
@@ -61,6 +63,7 @@ def compose_ai_workflow(
         ChapterPlanningService,
         StoryMemoryService,
         WorkbenchService,
+        UsageLedgerService,
     ]
     | None
 ):
@@ -77,6 +80,7 @@ def compose_ai_workflow(
         "chapter_plan_revisions",
         "story_memory_revisions",
         "chapter_editorial_revisions",
+        "model_usage_attempts",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
@@ -90,6 +94,8 @@ def compose_ai_workflow(
             default_base_url=settings.ai_base_url,
             default_model=settings.ai_model,
         )
+        usage = compose_usage_ledger(session_factory, projects)
+        usage.recover_interrupted()
 
         def generate(
             profile_id: str | None,
@@ -108,8 +114,16 @@ def compose_ai_workflow(
                     model_snapshot.max_output_tokens,
                 )
             )
-            return gateway.generate(
-                profile_id or "default-local", messages, expected_configuration=expected
+            # Every request that leaves the process is recorded under the caller's
+            # explicit attribution; local pre-send failures write no ledger row.
+            return usage.metered(
+                messages,
+                lambda before_send: gateway.generate(
+                    profile_id or "default-local",
+                    messages,
+                    expected_configuration=expected,
+                    before_send=before_send,
+                ),
             )
 
         def read_model(profile_id: str | None) -> ModelSnapshot:
@@ -160,6 +174,7 @@ def compose_ai_workflow(
             planning,
             memory,
             compose_workbench(session_factory, projects),
+            usage,
         )
     except BaseException:
         runtime.close()
