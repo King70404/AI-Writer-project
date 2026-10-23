@@ -15,6 +15,7 @@ import {
 import { ProjectApiError } from "../../projects/api/errors";
 import { formatProjectTimestamp } from "../../projects/formatting";
 import { projectStructurePath } from "../../projects/routing";
+import { WorkspaceSummaryPanel } from "../components/WorkspaceSummaryPanel";
 import {
   forgetRecentChapter,
   lastRecentChapter,
@@ -144,6 +145,7 @@ function ContinueWritingCard({
       <Link className="button-link button-link--primary" to={writePath}>
         继续写作
       </Link>
+      <WorkspaceSummaryPanel projectId={recent.projectId} compact />
     </div>
   );
 }

@@ -1941,3 +1941,122 @@ summary:focus-visible {
   color: var(--ink-muted);
   font-size: 0.9rem;
 }
+
+/* A2 工作台汇总与章节状态 */
+.workspace-summary {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--paper-sheet);
+}
+
+.workspace-summary h3,
+.workspace-summary h4,
+.workspace-summary p {
+  margin: 0;
+}
+
+.workspace-summary h4 {
+  font-size: 1rem;
+}
+
+.workspace-summary__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.workspace-summary__totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.workspace-summary__totals div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.workspace-summary__totals dt {
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+
+.workspace-summary__totals dd {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.workspace-summary__note {
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+
+.workspace-summary__volumes,
+.workspace-summary__actions {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.workspace-summary__todo {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.workspace-summary__action-label {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.workspace-summary__chapters {
+  display: grid;
+  gap: 0.5rem;
+  overflow-x: auto;
+}
+
+.workspace-summary__chapters table {
+  border-collapse: collapse;
+  min-width: 100%;
+}
+
+.workspace-summary__chapters th,
+.workspace-summary__chapters td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.editorial-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+}
+
+.editorial-status p {
+  margin: 0;
+}
+
+.editorial-status__changed {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.editorial-status__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex-basis: 100%;
+}

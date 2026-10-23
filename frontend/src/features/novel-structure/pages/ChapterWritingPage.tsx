@@ -23,6 +23,7 @@ import {
   recordRecentChapter,
 } from "../../workbench/recentWriting";
 import type { SelectionSnapshot } from "../hooks/useAIWriting";
+import { EditorialStatusControl } from "../../workbench/components/EditorialStatusControl";
 
 const SAVE_LABELS: Record<SaveStatus, string> = {
   saved: "已保存",
@@ -122,6 +123,11 @@ function WritingEditor({
           </p>
           <p aria-label="字符数">字符数：{state.content.length}</p>
           <p aria-label="AI 任务状态">{taskStatus}</p>
+          <EditorialStatusControl
+            chapterId={chapter.chapter_id}
+            savedRevisionId={state.snapshot.resource.current_revision_id}
+            flush={flush}
+          />
           <button
             type="button"
             disabled={

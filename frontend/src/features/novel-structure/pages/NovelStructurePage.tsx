@@ -23,6 +23,7 @@ import {
 } from "../validation";
 import { projectDetailsPath } from "../../projects/routing";
 import { chapterWritingPath } from "../routing";
+import { WorkspaceSummaryPanel } from "../../workbench/components/WorkspaceSummaryPanel";
 
 interface NovelStructurePageProps {
   readonly client?: NovelStructureApiClient;
@@ -193,6 +194,11 @@ function NovelStructureWorkspace({
   });
   const [busy, setBusy] = useState<BusyAction>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [structureRevision, setStructureRevision] = useState(0);
+  const announce = (message: string) => {
+    setFeedback(message);
+    setStructureRevision((value) => value + 1);
+  };
   const [actionError, setActionError] = useState<NovelStructureApiError | null>(
     null,
   );
@@ -377,7 +383,7 @@ function NovelStructureWorkspace({
         title: next.resource.title,
         summary: next.resource.summary,
       });
-      setFeedback(state.outline === null ? "大纲已创建。" : "大纲已更新。");
+      announce(state.outline === null ? "大纲已创建。" : "大纲已更新。");
     });
   };
 
@@ -408,7 +414,7 @@ function NovelStructureWorkspace({
         position: input.position + 1,
       });
       setNewChapter({ ...EMPTY_TEXT, position: 1 });
-      setFeedback("卷已创建。已选中新卷。");
+      announce("卷已创建。已选中新卷。");
     });
   };
 
@@ -444,7 +450,7 @@ function NovelStructureWorkspace({
         summary: next.resource.summary,
         position: next.resource.position,
       });
-      setFeedback("卷已更新。");
+      announce("卷已更新。");
     });
   };
 
@@ -478,7 +484,7 @@ function NovelStructureWorkspace({
         ...EMPTY_TEXT,
         position: input.position + 1,
       });
-      setFeedback("章已创建。已选中新章。");
+      announce("章已创建。已选中新章。");
     });
   };
 
@@ -533,7 +539,7 @@ function NovelStructureWorkspace({
         summary: next.resource.summary,
         position: next.resource.position,
       });
-      setFeedback("章已更新。");
+      announce("章已更新。");
     });
   };
 
@@ -570,6 +576,10 @@ function NovelStructureWorkspace({
 
   return (
     <div className="novel-structure-workspace">
+      <WorkspaceSummaryPanel
+        projectId={projectId}
+        refreshKey={structureRevision}
+      />
       <ErrorMessage error={actionError} />
       {feedback === null ? null : (
         <p className="novel-structure-feedback" role="status">
