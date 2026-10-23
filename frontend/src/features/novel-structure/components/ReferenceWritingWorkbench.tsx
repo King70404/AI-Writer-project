@@ -10,7 +10,10 @@ import {
   type WritingReference,
   type WritingRule,
 } from "../api/writing-preparation";
-import { ChapterPlanningEditor } from "./ChapterPlanningEditor";
+import {
+  ChapterPlanningEditor,
+  type ChapterPlanningHandle,
+} from "./ChapterPlanningEditor";
 
 const STATUS = {
   ready: "待确认分析",
@@ -25,6 +28,7 @@ export function ReferenceWritingWorkbench({
   profile,
   content,
   onDirty,
+  onOpenGenerate,
   client = writingPreparationClient,
 }: {
   readonly projectId: string;
@@ -32,6 +36,8 @@ export function ReferenceWritingWorkbench({
   readonly profile: ModelProfile | undefined;
   readonly content: string;
   readonly onDirty: (dirty: boolean) => void;
+  /** 规划保存后返回“生成”分区准备续写（不发送模型）。 */
+  readonly onOpenGenerate?: () => void;
   readonly client?: WritingPreparationClient;
 }) {
   const [references, setReferences] = useState<readonly WritingReference[]>([]);
@@ -58,6 +64,31 @@ export function ReferenceWritingWorkbench({
   const [ruleReference, setRuleReference] = useState<string | null>(null);
   const [previous, setPrevious] = useState<RuleRevision>();
   const lock = useRef(false);
+  const planning = useRef<ChapterPlanningHandle>(null);
+  const [planSavedNotice, setPlanSavedNotice] = useState(false);
+  const [shortcutMessage, setShortcutMessage] = useState("");
+  const applyRuleToChapter = (revision: RuleRevision) => {
+    const result = planning.current?.addRule(revision.id) ?? "busy";
+    setShortcutMessage(
+      result === "added"
+        ? `已把“${revision.title}”版本 ${revision.version} 加入本章规划，尚未保存。请在下方核对后点击“保存章节规划”。`
+        : result === "already_selected"
+          ? `本章规划已选用“${revision.title}”版本 ${revision.version}。`
+          : result === "limit"
+            ? "本章规划最多选用 8 份规则版本，请先取消一份再加入。"
+            : "规划正在保存或处理中，请稍后再加入。",
+    );
+    if (result === "added" || result === "already_selected") {
+      setPlanSavedNotice(false);
+      queueMicrotask(() =>
+        document
+          .querySelector<HTMLInputElement>(
+            `input[data-rule-revision-id="${revision.id}"]`,
+          )
+          ?.focus(),
+      );
+    }
+  };
   const selected = references.find((item) => item.id === selectedId);
   const unavailable = busy || planningBusy;
 
@@ -189,8 +220,9 @@ export function ReferenceWritingWorkbench({
         ...current.filter((item) => item.id !== saved.id),
       ]);
       setPrevious(saved);
+      setShortcutMessage("");
       setMessage(
-        `规则已确认保存为版本 ${saved.version}。请在章节规划中勾选该版本并保存。`,
+        `规则已确认保存为版本 ${saved.version}。可点击“将此规则加入本章规划”，或在章节规划中勾选该版本并保存。`,
       );
     });
   return (
@@ -545,8 +577,24 @@ export function ReferenceWritingWorkbench({
                 确认保存写作规则{previous ? "新版本" : ""}
               </button>
             </fieldset>
+            {previous ? (
+              <div className="reference-shortcut">
+                <button
+                  type="button"
+                  disabled={unavailable}
+                  onClick={() => applyRuleToChapter(previous)}
+                >
+                  将此规则加入本章规划
+                </button>
+                <p>
+                  只修改本章规划中“写作规则版本”的选择，保留其他未保存修改；保存规划前不会影响生成。
+                </p>
+              </div>
+            ) : null}
+            {shortcutMessage ? <p role="status">{shortcutMessage}</p> : null}
           </section>
           <ChapterPlanningEditor
+            ref={planning}
             key={`${reloadKey}:${plan?.revision_id ?? "new"}`}
             projectId={projectId}
             chapterId={chapterId}
@@ -554,11 +602,27 @@ export function ReferenceWritingWorkbench({
             rules={rules}
             content={content}
             client={client}
-            onSaved={setPlan}
+            onSaved={(saved) => {
+              setPlan(saved);
+              setShortcutMessage("");
+              setPlanSavedNotice(true);
+            }}
             onDirty={onDirty}
             disabled={busy}
             onBusy={setPlanningBusy}
           />
+          {planSavedNotice && onOpenGenerate ? (
+            <div
+              className="reference-shortcut"
+              role="group"
+              aria-label="规划已保存"
+            >
+              <p>章节规划已保存，下一次准备的 AI 任务会使用它。</p>
+              <button type="button" onClick={onOpenGenerate}>
+                去“生成”准备续写
+              </button>
+            </div>
+          ) : null}
         </>
       ) : null}
     </section>

@@ -123,7 +123,9 @@ test("E2E-INT-019 AI writing assistance flow", async ({
       .getByRole("button", { name: "保存模型配置", exact: true })
       .click();
     await expect(
-      page.getByText("模型配置已保存。密钥不会回显。"),
+      page.getByText(
+        "配置已保存，已选中“云端配置保存测试”。密钥不会回显；尚未检查服务连接。",
+      ),
     ).toBeVisible();
     await expect(page.getByLabel("API Key（留空保留已有密钥）")).toHaveValue(
       "",
@@ -148,7 +150,9 @@ test("E2E-INT-019 AI writing assistance flow", async ({
       .getByRole("button", { name: "保存模型配置", exact: true })
       .click();
     await expect(
-      page.getByText("模型配置已保存。密钥不会回显。"),
+      page.getByText(
+        "配置已保存，已选中“新保存的写作模型”。密钥不会回显；尚未检查服务连接。",
+      ),
     ).toBeVisible();
     await expect(
       page.getByLabel("使用模型").locator("option:checked"),
@@ -163,7 +167,7 @@ test("E2E-INT-019 AI writing assistance flow", async ({
       .getByLabel("使用模型")
       .selectOption({ label: "新保存的写作模型 · 本地" });
     await page.getByLabel("额外要求（可选）").fill("增加紧张感");
-    await page.getByRole("button", { name: "续写", exact: true }).click();
+    await page.getByRole("button", { name: "准备续写", exact: true }).click();
     await expect(page.getByLabel("本次发送的小说上下文")).toHaveValue(
       new RegExp(initial),
     );
@@ -205,7 +209,7 @@ test("E2E-INT-019 AI writing assistance flow", async ({
         new KeyboardEvent("keyup", { bubbles: true, key: "Shift" }),
       );
     });
-    const rewrite = page.getByRole("button", { name: "改写选中文本" });
+    const rewrite = page.getByRole("button", { name: "准备改写选中文本" });
     await expect(rewrite).toBeEnabled();
     await rewrite.click();
     await page
@@ -233,7 +237,7 @@ test("E2E-INT-019 AI writing assistance flow", async ({
         response.url().endsWith("/ai/runs") &&
         response.request().method() === "POST",
     );
-    await page.getByRole("button", { name: "续写", exact: true }).click();
+    await page.getByRole("button", { name: "准备续写", exact: true }).click();
     const prepared = await preparing;
     const run = (await prepared.json()) as { run_id: string };
     const generatePath = `/api/v1/chapters/${oldChapterId}/ai/runs/${run.run_id}/generate`;
@@ -267,7 +271,7 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     await page
       .getByLabel("使用模型")
       .selectOption({ label: "新保存的写作模型 · 本地" });
-    await page.getByRole("button", { name: "打开范文分析与章节规划" }).click();
+    await page.getByRole("tab", { name: "准备", exact: true }).click();
     const workbench = page.getByRole("region", {
       name: "范文分析与章节规划",
       exact: true,
@@ -352,14 +356,19 @@ test("E2E-INT-019 AI writing assistance flow", async ({
       .getByRole("textbox", { name: "场景 1 推进点 1 变化", exact: true })
       .fill("证人愿意透露船名");
     await expect(
-      page.getByRole("button", { name: "续写", exact: true }),
+      page.getByText("章节规划有未保存修改；保存后再准备新任务。"),
+    ).toBeVisible();
+    await page.getByRole("tab", { name: "生成", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "准备续写", exact: true }),
     ).toBeDisabled();
+    await page.getByRole("tab", { name: "准备", exact: true }).click();
     await workbench
       .getByRole("button", { name: "保存章节规划", exact: true })
       .click();
     await expect(workbench.getByText(/规划已保存 · 版本 1/u)).toBeVisible();
     await page.reload();
-    await page.getByRole("button", { name: "打开范文分析与章节规划" }).click();
+    await page.getByRole("tab", { name: "准备", exact: true }).click();
     await expect(
       workbench.getByLabel("场景 1 名称", { exact: true }),
     ).toHaveValue("渡口试探");
@@ -370,16 +379,18 @@ test("E2E-INT-019 AI writing assistance flow", async ({
       }),
     ).toBeChecked();
     expect(requests).toHaveLength(5);
+    await page.getByRole("tab", { name: "生成", exact: true }).click();
     await page
       .getByLabel("使用模型")
       .selectOption({ label: "新保存的写作模型 · 本地" });
-    await page.getByRole("button", { name: "续写", exact: true }).click();
+    await page.getByRole("button", { name: "准备续写", exact: true }).click();
     await expect(page.getByLabel("本次发送的小说上下文")).toHaveValue(
       /用试探动作承接对话/u,
     );
     const frozen = await page.getByLabel("本次发送的小说上下文").inputValue();
     expect(frozen).toContain("渡口试探");
     expect(frozen).not.toContain(sourceText);
+    await page.getByRole("tab", { name: "准备", exact: true }).click();
     await workbench
       .getByRole("textbox", { name: "核心冲突", exact: true })
       .fill("准备之后修改的冲突");
@@ -389,6 +400,7 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     await expect(workbench.getByText(/规划已保存 · 版本 2/u)).toBeVisible();
     await expect(page.getByLabel("本次发送的小说上下文")).toHaveValue(frozen);
     analysisReply = null;
+    await page.getByRole("tab", { name: "生成", exact: true }).click();
     await currentTask
       .getByRole("button", { name: "确认发送并生成", exact: true })
       .click();

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   aiWorkflowClient,
   workflowFailureMessage,
@@ -19,6 +19,12 @@ const STATUS: Record<WorkflowRun["status"], string> = {
   interrupted: "上次生成中断，请确认后恢复",
   completed: "本轮已完成",
 };
+type AssistantTab = "prepare" | "generate" | "review";
+const TABS: readonly { readonly id: AssistantTab; readonly label: string }[] = [
+  { id: "prepare", label: "准备" },
+  { id: "generate", label: "生成" },
+  { id: "review", label: "评审" },
+];
 const SOURCE_LABELS: Record<string, string> = {
   current_chapter: "当前章节",
   outline: "小说大纲",
@@ -37,11 +43,14 @@ export function AIWorkflowAssistant({
   chapterId,
   writing,
   selection,
+  onTaskStatus,
   client = aiWorkflowClient,
 }: {
   readonly chapterId: string;
   readonly writing: ReturnType<typeof useChapterWriting>;
   readonly selection: SelectionSnapshot | null;
+  /** 把当前任务的真实状态同步到写作页固定状态区。 */
+  readonly onTaskStatus?: (label: string) => void;
   readonly client?: AIWorkflowClient;
 }) {
   const ai = useAIWorkflow(chapterId, writing, client);
@@ -50,11 +59,46 @@ export function AIWorkflowAssistant({
   const [steps, setSteps] = useState("5");
   const [confirmedRunId, setConfirmedRunId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
-  const [preparationOpen, setPreparationOpen] = useState(false);
   const [preparationMounted, setPreparationMounted] = useState(false);
   const [planningDirty, setPlanningDirty] = useState(false);
-  const [memoryOpen, setMemoryOpen] = useState(false);
   const [memoryMounted, setMemoryMounted] = useState(false);
+  const [tab, setTab] = useState<AssistantTab>("generate");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsFocus, setSettingsFocus] = useState(0);
+  const tabRefs = useRef<Record<AssistantTab, HTMLButtonElement | null>>({
+    prepare: null,
+    generate: null,
+    review: null,
+  });
+  const continueButton = useRef<HTMLButtonElement>(null);
+  const [focusContinue, setFocusContinue] = useState(false);
+  useEffect(() => {
+    if (!focusContinue || tab !== "generate") return;
+    continueButton.current?.focus();
+    queueMicrotask(() => setFocusContinue(false));
+  }, [focusContinue, tab]);
+  const selectTab = (next: AssistantTab, focus = false) => {
+    if (next === "prepare") setPreparationMounted(true);
+    if (next === "review") setMemoryMounted(true);
+    setTab(next);
+    if (focus) tabRefs.current[next]?.focus();
+  };
+  const onTabKey = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const index = TABS.findIndex((item) => item.id === tab);
+    const target =
+      event.key === "ArrowRight"
+        ? TABS[(index + 1) % TABS.length]
+        : event.key === "ArrowLeft"
+          ? TABS[(index + TABS.length - 1) % TABS.length]
+          : event.key === "Home"
+            ? TABS[0]
+            : event.key === "End"
+              ? TABS[TABS.length - 1]
+              : undefined;
+    if (!target) return;
+    event.preventDefault();
+    selectTab(target.id, true);
+  };
   const profile = ai.models.find(
     (item) => item.id === (profileId || ai.models[0]?.id),
   );
@@ -65,6 +109,18 @@ export function AIWorkflowAssistant({
     );
   const run = ai.active;
   const pending = run?.candidates.find((item) => item.status === "pending");
+  const taskLabel = !run
+    ? ai.loading
+      ? "正在读取 AI 任务…"
+      : "没有进行中的 AI 任务"
+    : ai.generating
+      ? "AI 正在生成：已发送请求，等待模型回复"
+      : pending
+        ? `AI 候选待你确认 · 第 ${pending.sequence} 段`
+        : `AI 任务：${STATUS[run.status]}`;
+  useEffect(() => {
+    onTaskStatus?.(taskLabel);
+  }, [onTaskStatus, taskLabel]);
   const unavailable =
     ai.busy ||
     ai.loading ||
@@ -103,6 +159,19 @@ export function AIWorkflowAssistant({
         : !canSend
           ? "请先勾选上面的发送同意，再确认生成。"
           : "";
+  const kindLabel = (item: {
+    readonly kind: string;
+    readonly has_key: boolean;
+  }) =>
+    item.kind === "cloud"
+      ? item.has_key
+        ? "云端 · 已保存密钥"
+        : "云端 · 未保存密钥，发送前需补充 API Key"
+      : "本机模型";
+  const openSettings = () => {
+    setSettingsOpen(true);
+    setSettingsFocus((value) => value + 1);
+  };
   return (
     <section
       aria-label="AI写作助手"
@@ -138,68 +207,64 @@ export function AIWorkflowAssistant({
       {(ai.error && !taskError) || formError ? (
         <p role="alert">{formError || ai.error}</p>
       ) : null}
-      <AIModelSettings
-        models={ai.models}
-        disabled={ai.busy || ai.upgradeRequired}
-        onUpgradeRequired={ai.modelError}
-        onSaved={(saved) => {
-          ai.modelSaved(saved);
-          setProfileId(saved.id);
-        }}
-        client={client}
-      />
-      <label htmlFor="ai-profile">使用模型</label>
-      <select
-        id="ai-profile"
-        value={profile?.id ?? ""}
-        disabled={unavailable}
-        onChange={(event) => setProfileId(event.target.value)}
+      {planningDirty ? (
+        <p role="status">章节规划有未保存修改；保存后再准备新任务。</p>
+      ) : null}
+      <div
+        className="ai-assistant-tabs"
+        role="tablist"
+        aria-label="AI 助手分区"
       >
-        {ai.models.length === 0 ? <option value="">请先添加模型</option> : null}
-        {ai.models.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.name} · {item.kind === "cloud" ? "云端" : "本地"}
-          </option>
+        {TABS.map((item) => (
+          <button
+            key={item.id}
+            ref={(node) => {
+              tabRefs.current[item.id] = node;
+            }}
+            type="button"
+            role="tab"
+            id={`ai-tab-${item.id}`}
+            aria-selected={tab === item.id}
+            aria-controls={`ai-panel-${item.id}`}
+            tabIndex={tab === item.id ? 0 : -1}
+            onClick={() => selectTab(item.id)}
+            onKeyDown={onTabKey}
+          >
+            {item.label}
+          </button>
         ))}
-      </select>
-      <button
-        type="button"
-        disabled={unavailable}
-        aria-expanded={preparationOpen}
-        onClick={() => {
-          setPreparationMounted(true);
-          setPreparationOpen((value) => !value);
-        }}
+      </div>
+      <div
+        role="tabpanel"
+        id="ai-panel-prepare"
+        aria-labelledby="ai-tab-prepare"
+        hidden={tab !== "prepare"}
       >
-        {preparationOpen ? "收起范文分析与章节规划" : "打开范文分析与章节规划"}
-      </button>
-      {preparationMounted ? (
-        <div hidden={!preparationOpen}>
+        {ai.upgradeRequired ? (
+          <p>启用 AI 协作后可使用范文分析与章节规划；手动写作不受影响。</p>
+        ) : preparationMounted ? (
           <ReferenceWritingWorkbench
             projectId={writing.state.snapshot.resource.project_id}
             chapterId={chapterId}
             profile={profile}
             content={writing.state.content}
             onDirty={setPlanningDirty}
+            onOpenGenerate={() => {
+              setTab("generate");
+              setFocusContinue(true);
+            }}
           />
-        </div>
-      ) : null}
-      {planningDirty ? (
-        <p role="status">章节规划有未保存修改；保存后再准备新任务。</p>
-      ) : null}
-      <button
-        type="button"
-        disabled={unavailable}
-        aria-expanded={memoryOpen}
-        onClick={() => {
-          setMemoryMounted(true);
-          setMemoryOpen((value) => !value);
-        }}
+        ) : null}
+      </div>
+      <div
+        role="tabpanel"
+        id="ai-panel-review"
+        aria-labelledby="ai-tab-review"
+        hidden={tab !== "review"}
       >
-        {memoryOpen ? "收起长篇记忆与评审" : "打开长篇记忆与评审"}
-      </button>
-      {memoryMounted ? (
-        <div hidden={!memoryOpen}>
+        {ai.upgradeRequired ? (
+          <p>启用 AI 协作后可使用长篇记忆与评审；手动写作不受影响。</p>
+        ) : memoryMounted ? (
           <StoryMemoryWorkbench
             projectId={writing.state.snapshot.resource.project_id}
             chapterId={chapterId}
@@ -226,6 +291,7 @@ export function AIWorkflowAssistant({
               setFormError("");
               setInstruction(requirement);
               setConfirmedRunId(null);
+              setTab("generate");
               void ai.prepare("rewrite", profile?.id ?? "", requirement, 1, {
                 start,
                 end: start + quote.length,
@@ -233,278 +299,363 @@ export function AIWorkflowAssistant({
               });
             }}
           />
-        </div>
-      ) : null}
-      <label htmlFor="ai-instruction">额外要求（可选）</label>
-      <textarea
-        id="ai-instruction"
-        rows={2}
-        maxLength={4000}
-        value={instruction}
-        onChange={(event) => setInstruction(event.target.value)}
-      />
-      <label htmlFor="ai-step-limit">本轮最多生成段数</label>
-      <input
-        id="ai-step-limit"
-        inputMode="numeric"
-        value={steps}
-        onChange={(event) => setSteps(event.target.value)}
-      />
-      <button
-        type="button"
-        disabled={unavailable || !profile || planningDirty}
-        onClick={() => prepare("continue")}
+        ) : null}
+      </div>
+      <div
+        role="tabpanel"
+        id="ai-panel-generate"
+        aria-labelledby="ai-tab-generate"
+        hidden={tab !== "generate"}
       >
-        续写
-      </button>
-      <button
-        type="button"
-        disabled={
-          unavailable || !profile || planningDirty || !selection?.text.trim()
-        }
-        onClick={() => prepare("rewrite")}
-      >
-        改写选中文本
-      </button>
-      <p>
-        先准备上下文，再确认生成。每次采纳后可选择继续下一段，达到本轮上限即停止。
-      </p>
-      {ai.loading ? <p role="status">正在读取模型与已保存任务…</p> : null}
-      <button
-        type="button"
-        disabled={ai.busy}
-        onClick={() => void ai.refresh()}
-      >
-        刷新协作任务
-      </button>
-      {ai.runs.length ? (
-        <>
-          <label htmlFor="ai-saved-runs">已保存的任务</label>
-          <select
-            id="ai-saved-runs"
-            value={run?.run_id ?? ""}
-            disabled={unavailable}
-            onChange={(event) => {
-              setConfirmedRunId(null);
-              ai.select(event.target.value);
-            }}
-          >
-            {ai.runs.map((item, index) => (
-              <option key={item.run_id} value={item.run_id}>
-                {index + 1}. {item.operation === "continue" ? "续写" : "改写"} ·{" "}
-                {STATUS[item.status]} · {item.generated_steps}/{item.max_steps}{" "}
-                段
-              </option>
-            ))}
-          </select>
-        </>
-      ) : null}
-      {run ? (
-        <section aria-label="当前AI任务">
-          <p role="status">
-            {STATUS[run.status]} · 已生成 {run.generated_steps}/{run.max_steps}{" "}
-            段，{run.generated_characters}/{run.max_output_characters} 字
-          </p>
-          <p>
-            模型：{runProfile?.name ?? "原模型配置不可用"}；每次输出最多{" "}
-            {runProfile?.max_output_tokens ?? "—"} Token。字数按非空白 Unicode
-            字符计算。
-          </p>
-          <details>
-            <summary>查看本次上下文依据与发送内容</summary>
-            <p>
-              采用：
-              {run.context.manifest.included_sources
-                .map((source) => SOURCE_LABELS[source] ?? source)
-                .join("、")}
-              。
-            </p>
-            <p>
-              未纳入：
-              {run.context.manifest.omitted_sources
-                .map((source) => SOURCE_LABELS[source] ?? source)
-                .join("、") || "无"}
-              。
-              {run.context.manifest.truncated
-                ? "超出预算的内容已截取，以下为实际发送片段。"
-                : "上下文未截断。"}
-            </p>
-            <textarea
-              aria-label="本次发送的小说上下文"
-              readOnly
-              rows={8}
-              value={run.context.text}
-            />
-            <p>额外要求：{run.instruction || "无"}</p>
-            {run.operation === "rewrite" ? (
-              <>
-                <p>本次待改写选区（任务准备时保存的原文）：</p>
-                <textarea
-                  aria-label="本次发送的改写选区"
-                  readOnly
-                  rows={4}
-                  value={run.selected_text}
-                />
-              </>
-            ) : null}
-            {run.candidates.some(
-              (candidate) => candidate.status !== "discarded",
-            ) ? (
-              <>
-                <p>
-                  继续生成时还会发送本轮已采纳的段落；选择“采纳并生成下一段”时，也会发送当前待采纳的候选。丢弃的候选不会发送。
-                </p>
-                <textarea
-                  aria-label="下一段随上下文发送的本轮候选"
-                  readOnly
-                  rows={5}
-                  value={run.candidates
-                    .filter((candidate) => candidate.status !== "discarded")
-                    .map((candidate) => candidate.text)
-                    .join("\n\n")}
-                />
-              </>
-            ) : null}
-            <details>
-              <summary>查看各项来源与取舍原因</summary>
-              <ol>
-                {run.context.manifest.sources.map((source, index) => (
-                  <li key={`${source.source}-${index}`}>
-                    <p>
-                      {SOURCE_LABELS[source.source] ?? source.source}：
-                      {source.omitted_reason
-                        ? `未纳入，${source.omitted_reason}`
-                        : source.reason}
-                      {source.truncated ? "（已截取）" : ""}
-                    </p>
-                    {source.references.length ? (
-                      <p>
-                        已固定 {source.references.length}{" "}
-                        项来源快照，后续编辑不会改变本次发送内容。
-                      </p>
-                    ) : null}
-                    {source.omitted_reason === null ? (
-                      <pre>{source.text}</pre>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-            </details>
-          </details>
-          {runProfile?.kind === "cloud" ? (
-            <div>
+        <section className="ai-model-summary" aria-label="当前模型">
+          {ai.models.length === 0 ? (
+            <>
               <p>
-                将把上面的小说片段、选区、额外要求及本轮已采纳段落发送至{" "}
-                {runProfile.base_url}
-                。服务商可能计费；本应用限制段数和输出量，不在未知费率时估算金额。
-              </p>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={confirmedRunId === run.run_id}
-                  onChange={(event) =>
-                    setConfirmedRunId(event.target.checked ? run.run_id : null)
-                  }
-                />
-                我同意本轮任务向该模型发送上述内容
-              </label>
-            </div>
-          ) : null}
-          {taskError || run.last_error ? (
-            <p role="alert">
-              {taskError || workflowFailureMessage(run.last_error!)}
-            </p>
-          ) : null}
-          {sendBlockedReason ? <p>{sendBlockedReason}</p> : null}
-          {ai.busy ? (
-            <p role="status">
-              {ai.generating
-                ? "正在发送请求并等待模型回复，请勿重复点击。可以暂停后续生成。"
-                : "正在处理，请稍候。可以暂停后续生成。"}
-            </p>
-          ) : null}
-          {run.status === "ready" && !pending ? (
-            <button
-              type="button"
-              disabled={unavailable || !canSend || !runProfile}
-              onClick={() => void ai.generate()}
-            >
-              确认发送并生成
-            </button>
-          ) : null}
-          {run.status !== "completed" && run.status !== "paused" ? (
-            <button type="button" onClick={() => void ai.pause()}>
-              暂停任务
-            </button>
-          ) : null}
-          {run.status === "paused" || run.status === "interrupted" ? (
-            <button
-              type="button"
-              disabled={unavailable}
-              onClick={() => void ai.resume()}
-            >
-              恢复任务
-            </button>
-          ) : null}
-          {pending ? (
-            <section aria-label="AI候选">
-              <h4>待确认候选 · 第 {pending.sequence} 段</h4>
-              <textarea
-                aria-label="AI候选文本"
-                readOnly
-                rows={8}
-                value={pending.text}
-              />
-              <p>
-                模型：{pending.model} · {pending.character_count} 字
+                {ai.loading
+                  ? "正在读取模型配置…"
+                  : "当前没有模型。手动写作可继续；添加模型后即可准备 AI 任务。"}
               </p>
               <button
                 type="button"
-                disabled={unavailable || writing.state.status !== "saved"}
-                onClick={() => void ai.adopt(pending, false)}
+                disabled={ai.busy || ai.loading || ai.upgradeRequired}
+                onClick={openSettings}
               >
-                {run.operation === "continue" ? "追加到正文" : "替换选中文本"}
+                添加模型
               </button>
-              {run.operation === "continue" &&
-              run.generated_steps < run.max_steps &&
-              run.status !== "paused" ? (
-                <button
-                  type="button"
-                  disabled={
-                    unavailable || writing.state.status !== "saved" || !canSend
-                  }
-                  onClick={() => void ai.adopt(pending, true)}
-                >
-                  采纳并生成下一段
-                </button>
+            </>
+          ) : (
+            <>
+              <p>
+                当前模型：{profile?.name} · {profile ? kindLabel(profile) : ""}
+                。 配置已保存；本应用尚未检查服务连接。
+              </p>
+              <button
+                type="button"
+                disabled={ai.busy || ai.upgradeRequired}
+                onClick={() => setSettingsOpen((value) => !value)}
+              >
+                {settingsOpen ? "收起模型管理" : "管理模型"}
+              </button>
+            </>
+          )}
+        </section>
+        <AIModelSettings
+          models={ai.models}
+          disabled={ai.busy || ai.upgradeRequired}
+          onUpgradeRequired={ai.modelError}
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          focusRequest={settingsFocus}
+          onSaved={(saved) => {
+            ai.modelSaved(saved);
+            setProfileId(saved.id);
+          }}
+          client={client}
+        />
+        <label htmlFor="ai-profile">使用模型</label>
+        <select
+          id="ai-profile"
+          value={profile?.id ?? ""}
+          disabled={unavailable}
+          onChange={(event) => setProfileId(event.target.value)}
+        >
+          {ai.models.length === 0 ? (
+            <option value="">请先添加模型</option>
+          ) : null}
+          {ai.models.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name} · {item.kind === "cloud" ? "云端" : "本地"}
+            </option>
+          ))}
+        </select>
+        {run &&
+        profile &&
+        (run.profile_id ?? "default-local") !== profile.id ? (
+          <p>
+            当前任务使用准备时冻结的模型“{runProfile?.name ?? "原模型配置"}
+            ”；切换模型只影响下一次新准备的任务。
+          </p>
+        ) : null}
+        <label htmlFor="ai-instruction">额外要求（可选）</label>
+        <textarea
+          id="ai-instruction"
+          rows={2}
+          maxLength={4000}
+          value={instruction}
+          onChange={(event) => setInstruction(event.target.value)}
+        />
+        <label htmlFor="ai-step-limit">本轮最多生成段数</label>
+        <input
+          id="ai-step-limit"
+          inputMode="numeric"
+          value={steps}
+          onChange={(event) => setSteps(event.target.value)}
+        />
+        <button
+          ref={continueButton}
+          type="button"
+          disabled={unavailable || !profile || planningDirty}
+          onClick={() => prepare("continue")}
+        >
+          准备续写
+        </button>
+        <button
+          type="button"
+          disabled={
+            unavailable || !profile || planningDirty || !selection?.text.trim()
+          }
+          onClick={() => prepare("rewrite")}
+        >
+          准备改写选中文本
+        </button>
+        {!profile && !ai.loading ? (
+          <p>添加并选择模型后才能准备 AI 任务。</p>
+        ) : null}
+        <p>
+          准备只保存正文并冻结上下文，不调用模型；确认发送后才会生成。每次采纳后可选择继续下一段，达到本轮上限即停止。
+        </p>
+        {ai.loading ? <p role="status">正在读取模型与已保存任务…</p> : null}
+        <button
+          type="button"
+          disabled={ai.busy}
+          onClick={() => void ai.refresh()}
+        >
+          刷新协作任务
+        </button>
+        {ai.runs.length ? (
+          <>
+            <label htmlFor="ai-saved-runs">已保存的任务</label>
+            <select
+              id="ai-saved-runs"
+              value={run?.run_id ?? ""}
+              disabled={unavailable}
+              onChange={(event) => {
+                setConfirmedRunId(null);
+                ai.select(event.target.value);
+              }}
+            >
+              {ai.runs.map((item, index) => (
+                <option key={item.run_id} value={item.run_id}>
+                  {index + 1}. {item.operation === "continue" ? "续写" : "改写"}{" "}
+                  · {STATUS[item.status]} · {item.generated_steps}/
+                  {item.max_steps} 段
+                </option>
+              ))}
+            </select>
+          </>
+        ) : null}
+        {run ? (
+          <section aria-label="当前AI任务">
+            <p role="status">
+              {STATUS[run.status]} · 已生成 {run.generated_steps}/
+              {run.max_steps} 段，{run.generated_characters}/
+              {run.max_output_characters} 字
+            </p>
+            <p>
+              模型：{runProfile?.name ?? "原模型配置不可用"}；每次输出最多{" "}
+              {runProfile?.max_output_tokens ?? "—"} Token。字数按非空白 Unicode
+              字符计算。
+            </p>
+            <details>
+              <summary>查看本次上下文依据与发送内容</summary>
+              <p>
+                采用：
+                {run.context.manifest.included_sources
+                  .map((source) => SOURCE_LABELS[source] ?? source)
+                  .join("、")}
+                。
+              </p>
+              <p>
+                未纳入：
+                {run.context.manifest.omitted_sources
+                  .map((source) => SOURCE_LABELS[source] ?? source)
+                  .join("、") || "无"}
+                。
+                {run.context.manifest.truncated
+                  ? "超出预算的内容已截取，以下为实际发送片段。"
+                  : "上下文未截断。"}
+              </p>
+              <textarea
+                aria-label="本次发送的小说上下文"
+                readOnly
+                rows={8}
+                value={run.context.text}
+              />
+              <p>额外要求：{run.instruction || "无"}</p>
+              {run.operation === "rewrite" ? (
+                <>
+                  <p>本次待改写选区（任务准备时保存的原文）：</p>
+                  <textarea
+                    aria-label="本次发送的改写选区"
+                    readOnly
+                    rows={4}
+                    value={run.selected_text}
+                  />
+                </>
               ) : null}
+              {run.candidates.some(
+                (candidate) => candidate.status !== "discarded",
+              ) ? (
+                <>
+                  <p>
+                    继续生成时还会发送本轮已采纳的段落；选择“采纳并生成下一段”时，也会发送当前待采纳的候选。丢弃的候选不会发送。
+                  </p>
+                  <textarea
+                    aria-label="下一段随上下文发送的本轮候选"
+                    readOnly
+                    rows={5}
+                    value={run.candidates
+                      .filter((candidate) => candidate.status !== "discarded")
+                      .map((candidate) => candidate.text)
+                      .join("\n\n")}
+                  />
+                </>
+              ) : null}
+              <details>
+                <summary>查看各项来源与取舍原因</summary>
+                <ol>
+                  {run.context.manifest.sources.map((source, index) => (
+                    <li key={`${source.source}-${index}`}>
+                      <p>
+                        {SOURCE_LABELS[source.source] ?? source.source}：
+                        {source.omitted_reason
+                          ? `未纳入，${source.omitted_reason}`
+                          : source.reason}
+                        {source.truncated ? "（已截取）" : ""}
+                      </p>
+                      {source.references.length ? (
+                        <p>
+                          已固定 {source.references.length}{" "}
+                          项来源快照，后续编辑不会改变本次发送内容。
+                        </p>
+                      ) : null}
+                      {source.omitted_reason === null ? (
+                        <pre>{source.text}</pre>
+                      ) : null}
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            </details>
+            {runProfile?.kind === "cloud" ? (
+              <div>
+                <p>
+                  将把上面的小说片段、选区、额外要求及本轮已采纳段落发送至{" "}
+                  {runProfile.base_url}
+                  。服务商可能计费；本应用限制段数和输出量，不在未知费率时估算金额。
+                </p>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={confirmedRunId === run.run_id}
+                    onChange={(event) =>
+                      setConfirmedRunId(
+                        event.target.checked ? run.run_id : null,
+                      )
+                    }
+                  />
+                  我同意本轮任务向该模型发送上述内容
+                </label>
+              </div>
+            ) : null}
+            {taskError || run.last_error ? (
+              <p role="alert">
+                {taskError || workflowFailureMessage(run.last_error!)}
+              </p>
+            ) : null}
+            {sendBlockedReason ? <p>{sendBlockedReason}</p> : null}
+            {ai.busy ? (
+              <p role="status">
+                {ai.generating
+                  ? "正在发送请求并等待模型回复，请勿重复点击。可以暂停后续生成。"
+                  : "正在处理，请稍候。可以暂停后续生成。"}
+              </p>
+            ) : null}
+            {run.status === "ready" && !pending ? (
+              <button
+                type="button"
+                disabled={unavailable || !canSend || !runProfile}
+                onClick={() => void ai.generate()}
+              >
+                确认发送并生成
+              </button>
+            ) : null}
+            {run.status !== "completed" && run.status !== "paused" ? (
+              <button type="button" onClick={() => void ai.pause()}>
+                暂停任务
+              </button>
+            ) : null}
+            {run.status === "paused" || run.status === "interrupted" ? (
               <button
                 type="button"
                 disabled={unavailable}
-                onClick={() => void ai.discard(pending)}
+                onClick={() => void ai.resume()}
               >
-                丢弃
+                恢复任务
               </button>
-            </section>
-          ) : null}
-          {run.candidates.some((item) => item.status !== "pending") ? (
-            <details>
-              <summary>查看已处理候选</summary>
-              <ol>
-                {run.candidates
-                  .filter((item) => item.status !== "pending")
-                  .map((item) => (
-                    <li key={item.candidate_id}>
-                      第 {item.sequence} 段 ·{" "}
-                      {item.status === "adopted" ? "已采纳" : "已丢弃"}
-                      <pre>{item.text}</pre>
-                    </li>
-                  ))}
-              </ol>
-            </details>
-          ) : null}
-        </section>
-      ) : null}
+            ) : null}
+            {pending ? (
+              <section aria-label="AI候选">
+                <h4>待确认候选 · 第 {pending.sequence} 段</h4>
+                <textarea
+                  aria-label="AI候选文本"
+                  readOnly
+                  rows={8}
+                  value={pending.text}
+                />
+                <p>
+                  模型：{pending.model} · {pending.character_count} 字
+                </p>
+                <button
+                  type="button"
+                  disabled={unavailable || writing.state.status !== "saved"}
+                  onClick={() => void ai.adopt(pending, false)}
+                >
+                  {run.operation === "continue" ? "追加到正文" : "替换选中文本"}
+                </button>
+                {run.operation === "continue" &&
+                run.generated_steps < run.max_steps &&
+                run.status !== "paused" ? (
+                  <button
+                    type="button"
+                    disabled={
+                      unavailable ||
+                      writing.state.status !== "saved" ||
+                      !canSend
+                    }
+                    onClick={() => void ai.adopt(pending, true)}
+                  >
+                    采纳并生成下一段
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={unavailable}
+                  onClick={() => void ai.discard(pending)}
+                >
+                  丢弃
+                </button>
+              </section>
+            ) : null}
+            {run.candidates.some((item) => item.status !== "pending") ? (
+              <details>
+                <summary>查看已处理候选</summary>
+                <ol>
+                  {run.candidates
+                    .filter((item) => item.status !== "pending")
+                    .map((item) => (
+                      <li key={item.candidate_id}>
+                        第 {item.sequence} 段 ·{" "}
+                        {item.status === "adopted" ? "已采纳" : "已丢弃"}
+                        <pre>{item.text}</pre>
+                      </li>
+                    ))}
+                </ol>
+              </details>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
     </section>
   );
 }

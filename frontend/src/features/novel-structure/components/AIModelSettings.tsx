@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AIWritingError } from "../api/ai-writing";
 import {
   aiWorkflowClient,
@@ -11,12 +11,20 @@ export function AIModelSettings({
   onSaved,
   onUpgradeRequired,
   disabled = false,
+  open,
+  onOpenChange,
+  focusRequest = 0,
   client = aiWorkflowClient,
 }: {
   readonly models: readonly ModelProfile[];
   readonly onSaved: (saved: ModelProfile) => void;
   readonly onUpgradeRequired?: (failure: AIWritingError) => void;
   readonly disabled?: boolean;
+  /** 由写作页控制的原地设置抽屉；未提供时保持原有展开方式。 */
+  readonly open?: boolean;
+  readonly onOpenChange?: (open: boolean) => void;
+  /** 每次递增都会把焦点移到“配置名称”，用于“添加模型”捷径。 */
+  readonly focusRequest?: number;
   readonly client?: AIWorkflowClient;
 }) {
   const [id, setId] = useState<string | undefined>();
@@ -31,6 +39,10 @@ export function AIModelSettings({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const saving = useRef(false);
+  const nameField = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (focusRequest > 0) nameField.current?.focus();
+  }, [focusRequest]);
   const edit = (profile?: ModelProfile) => {
     setId(profile?.id);
     setName(profile?.name ?? "");
@@ -78,7 +90,11 @@ export function AIModelSettings({
       setKey("");
       setClearKey(false);
       onSaved(saved);
-      setMessage("模型配置已保存。密钥不会回显。");
+      setMessage(
+        saved.kind === "cloud" && !saved.has_key
+          ? `配置已保存，已选中“${saved.name}”。还需填写 API Key 才能向云端发送。`
+          : `配置已保存，已选中“${saved.name}”。密钥不会回显；尚未检查服务连接。`,
+      );
     } catch (failure) {
       if (
         failure instanceof AIWritingError &&
@@ -97,7 +113,11 @@ export function AIModelSettings({
     }
   };
   return (
-    <details className="ai-model-settings">
+    <details
+      className="ai-model-settings"
+      {...(open === undefined ? {} : { open })}
+      onToggle={(event) => onOpenChange?.(event.currentTarget.open)}
+    >
       <summary>模型配置</summary>
       <p>
         支持本机或云端 OpenAI-compatible
@@ -136,6 +156,7 @@ export function AIModelSettings({
           <legend>{id ? "编辑模型" : "添加模型"}</legend>
           <label htmlFor="ai-model-name">配置名称</label>
           <input
+            ref={nameField}
             id="ai-model-name"
             autoComplete="off"
             value={name}

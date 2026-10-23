@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useImperativeHandle, useRef, useState, type Ref } from "react";
 import {
   characterApiClient,
   type CharacterApiClient,
@@ -13,7 +13,15 @@ import {
   type WritingPreparationClient,
 } from "../api/writing-preparation";
 
+export type AddRuleResult = "added" | "already_selected" | "limit" | "busy";
+
+/** 范文捷径使用：把已确认的规则版本加入本章规划草稿（不自动保存）。 */
+export interface ChapterPlanningHandle {
+  readonly addRule: (revisionId: string) => AddRuleResult;
+}
+
 export function ChapterPlanningEditor({
+  ref,
   projectId,
   chapterId,
   plan,
@@ -26,6 +34,7 @@ export function ChapterPlanningEditor({
   onBusy,
   characterClient = characterApiClient,
 }: {
+  readonly ref?: Ref<ChapterPlanningHandle>;
   readonly projectId: string;
   readonly chapterId: string;
   readonly plan: ChapterPlan | null;
@@ -64,6 +73,21 @@ export function ChapterPlanningEditor({
     setDirty(true);
     onDirty(true);
   };
+  useImperativeHandle(ref, () => ({
+    addRule(revisionId: string): AddRuleResult {
+      if (busy || disabled) return "busy";
+      if (draft.writing_rule_revision_ids.includes(revisionId))
+        return "already_selected";
+      if (draft.writing_rule_revision_ids.length >= 8) return "limit";
+      update({
+        writing_rule_revision_ids: [
+          ...draft.writing_rule_revision_ids,
+          revisionId,
+        ],
+      });
+      return "added";
+    },
+  }));
   const scene = (index: number, next: Partial<PlanScene>) =>
     update({
       scenes: draft.scenes.map((item, position) =>
@@ -265,6 +289,7 @@ export function ChapterPlanningEditor({
             <label key={item.id}>
               <input
                 type="checkbox"
+                data-rule-revision-id={item.id}
                 checked={draft.writing_rule_revision_ids.includes(item.id)}
                 disabled={
                   !draft.writing_rule_revision_ids.includes(item.id) &&
