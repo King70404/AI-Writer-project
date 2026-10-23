@@ -136,10 +136,10 @@ def _migrate(connection: Connection) -> None:
 def upgrade_ai_workflow_database(
     engine: Engine, storage_paths: StoragePaths, checks: StorageUpgradeChecks
 ) -> None:
-    """Back up a supported 0006/0007 database and atomically upgrade on author request.
+    """Back up a supported 0006-0009 database and atomically upgrade on author request.
 
     The caller serializes in-process upgrade requests. No path or connection is
-    selected from environment variables. A ready 0008 database is a no-op. Failed
+    selected from environment variables. A current-revision database is a no-op. Failed
     upgrades retain any recovery copy and never replace the author's database.
     """
     try:

@@ -462,7 +462,7 @@ def test_application_package_import_has_no_runtime_or_schema_side_effects(
     evidence = completed.stdout.strip()
     expected_tables = (
         '["ai_workflow_candidates", "ai_workflow_runs", '
-        '"chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
+        '"chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
         '"character_heads", "character_revisions", "characters", '
         '"outline_heads", "outline_revisions", "outlines", '
         '"project_heads", "project_revisions", "projects", '
@@ -506,7 +506,7 @@ def test_web_package_import_has_no_runtime_or_schema_side_effects(
     evidence = completed.stdout.strip()
     expected_tables = (
         '["ai_workflow_candidates", "ai_workflow_runs", '
-        '"chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
+        '"chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
         '"character_heads", "character_revisions", "characters", '
         '"outline_heads", "outline_revisions", "outlines", '
         '"project_heads", "project_revisions", "projects", '

@@ -43,3 +43,11 @@ BACKUP_OPERATIONS = {
     ("GET", "/api/v1/backups/{backup_id}/download"),
     ("POST", "/api/v1/backups/{backup_id}/restore"),
 }
+
+WORKBENCH_OPERATIONS = {
+    ("GET", "/api/v1/projects/{project_id}/workspace"),
+    ("GET", "/api/v1/projects/{project_id}/workspace/chapters"),
+    ("GET", "/api/v1/projects/{project_id}/workspace/actions"),
+    ("GET", "/api/v1/chapters/{chapter_id}/editorial-state"),
+    ("PUT", "/api/v1/chapters/{chapter_id}/editorial-state"),
+}

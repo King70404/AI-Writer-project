@@ -24,6 +24,8 @@ from aiwebnovel.storage.paths import StoragePaths
 from aiwebnovel.story_bible.application.services import StoryBibleQueryService
 from aiwebnovel.story_memory.composition import compose_story_memory
 from aiwebnovel.story_memory.service import StoryMemoryService
+from aiwebnovel.workbench.composition import compose_workbench
+from aiwebnovel.workbench.service import WorkbenchService
 from aiwebnovel.writing_studio.application.service import WritingStudioService
 from aiwebnovel.writing_studio.composition import compose_writing_studio
 
@@ -58,6 +60,7 @@ def compose_ai_workflow(
         WritingStudioService,
         ChapterPlanningService,
         StoryMemoryService,
+        WorkbenchService,
     ]
     | None
 ):
@@ -73,6 +76,7 @@ def compose_ai_workflow(
         "writing_rule_versions",
         "chapter_plan_revisions",
         "story_memory_revisions",
+        "chapter_editorial_revisions",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
@@ -148,7 +152,15 @@ def compose_ai_workflow(
             read_model,
         )
         service.recover_interrupted()
-        return service, gateway, runtime, studio, planning, memory
+        return (
+            service,
+            gateway,
+            runtime,
+            studio,
+            planning,
+            memory,
+            compose_workbench(session_factory, projects),
+        )
     except BaseException:
         runtime.close()
         raise

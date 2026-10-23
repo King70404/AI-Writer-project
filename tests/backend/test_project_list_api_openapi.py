@@ -7,6 +7,7 @@ from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
     BACKUP_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
+    WORKBENCH_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
 from tests.backend.factories import create_test_app
@@ -65,9 +66,12 @@ def test_route_inventory_contains_all_declared_business_routes(tmp_path: Path) -
         ("POST", "/api/v1/chapters/{chapter_id}/ai/continue"),
         ("POST", "/api/v1/chapters/{chapter_id}/ai/rewrite"),
     }
-    assert len(routes) == 70
+    assert len(routes) == 75
     assert routes == expected_routes | AI_WORKFLOW_OPERATIONS | (
-        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS | BACKUP_OPERATIONS
+        WRITING_PREPARATION_OPERATIONS
+        | STORY_MEMORY_OPERATIONS
+        | BACKUP_OPERATIONS
+        | WORKBENCH_OPERATIONS
     )
     assert routes.isdisjoint(
         {
