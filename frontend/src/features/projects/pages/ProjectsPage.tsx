@@ -1,14 +1,22 @@
 import { projectApiClient, type ProjectApiClient } from "../api/client";
 import { CreateProjectForm } from "../components/CreateProjectForm";
-import { ProjectList } from "../components/ProjectList";
+import {
+  ProjectList,
+  type ContinueWritingPath,
+} from "../components/ProjectList";
 import { ProjectPageHeader } from "../components/ProjectPageHeader";
 import { useProjectList } from "../hooks/useProjectList";
 
 interface ProjectsPageProps {
   readonly client?: ProjectApiClient;
+  /** 由应用层提供的本机“继续写作”定位；项目模块本身不读写浏览器存储。 */
+  readonly continueWritingPath?: ContinueWritingPath;
 }
 
-export function ProjectsPage({ client = projectApiClient }: ProjectsPageProps) {
+export function ProjectsPage({
+  client = projectApiClient,
+  continueWritingPath,
+}: ProjectsPageProps) {
   const projectList = useProjectList(client);
 
   return (
@@ -32,7 +40,10 @@ export function ProjectsPage({ client = projectApiClient }: ProjectsPageProps) {
             刷新
           </button>
         </div>
-        <ProjectList controller={projectList} />
+        <ProjectList
+          controller={projectList}
+          continueWritingPath={continueWritingPath}
+        />
       </section>
     </section>
   );

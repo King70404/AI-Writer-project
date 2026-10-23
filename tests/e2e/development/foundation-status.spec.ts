@@ -44,14 +44,14 @@ test.describe("development foundation status", () => {
     await expectSystemReady(page);
 
     await expect(
-      page.getByRole("heading", { name: "AIWebNovel", exact: true }),
+      page.getByRole("heading", { name: "AI 网文助手", exact: true }),
     ).toBeVisible();
     await expect(page.getByLabel("当前版本：V1")).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "开始使用：进入项目" }),
+      page.getByRole("link", { name: "打开书架" }),
     ).toHaveAttribute("href", "/projects");
     await expect(
-      page.getByRole("heading", { name: "AIWebNovel 前端基础已启动" }),
+      page.getByRole("heading", { name: "写作首页" }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "开始创作" })).toHaveCount(0);
     await expect(

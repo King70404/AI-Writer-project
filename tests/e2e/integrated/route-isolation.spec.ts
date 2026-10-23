@@ -121,7 +121,7 @@ test.describe("integrated route isolation", () => {
     expect(secondPair.readyRequestId).not.toBe(firstPair.readyRequestId);
     await expect(page.locator("#root")).toHaveCount(1);
     await expect(
-      page.getByRole("heading", { name: "AIWebNovel", exact: true }),
+      page.getByRole("heading", { name: "AI 网文助手", exact: true }),
     ).toHaveCount(1);
     expectCleanBrowserAudit(browserAudit);
   });

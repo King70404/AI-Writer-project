@@ -74,7 +74,7 @@ describe("Projects page composition", () => {
     renderProjectsPage(client(listProjects));
 
     expect(
-      screen.getByRole("heading", { level: 2, name: "项目" }),
+      screen.getByRole("heading", { level: 2, name: "书架" }),
     ).toBeVisible();
     expect(
       await screen.findByRole("heading", { name: "已有项目" }),

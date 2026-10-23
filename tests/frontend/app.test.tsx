@@ -6,7 +6,7 @@ import { AppRouter } from "../../frontend/src/app/AppRouter";
 import { LoadingState } from "../../frontend/src/components/LoadingState";
 
 describe("AIWebNovel frontend foundation", () => {
-  it("renders the truthful V1 entry without business placeholders", () => {
+  it("renders the truthful author home without business placeholders", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <AppRouter />
@@ -14,18 +14,32 @@ describe("AIWebNovel frontend foundation", () => {
     );
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "AIWebNovel" }),
+      screen.getByRole("heading", { level: 1, name: "AI 网文助手" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
         level: 2,
-        name: "AIWebNovel 前端基础已启动",
+        name: "写作首页",
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("V1", { selector: ".phase-label" })).toBeVisible();
+    expect(screen.getByLabelText("当前版本：V1")).toBeVisible();
+    expect(screen.getByRole("link", { name: "打开书架" })).toHaveAttribute(
+      "href",
+      "/projects",
+    );
+    expect(screen.getByRole("link", { name: "新建小说" })).toHaveAttribute(
+      "href",
+      "/projects",
+    );
+    expect(screen.getByText(/本机还没有最近写作的章节/u)).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "开始使用：进入项目" }),
-    ).toHaveAttribute("href", "/projects");
+      screen.queryByRole("link", { name: "继续写作" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "主要导航" }),
+    ).toHaveTextContent("首页书架数据备份");
+    expect(screen.queryByText("工程基础")).not.toBeInTheDocument();
     expect(screen.getByText(/手动写作、自动保存与导出仍可使用/)).toBeVisible();
     expect(
       screen.queryByText(/章节写作与AI功能尚未实现/),
@@ -48,7 +62,9 @@ describe("AIWebNovel frontend foundation", () => {
       screen.queryByRole("button", { name: "开始创作" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByText(/项目数量|任务数量|Codex 在线|模型状态/),
+      screen.queryByText(
+        /项目数量|任务数量|Codex 在线|模型状态|总字数|待办|项目总数|章节总数|今日字数|创作进度/,
+      ),
     ).not.toBeInTheDocument();
 
     for (const button of screen.queryAllByRole("button")) {

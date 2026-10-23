@@ -83,6 +83,6 @@ test("E2E-INT-022 Author backup, verify, download and fresh-copy restore", async
   expect((await refused).status()).toBe(409);
   await expect(card.getByRole("alert")).toHaveText(/不是空文件夹/u);
 
-  await navigation.getByRole("link", { name: "项目" }).click();
+  await navigation.getByRole("link", { name: "书架" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 });

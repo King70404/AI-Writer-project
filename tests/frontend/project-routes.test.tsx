@@ -23,23 +23,21 @@ describe("Project routes", () => {
   it("renders /projects and supplies a client-side navigation entry", async () => {
     const user = userEvent.setup();
     renderAt("/");
-    const projectsLink = screen.getByRole("link", { name: "项目" });
+    const projectsLink = screen.getByRole("link", { name: "书架" });
     expect(projectsLink).toHaveAttribute("href", "/projects");
 
     await user.click(projectsLink);
 
     expect(screen.getByTestId("location")).toHaveTextContent("/projects");
     expect(
-      screen.getByRole("heading", { level: 2, name: "项目" }),
+      screen.getByRole("heading", { level: 2, name: "书架" }),
     ).toBeVisible();
     expect(projectsLink).toHaveAttribute("aria-current", "page");
   });
 
-  it("keeps the root foundation route", () => {
+  it("keeps the root author home route", () => {
     renderAt("/");
-    expect(
-      screen.getByRole("heading", { name: "AIWebNovel 前端基础已启动" }),
-    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "写作首页" })).toBeVisible();
   });
 
   it.each([

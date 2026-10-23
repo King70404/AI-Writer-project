@@ -6,9 +6,13 @@ import { projectDetailsPath } from "../routing";
 
 interface ProjectListItemProps {
   readonly project: ProjectListItemResponse;
+  readonly continuePath?: string | null;
 }
 
-export function ProjectListItem({ project }: ProjectListItemProps) {
+export function ProjectListItem({
+  project,
+  continuePath = null,
+}: ProjectListItemProps) {
   return (
     <li className="project-card" data-project-id={project.project_id}>
       <h3>{project.title}</h3>
@@ -30,6 +34,15 @@ export function ProjectListItem({ project }: ProjectListItemProps) {
           </dd>
         </div>
       </dl>
+      {continuePath ? (
+        <Link
+          className="project-card__continue-link"
+          to={continuePath}
+          aria-label={`继续写作《${project.title}》`}
+        >
+          继续写作
+        </Link>
+      ) : null}
       <Link
         className="project-card__details-link"
         to={projectDetailsPath(project.project_id)}

@@ -50,7 +50,7 @@ test("E2E-INT-008 exercises the Project list and creation UI", async ({
   }
   expectSecurityHeaders(direct.headers(), "html");
   await expect(
-    page.getByRole("heading", { level: 2, name: "项目" }),
+    page.getByRole("heading", { level: 2, name: "书架" }),
   ).toBeVisible();
   await expect(page.getByText("还没有项目")).toBeVisible();
   expect(
@@ -63,11 +63,11 @@ test("E2E-INT-008 exercises the Project list and creation UI", async ({
   ).toHaveLength(0);
 
   browserAudit.allowOneExpectedHealthCancellation();
-  await page.getByRole("link", { name: "工程基础" }).click();
+  await page.getByRole("link", { name: "首页" }).click();
   await expect(
-    page.getByRole("heading", { name: "AIWebNovel 前端基础已启动" }),
+    page.getByRole("heading", { name: "写作首页" }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "项目", exact: true }).click();
+  await page.getByRole("link", { name: "书架", exact: true }).click();
   await expect(page.getByText("还没有项目")).toBeVisible();
   expect(healthRequestFailures.length).toBeLessThanOrEqual(1);
   if (healthRequestFailures.length === 1) {

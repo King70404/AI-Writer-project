@@ -7,11 +7,17 @@ import {
   ProjectListLoading,
 } from "./ProjectListStates";
 
+export type ContinueWritingPath = (projectId: string) => string | null;
+
 interface ProjectListProps {
   readonly controller: ProjectListController;
+  readonly continueWritingPath?: ContinueWritingPath;
 }
 
-export function ProjectList({ controller }: ProjectListProps) {
+export function ProjectList({
+  controller,
+  continueWritingPath,
+}: ProjectListProps) {
   if (controller.status === "loading") {
     return <ProjectListLoading />;
   }
@@ -35,7 +41,11 @@ export function ProjectList({ controller }: ProjectListProps) {
     >
       <ul className="project-list" aria-label="项目列表">
         {controller.items.map((project) => (
-          <ProjectListItem key={project.project_id} project={project} />
+          <ProjectListItem
+            key={project.project_id}
+            project={project}
+            continuePath={continueWritingPath?.(project.project_id) ?? null}
+          />
         ))}
       </ul>
       {controller.loadMoreStatus === "error" &&

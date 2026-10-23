@@ -24,7 +24,7 @@ test("E2E-DEV-003 serves the React 404 directly and returns without full navigat
     () => performance.getEntriesByType("navigation").length,
   );
   const healthPairPromise = observeHealthPair(page);
-  await page.getByRole("link", { name: "返回基础页" }).click();
+  await page.getByRole("link", { name: "返回首页" }).click();
   const pair = await healthPairPromise;
   await expect(page).toHaveURL(`${browserAudit.allowedOrigin}/`);
   await expectHealthyPair(pair);
