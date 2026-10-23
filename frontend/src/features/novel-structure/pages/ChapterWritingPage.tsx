@@ -267,6 +267,7 @@ function WritingEditor({
       >
         <AIWorkflowAssistant
           chapterId={chapter.chapter_id}
+          projectId={chapter.project_id}
           writing={writing}
           selection={selection}
           onTaskStatus={setTaskStatus}

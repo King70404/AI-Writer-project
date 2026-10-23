@@ -8,7 +8,13 @@ import {
 import { useAIWorkflow } from "../hooks/useAIWorkflow";
 import type { SelectionSnapshot } from "../hooks/useAIWriting";
 import type { useChapterWriting } from "../hooks/useChapterWriting";
+import {
+  usageClient as defaultUsageClient,
+  type UsageClient,
+} from "../../usage/api/usage";
+import { ModelUsagePanel } from "../../usage/components/ModelUsagePanel";
 import { AIModelSettings } from "./AIModelSettings";
+import { CandidateComparison } from "./CandidateComparison";
 import { ReferenceWritingWorkbench } from "./ReferenceWritingWorkbench";
 import { StoryMemoryWorkbench } from "./StoryMemoryWorkbench";
 
@@ -45,8 +51,13 @@ export function AIWorkflowAssistant({
   selection,
   onTaskStatus,
   client = aiWorkflowClient,
+  projectId,
+  usageClient = defaultUsageClient,
 }: {
   readonly chapterId: string;
+  /** 用于读取本章模型用量；缺省时不显示用量面板。 */
+  readonly projectId?: string;
+  readonly usageClient?: UsageClient;
   readonly writing: ReturnType<typeof useChapterWriting>;
   readonly selection: SelectionSnapshot | null;
   /** 把当前任务的真实状态同步到写作页固定状态区。 */
@@ -121,6 +132,10 @@ export function AIWorkflowAssistant({
   useEffect(() => {
     onTaskStatus?.(taskLabel);
   }, [onTaskStatus, taskLabel]);
+  // A finished or failed send changes the ledger; an open usage panel re-reads it.
+  const usageRefresh = `${run?.run_id ?? ""}:${run?.generated_steps ?? 0}:${
+    run?.last_error ?? ""
+  }:${ai.generating ? 1 : 0}`;
   const unavailable =
     ai.busy ||
     ai.loading ||
@@ -606,6 +621,12 @@ export function AIWorkflowAssistant({
                 <p>
                   模型：{pending.model} · {pending.character_count} 字
                 </p>
+                <CandidateComparison
+                  operation={run.operation}
+                  original={run.selected_text}
+                  candidate={pending.text}
+                  currentContent={writing.state.content}
+                />
                 <button
                   type="button"
                   disabled={unavailable || writing.state.status !== "saved"}
@@ -654,6 +675,15 @@ export function AIWorkflowAssistant({
               </details>
             ) : null}
           </section>
+        ) : null}
+        {projectId ? (
+          <ModelUsagePanel
+            projectId={projectId}
+            chapterId={chapterId}
+            title="本章模型用量"
+            refreshKey={usageRefresh}
+            client={usageClient}
+          />
         ) : null}
       </div>
     </section>
