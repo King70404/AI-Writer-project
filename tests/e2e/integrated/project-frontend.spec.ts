@@ -64,9 +64,7 @@ test("E2E-INT-008 exercises the Project list and creation UI", async ({
 
   browserAudit.allowOneExpectedHealthCancellation();
   await page.getByRole("link", { name: "首页" }).click();
-  await expect(
-    page.getByRole("heading", { name: "写作首页" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "写作首页" })).toBeVisible();
   await page.getByRole("link", { name: "书架", exact: true }).click();
   await expect(page.getByText("还没有项目")).toBeVisible();
   expect(healthRequestFailures.length).toBeLessThanOrEqual(1);
