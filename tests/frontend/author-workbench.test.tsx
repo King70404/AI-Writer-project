@@ -541,10 +541,7 @@ describe("three-column writing desk", () => {
   });
 
   it("starts with side panels closed on narrow screens", async () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn().mockReturnValue({ matches: false } as MediaQueryList),
-    );
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
     await showDesk();
     expect(document.getElementById("writing-desk-navigator")).not.toBeVisible();
     expect(document.getElementById("writing-desk-assistant")).not.toBeVisible();

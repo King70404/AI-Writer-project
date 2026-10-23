@@ -1884,3 +1884,60 @@ summary:focus-visible {
     transition: none !important;
   }
 }
+
+/* 助手表单：标签独占一行，输入控件铺满侧栏，按钮统一为安静的线框样式 */
+.writing-desk__assistant label {
+  display: block;
+  margin-top: 0.6rem;
+}
+
+.writing-desk__assistant label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.writing-desk__assistant select,
+.writing-desk__assistant input:not([type="checkbox"]),
+.writing-desk__assistant textarea {
+  display: block;
+  width: 100%;
+  min-height: 2.25rem;
+  margin-top: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  color: var(--ink);
+  background: var(--paper-sheet);
+  font: inherit;
+}
+
+.writing-desk button:not([role="tab"]) {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--forest);
+  border-radius: 0.4rem;
+  color: var(--forest);
+  background: var(--paper-sheet);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.writing-desk button:not([role="tab"]):disabled {
+  border-color: var(--line);
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+
+.writing-desk button[aria-pressed="true"] {
+  color: #ffffff;
+  background: var(--forest);
+}
+
+.writing-desk__editor > label {
+  width: 100%;
+  max-width: 45rem;
+  margin-inline: auto;
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+}
