@@ -40,6 +40,7 @@ function oldDatabase(): AIWorkflowClient {
     create: vi.fn(),
     action: vi.fn(),
     candidate: vi.fn(),
+    saveEdit: vi.fn(),
   };
 }
 function showAssistant(api: AIWorkflowClient, content = writingClient()) {

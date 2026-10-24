@@ -862,6 +862,9 @@ describe("assistant wiring", () => {
         status: "pending",
         adopted_revision_id: null,
         adopted_version: null,
+        latest_edit: null,
+        edit_count: 0,
+        adopted_edit_id: null,
       },
     ],
     last_error: null,
@@ -875,6 +878,7 @@ describe("assistant wiring", () => {
       create: vi.fn(),
       action: vi.fn(),
       candidate: vi.fn(),
+      saveEdit: vi.fn(),
     };
   }
 

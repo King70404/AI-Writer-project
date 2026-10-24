@@ -194,21 +194,36 @@ export function useAIWorkflow(
       paused.current = false;
       await requestGeneration(run);
     }, run?.run_id);
-  const adopt = (candidate: WorkflowCandidate, continueAfter: boolean) =>
+  const adopt = (
+    candidate: WorkflowCandidate,
+    continueAfter: boolean,
+    editId: string | null = null,
+  ) =>
     execute(async () => {
       if (!active) return;
-      const key =
-        keys.current.get(candidate.candidate_id) ?? crypto.randomUUID();
-      keys.current.set(candidate.candidate_id, key);
+      // One receipt per (candidate, chosen text): a retry never appends twice.
+      const receipt = `${candidate.candidate_id}:${editId ?? "original"}`;
+      const key = keys.current.get(receipt) ?? crypto.randomUUID();
+      keys.current.set(receipt, key);
       let result: WorkflowRun | null = null;
       const accepted = await writing.acceptExternal(async () => {
-        result = await client.candidate(
-          chapterId,
-          candidate.candidate_id,
-          "adopt",
-          key,
-          active.current_version,
-        );
+        result =
+          editId === null
+            ? await client.candidate(
+                chapterId,
+                candidate.candidate_id,
+                "adopt",
+                key,
+                active.current_version,
+              )
+            : await client.candidate(
+                chapterId,
+                candidate.candidate_id,
+                "adopt",
+                key,
+                active.current_version,
+                editId,
+              );
         publish(result);
       });
       if (!accepted)
@@ -224,6 +239,26 @@ export function useAIWorkflow(
       )
         await requestGeneration(next);
     }, active?.run_id);
+  /** 保存作者修改为新版本；正文和原始候选都不变。成功返回 true。 */
+  const saveEdit = async (
+    candidate: WorkflowCandidate,
+    text: string,
+  ): Promise<boolean> => {
+    let saved = false;
+    await execute(async () => {
+      if (!active) return;
+      publish(
+        await client.saveEdit(
+          chapterId,
+          candidate.candidate_id,
+          text,
+          candidate.latest_edit?.edit_id ?? null,
+        ),
+      );
+      saved = true;
+    }, active?.run_id);
+    return saved;
+  };
   const pause = async () => {
     if (!active) return;
     paused.current = true;
@@ -277,6 +312,7 @@ export function useAIWorkflow(
     prepare,
     generate,
     adopt,
+    saveEdit,
     pause,
     select: (id: string) => {
       if (!lock.current) {

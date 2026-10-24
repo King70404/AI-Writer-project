@@ -24,6 +24,7 @@ import {
 import { projectDetailsPath } from "../../projects/routing";
 import { chapterWritingPath } from "../routing";
 import { WorkspaceSummaryPanel } from "../../workbench/components/WorkspaceSummaryPanel";
+import { LocalDraftManager } from "../../local-drafts/LocalDraftManager";
 
 interface NovelStructurePageProps {
   readonly client?: NovelStructureApiClient;
@@ -579,6 +580,12 @@ function NovelStructureWorkspace({
       <WorkspaceSummaryPanel
         projectId={projectId}
         refreshKey={structureRevision}
+      />
+      <LocalDraftManager
+        projectId={projectId}
+        chapterTitles={
+          new Map(state.chapters.map((item) => [item.chapter_id, item.title]))
+        }
       />
       <ErrorMessage error={actionError} />
       {feedback === null ? null : (

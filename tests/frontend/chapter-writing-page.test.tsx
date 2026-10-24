@@ -192,6 +192,12 @@ describe("Chapter writing workspace", () => {
     const button = screen.getByRole("button", {
       name: "丢弃本地正文并重新加载服务器版本",
     });
+    expect(button).toBeDisabled(); // discarding local prose needs an explicit confirmation
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "我已保留需要的文字，确认丢弃本地正文",
+      }),
+    );
     await flushReact(() => {
       fireEvent.click(button);
     });

@@ -93,6 +93,9 @@ const pending: WorkflowRun = {
       status: "pending",
       adopted_revision_id: null,
       adopted_version: null,
+      latest_edit: null,
+      edit_count: 0,
+      adopted_edit_id: null,
     },
   ],
 };
@@ -118,6 +121,7 @@ function client(initial: WorkflowRun[] = []): AIWorkflowClient {
     create: vi.fn().mockResolvedValue(run),
     action: vi.fn().mockResolvedValue(pending),
     candidate: vi.fn().mockResolvedValue(adopted),
+    saveEdit: vi.fn(),
   };
 }
 function setup(api = client(), content = writingClient()) {

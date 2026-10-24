@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import {
   aiWorkflowClient,
   workflowFailureMessage,
@@ -12,9 +18,17 @@ import {
   usageClient as defaultUsageClient,
   type UsageClient,
 } from "../../usage/api/usage";
+import {
+  budgetClient as defaultBudgetClient,
+  type BudgetClient,
+} from "../../usage/api/budget";
+import { BudgetSettingsPanel } from "../../usage/components/BudgetSettingsPanel";
 import { ModelUsagePanel } from "../../usage/components/ModelUsagePanel";
+import { SendEstimatePanel } from "../../usage/components/SendEstimatePanel";
 import { AIModelSettings } from "./AIModelSettings";
 import { CandidateComparison } from "./CandidateComparison";
+import { editIsCurrent } from "../candidate-edit";
+import { CandidateEditor } from "./CandidateEditor";
 import { ReferenceWritingWorkbench } from "./ReferenceWritingWorkbench";
 import { StoryMemoryWorkbench } from "./StoryMemoryWorkbench";
 
@@ -53,11 +67,13 @@ export function AIWorkflowAssistant({
   client = aiWorkflowClient,
   projectId,
   usageClient = defaultUsageClient,
+  budgetClient = defaultBudgetClient,
 }: {
   readonly chapterId: string;
   /** 用于读取本章模型用量；缺省时不显示用量面板。 */
   readonly projectId?: string;
   readonly usageClient?: UsageClient;
+  readonly budgetClient?: BudgetClient;
   readonly writing: ReturnType<typeof useChapterWriting>;
   readonly selection: SelectionSnapshot | null;
   /** 把当前任务的真实状态同步到写作页固定状态区。 */
@@ -76,6 +92,15 @@ export function AIWorkflowAssistant({
   const [tab, setTab] = useState<AssistantTab>("generate");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState(0);
+  const [editorDirty, setEditorDirty] = useState(false);
+  const [budgetGate, setBudgetGate] = useState({ allowed: true, reason: "" });
+  const onBudgetGate = useCallback((allowed: boolean, reason: string) => {
+    setBudgetGate((current) =>
+      current.allowed === allowed && current.reason === reason
+        ? current
+        : { allowed, reason },
+    );
+  }, []);
   const tabRefs = useRef<Record<AssistantTab, HTMLButtonElement | null>>({
     prepare: null,
     generate: null,
@@ -162,8 +187,9 @@ export function AIWorkflowAssistant({
       selection,
     );
   };
-  const canSend =
+  const consented =
     runProfile?.kind !== "cloud" || confirmedRunId === run?.run_id;
+  const canSend = consented && budgetGate.allowed;
   const taskError = ai.errorRunId === run?.run_id ? ai.error : "";
   const sendBlockedReason = writing.state.reloadFailed
     ? "正文读取失败，请先重新加载服务器正文，再继续生成。"
@@ -171,9 +197,11 @@ export function AIWorkflowAssistant({
       ? "正在读取最新正文，请稍候。"
       : !runProfile
         ? "原模型配置不可用，请选择可用模型并重新准备任务。"
-        : !canSend
+        : !consented
           ? "请先勾选上面的发送同意，再确认生成。"
-          : "";
+          : !budgetGate.allowed
+            ? budgetGate.reason
+            : "";
   const kindLabel = (item: {
     readonly kind: string;
     readonly has_key: boolean;
@@ -557,7 +585,7 @@ export function AIWorkflowAssistant({
                 <p>
                   将把上面的小说片段、选区、额外要求及本轮已采纳段落发送至{" "}
                   {runProfile.base_url}
-                  。服务商可能计费；本应用限制段数和输出量，不在未知费率时估算金额。
+                  。服务商可能计费；本应用限制段数和输出量，只按你填写的价格估算金额上限。
                 </p>
                 <label>
                   <input
@@ -577,6 +605,16 @@ export function AIWorkflowAssistant({
               <p role="alert">
                 {taskError || workflowFailureMessage(run.last_error!)}
               </p>
+            ) : null}
+            {run.status === "ready" && !pending ? (
+              <SendEstimatePanel
+                key={`${run.run_id}:${run.generated_steps}:${run.candidates.length}:${run.last_error ?? ""}`}
+                chapterId={chapterId}
+                runId={run.run_id}
+                refreshKey={`${run.generated_steps}:${run.candidates.length}:${run.last_error ?? ""}`}
+                onGate={onBudgetGate}
+                client={budgetClient}
+              />
             ) : null}
             {sendBlockedReason ? <p>{sendBlockedReason}</p> : null}
             {ai.busy ? (
@@ -624,16 +662,71 @@ export function AIWorkflowAssistant({
                 <CandidateComparison
                   operation={run.operation}
                   original={run.selected_text}
-                  candidate={pending.text}
+                  candidate={pending.latest_edit?.text ?? pending.text}
                   currentContent={writing.state.content}
                 />
-                <button
-                  type="button"
-                  disabled={unavailable || writing.state.status !== "saved"}
-                  onClick={() => void ai.adopt(pending, false)}
-                >
-                  {run.operation === "continue" ? "追加到正文" : "替换选中文本"}
-                </button>
+                <CandidateEditor
+                  key={`${pending.candidate_id}:${pending.latest_edit?.edit_id ?? ""}`}
+                  candidate={pending}
+                  savedRevisionId={
+                    writing.state.snapshot.resource.current_revision_id
+                  }
+                  disabled={unavailable}
+                  onSave={(text) => ai.saveEdit(pending, text)}
+                  onDirtyChange={setEditorDirty}
+                />
+                {pending.latest_edit ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={
+                        unavailable ||
+                        editorDirty ||
+                        writing.state.status !== "saved" ||
+                        !editIsCurrent(
+                          pending,
+                          writing.state.snapshot.resource.current_revision_id,
+                        )
+                      }
+                      onClick={() =>
+                        void ai.adopt(
+                          pending,
+                          false,
+                          pending.latest_edit?.edit_id ?? null,
+                        )
+                      }
+                    >
+                      {run.operation === "continue"
+                        ? "追加修改后的文本"
+                        : "用修改后的文本替换选区"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        unavailable ||
+                        editorDirty ||
+                        writing.state.status !== "saved"
+                      }
+                      onClick={() => void ai.adopt(pending, false)}
+                    >
+                      改为采用原始候选
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={
+                      unavailable ||
+                      editorDirty ||
+                      writing.state.status !== "saved"
+                    }
+                    onClick={() => void ai.adopt(pending, false)}
+                  >
+                    {run.operation === "continue"
+                      ? "追加到正文"
+                      : "替换选中文本"}
+                  </button>
+                )}
                 {run.operation === "continue" &&
                 run.generated_steps < run.max_steps &&
                 run.status !== "paused" ? (
@@ -641,10 +734,22 @@ export function AIWorkflowAssistant({
                     type="button"
                     disabled={
                       unavailable ||
+                      editorDirty ||
                       writing.state.status !== "saved" ||
-                      !canSend
+                      !consented ||
+                      (pending.latest_edit !== null &&
+                        !editIsCurrent(
+                          pending,
+                          writing.state.snapshot.resource.current_revision_id,
+                        ))
                     }
-                    onClick={() => void ai.adopt(pending, true)}
+                    onClick={() =>
+                      void ai.adopt(
+                        pending,
+                        true,
+                        pending.latest_edit?.edit_id ?? null,
+                      )
+                    }
                   >
                     采纳并生成下一段
                   </button>
@@ -667,7 +772,11 @@ export function AIWorkflowAssistant({
                     .map((item) => (
                       <li key={item.candidate_id}>
                         第 {item.sequence} 段 ·{" "}
-                        {item.status === "adopted" ? "已采纳" : "已丢弃"}
+                        {item.status === "adopted"
+                          ? item.adopted_edit_id
+                            ? "已采纳（采用作者修改版本）"
+                            : "已采纳"
+                          : "已丢弃"}
                         <pre>{item.text}</pre>
                       </li>
                     ))}
@@ -683,6 +792,14 @@ export function AIWorkflowAssistant({
             title="本章模型用量"
             refreshKey={usageRefresh}
             client={usageClient}
+          />
+        ) : null}
+        {projectId ? (
+          <BudgetSettingsPanel
+            projectId={projectId}
+            profileId={profile?.id ?? null}
+            profileName={profile?.name ?? ""}
+            client={budgetClient}
           />
         ) : null}
       </div>

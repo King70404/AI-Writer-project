@@ -24,6 +24,9 @@ import {
 } from "../../workbench/recentWriting";
 import type { SelectionSnapshot } from "../hooks/useAIWriting";
 import { EditorialStatusControl } from "../../workbench/components/EditorialStatusControl";
+import { LocalDraftRecovery } from "../../local-drafts/LocalDraftRecovery";
+import { useLocalDraft } from "../../local-drafts/useLocalDraft";
+import { ConflictResolution } from "../components/ConflictResolution";
 
 const SAVE_LABELS: Record<SaveStatus, string> = {
   saved: "已保存",
@@ -46,15 +49,29 @@ function WritingEditor({
   volume,
   projectTitle,
   client,
+  loadStorageInstance,
 }: {
   readonly initial: VersionedChapterContent;
   readonly chapter: ChapterResponse;
   readonly volume: VolumeResponse;
   readonly projectTitle: string;
   readonly client: NovelStructureApiClient;
+  readonly loadStorageInstance?: () => Promise<string>;
 }) {
   const writing = useChapterWriting(initial, client);
   const { state, edit, save, reloadServer, flush } = writing;
+  const drafts = useLocalDraft(
+    {
+      projectId: chapter.project_id,
+      chapterId: chapter.chapter_id,
+      chapterTitle: chapter.title,
+      content: state.content,
+      savedContent: state.snapshot.resource.content,
+      savedRevisionId: state.snapshot.resource.current_revision_id,
+      savedVersion: state.snapshot.version,
+    },
+    loadStorageInstance,
+  );
   const navigate = useNavigate();
   const [selection, setSelection] = useState<SelectionSnapshot | null>(null);
   const [taskStatus, setTaskStatus] = useState("没有进行中的 AI 任务");
@@ -188,18 +205,36 @@ function WritingEditor({
       </aside>
       <div className="writing-desk__editor">
         {state.status === "conflict" ? (
-          <div role="alert">
-            <p>服务器上的章节已发生变化。当前内容尚未覆盖服务器版本。</p>
-            <p>重新加载会丢弃当前未保存的本地正文。</p>
-            <button
-              type="button"
-              disabled={state.reloading}
-              onClick={() => void reloadServer()}
-            >
-              丢弃本地正文并重新加载服务器版本
-            </button>
-          </div>
+          <ConflictResolution
+            chapterTitle={chapter.title}
+            localContent={state.content}
+            disabled={state.reloading}
+            loadServer={async () =>
+              (
+                await client.getChapterContent(
+                  chapter.chapter_id,
+                  chapter.project_id,
+                )
+              ).resource.content
+            }
+            onKeepLocal={writing.keepLocal}
+            onReloadServer={() => void reloadServer()}
+          />
         ) : null}
+        <LocalDraftRecovery
+          instance={drafts.instance}
+          storageError={drafts.storageError}
+          recoverable={drafts.recoverable}
+          foreign={drafts.foreign}
+          savedContent={state.snapshot.resource.content}
+          savedRevisionId={state.snapshot.resource.current_revision_id}
+          canRestore={
+            state.status === "saved" && !state.reloading && !state.reloadFailed
+          }
+          onRestore={edit}
+          onDiscard={drafts.discard}
+          onDismiss={drafts.dismiss}
+        />
         {state.status === "error" ? (
           <p role="alert">
             保存失败，当前正文已保留。请点击“立即保存”重试，或继续编辑后再次保存。
