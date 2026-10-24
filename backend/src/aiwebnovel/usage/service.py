@@ -10,7 +10,7 @@ from aiwebnovel.domain.errors import DomainError
 from aiwebnovel.model_gateway.models import ModelProfile
 from aiwebnovel.usage.attribution import UsageAttribution, current_usage_attribution
 from aiwebnovel.usage.models import AttemptStatus, UsageAttributionMissing, UsagePage
-from aiwebnovel.usage.persistence import AttemptOutcome, AttemptStart
+from aiwebnovel.usage.records import AttemptOutcome, AttemptStart
 
 logger = get_logger("usage")
 

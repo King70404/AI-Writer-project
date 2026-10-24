@@ -12,6 +12,7 @@ from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
     BACKUP_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
+    USAGE_OPERATIONS,
     WORKBENCH_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
@@ -665,17 +666,19 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
         ("GET", "/api/v1/chapters/{chapter_id}"),
         ("PUT", "/api/v1/chapters/{chapter_id}"),
     }
-    assert len(operations) == 75
+    assert len(operations) == 76
     assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
     assert len(BACKUP_OPERATIONS) == 5
     assert len(WORKBENCH_OPERATIONS) == 5
+    assert len(USAGE_OPERATIONS) == 1
     assert operations >= AI_WORKFLOW_OPERATIONS
     assert operations >= (
         WRITING_PREPARATION_OPERATIONS
         | STORY_MEMORY_OPERATIONS
         | BACKUP_OPERATIONS
         | WORKBENCH_OPERATIONS
+        | USAGE_OPERATIONS
     )
     assert {
         operation
@@ -685,6 +688,7 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
             | STORY_MEMORY_OPERATIONS
             | BACKUP_OPERATIONS
             | WORKBENCH_OPERATIONS
+            | USAGE_OPERATIONS
         )
         if any(word in operation[1] for word in ("outline", "volume", "chapter"))
         and not operation[1].endswith("/content")

@@ -8,7 +8,6 @@ deletion. No prompt, response, header, endpoint or key is stored.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import uuid4
@@ -28,7 +27,6 @@ from sqlalchemy import (
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
-from aiwebnovel.ai_writing.application.models import ProviderUsage
 from aiwebnovel.db.base import Base
 from aiwebnovel.db.types import PrefixedUlidType
 from aiwebnovel.domain.errors import DomainError
@@ -38,9 +36,7 @@ from aiwebnovel.project.application.queries import GetProjectQuery
 from aiwebnovel.project.application.services import ProjectQueryService
 from aiwebnovel.project.errors import ProjectNotFound
 from aiwebnovel.project.identifiers import ProjectId
-from aiwebnovel.usage.attribution import UsageAttribution
 from aiwebnovel.usage.models import (
-    AttemptStatus,
     ModelUsage,
     OperationUsage,
     UsageAttemptView,
@@ -48,6 +44,7 @@ from aiwebnovel.usage.models import (
     UsagePage,
     UsageTotals,
 )
+from aiwebnovel.usage.records import AttemptOutcome, AttemptStart
 
 
 class ModelUsageAttemptRecord(Base):
@@ -113,23 +110,6 @@ class ModelUsageAttemptRecord(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
-
-@dataclass(frozen=True, slots=True)
-class AttemptStart:
-    attribution: UsageAttribution
-    profile_id: str
-    model_kind: str
-    model_name: str
-    input_characters: int
-
-
-@dataclass(frozen=True, slots=True)
-class AttemptOutcome:
-    status: AttemptStatus
-    error_code: str | None
-    usage: ProviderUsage | None
-    output_characters: int | None
 
 
 def _iso(value: datetime) -> str:
