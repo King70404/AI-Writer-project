@@ -6,6 +6,7 @@ import pytest
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
     BACKUP_OPERATIONS,
+    CANDIDATE_BUDGET_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
     USAGE_OPERATIONS,
     WORKBENCH_OPERATIONS,
@@ -72,6 +73,7 @@ def test_production_api_inventory_has_exactly_fifty_routes(tmp_path: Path) -> No
         | BACKUP_OPERATIONS
         | WORKBENCH_OPERATIONS
         | USAGE_OPERATIONS
+        | CANDIDATE_BUDGET_OPERATIONS
     )
 
 

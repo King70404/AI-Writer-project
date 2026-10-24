@@ -34,6 +34,35 @@ class ContextPack:
     manifest: ContextManifest
 
 
+MAX_CANDIDATE_EDITS = 50
+MAX_EDIT_CHARACTERS = 3000
+MAX_EDIT_LENGTH = 12_000
+
+
+class CandidateEditInvalid(DomainError):
+    message = "The author edit must change the text and stay within 1 to 3000 characters."
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateEdit:
+    """An immutable author revision derived from one model candidate.
+
+    ``base_revision_id``/``base_version`` record the saved manuscript this edit was
+    written against; adopting it requires that manuscript to still be current.
+    """
+
+    edit_id: str
+    candidate_id: str
+    sequence: int
+    parent_edit_id: str | None
+    text: str
+    character_count: int
+    base_revision_id: str
+    base_version: int
+    created_at: str
+    source: Literal["author"] = "author"
+
+
 @dataclass(frozen=True, slots=True)
 class WorkflowCandidate:
     candidate_id: str
@@ -44,6 +73,9 @@ class WorkflowCandidate:
     status: CandidateStatus
     adopted_revision_id: str | None
     adopted_version: int | None
+    latest_edit: CandidateEdit | None = None
+    edit_count: int = 0
+    adopted_edit_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,8 +141,21 @@ class WorkflowRepository(Protocol):
     def transition(self, chapter_id: str, run_id: str, *, resume: bool) -> WorkflowRun: ...
 
     def adopt(
-        self, chapter_id: str, candidate_id: str, expected_version: int, idempotency_key: str
+        self,
+        chapter_id: str,
+        candidate_id: str,
+        expected_version: int,
+        idempotency_key: str,
+        edit_id: str | None = None,
     ) -> WorkflowRun: ...
+
+    def create_edit(
+        self, chapter_id: str, candidate_id: str, text: str, parent_edit_id: str | None
+    ) -> WorkflowRun: ...
+
+    def list_edits(self, chapter_id: str, candidate_id: str) -> tuple[CandidateEdit, ...]: ...
+
+    def release_unsent(self, chapter_id: str, run_id: str, error_code: str) -> None: ...
 
     def discard(self, chapter_id: str, candidate_id: str) -> WorkflowRun: ...
 

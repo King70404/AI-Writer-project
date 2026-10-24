@@ -39,6 +39,15 @@ WRITING_STUDIO_TABLE_NAMES = frozenset(
 STORY_MEMORY_TABLE_NAMES = frozenset({"story_memory_revisions"})
 WORKBENCH_TABLE_NAMES = frozenset({"chapter_editorial_revisions"})
 USAGE_TABLE_NAMES = frozenset({"model_usage_attempts"})
+CANDIDATE_BUDGET_TABLE_NAMES = frozenset(
+    {
+        "ai_candidate_edits",
+        "ai_candidate_edit_adoptions",
+        "model_price_revisions",
+        "project_budget_revisions",
+        "model_budget_reservations",
+    }
+)
 BUSINESS_TABLE_NAMES = (
     PROJECT_TABLE_NAMES
     | STORY_BIBLE_TABLE_NAMES
@@ -49,12 +58,15 @@ BUSINESS_TABLE_NAMES = (
     | STORY_MEMORY_TABLE_NAMES
     | WORKBENCH_TABLE_NAMES
     | USAGE_TABLE_NAMES
+    | CANDIDATE_BUDGET_TABLE_NAMES
 )
 
 
 def load_model_metadata() -> MetaData:
     """Load the explicit model set without connecting to or migrating a database."""
     from aiwebnovel.ai_writing.persistence.models import (
+        AICandidateEditAdoptionRecord,
+        AICandidateEditRecord,
         AIWorkflowCandidateRecord,
         AIWorkflowRunRecord,
     )
@@ -86,6 +98,11 @@ def load_model_metadata() -> MetaData:
         StoryBibleRevisionRecord,
     )
     from aiwebnovel.story_memory.persistence import StoryMemoryRevisionRecord
+    from aiwebnovel.usage.budget_persistence import (
+        ModelBudgetReservationRecord,
+        ModelPriceRevisionRecord,
+        ProjectBudgetRevisionRecord,
+    )
     from aiwebnovel.usage.persistence import ModelUsageAttemptRecord
     from aiwebnovel.workbench.persistence import ChapterEditorialRevisionRecord
     from aiwebnovel.writing_studio.persistence.models import (
@@ -96,12 +113,17 @@ def load_model_metadata() -> MetaData:
     registered_records = (
         AIWorkflowRunRecord,
         AIWorkflowCandidateRecord,
+        AICandidateEditRecord,
+        AICandidateEditAdoptionRecord,
         WritingReferenceRecord,
         WritingRuleVersionRecord,
         ChapterPlanRevisionRecord,
         StoryMemoryRevisionRecord,
         ChapterEditorialRevisionRecord,
         ModelUsageAttemptRecord,
+        ModelPriceRevisionRecord,
+        ProjectBudgetRevisionRecord,
+        ModelBudgetReservationRecord,
         ProjectRecord,
         ProjectRevisionRecord,
         ProjectHeadRecord,

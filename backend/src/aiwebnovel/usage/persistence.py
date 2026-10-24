@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -36,6 +36,7 @@ from aiwebnovel.project.application.queries import GetProjectQuery
 from aiwebnovel.project.application.services import ProjectQueryService
 from aiwebnovel.project.errors import ProjectNotFound
 from aiwebnovel.project.identifiers import ProjectId
+from aiwebnovel.usage.budget import BudgetRefused
 from aiwebnovel.usage.models import (
     ModelUsage,
     OperationUsage,
@@ -45,6 +46,9 @@ from aiwebnovel.usage.models import (
     UsageTotals,
 )
 from aiwebnovel.usage.records import AttemptOutcome, AttemptStart
+
+if TYPE_CHECKING:
+    from aiwebnovel.usage.budget_persistence import SqlAlchemyBudgetStore
 
 
 class ModelUsageAttemptRecord(Base):
@@ -201,58 +205,82 @@ class SqlAlchemyUsageLedger:
         sessions: Callable[[], Session],
         projects: ProjectQueryService,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        budgets: SqlAlchemyBudgetStore | None = None,
     ) -> None:
         self._sessions = sessions
         self._projects = projects
         self._clock = clock
+        self._budgets = budgets
 
     def start(self, attempt: AttemptStart) -> str:
+        """Open a running row; with a budget store, check and reserve in one transaction."""
         attribution = attempt.attribution
         try:
             with self._sessions() as session:
-                project_id = (
-                    None
-                    if attribution.project_id is None
-                    else ProjectId.parse(attribution.project_id)
-                )
-                chapter_id = None
-                if attribution.chapter_id is not None:
-                    chapter_id = ChapterId.parse(attribution.chapter_id)
-                    owner = session.scalar(
-                        select(ChapterRecord.project_id).where(ChapterRecord.id == chapter_id)
+                session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+                try:
+                    project_id = (
+                        None
+                        if attribution.project_id is None
+                        else ProjectId.parse(attribution.project_id)
                     )
-                    if owner is None or (project_id is not None and owner != project_id):
+                    chapter_id = None
+                    if attribution.chapter_id is not None:
+                        chapter_id = ChapterId.parse(attribution.chapter_id)
+                        owner = session.scalar(
+                            select(ChapterRecord.project_id).where(ChapterRecord.id == chapter_id)
+                        )
+                        if owner is None or (project_id is not None and owner != project_id):
+                            raise UsageLedgerUnavailable
+                        project_id = owner
+                    if project_id is None:
                         raise UsageLedgerUnavailable
-                    project_id = owner
-                if project_id is None:
-                    raise UsageLedgerUnavailable
-                identifier = str(uuid4())
-                session.add(
-                    ModelUsageAttemptRecord(
-                        id=identifier,
-                        project_id=project_id,
-                        chapter_id=chapter_id,
-                        operation=attribution.operation,
-                        task_id=attribution.task_id[:36],
-                        profile_id=attempt.profile_id[:100],
-                        model_kind=attempt.model_kind,
-                        model_name=attempt.model_name[:200],
-                        input_characters=attempt.input_characters,
-                        output_characters=None,
-                        status="running",
-                        error_code=None,
-                        usage_source="unknown",
-                        reported_input_tokens=None,
-                        reported_output_tokens=None,
-                        reported_total_tokens=None,
-                        started_at=self._clock(),
-                        finished_at=None,
-                        duration_ms=None,
+                    check = None
+                    if self._budgets is not None and attempt.request is not None:
+                        check = self._budgets.check(session, project_id, attempt.request)
+                        if check.decision == "refused":
+                            # Refused locally: nothing is sent and no ledger row is written.
+                            raise BudgetRefused
+                    identifier = str(uuid4())
+                    session.add(
+                        ModelUsageAttemptRecord(
+                            id=identifier,
+                            project_id=project_id,
+                            chapter_id=chapter_id,
+                            operation=attribution.operation,
+                            task_id=attribution.task_id[:36],
+                            profile_id=attempt.profile_id[:100],
+                            model_kind=attempt.model_kind,
+                            model_name=attempt.model_name[:200],
+                            input_characters=attempt.input_characters,
+                            output_characters=None,
+                            status="running",
+                            error_code=None,
+                            usage_source="unknown",
+                            reported_input_tokens=None,
+                            reported_output_tokens=None,
+                            reported_total_tokens=None,
+                            started_at=self._clock(),
+                            finished_at=None,
+                            duration_ms=None,
+                        )
                     )
-                )
-                session.commit()
-                return identifier
-        except UsageLedgerUnavailable:
+                    if self._budgets is not None and attempt.request is not None and check:
+                        session.flush()
+                        self._budgets.reserve(
+                            session,
+                            identifier,
+                            project_id,
+                            attempt.request,
+                            check.price,
+                            check.estimated_micros,
+                        )
+                    session.commit()
+                    return identifier
+                except BaseException:
+                    session.rollback()
+                    raise
+        except (UsageLedgerUnavailable, BudgetRefused):
             raise
         except (SQLAlchemyError, ValueError, DomainError):
             raise UsageLedgerUnavailable from None

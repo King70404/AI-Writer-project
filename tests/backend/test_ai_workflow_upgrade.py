@@ -27,6 +27,7 @@ from aiwebnovel.db.engine import create_database_engine
 from aiwebnovel.db.model_registry import (
     AI_WORKFLOW_TABLE_NAMES,
     BUSINESS_TABLE_NAMES,
+    CANDIDATE_BUDGET_TABLE_NAMES,
     STORY_MEMORY_TABLE_NAMES,
     USAGE_TABLE_NAMES,
     WORKBENCH_TABLE_NAMES,
@@ -39,7 +40,7 @@ from .test_novel_structure_migration import _run_alembic
 
 pytestmark = pytest.mark.integration
 _OLD = "0006_add_chapter_manuscript_content"
-_NEW = "0011_add_model_usage_ledger"
+_NEW = "0012_add_candidate_edits_and_budgets"
 _AUTHOR_TABLES = (
     BUSINESS_TABLE_NAMES
     - AI_WORKFLOW_TABLE_NAMES
@@ -47,6 +48,7 @@ _AUTHOR_TABLES = (
     - STORY_MEMORY_TABLE_NAMES
     - WORKBENCH_TABLE_NAMES
     - USAGE_TABLE_NAMES
+    - CANDIDATE_BUDGET_TABLE_NAMES
 )
 
 
@@ -143,6 +145,36 @@ def test_workbench_database_upgrade_adds_empty_settle_once_usage_ledger(legacy):
     assert _version(backups[0]) == "0010_add_chapter_editorial_states"
 
 
+def test_usage_database_upgrade_adds_empty_append_only_edit_and_budget_tables(legacy):
+    migrated = _run_alembic(legacy.paths.database_file, "upgrade", "0011_add_model_usage_ledger")
+    assert migrated.returncode == 0, migrated.stderr
+    before = _snapshot(legacy.paths.database_file)
+    upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert _version(legacy.paths.database_file) == _NEW
+    assert _snapshot(legacy.paths.database_file) == before
+    tables = (
+        "ai_candidate_edits",
+        "ai_candidate_edit_adoptions",
+        "model_price_revisions",
+        "project_budget_revisions",
+        "model_budget_reservations",
+    )
+    with closing(sqlite3.connect(legacy.paths.database_file)) as connection:
+        for table in tables:
+            assert connection.execute(f"SELECT count(*) FROM {table}").fetchone() == (0,)
+            assert connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name=? ORDER BY name",
+                (table,),
+            ).fetchall() == [(f"trg_{table}_no_delete",), (f"trg_{table}_no_update",)]
+        assert connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='trigger' "
+            "AND tbl_name='ai_workflow_candidates'"
+        ).fetchall() == [("trg_ai_workflow_candidates_original_immutable",)]
+    backups = list(legacy.paths.backups.glob("before-ai-workflow-*.sqlite3"))
+    assert len(backups) == 1
+    assert _version(backups[0]) == "0011_add_model_usage_ledger"
+
+
 def upgrade_ai_workflow_database(engine: Engine, paths: StoragePaths) -> None:
     _upgrade_database(
         engine,
@@ -194,7 +226,7 @@ def _snapshot(path: Path) -> tuple[dict[str, list[tuple]], list[tuple]]:
         objects = connection.execute(
             "SELECT type, name, tbl_name, sql FROM sqlite_master "
             "WHERE name NOT LIKE 'sqlite_%' AND tbl_name NOT LIKE 'ai_workflow_%' "
-            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions', 'model_usage_attempts') ORDER BY name"
+            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions', 'model_usage_attempts', 'ai_candidate_edits', 'ai_candidate_edit_adoptions', 'model_price_revisions', 'project_budget_revisions', 'model_budget_reservations') ORDER BY name"
         ).fetchall()
         return data, objects
 

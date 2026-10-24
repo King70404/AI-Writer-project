@@ -55,3 +55,14 @@ WORKBENCH_OPERATIONS = {
 USAGE_OPERATIONS = {
     ("GET", "/api/v1/projects/{project_id}/usage"),
 }
+
+CANDIDATE_BUDGET_OPERATIONS = {
+    ("POST", "/api/v1/chapters/{chapter_id}/ai/candidates/{candidate_id}/edits"),
+    ("GET", "/api/v1/chapters/{chapter_id}/ai/candidates/{candidate_id}/edits"),
+    ("GET", "/api/v1/chapters/{chapter_id}/ai/runs/{run_id}/estimate"),
+    ("GET", "/api/v1/ai/models/{profile_id}/price"),
+    ("PUT", "/api/v1/ai/models/{profile_id}/price"),
+    ("GET", "/api/v1/projects/{project_id}/budget"),
+    ("PUT", "/api/v1/projects/{project_id}/budget"),
+    ("GET", "/api/v1/storage-instance"),
+}

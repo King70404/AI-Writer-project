@@ -26,6 +26,7 @@ from aiwebnovel.core.errors import AppError
 from aiwebnovel.domain.errors import DomainError, InvalidDomainIdentifier
 from aiwebnovel.novel_structure.errors import ChapterNotFound
 from aiwebnovel.security.request_limits import is_json_media_type
+from aiwebnovel.usage.budget import BudgetRefused
 from aiwebnovel.usage.models import UsageLedgerUnavailable
 
 
@@ -128,6 +129,7 @@ def map_error(error: DomainError) -> AppError:
             "AI_USAGE_LEDGER_UNAVAILABLE",
             UsageLedgerUnavailable.message,
         ),
+        BudgetRefused: (409, "AI_BUDGET_REFUSED", BudgetRefused.message),
     }
     status, code, message = statuses.get(
         type(error), (503, "AI_CONTEXT_UNAVAILABLE", "AI writing context is unavailable.")

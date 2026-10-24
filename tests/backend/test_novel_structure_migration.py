@@ -19,6 +19,7 @@ from aiwebnovel.db.engine import create_database_engine
 from aiwebnovel.db.model_registry import (
     AI_WORKFLOW_TABLE_NAMES,
     BUSINESS_TABLE_NAMES,
+    CANDIDATE_BUDGET_TABLE_NAMES,
     STORY_MEMORY_TABLE_NAMES,
     USAGE_TABLE_NAMES,
     WORKBENCH_TABLE_NAMES,
@@ -38,6 +39,7 @@ _PRE_AI_TABLE_NAMES = (
     - STORY_MEMORY_TABLE_NAMES
     - WORKBENCH_TABLE_NAMES
     - USAGE_TABLE_NAMES
+    - CANDIDATE_BUDGET_TABLE_NAMES
 )
 _NEW_TABLES = {
     "outlines",
@@ -145,7 +147,7 @@ def _migrated_database_fixture(
 def test_metadata_registers_authorized_tables_with_unchanged_author_schema() -> None:
     metadata = load_model_metadata()
 
-    assert len(BUSINESS_TABLE_NAMES) == 26
+    assert len(BUSINESS_TABLE_NAMES) == 31
     assert len(_PRE_AI_TABLE_NAMES) == 18
     assert frozenset(metadata.tables) == BUSINESS_TABLE_NAMES
     assert _NEW_TABLES <= BUSINESS_TABLE_NAMES

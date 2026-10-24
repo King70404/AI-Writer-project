@@ -11,6 +11,7 @@ from sqlalchemy.exc import OperationalError
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
     BACKUP_OPERATIONS,
+    CANDIDATE_BUDGET_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
     USAGE_OPERATIONS,
     WORKBENCH_OPERATIONS,
@@ -666,12 +667,13 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
         ("GET", "/api/v1/chapters/{chapter_id}"),
         ("PUT", "/api/v1/chapters/{chapter_id}"),
     }
-    assert len(operations) == 76
+    assert len(operations) == 84
     assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
     assert len(BACKUP_OPERATIONS) == 5
     assert len(WORKBENCH_OPERATIONS) == 5
     assert len(USAGE_OPERATIONS) == 1
+    assert len(CANDIDATE_BUDGET_OPERATIONS) == 8
     assert operations >= AI_WORKFLOW_OPERATIONS
     assert operations >= (
         WRITING_PREPARATION_OPERATIONS
@@ -679,6 +681,7 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
         | BACKUP_OPERATIONS
         | WORKBENCH_OPERATIONS
         | USAGE_OPERATIONS
+        | CANDIDATE_BUDGET_OPERATIONS
     )
     assert {
         operation
@@ -689,6 +692,7 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
             | BACKUP_OPERATIONS
             | WORKBENCH_OPERATIONS
             | USAGE_OPERATIONS
+            | CANDIDATE_BUDGET_OPERATIONS
         )
         if any(word in operation[1] for word in ("outline", "volume", "chapter"))
         and not operation[1].endswith("/content")
@@ -700,7 +704,9 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
     }
     assert content_operations <= operations
     assert {
-        operation for operation in operations - AI_WORKFLOW_OPERATIONS if "/ai/" in operation[1]
+        operation
+        for operation in operations - AI_WORKFLOW_OPERATIONS - CANDIDATE_BUDGET_OPERATIONS
+        if "/ai/" in operation[1]
     } == {
         ("POST", "/api/v1/chapters/{chapter_id}/ai/continue"),
         ("POST", "/api/v1/chapters/{chapter_id}/ai/rewrite"),

@@ -9,6 +9,7 @@ from aiwebnovel.core.logging import get_logger
 from aiwebnovel.domain.errors import DomainError
 from aiwebnovel.model_gateway.models import ModelProfile
 from aiwebnovel.usage.attribution import UsageAttribution, current_usage_attribution
+from aiwebnovel.usage.budget import SendRequest, input_tokens_upper
 from aiwebnovel.usage.models import AttemptStatus, UsageAttributionMissing, UsagePage
 from aiwebnovel.usage.records import AttemptOutcome, AttemptStart
 
@@ -57,10 +58,25 @@ class UsageLedgerService:
         opened: list[str] = []
 
         def before_send(profile: ModelProfile) -> None:
+            request = SendRequest(
+                attribution.project_id,
+                attribution.chapter_id,
+                attribution.task_id,
+                profile.id,
+                input_characters,
+                input_tokens_upper(messages),
+                # The gateway sends exactly the profile's configured output limit.
+                profile.max_output_tokens,
+            )
             opened.append(
                 self._ledger.start(
                     AttemptStart(
-                        attribution, profile.id, profile.kind, profile.model, input_characters
+                        attribution,
+                        profile.id,
+                        profile.kind,
+                        profile.model,
+                        input_characters,
+                        request,
                     )
                 )
             )

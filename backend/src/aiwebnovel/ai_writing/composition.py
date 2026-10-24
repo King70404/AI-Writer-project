@@ -24,6 +24,7 @@ from aiwebnovel.storage.paths import StoragePaths
 from aiwebnovel.story_bible.application.services import StoryBibleQueryService
 from aiwebnovel.story_memory.composition import compose_story_memory
 from aiwebnovel.story_memory.service import StoryMemoryService
+from aiwebnovel.usage.budget_service import UsageBudgetService
 from aiwebnovel.usage.composition import compose_usage_ledger
 from aiwebnovel.usage.service import UsageLedgerService
 from aiwebnovel.workbench.composition import compose_workbench
@@ -64,6 +65,7 @@ def compose_ai_workflow(
         StoryMemoryService,
         WorkbenchService,
         UsageLedgerService,
+        UsageBudgetService,
     ]
     | None
 ):
@@ -81,6 +83,8 @@ def compose_ai_workflow(
         "story_memory_revisions",
         "chapter_editorial_revisions",
         "model_usage_attempts",
+        "ai_candidate_edits",
+        "model_budget_reservations",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
@@ -94,7 +98,8 @@ def compose_ai_workflow(
             default_base_url=settings.ai_base_url,
             default_model=settings.ai_model,
         )
-        usage = compose_usage_ledger(session_factory, projects)
+        usage, budgets = compose_usage_ledger(session_factory, projects, gateway.get_profile)
+        assert budgets is not None
         usage.recover_interrupted()
 
         def generate(
@@ -164,6 +169,7 @@ def compose_ai_workflow(
             structure,
             generate,
             read_model,
+            budgets.estimate,
         )
         service.recover_interrupted()
         return (
@@ -175,6 +181,7 @@ def compose_ai_workflow(
             memory,
             compose_workbench(session_factory, projects),
             usage,
+            budgets,
         )
     except BaseException:
         runtime.close()

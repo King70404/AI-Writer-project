@@ -13,6 +13,7 @@ from aiwebnovel.db.base import Base
 from aiwebnovel.db.model_registry import (
     AI_WORKFLOW_TABLE_NAMES,
     BUSINESS_TABLE_NAMES,
+    CANDIDATE_BUDGET_TABLE_NAMES,
     CHARACTER_TABLE_NAMES,
     NOVEL_STRUCTURE_TABLE_NAMES,
     PROJECT_TABLE_NAMES,
@@ -97,6 +98,7 @@ def test_model_registry_is_exact_idempotent_and_uses_shared_metadata() -> None:
         *STORY_MEMORY_TABLE_NAMES,
         *WORKBENCH_TABLE_NAMES,
         *USAGE_TABLE_NAMES,
+        *CANDIDATE_BUDGET_TABLE_NAMES,
     }
     assert "alembic_version" not in first.tables
     assert all(table.metadata is first for table in first.tables.values())
@@ -129,11 +131,12 @@ def test_domain_import_does_not_register_models_or_create_database(tmp_path: Pat
     assert result.stdout.splitlines() == [
         "",
         (
-            "ai_workflow_candidates,ai_workflow_runs,"
+            "ai_candidate_edit_adoptions,ai_candidate_edits,ai_workflow_candidates,ai_workflow_runs,"
             "chapter_editorial_revisions,chapter_heads,chapter_plan_revisions,chapter_revisions,chapters,"
-            "character_heads,character_revisions,characters,model_usage_attempts,"
+            "character_heads,character_revisions,characters,"
+            "model_budget_reservations,model_price_revisions,model_usage_attempts,"
             "outline_heads,outline_revisions,outlines,"
-            "project_heads,project_revisions,projects,"
+            "project_budget_revisions,project_heads,project_revisions,projects,"
             "story_bible_heads,story_bible_revisions,story_bibles,story_memory_revisions,"
             "volume_heads,volume_revisions,volumes,writing_references,writing_rule_versions"
         ),
