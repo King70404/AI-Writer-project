@@ -666,7 +666,7 @@ export function AIWorkflowAssistant({
                   currentContent={writing.state.content}
                 />
                 <CandidateEditor
-                  key={`${pending.candidate_id}:${pending.latest_edit?.edit_id ?? ""}`}
+                  key={pending.candidate_id}
                   candidate={pending}
                   savedRevisionId={
                     writing.state.snapshot.resource.current_revision_id

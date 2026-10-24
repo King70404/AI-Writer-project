@@ -66,6 +66,7 @@ const projectId = structureProjectId;
 const REVISION = "chv_01ARZ3NDEKTSV4RRFFQ69G5FAV";
 const INSTANCE = "a".repeat(32);
 const EDIT_ID = "11111111-1111-4111-8111-111111111111";
+const EDIT_TWO = "22222222-2222-4222-8222-222222222222";
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -488,6 +489,20 @@ describe("AIWorkflowAssistant with edits and budgets", () => {
 
   it("can still adopt the original candidate and saves edits with the parent id", async () => {
     const api = workflowClient([edited]);
+    const second: CandidateEdit = {
+      ...edit,
+      edit_id: EDIT_TWO,
+      sequence: 2,
+      parent_edit_id: EDIT_ID,
+      text: "第二版",
+      character_count: 3,
+    };
+    vi.mocked(api.saveEdit).mockResolvedValue({
+      ...edited,
+      candidates: [
+        { ...edited.candidates[0], latest_edit: second, edit_count: 2 },
+      ],
+    });
     render(<Harness api={api} budget={fakeBudget()} />);
     fireEvent.click(
       await screen.findByRole("button", { name: "继续编辑修改" }),
@@ -511,6 +526,11 @@ describe("AIWorkflowAssistant with edits and budgets", () => {
       "第二版",
       EDIT_ID,
     );
+    // 新版本保存后编辑器不重新挂载：保存成功提示仍可见，并显示第 2 版。
+    expect(
+      await screen.findByText("修改已保存为新版本，尚未写入正文。"),
+    ).toBeVisible();
+    expect(screen.getByText(/已保存作者修改第 2 版/u)).toBeVisible();
     await act(async () => {
       fireEvent.click(
         await screen.findByRole("button", { name: "改为采用原始候选" }),
