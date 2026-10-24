@@ -26,6 +26,7 @@ from aiwebnovel.core.errors import AppError
 from aiwebnovel.domain.errors import DomainError, InvalidDomainIdentifier
 from aiwebnovel.novel_structure.errors import ChapterNotFound
 from aiwebnovel.security.request_limits import is_json_media_type
+from aiwebnovel.story_memory.models import RecallPinsInvalid
 from aiwebnovel.usage.budget import BudgetRefused
 from aiwebnovel.usage.models import UsageLedgerUnavailable
 
@@ -130,6 +131,7 @@ def map_error(error: DomainError) -> AppError:
             UsageLedgerUnavailable.message,
         ),
         BudgetRefused: (409, "AI_BUDGET_REFUSED", BudgetRefused.message),
+        RecallPinsInvalid: (409, "AI_RECALL_PINS_INVALID", RecallPinsInvalid.message),
     }
     status, code, message = statuses.get(
         type(error), (503, "AI_CONTEXT_UNAVAILABLE", "AI writing context is unavailable.")

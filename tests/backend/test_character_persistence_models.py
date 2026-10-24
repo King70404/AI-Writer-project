@@ -19,6 +19,7 @@ from aiwebnovel.db.model_registry import (
     CANDIDATE_BUDGET_TABLE_NAMES,
     CHARACTER_TABLE_NAMES,
     NOVEL_STRUCTURE_TABLE_NAMES,
+    STORY_CONTROL_TABLE_NAMES,
     STORY_MEMORY_TABLE_NAMES,
     USAGE_TABLE_NAMES,
     WORKBENCH_TABLE_NAMES,
@@ -53,6 +54,7 @@ def test_registry_contains_exactly_authorized_business_tables() -> None:
         *WORKBENCH_TABLE_NAMES,
         *USAGE_TABLE_NAMES,
         *CANDIDATE_BUDGET_TABLE_NAMES,
+        *STORY_CONTROL_TABLE_NAMES,
     }
     assert "alembic_version" not in metadata.tables
 

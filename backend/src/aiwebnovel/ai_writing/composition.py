@@ -22,6 +22,8 @@ from aiwebnovel.novel_structure.application.services import NovelStructureQueryS
 from aiwebnovel.project.application.services import ProjectQueryService
 from aiwebnovel.storage.paths import StoragePaths
 from aiwebnovel.story_bible.application.services import StoryBibleQueryService
+from aiwebnovel.story_control.composition import compose_story_control
+from aiwebnovel.story_control.service import StoryControlService
 from aiwebnovel.story_memory.composition import compose_story_memory
 from aiwebnovel.story_memory.service import StoryMemoryService
 from aiwebnovel.usage.budget_service import UsageBudgetService
@@ -66,6 +68,7 @@ def compose_ai_workflow(
         WorkbenchService,
         UsageLedgerService,
         UsageBudgetService,
+        StoryControlService,
     ]
     | None
 ):
@@ -85,6 +88,7 @@ def compose_ai_workflow(
         "model_usage_attempts",
         "ai_candidate_edits",
         "model_budget_reservations",
+        "story_control_revisions",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
@@ -155,11 +159,23 @@ def compose_ai_workflow(
             )
 
         memory = compose_story_memory(
-            session_factory, projects, structure, generate, read_model, generation_sources
+            session_factory,
+            projects,
+            structure,
+            generate,
+            read_model,
+            generation_sources,
+            lambda chapter_id: control.selection_policy(chapter_id),
         )
+        control = compose_story_control(session_factory, projects, structure, characters, memory)
 
         def extra_sources(chapter_id: str) -> tuple[ContextSource, ...]:
-            return planning.context_sources(chapter_id) + memory.context_sources(chapter_id)
+            # Author plans are labelled guidance; confirmed facts follow the recall policy.
+            return (
+                planning.context_sources(chapter_id)
+                + control.guide_sources(chapter_id)
+                + memory.context_sources(chapter_id)
+            )
 
         service = AIWorkflowService(
             SqlAlchemyWorkflowRepository(session_factory),
@@ -182,6 +198,7 @@ def compose_ai_workflow(
             compose_workbench(session_factory, projects),
             usage,
             budgets,
+            control,
         )
     except BaseException:
         runtime.close()

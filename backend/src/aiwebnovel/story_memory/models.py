@@ -1,6 +1,7 @@
 """Bounded persistent contracts; model suggestions never confirm story facts."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Annotated, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
@@ -27,6 +28,35 @@ class MemoryInvalid(DomainError):
 
 class MemoryConsentRequired(DomainError):
     message = "Explicit consent is required for this cloud request."
+
+
+class RecallPinsInvalid(DomainError):
+    message = (
+        "A pinned fact is no longer valid or the pinned facts exceed the recall budget. "
+        "Adjust the recall policy before preparing."
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class RecallSelectionPolicy:
+    """Author-chosen pinned and excluded fact ids for one chapter's generation context."""
+
+    version: int
+    pinned: tuple[str, ...]
+    excluded: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RecallOutcome:
+    facts: tuple["Fact", ...]
+    selected: tuple["FrozenFact", ...]
+    reasons: Mapping[str, str]
+    costs: Mapping[str, int]
+    omitted: tuple[tuple[str, str | None, str], ...]
+    omitted_total: int
+    excluded_total: int
+    used: int
+    blocked: bool
 
 
 class Document(BaseModel):
