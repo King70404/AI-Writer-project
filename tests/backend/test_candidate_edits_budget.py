@@ -240,8 +240,9 @@ def test_manuscript_change_rejects_old_edit_and_triggers_keep_rows_immutable(wor
         w.service.adopt(w.chapter, candidate_id, 3, "base-mismatch", edited["edit_id"])
     assert content(w).json()["content"] == "另一个窗口改了正文"
     # The edit is still kept for comparison and can be re-saved against the new text.
-    resaved = pending(edit(w, candidate_id, EDITED + "。", edited["edit_id"]))["latest_edit"]
-    assert resaved["base_version"] == 3
+    resaved = pending(edit(w, candidate_id, EDITED, edited["edit_id"]))["latest_edit"]
+    assert resaved["base_version"] == 3 and resaved["text"] == EDITED
+    edit(w, candidate_id, EDITED, resaved["edit_id"], expected=422)  # same base: no-op
     with closing(sqlite3.connect(w.db)) as connection:
         for statement in (
             "UPDATE ai_workflow_candidates SET text = 'x'",

@@ -402,9 +402,15 @@ class SqlAlchemyWorkflowRepository:
             sequence = 1 if latest is None else latest.sequence + 1
             if sequence > MAX_CANDIDATE_EDITS:
                 raise CandidateEditInvalid
-            if text == (candidate.text if latest is None else latest.text):
-                raise CandidateEditInvalid
             chapter = load_workflow_chapter(session, chapter_id)
+            head = str(chapter.head.revision_id)
+            version = int(chapter.chapter.concurrency_version)
+            # Re-saving the same text is allowed only to move it onto a newer manuscript.
+            if text == (candidate.text if latest is None else latest.text) and (
+                latest is None
+                or (latest.base_revision_id == head and latest.base_version == version)
+            ):
+                raise CandidateEditInvalid
             session.add(
                 AICandidateEditRecord(
                     id=str(uuid4()),
@@ -416,8 +422,8 @@ class SqlAlchemyWorkflowRepository:
                     parent_edit_id=parent_edit_id,
                     text=text,
                     character_count=sum(not character.isspace() for character in text),
-                    base_revision_id=str(chapter.head.revision_id),
-                    base_version=int(chapter.chapter.concurrency_version),
+                    base_revision_id=head,
+                    base_version=version,
                     created_at=datetime.now(UTC),
                 )
             )
