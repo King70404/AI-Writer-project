@@ -177,6 +177,8 @@ test("E2E-INT-025 Candidate comparison and chapter model usage: reported tokens 
     await rewrite.click();
     await expect(task.getByLabel("本次发送的改写选区")).toHaveValue(selected);
     expect(requests).toHaveLength(1);
+    // Preparing a new task also refreshes the open ledger; verify it before sending.
+    await expect(usage.getByRole("button", { name: "刷新用量" })).toBeVisible();
     await task
       .getByRole("button", { name: "确认发送并生成", exact: true })
       .click();
