@@ -31,6 +31,11 @@ import { editIsCurrent } from "../candidate-edit";
 import { CandidateEditor } from "./CandidateEditor";
 import { ReferenceWritingWorkbench } from "./ReferenceWritingWorkbench";
 import { StoryMemoryWorkbench } from "./StoryMemoryWorkbench";
+import {
+  ChapterGuideCard,
+  RecallControl,
+} from "../../story-control/components/ChapterStoryControl";
+import type { StoryControlClient } from "../../story-control/api/storyControl";
 
 const STATUS: Record<WorkflowRun["status"], string> = {
   ready: "可以生成下一段",
@@ -57,6 +62,7 @@ const SOURCE_LABELS: Record<string, string> = {
   planning_assets: "规划关联人物与设定",
   writing_rules: "已确认的写作规则",
   story_memory: "已确认的前文事实",
+  story_guide: "全书/卷目标与伏笔计划（计划，非已发生事实）",
 };
 
 export function AIWorkflowAssistant({
@@ -68,12 +74,14 @@ export function AIWorkflowAssistant({
   projectId,
   usageClient = defaultUsageClient,
   budgetClient = defaultBudgetClient,
+  storyControlClient,
 }: {
   readonly chapterId: string;
   /** 用于读取本章模型用量；缺省时不显示用量面板。 */
   readonly projectId?: string;
   readonly usageClient?: UsageClient;
   readonly budgetClient?: BudgetClient;
+  readonly storyControlClient?: StoryControlClient;
   readonly writing: ReturnType<typeof useChapterWriting>;
   readonly selection: SelectionSnapshot | null;
   /** 把当前任务的真实状态同步到写作页固定状态区。 */
@@ -89,6 +97,7 @@ export function AIWorkflowAssistant({
   const [preparationMounted, setPreparationMounted] = useState(false);
   const [planningDirty, setPlanningDirty] = useState(false);
   const [memoryMounted, setMemoryMounted] = useState(false);
+  const [storyControlOpen, setStoryControlOpen] = useState(false);
   const [tab, setTab] = useState<AssistantTab>("generate");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState(0);
@@ -286,17 +295,62 @@ export function AIWorkflowAssistant({
         {ai.upgradeRequired ? (
           <p>启用 AI 协作后可使用范文分析与章节规划；手动写作不受影响。</p>
         ) : preparationMounted ? (
-          <ReferenceWritingWorkbench
-            projectId={writing.state.snapshot.resource.project_id}
-            chapterId={chapterId}
-            profile={profile}
-            content={writing.state.content}
-            onDirty={setPlanningDirty}
-            onOpenGenerate={() => {
-              setTab("generate");
-              setFocusContinue(true);
-            }}
-          />
+          <>
+            <details
+              className="story-control-desk"
+              onToggle={(event) => {
+                if (event.currentTarget.open) setStoryControlOpen(true);
+              }}
+            >
+              <summary>
+                本章任务与本次依据（全书/卷目标、伏笔、可固定或排除的前文事实）
+              </summary>
+              {storyControlOpen ? (
+                <>
+                  <ChapterGuideCard
+                    projectId={writing.state.snapshot.resource.project_id}
+                    chapterId={chapterId}
+                    sourceRevision={
+                      writing.state.snapshot.resource.current_revision_id
+                    }
+                    client={storyControlClient}
+                  />
+                  <RecallControl
+                    projectId={writing.state.snapshot.resource.project_id}
+                    chapterId={chapterId}
+                    sourceRevision={
+                      writing.state.snapshot.resource.current_revision_id
+                    }
+                    lastRecall={
+                      run
+                        ? run.context.manifest.sources
+                            .filter(
+                              (source) => source.source === "story_memory",
+                            )
+                            .flatMap((source) =>
+                              source.references.map(
+                                (reference) => reference[0],
+                              ),
+                            )
+                        : undefined
+                    }
+                    client={storyControlClient}
+                  />
+                </>
+              ) : null}
+            </details>
+            <ReferenceWritingWorkbench
+              projectId={writing.state.snapshot.resource.project_id}
+              chapterId={chapterId}
+              profile={profile}
+              content={writing.state.content}
+              onDirty={setPlanningDirty}
+              onOpenGenerate={() => {
+                setTab("generate");
+                setFocusContinue(true);
+              }}
+            />
+          </>
         ) : null}
       </div>
       <div

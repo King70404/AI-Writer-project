@@ -2195,3 +2195,57 @@ summary:focus-visible {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* C: long-form story control (plans, plot threads, timeline, recall). */
+.story-control-section,
+.story-control-desk {
+  border: 1px solid var(--line, #ddd3c4);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+.story-control-section > summary,
+.story-control-desk > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.story-control__note,
+.story-guide__note {
+  color: var(--muted, #6b6257);
+  font-size: 0.9em;
+}
+.story-control__field {
+  display: grid;
+  gap: 0.25rem;
+  margin-block: 0.35rem;
+}
+.story-control__form {
+  border-left: 3px solid var(--accent, #9b6b3d);
+  margin-block: 0.75rem;
+  padding-left: 0.75rem;
+}
+.story-control__form button,
+.story-control__list button,
+.recall-control button {
+  margin: 0.25rem 0.5rem 0.25rem 0;
+}
+.story-control__row {
+  border-top: 1px dashed var(--line, #ddd3c4);
+  padding-block: 0.4rem;
+}
+.story-control__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.story-control__due {
+  background: var(--warning-surface, #fff4e0);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+.recall-control meter {
+  width: 100%;
+}
+.recall-control__hits li,
+.story-control__list > li {
+  overflow-wrap: anywhere;
+}
