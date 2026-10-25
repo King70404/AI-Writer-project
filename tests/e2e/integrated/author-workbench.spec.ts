@@ -236,8 +236,12 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
     .getByRole("link", { name: "首页" })
     .click();
   await expect(page).toHaveURL(`${browserAudit.allowedOrigin}/`);
-  await expect(page.getByText(title, { exact: true })).toBeVisible();
-  await expect(page.getByText("第1章 · 雨夜")).toBeVisible();
+  const continueSection = page.getByRole("region", {
+    name: "继续上次创作",
+  });
+  await expect(continueSection).toBeVisible();
+  await expect(continueSection.getByText(title, { exact: true })).toBeVisible();
+  await expect(continueSection.getByText("第1章 · 雨夜")).toBeVisible();
   await expect(
     page.getByText("本地后端已连接，数据库基础检查通过。"),
   ).toBeVisible();
