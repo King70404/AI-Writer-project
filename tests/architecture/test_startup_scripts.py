@@ -910,7 +910,19 @@ def test_doctor_required_security_and_hygiene_use_real_commands() -> None:
         assert checks[identity]["status"] == "pass"
 
 
-@pytest.mark.parametrize("shell", ["powershell.exe", "pwsh"])
+@pytest.mark.parametrize(
+    "shell",
+    [
+        "powershell.exe",
+        pytest.param(
+            "pwsh",
+            marks=pytest.mark.skipif(
+                shutil.which("pwsh") is None,
+                reason="pwsh is not installed here; Windows PowerShell 5.1 still runs this case",
+            ),
+        ),
+    ],
+)
 def test_e2e_readiness_handles_connection_errors_without_response(shell: str) -> None:
     script = _powershell_quote(_REPOSITORY_ROOT / "scripts" / "run_e2e.ps1")
     command = f"""
