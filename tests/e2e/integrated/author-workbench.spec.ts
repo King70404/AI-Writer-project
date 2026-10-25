@@ -231,6 +231,7 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
     .getByRole("navigation", { name: "主要导航" })
     .getByRole("link", { name: "首页" })
     .click();
+  await expect(page).toHaveURL(`${browserAudit.allowedOrigin}/`);
   await expect(page.getByText(title, { exact: true })).toBeVisible();
   await expect(page.getByText("第1章 · 雨夜")).toBeVisible();
   await page.getByRole("link", { name: "继续写作" }).click();

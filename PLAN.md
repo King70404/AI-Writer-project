@@ -1,7 +1,8 @@
 # 当前交付
 
-更新：2026-10-24。当前任务：在分支 `feature/product-design-implementation`（基于设计提交 `a6605e6`）实施[产品设计交接包](docs/product/README.md)的 **A1 作者工作台** 与 **A2 工作台汇总**。A1、A2 与 B1（候选对照与模型用量台账）已在 Linux 实现并验证（A2、B1 提交未推送）；Windows `quality_gate.ps1 -IncludeE2E` 待执行。B2（预算与价格）及 C–E 仍为设计，可点击 HTML 仍只是原型。
+更新：2026-10-25。当前任务：把 GitHub `feature/product-design-implementation` 的 A1/A2/B1/B2 在 Windows 隔离工作目录加载、测试并修复。输入提交 `868f4714974eb39c8b49e3242be82ae3c9538896` 已在远端；下方历史 Linux 摘要中的“未推送”已过时。工作分支 `codex/windows-module-validation`，按用户要求每模块提交并推送检查点，最后完整 IncludeE2E；检查点不等于整体验收通过。
 
+当前恢复入口：[Windows 模块加载与测试](docs/WINDOWS_MODULE_VALIDATION.md)。原工作目录未提交改动保留，不覆盖、不混入本次测试。
 ## 当前能力与 Git 状态
 
 - 设计核对的 `main`：`b1ac8a4f064dd6a5c041e9e672bc987670c786ed`。V1、AI 协作、范文与章节规划、长篇记忆与评审、备份与工程规模评测均已合并。
