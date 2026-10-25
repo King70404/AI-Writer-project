@@ -1266,7 +1266,8 @@ function Get-ResponseStatusCode {
             -TimeoutSec 2
         return [int]$response.StatusCode
     } catch {
-        $errorResponse = $_.Exception.Response
+        $responseProperty = $_.Exception.PSObject.Properties["Response"]
+        $errorResponse = if ($null -ne $responseProperty) { $responseProperty.Value } else { $null }
         if ($null -ne $errorResponse -and $null -ne $errorResponse.StatusCode) {
             return [int]$errorResponse.StatusCode
         }

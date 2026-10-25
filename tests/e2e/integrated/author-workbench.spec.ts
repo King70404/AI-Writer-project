@@ -20,6 +20,10 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
   ).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
 
+  await expect(
+    page.getByText("本地后端已连接，数据库基础检查通过。"),
+  ).toBeVisible();
+
   // 书架 → 新建小说 → 卷章结构。
   const navigation = page.getByRole("navigation", { name: "主要导航" });
   await navigation.getByRole("link", { name: "书架" }).click();
@@ -234,6 +238,9 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
   await expect(page).toHaveURL(`${browserAudit.allowedOrigin}/`);
   await expect(page.getByText(title, { exact: true })).toBeVisible();
   await expect(page.getByText("第1章 · 雨夜")).toBeVisible();
+  await expect(
+    page.getByText("本地后端已连接，数据库基础检查通过。"),
+  ).toBeVisible();
   await page.getByRole("link", { name: "继续写作" }).click();
   await expect(page).toHaveURL(
     `${browserAudit.allowedOrigin}/projects/${projectId}/chapters/${firstChapterId}/write`,
