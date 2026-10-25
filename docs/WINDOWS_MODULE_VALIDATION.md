@@ -11,7 +11,7 @@
 | 模块 | Windows 专项结果 | 浏览器流程 | 状态 |
 | --- | --- | --- | --- |
 | A1 | 前端 29/29，类型检查与生产构建通过 | 023 通过，完整作者流程 6.1 秒 | 专项通过 |
-| A2 | 后端 17/17，前端 31/31 | 024 待跑 | 部分验证 |
+| A2 | 后端 17/17，前端 31/31 | 024 通过，4.7 秒 | 专项通过 |
 | B1 | 待跑 | 025 待跑 | 已加载未验证 |
 | B2 | 待跑 | 026 待跑 | 已加载未验证 |
 
@@ -30,3 +30,5 @@ frontend 目录：`npm run test:run -- ../tests/frontend/author-workbench.test.t
 仓库根目录：`pwsh -NoProfile -File scripts/run_e2e.ps1 -Mode Integrated -Scenario E2E-INT-023`。后续依次 024/025/026，最后 `scripts/quality_gate.ps1 -IncludeE2E`。
 
 本地原始日志位于工作目录 `.runtime/`（不提交运行产物）。构建保留已有 bundle >500 kB 提示；后端存在已安装 Starlette/httpx 弃用提示，未静音或隐藏。
+
+A2 检查点：后端 17、前端 31、E2E-INT-024 全部通过，覆盖服务端字数、章节状态和派生待办。就绪异常回归另在 Windows PowerShell 5 与 PowerShell 7 各通过一项。

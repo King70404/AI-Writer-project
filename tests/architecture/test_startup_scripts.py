@@ -908,3 +908,26 @@ def test_doctor_required_security_and_hygiene_use_real_commands() -> None:
     for identity in ("ENV-007", "ENV-012"):
         assert checks[identity]["required"] is True
         assert checks[identity]["status"] == "pass"
+
+
+@pytest.mark.parametrize("shell", ["powershell.exe", "pwsh"])
+def test_e2e_readiness_handles_connection_errors_without_response(shell: str) -> None:
+    script = _powershell_quote(_REPOSITORY_ROOT / "scripts" / "run_e2e.ps1")
+    command = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$tokens = $null
+$errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile('{script}', [ref]$tokens, [ref]$errors)
+$function = $ast.Find({{param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-ResponseStatusCode'}}, $true)
+Invoke-Expression $function.Extent.Text
+function Invoke-WebRequest {{ throw [System.InvalidOperationException]::new('connection unavailable') }}
+if ((Get-ResponseStatusCode -Url 'http://127.0.0.1:1/') -ne 0) {{ throw 'Unexpected connection status' }}
+function Invoke-WebRequest {{ return [pscustomobject]@{{StatusCode = 200}} }}
+if ((Get-ResponseStatusCode -Url 'http://127.0.0.1:1/') -ne 200) {{ throw 'Unexpected success status' }}
+"""
+    result = _run(
+        [_require_command(shell), "-NoProfile", "-NonInteractive", "-Command", command],
+        cwd=_REPOSITORY_ROOT,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
