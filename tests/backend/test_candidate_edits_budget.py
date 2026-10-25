@@ -8,6 +8,7 @@ network request is made and no test sends anything the budget refuses.
 import json
 import os
 import sqlite3
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from datetime import UTC, datetime, timedelta, timezone
@@ -522,6 +523,31 @@ def test_month_start_uses_the_local_calendar():
 # -- storage instance for draft isolation ----------------------------------------------
 
 
+def directory_redirect(link: Path, target: Path) -> None:
+    """Exercise a real directory redirect without requiring Windows symlink privileges."""
+    if os.name == "nt":
+
+        def quote(value: Path) -> str:
+            return str(value).replace("'", "''")
+
+        subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                f"New-Item -ItemType Junction -Path '{quote(link)}' "
+                f"-Target '{quote(target)}' -ErrorAction Stop | Out-Null",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        assert link.is_junction()
+    else:
+        link.symlink_to(target, target_is_directory=True)
+        assert link.is_symlink()
+
+
 def test_storage_instance_is_stable_per_root_and_new_for_copies(tmp_path: Path):
     first = StorageInstanceService(tmp_path / "root")
     identifier = first.get()
@@ -537,7 +563,7 @@ def test_storage_instance_is_stable_per_root_and_new_for_copies(tmp_path: Path):
     assert StorageInstanceService(tmp_path / "root").get() != identifier  # unreadable
     linked = tmp_path / "linked"
     linked.mkdir()
-    (linked / "config").symlink_to(tmp_path / "root/config")
+    directory_redirect(linked / "config", tmp_path / "root/config")
     with pytest.raises(StorageInstanceUnavailable):
         StorageInstanceService(linked).get()
 
@@ -558,7 +584,7 @@ def test_storage_instance_endpoint(workflow, tmp_path: Path):
     state = w.app.state
     blocked = tmp_path / "blocked"
     blocked.mkdir()
-    (blocked / "config").symlink_to(tmp_path)
+    directory_redirect(blocked / "config", tmp_path)
     request = SimpleNamespace(
         app=SimpleNamespace(
             state=SimpleNamespace(
