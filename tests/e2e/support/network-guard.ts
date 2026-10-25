@@ -45,6 +45,7 @@ export interface BrowserAudit {
   readonly allowExpectedConsoleHttpFailure: (
     path: string,
     status: number,
+    count?: number,
   ) => void;
 }
 
@@ -357,20 +358,24 @@ export async function installBrowserAudit(
     allowOneExpectedSessionCookie: () => {
       expectedSessionCookies.count += 1;
     },
-    allowExpectedConsoleHttpFailure: (path, status) => {
+    allowExpectedConsoleHttpFailure: (path, status, count = 1) => {
       if (
         !path.startsWith("/") ||
         path.includes("?") ||
         path.includes("#") ||
         !Number.isInteger(status) ||
         status < 400 ||
-        status > 599
+        status > 599 ||
+        !Number.isInteger(count) ||
+        count < 1
       ) {
         throw new Error(
-          "Expected console HTTP failures must use a safe path and error status.",
+          "Expected console HTTP failures must use a safe path, error status and positive count.",
         );
       }
-      expectedConsoleHttpFailures.push({ path, status });
+      for (let index = 0; index < count; index += 1) {
+        expectedConsoleHttpFailures.push({ path, status });
+      }
     },
   };
 

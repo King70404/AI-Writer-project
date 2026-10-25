@@ -58,6 +58,18 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     const projectLink = page.getByRole("link", { name: "打开这本小说" });
     const projectPath = await projectLink.getAttribute("href");
     expect(projectPath).toMatch(/^\/projects\/prj_[0-9A-HJKMNP-TV-Z]{26}$/u);
+    const projectApiPath = `/api/v1${projectPath}`;
+    // 升级 AI 工作流前，工作台汇总与待办按设计返回 503；结构变更会重新读取，先登记本轮预期错误。
+    browserAudit.allowExpectedConsoleHttpFailure(
+      `${projectApiPath}/workspace`,
+      503,
+      8,
+    );
+    browserAudit.allowExpectedConsoleHttpFailure(
+      `${projectApiPath}/workspace/actions`,
+      503,
+      8,
+    );
     await projectLink.click();
     browserAudit.allowExpectedConsoleHttpFailure(
       `/api/v1${projectPath}/outline`,
@@ -94,6 +106,11 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     browserAudit.allowExpectedConsoleHttpFailure(
       `/api/v1/chapters/${oldChapterId}/ai/runs`,
       503,
+    );
+    browserAudit.allowExpectedConsoleHttpFailure(
+      `/api/v1/chapters/${oldChapterId}/editorial-state`,
+      503,
+      4,
     );
     await page.getByRole("link", { name: "写正文" }).click();
     const editor = page.getByLabel("章节正文");
