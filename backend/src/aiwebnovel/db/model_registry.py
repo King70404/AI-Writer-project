@@ -48,6 +48,7 @@ CANDIDATE_BUDGET_TABLE_NAMES = frozenset(
         "model_budget_reservations",
     }
 )
+STORY_CONTROL_TABLE_NAMES = frozenset({"story_control_revisions"})
 BUSINESS_TABLE_NAMES = (
     PROJECT_TABLE_NAMES
     | STORY_BIBLE_TABLE_NAMES
@@ -59,6 +60,7 @@ BUSINESS_TABLE_NAMES = (
     | WORKBENCH_TABLE_NAMES
     | USAGE_TABLE_NAMES
     | CANDIDATE_BUDGET_TABLE_NAMES
+    | STORY_CONTROL_TABLE_NAMES
 )
 
 
@@ -97,6 +99,7 @@ def load_model_metadata() -> MetaData:
         StoryBibleRecord,
         StoryBibleRevisionRecord,
     )
+    from aiwebnovel.story_control.persistence import StoryControlRevisionRecord
     from aiwebnovel.story_memory.persistence import StoryMemoryRevisionRecord
     from aiwebnovel.usage.budget_persistence import (
         ModelBudgetReservationRecord,
@@ -124,6 +127,7 @@ def load_model_metadata() -> MetaData:
         ModelPriceRevisionRecord,
         ProjectBudgetRevisionRecord,
         ModelBudgetReservationRecord,
+        StoryControlRevisionRecord,
         ProjectRecord,
         ProjectRevisionRecord,
         ProjectHeadRecord,

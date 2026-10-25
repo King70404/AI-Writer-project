@@ -25,6 +25,7 @@ import { projectDetailsPath } from "../../projects/routing";
 import { chapterWritingPath } from "../routing";
 import { WorkspaceSummaryPanel } from "../../workbench/components/WorkspaceSummaryPanel";
 import { LocalDraftManager } from "../../local-drafts/LocalDraftManager";
+import { StoryControlSection } from "../../story-control/components/StoryControlPanel";
 
 interface NovelStructurePageProps {
   readonly client?: NovelStructureApiClient;
@@ -578,6 +579,10 @@ function NovelStructureWorkspace({
   return (
     <div className="novel-structure-workspace">
       <WorkspaceSummaryPanel
+        projectId={projectId}
+        refreshKey={structureRevision}
+      />
+      <StoryControlSection
         projectId={projectId}
         refreshKey={structureRevision}
       />

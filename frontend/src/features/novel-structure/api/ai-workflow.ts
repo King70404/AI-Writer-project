@@ -368,6 +368,8 @@ const WORKFLOW_ERRORS: Record<string, string> = {
   AI_CONTEXT_CHANGED: "正文或上下文已变化，请为最新正文重新准备任务。",
   AI_BUDGET_REFUSED:
     "按保守预估，本次发送可能超出你设定的严格预算，已拒绝发送，未调用模型、未计费。可调整预算或价格后再确认发送。",
+  AI_RECALL_PINS_INVALID:
+    "本章召回设置里有固定事实已失效（来源正文修改、未确认或不在本章之前）或超出召回预算。请在“准备”中调整依据后再准备任务；未调用模型。",
   AI_CANDIDATE_EDIT_INVALID:
     "修改未保存：修改后的文本须有改动，且为 1–3000 个非空白字符；每个候选最多保存 50 版。",
 };

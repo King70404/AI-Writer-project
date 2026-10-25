@@ -66,3 +66,21 @@ CANDIDATE_BUDGET_OPERATIONS = {
     ("PUT", "/api/v1/projects/{project_id}/budget"),
     ("GET", "/api/v1/storage-instance"),
 }
+
+STORY_CONTROL_OPERATIONS = {
+    ("GET", "/api/v1/projects/{project_id}/arc-plans"),
+    ("POST", "/api/v1/projects/{project_id}/arc-plans"),
+    ("PUT", "/api/v1/projects/{project_id}/arc-plans/{goal_id}"),
+    ("GET", "/api/v1/projects/{project_id}/timeline"),
+    ("POST", "/api/v1/projects/{project_id}/plot-threads"),
+    ("PUT", "/api/v1/projects/{project_id}/plot-threads/{thread_id}"),
+    ("POST", "/api/v1/projects/{project_id}/story-events"),
+    ("PUT", "/api/v1/projects/{project_id}/story-events/{event_id}"),
+    ("POST", "/api/v1/projects/{project_id}/state-intervals"),
+    ("PUT", "/api/v1/projects/{project_id}/state-intervals/{state_id}"),
+    ("GET", "/api/v1/projects/{project_id}/facts/search"),
+    ("GET", "/api/v1/chapters/{chapter_id}/story-guide"),
+    ("GET", "/api/v1/chapters/{chapter_id}/recall-policy"),
+    ("PUT", "/api/v1/chapters/{chapter_id}/recall-policy"),
+    ("POST", "/api/v1/chapters/{chapter_id}/recall-preview"),
+}
