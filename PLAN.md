@@ -1,10 +1,10 @@
 # 当前交付
 
-更新：2026-10-26。GitHub 更新的 A1/A2/B1/B2/C 已加载到本地主目录，分模块检查点及 C 接续代码已推送 [PR #35](https://github.com/King70404/AI-Writer-project/pull/35)。当前任务收尾为同步有效测试证据，不继续重复全门。
+更新：2026-10-26。A1/A2/B1/B2/C 已在 Windows 完成加载、修复与验证，并合并到 main（[PR #35](https://github.com/King70404/AI-Writer-project/pull/35)，merge `12d19d5`）；Windows Default 与 Full 均通过。
 
 ## 当前状态
 
-- 代码候选 `061f16016f4d0dd89c16445d57f6a5b2cf98d98a`；远端 `codex/windows-module-validation`，本地主目录 `codex/windows-module-validation-work`；C 输入 `c1e8ac1`。PR 目标 `feature/product-design-implementation`，未合并或发布。
+- main `12d19d50e60f449cadec192ce5380f1bf9618d34`；验证候选 `b5117b2ac2a332f3470547e0de1c6c0f142148e6`；C 输入 `c1e8ac1`。PR #35 已合并，验证分支保留。
 - main 基线 `b1ac8a4f064dd6a5c041e9e672bc987670c786ed`；既有 V1、AI 协作、范文/章节规划、记忆评审、备份与规模评测见 [发布验收](docs/RELEASE_ACCEPTANCE.md)。
 - A1：作者首页/书架、三栏写作、专注、保存切章、原地模型设置、范文规则捷径。
 - A2：全书字数、分页、章节状态、派生待办。
@@ -15,9 +15,11 @@
 
 [Windows 模块记录](docs/WINDOWS_MODULE_VALIDATION.md)保存精确候选、来源、日志散列和限制。
 
-- 复用另一位 AI 的默认检查：后端 3219 通过、1 可选环境项跳过；覆盖率语句 97.85%、分支 93.53%；前端 999 通过，类型、格式、依赖和构建通过。
-- 复用 28 项集成与 3 项开发浏览器场景通过记录，含 Windows Key、数据库升级、备份和 C。最终首页定位修改本轮定向复验通过；此前可选 PowerShell 7 用例在本轮环境补跑通过；清理检查通过。
-- 按用户要求复用未变代码的有效证据。IncludeE2E 包装日志中断于再次构建，不写成单次完整脚本退出 0；本轮以分段证据收尾，不降低断言或覆盖率。
+- GitHub CI（head `b5117b2`）：Windows Default（run `40317559488`）通过；Windows Full（run `40317566348`，完整 IncludeE2E）通过，30m46s。
+- 本地默认检查：后端 3219 通过、1 个 PowerShell 7 可选环境项跳过（CI 覆盖）；覆盖率语句 97.85%、分支 93.53%；前端 999 通过，类型、格式、依赖、生产构建与依赖完整性通过。
+- 前端覆盖：语句/分支/函数/行 95.56%/91.52%/97.13%/96.54%。
+- 浏览器：集成 E2E 27 项加 STARTUP-001 共 28 项通过，含 Windows Key/升级、备份与 C；开发 E2E 3 项通过；清理检查通过。
+- 本轮只改测试与 observability 边界：首页书名定位、模型摘要异步加载竞态、离开写作页时卷章请求的导航取消。未改产品逻辑，未降低断言或覆盖率。
 
 ## 下一步
 
@@ -28,4 +30,4 @@
 
 ## 边界
 
-正式创作数据、备份及真实 Key 不进入开发验收；作者确认后才采用 AI 正文/事实/规则。不改冻结文件和 tag，不擅自合并或发布。实际能力见 [功能索引](docs/FEATURE_REALITY_MATRIX.md)。
+正式创作数据、备份及真实 Key 不进入开发验收；作者确认后才采用 AI 正文/事实/规则。不改冻结文件和 tag；后续发布、正式数据操作和不可逆动作仍需明确授权。实际能力见 [功能索引](docs/FEATURE_REALITY_MATRIX.md)。
