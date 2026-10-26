@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session
 
 from aiwebnovel.ai_writing.application.models import ContextManifest, ContextSource, GeneratedText
 from aiwebnovel.ai_writing.application.workflow_models import (
+    MAX_CANDIDATE_EDITS,
+    CandidateEdit,
+    CandidateEditInvalid,
     CandidateStatus,
     ContextPack,
     ModelSnapshot,
@@ -22,13 +25,35 @@ from aiwebnovel.ai_writing.application.workflow_models import (
     WorkflowRun,
 )
 from aiwebnovel.ai_writing.errors import AIContextChanged
-from aiwebnovel.ai_writing.persistence.models import AIWorkflowCandidateRecord, AIWorkflowRunRecord
+from aiwebnovel.ai_writing.persistence.models import (
+    AICandidateEditAdoptionRecord,
+    AICandidateEditRecord,
+    AIWorkflowCandidateRecord,
+    AIWorkflowRunRecord,
+)
 from aiwebnovel.novel_structure.identifiers import ChapterId
 from aiwebnovel.novel_structure.persistence.workflow_transaction import (
     adopt_workflow_content,
     load_workflow_chapter,
 )
 from aiwebnovel.project.persistence.models import ProjectRecord
+
+
+def _edit(record: AICandidateEditRecord) -> CandidateEdit:
+    created = (
+        record.created_at if record.created_at.tzinfo else record.created_at.replace(tzinfo=UTC)
+    )
+    return CandidateEdit(
+        edit_id=record.id,
+        candidate_id=record.candidate_id,
+        sequence=record.sequence,
+        parent_edit_id=record.parent_edit_id,
+        text=record.text,
+        character_count=record.character_count,
+        base_revision_id=record.base_revision_id,
+        base_version=record.base_version,
+        created_at=created.isoformat(),
+    )
 
 
 class SqlAlchemyWorkflowRepository:
@@ -73,6 +98,28 @@ class SqlAlchemyWorkflowRepository:
             )
             for source in manifest.get("sources", ())
         )
+        latest: dict[str, AICandidateEditRecord] = {}
+        for edit in session.scalars(
+            select(AICandidateEditRecord)
+            .where(AICandidateEditRecord.run_id == record.id)
+            .order_by(AICandidateEditRecord.candidate_id, AICandidateEditRecord.sequence)
+        ):
+            latest[edit.candidate_id] = edit
+        adoptions: dict[str, str] = {
+            str(candidate_id): str(edit_id)
+            for candidate_id, edit_id in session.execute(
+                select(
+                    AICandidateEditAdoptionRecord.candidate_id,
+                    AICandidateEditAdoptionRecord.edit_id,
+                ).where(
+                    AICandidateEditAdoptionRecord.candidate_id.in_(
+                        select(AIWorkflowCandidateRecord.id).where(
+                            AIWorkflowCandidateRecord.run_id == record.id
+                        )
+                    )
+                )
+            ).all()
+        }
         candidates = tuple(
             WorkflowCandidate(
                 candidate_id=c.id,
@@ -83,6 +130,9 @@ class SqlAlchemyWorkflowRepository:
                 status=cast(CandidateStatus, c.status),
                 adopted_revision_id=c.adopted_revision_id,
                 adopted_version=c.adopted_version,
+                latest_edit=_edit(latest[c.id]) if c.id in latest else None,
+                edit_count=latest[c.id].sequence if c.id in latest else 0,
+                adopted_edit_id=adoptions.get(c.id),
             )
             for c in cls._candidates(session, record.id)
         )
@@ -251,14 +301,32 @@ class SqlAlchemyWorkflowRepository:
             raise WorkflowNotFound
         return cls._load(session, chapter_id, candidate.run_id), candidate
 
+    @staticmethod
+    def _latest_edit(session: Session, candidate_id: str) -> AICandidateEditRecord | None:
+        return session.scalar(
+            select(AICandidateEditRecord)
+            .where(AICandidateEditRecord.candidate_id == candidate_id)
+            .order_by(AICandidateEditRecord.sequence.desc())
+            .limit(1)
+        )
+
     def adopt(
-        self, chapter_id: str, candidate_id: str, expected_version: int, idempotency_key: str
+        self,
+        chapter_id: str,
+        candidate_id: str,
+        expected_version: int,
+        idempotency_key: str,
+        edit_id: str | None = None,
     ) -> WorkflowRun:
         with self._transaction(write=True) as session:
             record, candidate = self._candidate(session, chapter_id, candidate_id)
             # Receipt is checked before stale If-Match, so network retries never duplicate a revision.
             if candidate.status == "adopted":
-                if candidate.idempotency_key != idempotency_key:
+                adopted_edit = session.get(AICandidateEditAdoptionRecord, candidate.id)
+                if (
+                    candidate.idempotency_key != idempotency_key
+                    or (None if adopted_edit is None else adopted_edit.edit_id) != edit_id
+                ):
                     raise WorkflowConflict
                 return self._snapshot(session, record)
             used_key = session.scalar(
@@ -275,9 +343,21 @@ class SqlAlchemyWorkflowRepository:
                 raise WorkflowConflict
             self._check_head(session, record)
             chapter = load_workflow_chapter(session, chapter_id)
+            text = candidate.text
+            if edit_id is not None:
+                edit = self._latest_edit(session, candidate.id)
+                # Only the newest author edit may be adopted; an older one is stale.
+                if edit is None or edit.id != edit_id:
+                    raise WorkflowConflict
+                if (
+                    str(chapter.head.revision_id) != edit.base_revision_id
+                    or int(chapter.chapter.concurrency_version) != edit.base_version
+                ):
+                    raise AIContextChanged
+                text = edit.text
             content = str(chapter.current_revision.content)
             if record.payload["operation"] == "continue":
-                content += ("\n\n" if content else "") + candidate.text
+                content += ("\n\n" if content else "") + text
             else:
                 encoded = content.encode("utf-16-le")
                 start, end = (
@@ -286,10 +366,16 @@ class SqlAlchemyWorkflowRepository:
                 )
                 if encoded[start:end].decode("utf-16-le") != record.payload["selected_text"]:
                     raise AIContextChanged
-                content = (
-                    encoded[:start] + candidate.text.encode("utf-16-le") + encoded[end:]
-                ).decode("utf-16-le")
+                content = (encoded[:start] + text.encode("utf-16-le") + encoded[end:]).decode(
+                    "utf-16-le"
+                )
             result = adopt_workflow_content(session, chapter, content, expected_version)
+            if edit_id is not None:
+                session.add(
+                    AICandidateEditAdoptionRecord(
+                        candidate_id=candidate.id, edit_id=edit_id, created_at=datetime.now(UTC)
+                    )
+                )
             candidate.status = "adopted"
             candidate.idempotency_key = idempotency_key
             candidate.adopted_revision_id = str(result.head.revision_id)
@@ -301,6 +387,78 @@ class SqlAlchemyWorkflowRepository:
             }
             session.flush()
             return self._snapshot(session, record)
+
+    def create_edit(
+        self, chapter_id: str, candidate_id: str, text: str, parent_edit_id: str | None
+    ) -> WorkflowRun:
+        with self._transaction(write=True) as session:
+            record, candidate = self._candidate(session, chapter_id, candidate_id)
+            if candidate.status != "pending" or record.payload.get("in_flight"):
+                raise WorkflowConflict
+            latest = self._latest_edit(session, candidate.id)
+            # The parent is an optimistic version: a second window cannot silently fork.
+            if (None if latest is None else latest.id) != parent_edit_id:
+                raise WorkflowConflict
+            sequence = 1 if latest is None else latest.sequence + 1
+            if sequence > MAX_CANDIDATE_EDITS:
+                raise CandidateEditInvalid
+            chapter = load_workflow_chapter(session, chapter_id)
+            head = str(chapter.head.revision_id)
+            version = int(chapter.chapter.concurrency_version)
+            # Re-saving the same text is allowed only to move it onto a newer manuscript.
+            if text == (candidate.text if latest is None else latest.text) and (
+                latest is None
+                or (latest.base_revision_id == head and latest.base_version == version)
+            ):
+                raise CandidateEditInvalid
+            session.add(
+                AICandidateEditRecord(
+                    id=str(uuid4()),
+                    candidate_id=candidate.id,
+                    run_id=record.id,
+                    chapter_id=record.chapter_id,
+                    project_id=record.project_id,
+                    sequence=sequence,
+                    parent_edit_id=parent_edit_id,
+                    text=text,
+                    character_count=sum(not character.isspace() for character in text),
+                    base_revision_id=head,
+                    base_version=version,
+                    created_at=datetime.now(UTC),
+                )
+            )
+            session.flush()
+            return self._snapshot(session, record)
+
+    def list_edits(self, chapter_id: str, candidate_id: str) -> tuple[CandidateEdit, ...]:
+        with self._transaction() as session:
+            self._candidate(session, chapter_id, candidate_id)
+            return tuple(
+                _edit(edit)
+                for edit in session.scalars(
+                    select(AICandidateEditRecord)
+                    .where(AICandidateEditRecord.candidate_id == candidate_id)
+                    .order_by(AICandidateEditRecord.sequence)
+                )
+            )
+
+    def release_unsent(self, chapter_id: str, run_id: str, error_code: str) -> None:
+        """Return a claimed step whose request was refused locally and never sent."""
+        with self._transaction(write=True) as session:
+            record = session.get(AIWorkflowRunRecord, run_id)
+            if (
+                record is not None
+                and str(record.chapter_id) == chapter_id
+                and record.payload.get("in_flight")
+            ):
+                if record.status == "generating":
+                    record.status = "ready"
+                record.payload = {
+                    **record.payload,
+                    "in_flight": False,
+                    "generated_steps": max(0, record.payload["generated_steps"] - 1),
+                    "last_error": error_code,
+                }
 
     def discard(self, chapter_id: str, candidate_id: str) -> WorkflowRun:
         with self._transaction(write=True) as session:

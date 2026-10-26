@@ -7,7 +7,7 @@ export function NotFoundPage() {
       <h2 id="not-found-title">页面不存在</h2>
       <p>该地址不属于当前阶段的前端基础范围。</p>
       <Link className="text-link" to="/">
-        返回基础页
+        返回首页
       </Link>
     </section>
   );

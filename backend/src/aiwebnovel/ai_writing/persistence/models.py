@@ -68,3 +68,56 @@ class AIWorkflowCandidateRecord(Base):
     idempotency_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
     adopted_revision_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
     adopted_version: Mapped[int | None] = mapped_column(nullable=True)
+
+
+class AICandidateEditRecord(Base):
+    """Immutable author edit of one candidate; the original candidate never changes."""
+
+    __tablename__ = "ai_candidate_edits"
+    __table_args__ = (
+        CheckConstraint("sequence BETWEEN 1 AND 50", name="ck_ai_candidate_edits_sequence"),
+        CheckConstraint("character_count BETWEEN 1 AND 3000", name="ck_ai_candidate_edits_size"),
+        CheckConstraint("base_version > 0", name="ck_ai_candidate_edits_base_version"),
+        CheckConstraint(
+            "(sequence = 1 AND parent_edit_id IS NULL) OR (sequence > 1 AND parent_edit_id IS NOT NULL)",
+            name="ck_ai_candidate_edits_parent",
+        ),
+        UniqueConstraint("candidate_id", "sequence", name="uq_ai_candidate_edits_sequence"),
+        Index("ix_ai_candidate_edits_run", "run_id", "candidate_id"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("ai_workflow_candidates.id", ondelete="RESTRICT"), nullable=False
+    )
+    run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("ai_workflow_runs.id", ondelete="RESTRICT"), nullable=False
+    )
+    chapter_id: Mapped[ChapterId] = mapped_column(
+        PrefixedUlidType(ChapterId), ForeignKey("chapters.id", ondelete="RESTRICT"), nullable=False
+    )
+    project_id: Mapped[ProjectId] = mapped_column(
+        PrefixedUlidType(ProjectId), ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False
+    )
+    sequence: Mapped[int] = mapped_column(nullable=False)
+    parent_edit_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("ai_candidate_edits.id", ondelete="RESTRICT"), nullable=True
+    )
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    character_count: Mapped[int] = mapped_column(nullable=False)
+    base_revision_id: Mapped[str] = mapped_column(String(40), nullable=False)
+    base_version: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AICandidateEditAdoptionRecord(Base):
+    __tablename__ = "ai_candidate_edit_adoptions"
+    candidate_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("ai_workflow_candidates.id", ondelete="RESTRICT"), primary_key=True
+    )
+    edit_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("ai_candidate_edits.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

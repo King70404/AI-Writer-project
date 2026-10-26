@@ -34,10 +34,48 @@ class GenerationMessage:
     content: str
 
 
+MAX_REPORTED_TOKENS = 1_000_000_000
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderUsage:
+    """Token counts exactly as the provider reported them; ``None`` means not reported."""
+
+    input_tokens: int | None
+    output_tokens: int | None
+    total_tokens: int | None
+
+
+def _reported_count(value: object) -> int | None:
+    if type(value) is int and 0 <= value <= MAX_REPORTED_TOKENS:
+        return value
+    return None
+
+
+def parse_provider_usage(data: object) -> ProviderUsage | None:
+    """Read an OpenAI-compatible ``usage`` object without guessing missing values.
+
+    Malformed or absent usage is reported as ``None`` (unknown), never as zero, and
+    never fails an otherwise valid response.
+    """
+    if type(data) is not dict:
+        return None
+    usage = data.get("usage")
+    if type(usage) is not dict:
+        return None
+    input_tokens = _reported_count(usage.get("prompt_tokens", usage.get("input_tokens")))
+    output_tokens = _reported_count(usage.get("completion_tokens", usage.get("output_tokens")))
+    total_tokens = _reported_count(usage.get("total_tokens"))
+    if input_tokens is None and output_tokens is None and total_tokens is None:
+        return None
+    return ProviderUsage(input_tokens, output_tokens, total_tokens)
+
+
 @dataclass(frozen=True, slots=True)
 class GeneratedText:
     text: str
     model: str
+    usage: ProviderUsage | None = None
 
     def __post_init__(self) -> None:
         try:
@@ -45,6 +83,8 @@ class GeneratedText:
         except InvalidAIInput:
             raise AIProviderInvalidResponse from None
         if type(self.model) is not str or not MODEL_NAME.fullmatch(self.model):
+            raise AIProviderInvalidResponse
+        if self.usage is not None and type(self.usage) is not ProviderUsage:
             raise AIProviderInvalidResponse
         object.__setattr__(self, "text", normalized)
 

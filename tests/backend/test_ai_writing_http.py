@@ -9,7 +9,11 @@ from starlette.requests import Request
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
     BACKUP_OPERATIONS,
+    CANDIDATE_BUDGET_OPERATIONS,
+    STORY_CONTROL_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
+    USAGE_OPERATIONS,
+    WORKBENCH_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
 from tests.backend.ai_writing_support import CHAPTER, FakeProvider, sources
@@ -166,16 +170,32 @@ def test_openapi_preserves_all_m5_operations_adds_exactly_two(tmp_path: Path) ->
         if m in {"get", "post", "put", "patch", "delete"}
     }
     old = {(i["method"], i["path"]) for i in baseline["production_api_operations"]}
-    assert len(operations) == 70
+    assert len(operations) == 99
     assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
     assert len(BACKUP_OPERATIONS) == 5
+    assert len(WORKBENCH_OPERATIONS) == 5
+    assert len(USAGE_OPERATIONS) == 1
+    assert len(CANDIDATE_BUDGET_OPERATIONS) == 8
+    assert len(STORY_CONTROL_OPERATIONS) == 15
     assert operations >= AI_WORKFLOW_OPERATIONS
     assert operations >= (
-        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS | BACKUP_OPERATIONS
+        WRITING_PREPARATION_OPERATIONS
+        | STORY_MEMORY_OPERATIONS
+        | BACKUP_OPERATIONS
+        | WORKBENCH_OPERATIONS
+        | USAGE_OPERATIONS
+        | CANDIDATE_BUDGET_OPERATIONS
+        | STORY_CONTROL_OPERATIONS
     )
     assert operations - AI_WORKFLOW_OPERATIONS - (
-        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS | BACKUP_OPERATIONS
+        WRITING_PREPARATION_OPERATIONS
+        | STORY_MEMORY_OPERATIONS
+        | BACKUP_OPERATIONS
+        | WORKBENCH_OPERATIONS
+        | USAGE_OPERATIONS
+        | CANDIDATE_BUDGET_OPERATIONS
+        | STORY_CONTROL_OPERATIONS
     ) - old - {
         ("GET", "/api/v1/projects/{project_id}/export.txt"),
         ("POST", "/api/v1/projects/{project_id}/delete"),

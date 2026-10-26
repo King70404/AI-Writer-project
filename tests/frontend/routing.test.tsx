@@ -20,19 +20,19 @@ function renderAt(path: string) {
 }
 
 describe("application routes", () => {
-  it("renders the foundation page at the root route", () => {
+  it("renders the author home page at the root route", () => {
     renderAt("/");
 
     expect(
-      screen.getByRole("heading", { name: "AIWebNovel 前端基础已启动" }),
+      screen.getByRole("heading", { name: "写作首页" }),
     ).toBeInTheDocument();
     expect(screen.getByTestId("location-path")).toHaveTextContent("/");
   });
 
-  it("opens Projects from the explicit V1 start link", async () => {
+  it("opens the bookshelf from the explicit author home link", async () => {
     const user = userEvent.setup();
     renderAt("/");
-    await user.click(screen.getByRole("link", { name: "开始使用：进入项目" }));
+    await user.click(screen.getByRole("link", { name: "打开书架" }));
     expect(screen.getByTestId("location-path")).toHaveTextContent("/projects");
     expect(screen.getByRole("heading", { name: "新建小说" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: "书名" })).toBeVisible();
@@ -45,14 +45,14 @@ describe("application routes", () => {
     expect(
       screen.getByRole("heading", { name: "页面不存在" }),
     ).toBeInTheDocument();
-    const returnLink = screen.getByRole("link", { name: "返回基础页" });
+    const returnLink = screen.getByRole("link", { name: "返回首页" });
     expect(returnLink).toHaveAttribute("href", "/");
 
     await user.click(returnLink);
 
     expect(screen.getByTestId("location-path")).toHaveTextContent("/");
     expect(
-      screen.getByRole("heading", { name: "AIWebNovel 前端基础已启动" }),
+      screen.getByRole("heading", { name: "写作首页" }),
     ).toBeInTheDocument();
   });
 });

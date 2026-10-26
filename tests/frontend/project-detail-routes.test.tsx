@@ -130,9 +130,7 @@ describe("Project detail routes and navigation", () => {
 
     renderAt("/");
     await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "AIWebNovel 前端基础已启动" }),
-      ).toBeVisible(),
+      expect(screen.getByRole("heading", { name: "写作首页" })).toBeVisible(),
     );
   });
 });

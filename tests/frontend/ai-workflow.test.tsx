@@ -93,6 +93,9 @@ const pending: WorkflowRun = {
       status: "pending",
       adopted_revision_id: null,
       adopted_version: null,
+      latest_edit: null,
+      edit_count: 0,
+      adopted_edit_id: null,
     },
   ],
 };
@@ -118,6 +121,7 @@ function client(initial: WorkflowRun[] = []): AIWorkflowClient {
     create: vi.fn().mockResolvedValue(run),
     action: vi.fn().mockResolvedValue(pending),
     candidate: vi.fn().mockResolvedValue(adopted),
+    saveEdit: vi.fn(),
   };
 }
 function setup(api = client(), content = writingClient()) {
@@ -185,7 +189,9 @@ it("selects a saved model even when task history is unavailable", async () => {
     expect(screen.getByLabelText("使用模型")).toHaveValue(model.id),
   );
   expect(
-    screen.getByText("模型配置已保存。密钥不会回显。"),
+    screen.getByText(
+      `配置已保存，已选中“${model.name}”。密钥不会回显；尚未检查服务连接。`,
+    ),
   ).toBeInTheDocument();
   expect(
     screen.queryByRole("option", { name: "请先添加模型" }),
@@ -241,7 +247,9 @@ it("model settings save an explicit cloud key once and clear it from the form", 
   });
   expect(screen.getByLabelText("API Key（留空保留已有密钥）")).toHaveValue("");
   expect(onSaved).toHaveBeenCalledOnce();
-  expect(screen.getByRole("status")).toHaveTextContent("模型配置已保存");
+  expect(screen.getByRole("status")).toHaveTextContent(
+    `配置已保存，已选中“${model.name}”。密钥不会回显`,
+  );
 });
 
 it("model settings clear hidden keys on service changes and validate output budgets", async () => {

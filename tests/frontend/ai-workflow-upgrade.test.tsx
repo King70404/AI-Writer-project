@@ -40,6 +40,7 @@ function oldDatabase(): AIWorkflowClient {
     create: vi.fn(),
     action: vi.fn(),
     candidate: vi.fn(),
+    saveEdit: vi.fn(),
   };
 }
 function showAssistant(api: AIWorkflowClient, content = writingClient()) {
@@ -124,7 +125,9 @@ it("upgrades only after an explicit author click, saves pending prose first, and
     expect(screen.getByLabelText("使用模型")).toHaveValue(savedModel.id),
   );
   expect(
-    screen.getByText("模型配置已保存。密钥不会回显。"),
+    screen.getByText(
+      `配置已保存，已选中“${savedModel.name}”。还需填写 API Key 才能向云端发送。`,
+    ),
   ).toBeInTheDocument();
   expect(api.saveModel).toHaveBeenCalledOnce();
   expect(api.action).not.toHaveBeenCalled();

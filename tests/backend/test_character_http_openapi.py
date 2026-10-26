@@ -5,7 +5,11 @@ from pathlib import Path
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
     BACKUP_OPERATIONS,
+    CANDIDATE_BUDGET_OPERATIONS,
+    STORY_CONTROL_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
+    USAGE_OPERATIONS,
+    WORKBENCH_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
 from tests.backend.character_http_support import isolated_app
@@ -21,12 +25,22 @@ def test_production_api_has_exactly_thirty_eight_operations_and_six_character_ro
         for method in path_operations
         if method in {"get", "post", "put", "patch", "delete"}
     }
-    assert len(operations) == 70
+    assert len(operations) == 99
     assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
     assert len(BACKUP_OPERATIONS) == 5
+    assert len(WORKBENCH_OPERATIONS) == 5
+    assert len(USAGE_OPERATIONS) == 1
+    assert len(CANDIDATE_BUDGET_OPERATIONS) == 8
+    assert len(STORY_CONTROL_OPERATIONS) == 15
     assert operations >= AI_WORKFLOW_OPERATIONS | (
-        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS | BACKUP_OPERATIONS
+        WRITING_PREPARATION_OPERATIONS
+        | STORY_MEMORY_OPERATIONS
+        | BACKUP_OPERATIONS
+        | WORKBENCH_OPERATIONS
+        | USAGE_OPERATIONS
+        | CANDIDATE_BUDGET_OPERATIONS
+        | STORY_CONTROL_OPERATIONS
     )
     assert {
         ("GET", "/api/v1/projects/{project_id}/characters"),

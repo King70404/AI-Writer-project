@@ -85,10 +85,14 @@ describe("Chapter writing workspace", () => {
       }),
     );
     const editor = screen.getByLabelText<HTMLTextAreaElement>("章节正文");
-    expect(screen.getByRole("button", { name: "改写选中文本" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "准备改写选中文本" }),
+    ).toBeDisabled();
     editor.setSelectionRange(1, 3);
     fireEvent.select(editor);
-    expect(screen.getByRole("button", { name: "改写选中文本" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "准备改写选中文本" }),
+    ).toBeEnabled();
     expect(editor).toHaveValue("甲乙丙丁");
   });
   it("loads project, chapter, volume and empty content before exposing the editor", async () => {
@@ -188,6 +192,12 @@ describe("Chapter writing workspace", () => {
     const button = screen.getByRole("button", {
       name: "丢弃本地正文并重新加载服务器版本",
     });
+    expect(button).toBeDisabled(); // discarding local prose needs an explicit confirmation
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "我已保留需要的文字，确认丢弃本地正文",
+      }),
+    );
     await flushReact(() => {
       fireEvent.click(button);
     });

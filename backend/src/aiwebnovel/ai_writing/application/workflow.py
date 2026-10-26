@@ -13,6 +13,10 @@ from aiwebnovel.ai_writing.application.services import (
     REWRITE_PROMPT,
 )
 from aiwebnovel.ai_writing.application.workflow_models import (
+    MAX_EDIT_CHARACTERS,
+    MAX_EDIT_LENGTH,
+    CandidateEdit,
+    CandidateEditInvalid,
     ContextPack,
     ModelSnapshot,
     Operation,
@@ -26,6 +30,14 @@ from aiwebnovel.domain.errors import DomainError
 from aiwebnovel.novel_structure.application.queries import GetChapterContentQuery
 from aiwebnovel.novel_structure.application.services import NovelStructureQueryService
 from aiwebnovel.novel_structure.identifiers import ChapterId
+from aiwebnovel.usage.attribution import usage_attribution
+from aiwebnovel.usage.budget import BudgetRefused, SendEstimate
+from aiwebnovel.usage.models import UsageLedgerUnavailable
+
+Estimator = Callable[..., SendEstimate]
+
+
+_UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z")
 
 
 class AIWorkflowService:
@@ -36,12 +48,14 @@ class AIWorkflowService:
         structure: NovelStructureQueryService,
         provider: WorkflowProvider,
         model_reader: Callable[[str | None], ModelSnapshot] | None = None,
+        estimator: Estimator | None = None,
     ) -> None:
         self._repository = repository
         self._context_builder = context_builder
         self._structure = structure
         self._provider = provider
         self._model_reader = model_reader
+        self._estimator = estimator
 
     def create(
         self,
@@ -128,10 +142,8 @@ class AIWorkflowService:
     def list(self, chapter_id: str) -> tuple[WorkflowRun, ...]:
         return self._repository.list(str(ChapterId.parse(chapter_id)))
 
-    def generate(self, chapter_id: str, run_id: str) -> WorkflowRun:
-        chapter_id = str(ChapterId.parse(chapter_id))
-        run = self._repository.claim(chapter_id, run_id)
-        limit = min(300, run.max_output_characters - run.generated_characters)
+    @staticmethod
+    def _messages(run: WorkflowRun, limit: int) -> tuple[GenerationMessage, ...]:
         prompt = CONTINUE_PROMPT if run.operation == "continue" else REWRITE_PROMPT
         if "chapter_plan" in run.context.manifest.included_sources:
             prompt += (
@@ -160,14 +172,44 @@ class AIWorkflowService:
         )
         if run.operation == "rewrite":
             messages += (GenerationMessage("user", "待改写text:\n" + run.selected_text),)
+        return messages
+
+    @staticmethod
+    def _step_limit(run: WorkflowRun) -> int:
+        return min(300, run.max_output_characters - run.generated_characters)
+
+    def estimate(self, chapter_id: str, run_id: str) -> SendEstimate:
+        """Preview the next step's conservative cost and budget decision; sends nothing."""
+        chapter_id = str(ChapterId.parse(chapter_id))
+        run = self._repository.get(chapter_id, run_id)
+        if self._estimator is None:
+            raise UsageLedgerUnavailable
+        return self._estimator(
+            chapter_id=chapter_id,
+            project_id=None,
+            task_id=run.run_id,
+            profile_id=run.profile_id or "default-local",
+            messages=self._messages(run, max(200, self._step_limit(run))),
+        )
+
+    def generate(self, chapter_id: str, run_id: str) -> WorkflowRun:
+        chapter_id = str(ChapterId.parse(chapter_id))
+        run = self._repository.claim(chapter_id, run_id)
+        limit = self._step_limit(run)
+        messages = self._messages(run, limit)
         try:
-            generated = self._provider(run.profile_id, messages, limit, run.model_snapshot)
+            with usage_attribution("generation", run.run_id, chapter_id=chapter_id):
+                generated = self._provider(run.profile_id, messages, limit, run.model_snapshot)
             if type(generated) is not GeneratedText:
                 raise AIProviderInvalidResponse
             count = sum(not character.isspace() for character in generated.text)
             if not 200 <= count <= limit:
                 raise WorkflowOutputInvalid
             return self._repository.finish(chapter_id, run_id, generated, count)
+        except BudgetRefused:
+            # Refused before sending: the step is returned and nothing was charged.
+            self._repository.release_unsent(chapter_id, run_id, "BudgetRefused")
+            raise
         except DomainError as error:
             self._repository.fail(chapter_id, run_id, type(error).__name__)
             raise
@@ -183,13 +225,43 @@ class AIWorkflowService:
         return self._repository.transition(str(ChapterId.parse(chapter_id)), run_id, resume=True)
 
     def adopt(
-        self, chapter_id: str, candidate_id: str, expected_version: int, idempotency_key: str
+        self,
+        chapter_id: str,
+        candidate_id: str,
+        expected_version: int,
+        idempotency_key: str,
+        edit_id: str | None = None,
     ) -> WorkflowRun:
-        if not re.fullmatch(r"[A-Za-z0-9_-]{8,100}", idempotency_key):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{8,100}", idempotency_key) or (
+            edit_id is not None and not _UUID.fullmatch(edit_id)
+        ):
             raise InvalidAIInput
         return self._repository.adopt(
-            str(ChapterId.parse(chapter_id)), candidate_id, expected_version, idempotency_key
+            str(ChapterId.parse(chapter_id)),
+            candidate_id,
+            expected_version,
+            idempotency_key,
+            edit_id,
         )
+
+    def edit_candidate(
+        self, chapter_id: str, candidate_id: str, text: str, parent_edit_id: str | None
+    ) -> WorkflowRun:
+        """Save an immutable author edit; the manuscript and the model's text stay unchanged."""
+        if parent_edit_id is not None and not _UUID.fullmatch(parent_edit_id):
+            raise InvalidAIInput
+        try:
+            normalized = validate_text(text, limit=MAX_EDIT_LENGTH)
+        except InvalidAIInput:
+            raise CandidateEditInvalid from None
+        if sum(not character.isspace() for character in normalized) > MAX_EDIT_CHARACTERS:
+            raise CandidateEditInvalid
+        return self._repository.create_edit(
+            str(ChapterId.parse(chapter_id)), candidate_id, normalized, parent_edit_id
+        )
+
+    def candidate_edits(self, chapter_id: str, candidate_id: str) -> tuple[CandidateEdit, ...]:
+        return self._repository.list_edits(str(ChapterId.parse(chapter_id)), candidate_id)
 
     def discard(self, chapter_id: str, candidate_id: str) -> WorkflowRun:
         return self._repository.discard(str(ChapterId.parse(chapter_id)), candidate_id)

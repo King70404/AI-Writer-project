@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from aiwebnovel.ai_writing.application.workflow import AIWorkflowService
 from aiwebnovel.ai_writing.application.workflow_models import (
+    CandidateEdit,
+    CandidateEditInvalid,
     WorkflowConflict,
     WorkflowNotFound,
     WorkflowOutputInvalid,
@@ -25,6 +27,7 @@ from aiwebnovel.model_gateway.errors import (
 )
 from aiwebnovel.model_gateway.web import map_model_error
 from aiwebnovel.novel_structure.web.dependencies import get_required_version
+from aiwebnovel.usage.budget import SendEstimate
 
 
 class EmptyRequest(BaseModel):
@@ -44,6 +47,14 @@ class CreateRunRequest(EmptyRequest):
 
 class AdoptRequest(EmptyRequest):
     idempotency_key: str = Field(min_length=8, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
+    # The author edit to adopt instead of the model's original text; must be the newest.
+    edit_id: str | None = Field(default=None, min_length=36, max_length=36)
+
+
+class CreateEditRequest(EmptyRequest):
+    text: str = Field(min_length=1, max_length=12_000)
+    # The newest edit this one replaces (``None`` for the first); a stale parent conflicts.
+    parent_edit_id: str | None = Field(default=None, min_length=36, max_length=36)
 
 
 def get_workflow_service(request: Request) -> AIWorkflowService:
@@ -85,6 +96,10 @@ def _invoke[T](response: Response, call: Callable[[], T]) -> T:
         if isinstance(error, WorkflowNotFound):
             raise AppError(
                 code="AI_WORKFLOW_NOT_FOUND", message=error.message, status_code=404
+            ) from None
+        if isinstance(error, CandidateEditInvalid):
+            raise AppError(
+                code="AI_CANDIDATE_EDIT_INVALID", message=error.message, status_code=422
             ) from None
         if isinstance(error, WorkflowOutputInvalid):
             raise AppError(
@@ -169,8 +184,42 @@ def create_ai_workflow_router(*, api_prefix: str) -> APIRouter:
     ) -> WorkflowRun:
         return _invoke(
             response,
-            lambda: service.adopt(chapter_id, candidate_id, int(version), payload.idempotency_key),
+            lambda: service.adopt(
+                chapter_id,
+                candidate_id,
+                int(version),
+                payload.idempotency_key,
+                payload.edit_id,
+            ),
         )
+
+    @router.post("/candidates/{candidate_id}/edits", response_model=WorkflowRun, status_code=201)
+    def create_edit(
+        chapter_id: str,
+        candidate_id: str,
+        payload: CreateEditRequest,
+        response: Response,
+        service: Service,
+        _json: Json,
+    ) -> WorkflowRun:
+        return _invoke(
+            response,
+            lambda: service.edit_candidate(
+                chapter_id, candidate_id, payload.text, payload.parent_edit_id
+            ),
+        )
+
+    @router.get("/candidates/{candidate_id}/edits", response_model=tuple[CandidateEdit, ...])
+    def list_edits(
+        chapter_id: str, candidate_id: str, response: Response, service: Service
+    ) -> tuple[CandidateEdit, ...]:
+        return _invoke(response, lambda: service.candidate_edits(chapter_id, candidate_id))
+
+    @router.get("/runs/{run_id}/estimate", response_model=SendEstimate)
+    def estimate(
+        chapter_id: str, run_id: str, response: Response, service: Service
+    ) -> SendEstimate:
+        return _invoke(response, lambda: service.estimate(chapter_id, run_id))
 
     @router.post("/candidates/{candidate_id}/discard", response_model=WorkflowRun)
     def discard(

@@ -866,7 +866,7 @@ def test_integrated_database_initialization_preserves_existing_database(tmp_path
     database = root / "data/aiwebnovel.sqlite3"
     with sqlite3.connect(database) as connection:
         assert connection.execute("select version_num from alembic_version").fetchone() == (
-            "0009_add_story_memory",
+            "0013_add_story_control",
         )
         assert connection.execute(
             "select name from sqlite_master where type='table' and name like 'ai_workflow_%' "
@@ -874,7 +874,7 @@ def test_integrated_database_initialization_preserves_existing_database(tmp_path
         ).fetchall() == [("ai_workflow_candidates",), ("ai_workflow_runs",)]
         assert connection.execute(
             "select count(*) from sqlite_master where type='trigger'"
-        ).fetchone() == (18,)
+        ).fetchone() == (35,)
     before = database.read_bytes()
     second = subprocess.run(
         arguments, cwd=_REPOSITORY_ROOT, env=environment, capture_output=True, check=False
@@ -908,3 +908,38 @@ def test_doctor_required_security_and_hygiene_use_real_commands() -> None:
     for identity in ("ENV-007", "ENV-012"):
         assert checks[identity]["required"] is True
         assert checks[identity]["status"] == "pass"
+
+
+@pytest.mark.parametrize(
+    "shell",
+    [
+        "powershell.exe",
+        pytest.param(
+            "pwsh",
+            marks=pytest.mark.skipif(
+                shutil.which("pwsh") is None,
+                reason="pwsh is not installed here; Windows PowerShell 5.1 still runs this case",
+            ),
+        ),
+    ],
+)
+def test_e2e_readiness_handles_connection_errors_without_response(shell: str) -> None:
+    script = _powershell_quote(_REPOSITORY_ROOT / "scripts" / "run_e2e.ps1")
+    command = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$tokens = $null
+$errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile('{script}', [ref]$tokens, [ref]$errors)
+$function = $ast.Find({{param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-ResponseStatusCode'}}, $true)
+Invoke-Expression $function.Extent.Text
+function Invoke-WebRequest {{ throw [System.InvalidOperationException]::new('connection unavailable') }}
+if ((Get-ResponseStatusCode -Url 'http://127.0.0.1:1/') -ne 0) {{ throw 'Unexpected connection status' }}
+function Invoke-WebRequest {{ return [pscustomobject]@{{StatusCode = 200}} }}
+if ((Get-ResponseStatusCode -Url 'http://127.0.0.1:1/') -ne 200) {{ throw 'Unexpected success status' }}
+"""
+    result = _run(
+        [_require_command(shell), "-NoProfile", "-NonInteractive", "-Command", command],
+        cwd=_REPOSITORY_ROOT,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

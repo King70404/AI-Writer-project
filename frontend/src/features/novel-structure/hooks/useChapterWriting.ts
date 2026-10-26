@@ -164,6 +164,42 @@ export function useChapterWriting(
     }
   }, [client, publish]);
 
+  /**
+   * 版本冲突后作者明确选择保留本地正文：读取服务器最新版本作为新的版本条件，
+   * 本地文字保持不变，随后照常（带版本检查）保存。不自动合并。
+   */
+  const keepLocal = useCallback(async (): Promise<boolean> => {
+    const before = current.current;
+    if (before.status !== "conflict" || inFlight.current || before.reloading)
+      return false;
+    const controller = new AbortController();
+    operation.current = controller;
+    publish({ ...before, reloading: true, reloadFailed: false });
+    try {
+      const result = await client.getChapterContent(
+        before.snapshot.resource.chapter_id,
+        before.snapshot.resource.project_id,
+        controller.signal,
+      );
+      if (!mounted.current) return false;
+      if (result.resource.volume_id !== before.snapshot.resource.volume_id)
+        throw new Error("Chapter ownership changed.");
+      const local = current.current.content;
+      publish({
+        content: local,
+        snapshot: result,
+        status: local === result.resource.content ? "saved" : "dirty",
+        reloading: false,
+        reloadFailed: false,
+      });
+      return true;
+    } catch {
+      if (mounted.current)
+        publish({ ...current.current, reloading: false, status: "conflict" });
+      return false;
+    }
+  }, [client, publish]);
+
   const acceptExternal = useCallback(
     async (commit: () => Promise<void>): Promise<boolean> => {
       const before = current.current;
@@ -229,5 +265,14 @@ export function useChapterWriting(
     return () => window.removeEventListener("beforeunload", protect);
   }, [state.status]);
 
-  return { state, edit, save, reloadServer, flush, getContent, acceptExternal };
+  return {
+    state,
+    edit,
+    save,
+    reloadServer,
+    flush,
+    getContent,
+    acceptExternal,
+    keepLocal,
+  };
 }

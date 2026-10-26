@@ -112,7 +112,7 @@ test("E2E-INT-021 story memory review and guarded rewrite", async ({
     const path = (chapter: string) =>
       `/projects/${project}/chapters/${chapter}/write`;
     await page.goto(path(chapters[0]));
-    await page.getByRole("button", { name: "打开长篇记忆与评审" }).click();
+    await page.getByRole("tab", { name: "评审", exact: true }).click();
     const memory = page.getByRole("region", { name: "长篇记忆与评审工作台" });
     await memory.getByRole("button", { name: "准备本章评审" }).click();
     await expect(memory.getByText(/评审已准备/u)).toBeVisible();
@@ -135,7 +135,7 @@ test("E2E-INT-021 story memory review and guarded rewrite", async ({
       memory.getByText("正在处理记忆或评审，请勿重复发送…", { exact: true }),
     ).not.toBeVisible();
     await page.goto(path(chapters[1]));
-    await page.getByRole("button", { name: "打开长篇记忆与评审" }).click();
+    await page.getByRole("tab", { name: "评审", exact: true }).click();
     await memory.getByText("查看本章可召回的前文事实（1）").click();
     await expect(
       memory.getByText("手腕伤势：他左手腕受伤，抬手会痛", { exact: false }),
@@ -154,7 +154,7 @@ test("E2E-INT-021 story memory review and guarded rewrite", async ({
     };
     expect(reviewInput.confirmed_facts[0].text).toBe("他左手腕受伤，抬手会痛");
     await page.reload();
-    await page.getByRole("button", { name: "打开长篇记忆与评审" }).click();
+    await page.getByRole("tab", { name: "评审", exact: true }).click();
     await memory.getByRole("button", { name: "按此建议准备改写" }).click();
     const task = page.getByRole("region", { name: "当前AI任务" });
     await expect(
@@ -174,6 +174,7 @@ test("E2E-INT-021 story memory review and guarded rewrite", async ({
     await expect(page.getByRole("status", { name: "保存状态" })).toHaveText(
       "已保存",
     );
+    await page.getByRole("tab", { name: "评审", exact: true }).click();
     await memory.getByRole("button", { name: "刷新记忆与评审" }).click();
     await expect(
       memory.getByText(
@@ -189,7 +190,7 @@ test("E2E-INT-021 story memory review and guarded rewrite", async ({
       "已保存",
     );
     await page.goto(path(chapters[1]));
-    await page.getByRole("button", { name: "打开长篇记忆与评审" }).click();
+    await page.getByRole("tab", { name: "评审", exact: true }).click();
     await expect(
       memory.getByText("查看本章可召回的前文事实（0）"),
     ).toBeVisible();

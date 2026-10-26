@@ -6,7 +6,11 @@ import pytest
 from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
     BACKUP_OPERATIONS,
+    CANDIDATE_BUDGET_OPERATIONS,
+    STORY_CONTROL_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
+    USAGE_OPERATIONS,
+    WORKBENCH_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
 from tests.backend.factories import create_test_app
@@ -65,7 +69,13 @@ def test_production_api_inventory_has_exactly_fifty_routes(tmp_path: Path) -> No
         if method in {"get", "post", "put", "patch", "delete"}
     }
     assert routes == EXPECTED_ROUTES | AI_WORKFLOW_OPERATIONS | (
-        WRITING_PREPARATION_OPERATIONS | STORY_MEMORY_OPERATIONS | BACKUP_OPERATIONS
+        WRITING_PREPARATION_OPERATIONS
+        | STORY_MEMORY_OPERATIONS
+        | BACKUP_OPERATIONS
+        | WORKBENCH_OPERATIONS
+        | USAGE_OPERATIONS
+        | CANDIDATE_BUDGET_OPERATIONS
+        | STORY_CONTROL_OPERATIONS
     )
 
 

@@ -28,7 +28,7 @@ test.describe("integrated application delivery", () => {
     expect(readyBody.checks?.frontend).toBe("ok");
 
     await expect(
-      page.getByRole("heading", { name: "AIWebNovel", exact: true }),
+      page.getByRole("heading", { name: "AI 网文助手", exact: true }),
     ).toBeVisible();
     await expect(page.locator('script[src*="/@vite/client"]')).toHaveCount(0);
     const scriptUrls = await page
@@ -74,7 +74,7 @@ test.describe("integrated application delivery", () => {
     ).toBe(true);
 
     const healthPairPromise = observeHealthPair(page);
-    await page.getByRole("link", { name: "返回基础页" }).click();
+    await page.getByRole("link", { name: "返回首页" }).click();
     const pair = await healthPairPromise;
     await expect(page).toHaveURL(`${browserAudit.allowedOrigin}/`);
     await expectHealthyPair(pair);

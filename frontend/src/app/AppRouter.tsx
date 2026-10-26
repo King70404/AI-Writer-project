@@ -3,9 +3,7 @@ import { Route, Routes } from "react-router";
 import {
   ProjectDetailsPage,
   ProjectRevisionHistoryPage,
-  ProjectsPage,
 } from "../features/projects";
-import { FoundationPage } from "../pages/FoundationPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import {
   StoryBiblePage,
@@ -21,14 +19,16 @@ import {
   NovelStructurePage,
 } from "../features/novel-structure";
 import { BackupsPage } from "../features/author-backup";
+import { AuthorHomePage } from "../features/workbench/pages/AuthorHomePage";
+import { BookshelfPage } from "../features/workbench/pages/BookshelfPage";
 import { AppShell } from "./AppShell";
 
 export function AppRouter() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={<FoundationPage />} />
-        <Route path="projects" element={<ProjectsPage />} />
+        <Route index element={<AuthorHomePage />} />
+        <Route path="projects" element={<BookshelfPage />} />
         <Route path="projects/:projectId" element={<ProjectDetailsPage />} />
         <Route
           path="projects/:projectId/history"

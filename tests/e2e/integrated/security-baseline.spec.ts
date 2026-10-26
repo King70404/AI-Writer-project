@@ -40,7 +40,7 @@ test("E2E-INT-005 enforces the production browser security baseline", async ({
   expect(asRecord(readyBody.checks).security).toBe("ok");
   await expectSystemReady(page);
   await expect(
-    page.getByRole("heading", { name: "AIWebNovel", exact: true }),
+    page.getByRole("heading", { name: "AI 网文助手", exact: true }),
   ).toBeVisible();
 
   const localClient = await playwright.request.newContext({

@@ -13,6 +13,7 @@ from aiwebnovel.ai_writing.application.workflow_models import ModelSnapshot, Wor
 from aiwebnovel.ai_writing.errors import AIProviderUnavailable, InvalidAIInput
 from aiwebnovel.domain.errors import DomainError
 from aiwebnovel.project.identifiers import ProjectId
+from aiwebnovel.usage.attribution import usage_attribution
 from aiwebnovel.writing_studio.application.models import (
     ReferenceAnalysis,
     ReferenceUnit,
@@ -204,9 +205,15 @@ class WritingStudioService:
             raise WritingConsentRequired
         reference = self._repository.claim(reference.project_id, reference.id, expected_version)
         try:
-            generated = self._provider(
-                reference.model_snapshot.id, reference.messages, 50_000, reference.model_snapshot
-            )
+            with usage_attribution(
+                "reference_analysis", reference.id, project_id=reference.project_id
+            ):
+                generated = self._provider(
+                    reference.model_snapshot.id,
+                    reference.messages,
+                    50_000,
+                    reference.model_snapshot,
+                )
             analysis = parse_analysis(generated.text, reference.units)
             return self._repository.finish(reference.project_id, reference.id, analysis)
         except Exception as error:

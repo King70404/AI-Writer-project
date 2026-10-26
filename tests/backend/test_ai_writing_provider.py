@@ -65,6 +65,7 @@ def test_real_adapter_loopback_protocol_and_no_environment_proxy(
     with mock_server(body) as (url, received):
         result = LocalOpenAICompatibleProvider(url, "local-model").generate(MESSAGES)
     assert result.text == "生成\n正文" and result.model == "local-model"
+    assert result.usage is None
     assert len(received) == 1
     path, headers, payload = received[0]
     assert path == "/v1/chat/completions"
@@ -78,6 +79,16 @@ def test_real_adapter_loopback_protocol_and_no_environment_proxy(
     }
     assert "Authorization" not in headers
     assert headers["Host"].startswith("127.0.0.1:")
+
+
+def test_real_adapter_reads_provider_usage_without_guessing() -> None:
+    body = json.dumps(
+        {"choices": [{"message": {"content": "正文"}}], "usage": {"completion_tokens": 3}}
+    ).encode()
+    with mock_server(body) as (url, _received):
+        result = LocalOpenAICompatibleProvider(url, "local-model").generate(MESSAGES)
+    assert result.usage is not None
+    assert (result.usage.input_tokens, result.usage.output_tokens) == (None, 3)
 
 
 @pytest.mark.parametrize(

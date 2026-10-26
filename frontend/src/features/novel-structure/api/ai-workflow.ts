@@ -22,6 +22,20 @@ export interface ModelInput {
   readonly api_key?: string;
   readonly clear_key?: boolean;
 }
+/** 作者对候选的不可变修改版本；原始模型候选保持不变。 */
+export interface CandidateEdit {
+  readonly edit_id: string;
+  readonly candidate_id: string;
+  readonly sequence: number;
+  readonly parent_edit_id: string | null;
+  readonly text: string;
+  readonly character_count: number;
+  /** 保存这次修改时服务器上的正文版本；采用时正文必须仍是该版本。 */
+  readonly base_revision_id: string;
+  readonly base_version: number;
+  readonly created_at: string;
+  readonly source: "author";
+}
 export interface WorkflowCandidate {
   readonly candidate_id: string;
   readonly sequence: number;
@@ -31,6 +45,9 @@ export interface WorkflowCandidate {
   readonly status: "pending" | "adopted" | "discarded";
   readonly adopted_revision_id: string | null;
   readonly adopted_version: number | null;
+  readonly latest_edit: CandidateEdit | null;
+  readonly edit_count: number;
+  readonly adopted_edit_id: string | null;
 }
 export interface WorkflowContextSource {
   readonly source: string;
@@ -126,6 +143,42 @@ export function parseModelProfile(value: unknown): ModelProfile {
     has_key: value.has_key,
   };
 }
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+function parseEdit(value: unknown, candidateId: string): CandidateEdit {
+  if (
+    !record(value) ||
+    typeof value.edit_id !== "string" ||
+    !UUID.test(value.edit_id) ||
+    value.candidate_id !== candidateId ||
+    !integer(value.sequence, 1) ||
+    value.sequence > 50 ||
+    !(
+      value.parent_edit_id === null ||
+      (typeof value.parent_edit_id === "string" &&
+        UUID.test(value.parent_edit_id))
+    ) ||
+    !isManuscript(value.text) ||
+    !value.text.trim() ||
+    !integer(value.character_count, 1) ||
+    !identifier(value.base_revision_id) ||
+    !integer(value.base_version, 1) ||
+    typeof value.created_at !== "string" ||
+    value.source !== "author"
+  )
+    invalid();
+  return {
+    edit_id: value.edit_id,
+    candidate_id: candidateId,
+    sequence: value.sequence,
+    parent_edit_id: value.parent_edit_id,
+    text: value.text,
+    character_count: value.character_count,
+    base_revision_id: value.base_revision_id,
+    base_version: value.base_version,
+    created_at: value.created_at,
+    source: "author",
+  };
+}
 function parseCandidate(value: unknown): WorkflowCandidate {
   if (
     !record(value) ||
@@ -141,9 +194,20 @@ function parseCandidate(value: unknown): WorkflowCandidate {
       value.adopted_revision_id === null ||
       identifier(value.adopted_revision_id)
     ) ||
-    !(value.adopted_version === null || integer(value.adopted_version, 1))
+    !(value.adopted_version === null || integer(value.adopted_version, 1)) ||
+    !integer(value.edit_count ?? 0) ||
+    !(
+      value.adopted_edit_id === null ||
+      value.adopted_edit_id === undefined ||
+      (typeof value.adopted_edit_id === "string" &&
+        UUID.test(value.adopted_edit_id))
+    )
   )
     invalid();
+  const latestEdit =
+    value.latest_edit === null || value.latest_edit === undefined
+      ? null
+      : parseEdit(value.latest_edit, value.candidate_id);
   return {
     candidate_id: value.candidate_id,
     sequence: value.sequence,
@@ -153,6 +217,9 @@ function parseCandidate(value: unknown): WorkflowCandidate {
     status: value.status as WorkflowCandidate["status"],
     adopted_revision_id: value.adopted_revision_id,
     adopted_version: value.adopted_version,
+    latest_edit: latestEdit,
+    edit_count: (value.edit_count as number | undefined) ?? 0,
+    adopted_edit_id: value.adopted_edit_id ?? null,
   };
 }
 function parseContextSource(value: unknown): WorkflowContextSource {
@@ -299,6 +366,12 @@ const WORKFLOW_ERRORS: Record<string, string> = {
   AI_WORKFLOW_CONFLICT:
     "任务状态或模型配置已变化，请刷新确认；修改模型配置后需要重新准备任务。",
   AI_CONTEXT_CHANGED: "正文或上下文已变化，请为最新正文重新准备任务。",
+  AI_BUDGET_REFUSED:
+    "按保守预估，本次发送可能超出你设定的严格预算，已拒绝发送，未调用模型、未计费。可调整预算或价格后再确认发送。",
+  AI_RECALL_PINS_INVALID:
+    "本章召回设置里有固定事实已失效（来源正文修改、未确认或不在本章之前）或超出召回预算。请在“准备”中调整依据后再准备任务；未调用模型。",
+  AI_CANDIDATE_EDIT_INVALID:
+    "修改未保存：修改后的文本须有改动，且为 1–3000 个非空白字符；每个候选最多保存 50 版。",
 };
 const PERSISTED_FAILURES: Record<string, string> = {
   AIProviderNotConfigured: "AI_PROVIDER_NOT_CONFIGURED",
@@ -315,6 +388,7 @@ const PERSISTED_FAILURES: Record<string, string> = {
   WorkflowOutputInvalid: "AI_OUTPUT_LENGTH_INVALID",
   ModelCredentialUnavailable: "MODEL_CREDENTIAL_UNAVAILABLE",
   ModelConfigurationUnavailable: "MODEL_CONFIGURATION_UNAVAILABLE",
+  BudgetRefused: "AI_BUDGET_REFUSED",
 };
 export function workflowFailureMessage(code: string): string {
   return (
@@ -469,14 +543,33 @@ export const aiWorkflowClient = {
     action: "adopt" | "discard",
     key?: string,
     version?: number,
+    editId?: string | null,
   ) => {
     if (!identifier(chapterId) || !identifier(candidateId)) invalid();
     return mutate(
       `chapters/${chapterId}/ai/candidates/${candidateId}/${action}`,
-      action === "adopt" ? { idempotency_key: key } : {},
+      action !== "adopt"
+        ? {}
+        : editId
+          ? { idempotency_key: key, edit_id: editId }
+          : { idempotency_key: key },
       (value) => parseWorkflowRun(value, chapterId),
       "POST",
       version === undefined ? undefined : { "If-Match": `"${version}"` },
+    );
+  },
+  /** 保存作者修改为新的不可变版本；不改正文，不调用模型。 */
+  saveEdit: (
+    chapterId: string,
+    candidateId: string,
+    text: string,
+    parentEditId: string | null,
+  ) => {
+    if (!identifier(chapterId) || !identifier(candidateId)) invalid();
+    return mutate(
+      `chapters/${chapterId}/ai/candidates/${candidateId}/edits`,
+      { text, parent_edit_id: parentEditId },
+      (value) => parseWorkflowRun(value, chapterId),
     );
   },
 };

@@ -89,7 +89,9 @@ it("keeps an unconfirmed model form after network failure and only clears the ke
   await waitFor(() => expect(onSaved).toHaveBeenCalledExactlyOnceWith(saved));
   expect(fetch).toHaveBeenCalledTimes(2);
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  expect(screen.getByRole("status")).toHaveTextContent("模型配置已保存");
+  expect(screen.getByRole("status")).toHaveTextContent(
+    `配置已保存，已选中“${saved.name}”`,
+  );
   expect(screen.getByLabelText("API Key（留空保留已有密钥）")).toHaveValue("");
 });
 

@@ -22,8 +22,15 @@ from aiwebnovel.novel_structure.application.services import NovelStructureQueryS
 from aiwebnovel.project.application.services import ProjectQueryService
 from aiwebnovel.storage.paths import StoragePaths
 from aiwebnovel.story_bible.application.services import StoryBibleQueryService
+from aiwebnovel.story_control.composition import compose_story_control
+from aiwebnovel.story_control.service import StoryControlService
 from aiwebnovel.story_memory.composition import compose_story_memory
 from aiwebnovel.story_memory.service import StoryMemoryService
+from aiwebnovel.usage.budget_service import UsageBudgetService
+from aiwebnovel.usage.composition import compose_usage_ledger
+from aiwebnovel.usage.service import UsageLedgerService
+from aiwebnovel.workbench.composition import compose_workbench
+from aiwebnovel.workbench.service import WorkbenchService
 from aiwebnovel.writing_studio.application.service import WritingStudioService
 from aiwebnovel.writing_studio.composition import compose_writing_studio
 
@@ -58,6 +65,10 @@ def compose_ai_workflow(
         WritingStudioService,
         ChapterPlanningService,
         StoryMemoryService,
+        WorkbenchService,
+        UsageLedgerService,
+        UsageBudgetService,
+        StoryControlService,
     ]
     | None
 ):
@@ -73,6 +84,11 @@ def compose_ai_workflow(
         "writing_rule_versions",
         "chapter_plan_revisions",
         "story_memory_revisions",
+        "chapter_editorial_revisions",
+        "model_usage_attempts",
+        "ai_candidate_edits",
+        "model_budget_reservations",
+        "story_control_revisions",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
@@ -86,6 +102,9 @@ def compose_ai_workflow(
             default_base_url=settings.ai_base_url,
             default_model=settings.ai_model,
         )
+        usage, budgets = compose_usage_ledger(session_factory, projects, gateway.get_profile)
+        assert budgets is not None
+        usage.recover_interrupted()
 
         def generate(
             profile_id: str | None,
@@ -104,8 +123,16 @@ def compose_ai_workflow(
                     model_snapshot.max_output_tokens,
                 )
             )
-            return gateway.generate(
-                profile_id or "default-local", messages, expected_configuration=expected
+            # Every request that leaves the process is recorded under the caller's
+            # explicit attribution; local pre-send failures write no ledger row.
+            return usage.metered(
+                messages,
+                lambda before_send: gateway.generate(
+                    profile_id or "default-local",
+                    messages,
+                    expected_configuration=expected,
+                    before_send=before_send,
+                ),
             )
 
         def read_model(profile_id: str | None) -> ModelSnapshot:
@@ -132,11 +159,23 @@ def compose_ai_workflow(
             )
 
         memory = compose_story_memory(
-            session_factory, projects, structure, generate, read_model, generation_sources
+            session_factory,
+            projects,
+            structure,
+            generate,
+            read_model,
+            generation_sources,
+            lambda chapter_id: control.selection_policy(chapter_id),
         )
+        control = compose_story_control(session_factory, projects, structure, characters, memory)
 
         def extra_sources(chapter_id: str) -> tuple[ContextSource, ...]:
-            return planning.context_sources(chapter_id) + memory.context_sources(chapter_id)
+            # Author plans are labelled guidance; confirmed facts follow the recall policy.
+            return (
+                planning.context_sources(chapter_id)
+                + control.guide_sources(chapter_id)
+                + memory.context_sources(chapter_id)
+            )
 
         service = AIWorkflowService(
             SqlAlchemyWorkflowRepository(session_factory),
@@ -146,9 +185,21 @@ def compose_ai_workflow(
             structure,
             generate,
             read_model,
+            budgets.estimate,
         )
         service.recover_interrupted()
-        return service, gateway, runtime, studio, planning, memory
+        return (
+            service,
+            gateway,
+            runtime,
+            studio,
+            planning,
+            memory,
+            compose_workbench(session_factory, projects),
+            usage,
+            budgets,
+            control,
+        )
     except BaseException:
         runtime.close()
         raise
