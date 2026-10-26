@@ -233,6 +233,10 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
   ).toBeFocused();
 
   // 回到首页：继续写作卡来自本机定位与真实接口标题。
+  // 离开写作页会主动取消仍在途的卷章结构请求，这是导航行为而非失败。
+  browserAudit.allowOneExpectedLocalCancellation(
+    `/api/v1/projects/${projectId}/volumes`,
+  );
   await page
     .getByRole("navigation", { name: "主要导航" })
     .getByRole("link", { name: "首页" })
