@@ -153,6 +153,8 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
   );
   const summary = assistant.getByRole("region", { name: "当前模型" });
   const modelSelect = assistant.getByLabel("使用模型");
+  // 模型状态异步读取；先等待读取结束，避免在“添加模型/管理模型”切换期间点击已失效的按钮。
+  await expect(summary.getByText("正在读取模型配置…")).toHaveCount(0);
   if ((await summary.getByRole("button", { name: "添加模型" }).count()) > 0) {
     await summary.getByRole("button", { name: "添加模型" }).click();
   } else {
