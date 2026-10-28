@@ -77,13 +77,61 @@ function WritingEditor({
   const [taskStatus, setTaskStatus] = useState("没有进行中的 AI 任务");
   const [navigatorOpen, setNavigatorOpen] = useState(wideDesk);
   const [assistantOpen, setAssistantOpen] = useState(wideDesk);
+  const [isWide, setIsWide] = useState(wideDesk);
   const [focusMode, setFocusMode] = useState(false);
   const [leaveError, setLeaveError] = useState("");
   const [leaving, setLeaving] = useState(false);
   const focusToggle = useRef<HTMLButtonElement>(null);
+  const assistantToggle = useRef<HTMLButtonElement>(null);
+  const assistantDrawer = useRef<HTMLElement>(null);
+  const assistantClose = useRef<HTMLButtonElement>(null);
+  const showNavigator = navigatorOpen && !focusMode;
+  const showAssistant = assistantOpen && !focusMode;
   useEffect(() => {
     recordRecentChapter(chapter.project_id, chapter.chapter_id);
   }, [chapter.chapter_id, chapter.project_id]);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(min-width: 80rem)");
+    const update = (event: MediaQueryListEvent) => setIsWide(event.matches);
+    query.addEventListener?.("change", update);
+    return () => query.removeEventListener?.("change", update);
+  }, []);
+  useEffect(() => {
+    if (isWide || !showAssistant) return;
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    assistantClose.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.isComposing) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setAssistantOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !assistantDrawer.current) return;
+      const controls = Array.from(
+        assistantDrawer.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.closest("[hidden]"));
+      const first = controls[0];
+      const last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first && last) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last && first) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = oldOverflow;
+      assistantToggle.current?.focus();
+    };
+  }, [isWide, showAssistant]);
   useEffect(() => {
     if (!focusMode) return;
     const exit = (event: KeyboardEvent) => {
@@ -113,8 +161,6 @@ function WritingEditor({
       })
       .finally(() => setLeaving(false));
   };
-  const showNavigator = navigatorOpen && !focusMode;
-  const showAssistant = assistantOpen && !focusMode;
   return (
     <section
       className={`chapter-writing-workspace writing-desk${focusMode ? " writing-desk--focus" : ""}${showNavigator ? "" : " writing-desk--no-nav"}${showAssistant ? "" : " writing-desk--no-assistant"}`}
@@ -170,6 +216,7 @@ function WritingEditor({
                 {navigatorOpen ? "收起目录" : "显示目录"}
               </button>
               <button
+                ref={assistantToggle}
                 type="button"
                 aria-pressed={assistantOpen}
                 aria-controls="writing-desk-assistant"
@@ -295,11 +342,34 @@ function WritingEditor({
           }}
         />
       </div>
+      {!isWide && showAssistant ? (
+        <button
+          type="button"
+          className="writing-desk__assistant-backdrop"
+          aria-label="关闭助手"
+          tabIndex={-1}
+          onClick={() => setAssistantOpen(false)}
+        />
+      ) : null}
       <aside
+        ref={assistantDrawer}
         id="writing-desk-assistant"
         className="writing-desk__assistant"
         hidden={!showAssistant}
+        role={!isWide && showAssistant ? "dialog" : undefined}
+        aria-modal={!isWide && showAssistant ? true : undefined}
+        aria-label={!isWide && showAssistant ? "AI写作助手面板" : undefined}
       >
+        <div className="writing-desk__assistant-header">
+          <strong>AI 写作助手</strong>
+          <button
+            ref={assistantClose}
+            type="button"
+            onClick={() => setAssistantOpen(false)}
+          >
+            关闭助手
+          </button>
+        </div>
         <AIWorkflowAssistant
           chapterId={chapter.chapter_id}
           projectId={chapter.project_id}

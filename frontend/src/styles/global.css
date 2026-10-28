@@ -1752,6 +1752,10 @@ summary:focus-visible {
   background: var(--paper-sheet);
 }
 
+.writing-desk__assistant-header {
+  display: none;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -1875,6 +1879,36 @@ summary:focus-visible {
   .writing-desk__assistant {
     position: static;
     max-height: none;
+  }
+
+  .writing-desk__assistant-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    width: 100%;
+    border: 0;
+    background: rgb(0 0 0 / 40%);
+  }
+
+  .writing-desk__assistant {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 11;
+    width: min(100%, 27rem);
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: auto;
+    padding: 1rem;
+    background: var(--paper-sheet);
+    box-shadow: -0.5rem 0 1.5rem rgb(0 0 0 / 18%);
+  }
+
+  .writing-desk__assistant-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
   }
 }
 

@@ -548,6 +548,39 @@ describe("three-column writing desk", () => {
     expect(screen.getByRole("button", { name: "显示目录" })).toBeVisible();
   });
 
+  it("opens a narrow drawer without losing prose or assistant input, and restores focus", async () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
+    const action = vi.spyOn(aiWorkflowClient, "action");
+    await showDesk();
+    const editor = screen.getByLabelText<HTMLTextAreaElement>("章节正文");
+    fireEvent.change(editor, { target: { value: "尚未保存的正文" } });
+    const toggle = screen.getByRole("button", { name: "显示助手" });
+    fireEvent.click(toggle);
+    const drawer = screen.getByRole("dialog", { name: "AI写作助手面板" });
+    expect(
+      within(drawer).getByRole("button", { name: "关闭助手" }),
+    ).toHaveFocus();
+    expect(document.body.style.overflow).toBe("hidden");
+    fireEvent.click(within(drawer).getByRole("tab", { name: "生成" }));
+    fireEvent.change(within(drawer).getByLabelText("额外要求（可选）"), {
+      target: { value: "让人物先行动" },
+    });
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(drawer).not.toBeVisible();
+    expect(document.body.style.overflow).not.toBe("hidden");
+    expect(toggle).toHaveFocus();
+    expect(screen.getByLabelText("章节正文")).toBe(editor);
+    expect(editor).toHaveValue("尚未保存的正文");
+    fireEvent.click(toggle);
+    expect(within(drawer).getByLabelText("额外要求（可选）")).toHaveValue(
+      "让人物先行动",
+    );
+    fireEvent.click(within(drawer).getByRole("button", { name: "关闭助手" }));
+    expect(toggle).toHaveFocus();
+    expect(action).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
   it("offers the structure page and forgets the record when the chapter is gone", async () => {
     recordRecentChapter(structureProjectId, chapterId);
     render(

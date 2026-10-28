@@ -256,6 +256,34 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
     `${browserAudit.allowedOrigin}/projects/${projectId}/chapters/${firstChapterId}/write`,
   );
   await expect(page.getByLabel("章节正文")).toHaveValue(firstText);
+
+  // 窄屏助手是可关闭的抽屉，调整视口不丢正文与助手输入。
+  for (const width of [360, 390, 768, 1024]) {
+    await page.setViewportSize({ width, height: 800 });
+    const drawer = page.getByRole("dialog", { name: "AI写作助手面板" });
+    const open = page.getByRole("button", { name: "显示助手" });
+    if (await open.isVisible()) await open.click();
+    await expect(drawer).toBeVisible();
+    await expect(
+      drawer.getByRole("button", { name: "关闭助手" }),
+    ).toBeFocused();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      )
+      .toBe(true);
+    await drawer.getByRole("tab", { name: "生成" }).click();
+    const instruction = drawer.getByLabel("额外要求（可选）");
+    if (width === 360) await instruction.fill("保持角色动机");
+    await expect(instruction).toHaveValue("保持角色动机");
+    await page.keyboard.press("Escape");
+    await expect(drawer).not.toBeVisible();
+    await expect(open).toBeFocused();
+    await expect(page.getByLabel("章节正文")).toHaveValue(firstText);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page
     .getByRole("navigation", { name: "主要导航" })
     .getByRole("link", { name: "书架" })
