@@ -100,6 +100,7 @@ function WritingEditor({
   useEffect(() => {
     if (isWide || !showAssistant) return;
     const oldOverflow = document.body.style.overflow;
+    const returnFocusTo = assistantToggle.current;
     document.body.style.overflow = "hidden";
     assistantClose.current?.focus();
     const handleKey = (event: KeyboardEvent) => {
@@ -129,7 +130,7 @@ function WritingEditor({
     return () => {
       document.removeEventListener("keydown", handleKey);
       document.body.style.overflow = oldOverflow;
-      assistantToggle.current?.focus();
+      returnFocusTo?.focus();
     };
   }, [isWide, showAssistant]);
   useEffect(() => {
