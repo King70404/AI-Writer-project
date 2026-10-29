@@ -1,3 +1,4 @@
+import { ExternalHandoff } from "../../external-handoff/ExternalHandoff";
 import {
   useCallback,
   useEffect,
@@ -231,6 +232,7 @@ export function AIWorkflowAssistant({
       data-feature-id="ai.workflow"
     >
       <h3>AI协作写作</h3>
+      <ExternalHandoff chapterId={chapterId} writing={writing} />
       {ai.upgradeRequired ? (
         <section aria-label="启用 AI 协作">
           <p>

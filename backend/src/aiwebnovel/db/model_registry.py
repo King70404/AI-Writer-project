@@ -48,6 +48,7 @@ CANDIDATE_BUDGET_TABLE_NAMES = frozenset(
         "model_budget_reservations",
     }
 )
+HANDOFF_TABLE_NAMES = frozenset({"handoff_snapshots", "external_candidates"})
 IMPORT_TABLE_NAMES = frozenset({"import_previews", "import_receipts"})
 STORY_CONTROL_TABLE_NAMES = frozenset({"story_control_revisions"})
 BUSINESS_TABLE_NAMES = (
@@ -63,6 +64,7 @@ BUSINESS_TABLE_NAMES = (
     | CANDIDATE_BUDGET_TABLE_NAMES
     | STORY_CONTROL_TABLE_NAMES
     | IMPORT_TABLE_NAMES
+    | HANDOFF_TABLE_NAMES
 )
 
 
@@ -80,6 +82,7 @@ def load_model_metadata() -> MetaData:
         CharacterRecord,
         CharacterRevisionRecord,
     )
+    from aiwebnovel.handoff.persistence import ExternalCandidateRecord, HandoffRecord
     from aiwebnovel.imports.persistence import ImportPreviewRecord, ImportReceiptRecord
     from aiwebnovel.novel_structure.persistence.models import (
         ChapterHeadRecord,
@@ -117,6 +120,8 @@ def load_model_metadata() -> MetaData:
     )
 
     registered_records = (
+        HandoffRecord,
+        ExternalCandidateRecord,
         ImportPreviewRecord,
         ImportReceiptRecord,
         AIWorkflowRunRecord,
