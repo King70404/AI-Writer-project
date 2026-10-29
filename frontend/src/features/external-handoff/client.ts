@@ -25,6 +25,9 @@ export interface Preview {
 export interface HandoffInput {
   readonly instruction: string;
   readonly include_manuscript: boolean;
+  readonly include_plan?: boolean;
+  readonly rule_revision_ids?: readonly string[];
+  readonly fact_revision_ids?: readonly string[];
   readonly context_sha256?: string;
 }
 export interface HandoffClient {
