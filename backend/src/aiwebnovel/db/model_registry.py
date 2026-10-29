@@ -48,6 +48,7 @@ CANDIDATE_BUDGET_TABLE_NAMES = frozenset(
         "model_budget_reservations",
     }
 )
+IMPORT_TABLE_NAMES = frozenset({"import_previews", "import_receipts"})
 STORY_CONTROL_TABLE_NAMES = frozenset({"story_control_revisions"})
 BUSINESS_TABLE_NAMES = (
     PROJECT_TABLE_NAMES
@@ -61,6 +62,7 @@ BUSINESS_TABLE_NAMES = (
     | USAGE_TABLE_NAMES
     | CANDIDATE_BUDGET_TABLE_NAMES
     | STORY_CONTROL_TABLE_NAMES
+    | IMPORT_TABLE_NAMES
 )
 
 
@@ -78,6 +80,7 @@ def load_model_metadata() -> MetaData:
         CharacterRecord,
         CharacterRevisionRecord,
     )
+    from aiwebnovel.imports.persistence import ImportPreviewRecord, ImportReceiptRecord
     from aiwebnovel.novel_structure.persistence.models import (
         ChapterHeadRecord,
         ChapterRecord,
@@ -114,6 +117,8 @@ def load_model_metadata() -> MetaData:
     )
 
     registered_records = (
+        ImportPreviewRecord,
+        ImportReceiptRecord,
         AIWorkflowRunRecord,
         AIWorkflowCandidateRecord,
         AICandidateEditRecord,
