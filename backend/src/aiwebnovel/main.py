@@ -107,6 +107,7 @@ from aiwebnovel.usage.budget_web import create_budget_router
 from aiwebnovel.usage.web import create_usage_router
 from aiwebnovel.web.frontend import FrontendStaticService
 from aiwebnovel.workbench.web import create_workbench_router
+from aiwebnovel.writing_jobs.web import router as create_writing_jobs_router
 from aiwebnovel.writing_studio.web import create_writing_studio_router
 
 logger = get_logger("health")
@@ -265,6 +266,9 @@ def create_app(
         from aiwebnovel.project.persistence.import_support import ImportProjectStore
 
         application.state.import_project_store = ImportProjectStore()
+        from aiwebnovel.project.persistence.writing_job_support import WritingJobProjectStore
+
+        application.state.writing_job_project_store = WritingJobProjectStore()
         application.state.ai_workflow_schema_required = False
 
         if resolved_settings is not None:
@@ -661,6 +665,7 @@ def create_app(
     application.include_router(create_workbench_router(api_prefix=api_prefix))
     application.include_router(create_import_router(api_prefix=api_prefix))
     application.include_router(create_handoff_router(api_prefix=api_prefix))
+    application.include_router(create_writing_jobs_router(api_prefix=api_prefix))
     application.include_router(create_usage_router(api_prefix=api_prefix))
     application.include_router(create_budget_router(api_prefix=api_prefix))
     application.include_router(create_story_control_router(api_prefix=api_prefix))

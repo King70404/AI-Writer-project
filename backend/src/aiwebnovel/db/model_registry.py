@@ -48,6 +48,7 @@ CANDIDATE_BUDGET_TABLE_NAMES = frozenset(
         "model_budget_reservations",
     }
 )
+WRITING_JOB_TABLE_NAMES = frozenset({"writing_jobs"})
 HANDOFF_TABLE_NAMES = frozenset({"handoff_snapshots", "external_candidates"})
 IMPORT_TABLE_NAMES = frozenset({"import_previews", "import_receipts"})
 STORY_CONTROL_TABLE_NAMES = frozenset({"story_control_revisions"})
@@ -65,6 +66,7 @@ BUSINESS_TABLE_NAMES = (
     | STORY_CONTROL_TABLE_NAMES
     | IMPORT_TABLE_NAMES
     | HANDOFF_TABLE_NAMES
+    | WRITING_JOB_TABLE_NAMES
 )
 
 
@@ -114,12 +116,14 @@ def load_model_metadata() -> MetaData:
     )
     from aiwebnovel.usage.persistence import ModelUsageAttemptRecord
     from aiwebnovel.workbench.persistence import ChapterEditorialRevisionRecord
+    from aiwebnovel.writing_jobs.persistence import WritingJobRecord
     from aiwebnovel.writing_studio.persistence.models import (
         WritingReferenceRecord,
         WritingRuleVersionRecord,
     )
 
     registered_records = (
+        WritingJobRecord,
         HandoffRecord,
         ExternalCandidateRecord,
         ImportPreviewRecord,
