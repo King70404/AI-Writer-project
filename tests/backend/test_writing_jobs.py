@@ -50,4 +50,3 @@ def test_manual_job_create_change_and_conflicts(workflow):
         ).status_code
         == 422
     )
-
