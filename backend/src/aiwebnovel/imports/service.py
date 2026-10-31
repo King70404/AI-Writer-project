@@ -7,7 +7,7 @@ import json
 import re
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from typing import cast
+from typing import Protocol, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import select, text
@@ -35,10 +35,14 @@ from aiwebnovel.novel_structure.values import (
     NovelStructureTitle,
 )
 from aiwebnovel.project.deletion import is_deleted_project_title, is_reserved_project_title
-from aiwebnovel.project.identifiers import ProjectId
-from aiwebnovel.project.persistence.mappers import project_aggregate_to_records
-from aiwebnovel.project.persistence.models import ProjectHeadRecord, ProjectRevisionRecord
+from aiwebnovel.project.entities import ProjectAggregate
 from aiwebnovel.project.transitions import create_initial_project
+
+
+class ProjectImportStore(Protocol):
+    def persist(self, session: Session, project: ProjectAggregate) -> None: ...
+    def current_title(self, session: Session, project_id: str) -> str | None: ...
+
 
 MAX_BYTES = 10 * 1024 * 1024
 MAX_CHUNKSIZE = 100_000
@@ -262,19 +266,23 @@ def edit_preview(
     return render(record)
 
 
-def receipt_view(session: Session, receipt: ImportReceiptRecord) -> dict[str, object]:
-    current = session.execute(
-        select(ProjectRevisionRecord.title)
-        .join(ProjectHeadRecord, ProjectHeadRecord.revision_id == ProjectRevisionRecord.id)
-        .where(ProjectHeadRecord.project_id == ProjectId.parse(receipt.project_id))
-    ).scalar_one_or_none()
+def receipt_view(
+    session: Session, receipt: ImportReceiptRecord, store: ProjectImportStore
+) -> dict[str, object]:
+    current = store.current_title(session, receipt.project_id)
     if current is None or is_deleted_project_title(current):
         raise problem("IMPORT_PROJECT_DELETED", "The imported project is no longer available.", 410)
     return {"project_id": receipt.project_id, "first_chapter_id": receipt.first_chapter_id}
 
 
 def commit(
-    session: Session, preview_id: str, version: int, source_sha256: str, key: str, title: str
+    session: Session,
+    preview_id: str,
+    version: int,
+    source_sha256: str,
+    key: str,
+    title: str,
+    store: ProjectImportStore,
 ) -> dict[str, object]:
     valid_id(key)
     if is_reserved_project_title(title):
@@ -295,7 +303,7 @@ def commit(
     if old is not None:
         if old.request_sha256 != digest:
             raise problem("IMPORT_CONFLICT", "The idempotency key belongs to another request.", 409)
-        return receipt_view(session, old)
+        return receipt_view(session, old, store)
     record = _read(session, preview_id)
     if record.version != version or record.source_sha256 != source_sha256 or version == 0:
         raise problem("IMPORT_CONFLICT", "The import preview has changed.", 409)
@@ -319,12 +327,9 @@ def commit(
             position=NovelStructurePosition(1),
             now=now,
         )
-        project_stable, project_head, project_revision = project_aggregate_to_records(project)
+        store.persist(session, project)
         volume_stable, volume_head, volume_revision = volume_aggregate_to_records(volume)
         for row in (
-            project_stable,
-            project_revision,
-            project_head,
             volume_stable,
             volume_revision,
             volume_head,

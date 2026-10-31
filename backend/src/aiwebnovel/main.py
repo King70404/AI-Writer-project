@@ -262,6 +262,9 @@ def create_app(
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         runtime_engine: Engine | None = None
+        from aiwebnovel.project.persistence.import_support import ImportProjectStore
+
+        application.state.import_project_store = ImportProjectStore()
         application.state.ai_workflow_schema_required = False
 
         if resolved_settings is not None:
