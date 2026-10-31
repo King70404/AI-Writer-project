@@ -6,7 +6,7 @@ import json
 import uuid
 import zipfile
 from collections.abc import Generator
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
@@ -14,21 +14,16 @@ from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
 from aiwebnovel.ai_writing.web import require_json
-from aiwebnovel.chapter_planning.persistence import ChapterPlanRevisionRecord
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
 from aiwebnovel.domain.errors import DomainError
-from aiwebnovel.handoff.persistence import ExternalCandidateRecord, HandoffRecord
 from aiwebnovel.imports.web import import_session
 from aiwebnovel.novel_structure.identifiers import ChapterId
-from aiwebnovel.novel_structure.persistence.workflow_transaction import (
-    adopt_workflow_content,
-    load_workflow_chapter,
-)
 from aiwebnovel.novel_structure.values import ManuscriptContent
 from aiwebnovel.novel_structure.web.dependencies import get_required_version
-from aiwebnovel.story_memory.persistence import StoryMemoryRevisionRecord
-from aiwebnovel.writing_studio.persistence.models import WritingRuleVersionRecord
+
+if TYPE_CHECKING:
+    from aiwebnovel.handoff.persistence import ExternalCandidateRecord, HandoffRecord
 
 
 class Input(BaseModel):
@@ -53,6 +48,11 @@ def fail(code: str, status: int = 409) -> AppError:
 
 
 def build(session: Session, chapter_id: str, data: Input) -> dict[str, object]:
+    from aiwebnovel.chapter_planning.persistence import ChapterPlanRevisionRecord
+    from aiwebnovel.novel_structure.persistence.workflow_transaction import load_workflow_chapter
+    from aiwebnovel.story_memory.persistence import StoryMemoryRevisionRecord
+    from aiwebnovel.writing_studio.persistence.models import WritingRuleVersionRecord
+
     chapter = load_workflow_chapter(session, chapter_id)
     prose = str(chapter.current_revision.content) if data.include_manuscript else ""
     if len(set(data.rule_revision_ids)) != len(data.rule_revision_ids) or len(
@@ -141,7 +141,7 @@ def build(session: Session, chapter_id: str, data: Input) -> dict[str, object]:
     }
 
 
-def view(h: HandoffRecord, candidates: list[ExternalCandidateRecord]) -> dict[str, object]:
+def view(h: "HandoffRecord", candidates: list["ExternalCandidateRecord"]) -> dict[str, object]:
     return {
         "handoff_id": h.id,
         "chapter_id": h.chapter_id,
@@ -152,7 +152,7 @@ def view(h: HandoffRecord, candidates: list[ExternalCandidateRecord]) -> dict[st
     }
 
 
-def candidate(c: ExternalCandidateRecord, version: int) -> dict[str, object]:
+def candidate(c: "ExternalCandidateRecord", version: int) -> dict[str, object]:
     return {
         "candidate_id": c.id,
         "text": c.text,
@@ -183,6 +183,8 @@ def router(api_prefix: str) -> APIRouter:
 
     @r.post("")
     def create(chapter_id: str, body: Input, s: SessionDep, _: Json) -> dict[str, object]:
+        from aiwebnovel.handoff.persistence import HandoffRecord
+
         s.execute(text("BEGIN IMMEDIATE"))
         data = build(s, chapter_id, body)
         if body.context_sha256 is None or body.context_sha256 != data["context_sha256"]:
@@ -199,7 +201,12 @@ def router(api_prefix: str) -> APIRouter:
         s.commit()
         return view(h, [])
 
-    def get(s: Session, chapter_id: str, handoff_id: str) -> HandoffRecord:
+    def get(s: Session, chapter_id: str, handoff_id: str) -> "HandoffRecord":
+        from aiwebnovel.handoff.persistence import HandoffRecord
+        from aiwebnovel.novel_structure.persistence.workflow_transaction import (
+            load_workflow_chapter,
+        )
+
         load_workflow_chapter(s, chapter_id)
         h = s.get(HandoffRecord, handoff_id)
         if h is None or h.chapter_id != chapter_id:
@@ -208,6 +215,11 @@ def router(api_prefix: str) -> APIRouter:
 
     @r.get("")
     def listing(chapter_id: str, s: SessionDep) -> list[dict[str, object]]:
+        from aiwebnovel.handoff.persistence import ExternalCandidateRecord, HandoffRecord
+        from aiwebnovel.novel_structure.persistence.workflow_transaction import (
+            load_workflow_chapter,
+        )
+
         load_workflow_chapter(s, chapter_id)
         rows = s.scalars(
             select(HandoffRecord)
@@ -256,6 +268,8 @@ def router(api_prefix: str) -> APIRouter:
     async def add(
         chapter_id: str, handoff_id: str, request: Request, s: SessionDep
     ) -> dict[str, object]:
+        from aiwebnovel.handoff.persistence import ExternalCandidateRecord
+
         raw = await request.body()
         if len(raw) > 262144:
             raise fail("HANDOFF_TOO_LARGE", 413)
@@ -325,6 +339,12 @@ def router(api_prefix: str) -> APIRouter:
         _: Json,
         expected: Annotated[ConcurrencyVersion, Depends(get_required_version)],
     ) -> dict[str, object]:
+        from aiwebnovel.handoff.persistence import ExternalCandidateRecord
+        from aiwebnovel.novel_structure.persistence.workflow_transaction import (
+            adopt_workflow_content,
+            load_workflow_chapter,
+        )
+
         try:
             uuid.UUID(body.idempotency_key)
         except ValueError:
