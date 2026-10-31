@@ -15,3 +15,20 @@ class WritingJobRecord(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     current_index: Mapped[int] = mapped_column(Integer, nullable=False)
     chapter_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+
+
+class WritingJobBudgetRecord(Base):
+    __tablename__ = "writing_job_budgets"
+    job_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    max_requests: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_output_characters: Mapped[int] = mapped_column(Integer, nullable=False)
+    claimed_requests: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    used_characters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class WritingJobRunRecord(Base):
+    __tablename__ = "writing_job_runs"
+    run_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    job_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    step_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    reserved_characters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

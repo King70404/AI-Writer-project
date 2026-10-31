@@ -21,6 +21,14 @@ class CreateJob(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     title: str = Field(min_length=1, max_length=120)
     chapter_ids: list[str] = Field(min_length=1, max_length=10)
+    max_requests: int = Field(default=10, ge=1, le=10)
+    max_output_characters: int = Field(default=3000, ge=200, le=3000)
+
+
+class BindRun(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    expected_version: int = Field(ge=1)
+    run_id: str = Field(min_length=36, max_length=36)
 
 
 class ChangeJob(BaseModel):
@@ -44,11 +52,27 @@ def session_dep(request: Request, response: Response) -> Generator[Session, None
         parent.close()
 
 
-def render(row: object) -> dict[str, object]:
-    from aiwebnovel.writing_jobs.persistence import WritingJobRecord
+def render(row: object, session: Session) -> dict[str, object]:
+    from aiwebnovel.writing_jobs.persistence import (
+        WritingJobBudgetRecord,
+        WritingJobRecord,
+        WritingJobRunRecord,
+    )
 
     assert isinstance(row, WritingJobRecord)
+    budget = session.get(WritingJobBudgetRecord, row.id)
+    active = session.scalar(
+        select(WritingJobRunRecord).where(
+            WritingJobRunRecord.job_id == row.id,
+            WritingJobRunRecord.step_index == row.current_index,
+        )
+    )
     return {
+        "max_requests": budget.max_requests if budget else 0,
+        "max_output_characters": budget.max_output_characters if budget else 0,
+        "claimed_requests": budget.claimed_requests if budget else 0,
+        "used_characters": budget.used_characters if budget else 0,
+        "active_run_id": active.run_id if active else None,
         "job_id": row.id,
         "project_id": row.project_id,
         "title": row.title,
@@ -91,7 +115,7 @@ def router(api_prefix: str) -> APIRouter:
         from aiwebnovel.novel_structure.persistence.workflow_transaction import (
             load_workflow_chapter,
         )
-        from aiwebnovel.writing_jobs.persistence import WritingJobRecord
+        from aiwebnovel.writing_jobs.persistence import WritingJobBudgetRecord, WritingJobRecord
 
         if not body.title.strip() or len(set(body.chapter_ids)) != len(body.chapter_ids):
             raise fail("WRITING_JOB_INVALID", 422)
@@ -123,8 +147,17 @@ def router(api_prefix: str) -> APIRouter:
             chapter_ids=body.chapter_ids,
         )
         session.add(row)
+        session.add(
+            WritingJobBudgetRecord(
+                job_id=row.id,
+                max_requests=body.max_requests,
+                max_output_characters=body.max_output_characters,
+                claimed_requests=0,
+                used_characters=0,
+            )
+        )
         session.commit()
-        return render(row)
+        return render(row, session)
 
     @r.get("/projects/{project_id}/writing-jobs")
     def listing(project_id: str, session: SessionDep) -> list[dict[str, object]]:
@@ -141,11 +174,58 @@ def router(api_prefix: str) -> APIRouter:
             .order_by(WritingJobRecord.id)
             .limit(100)
         ).all()
-        return [render(row) for row in rows]
+        return [render(row, session) for row in rows]
 
     @r.get("/writing-jobs/{job_id}")
     def read(job_id: str, session: SessionDep) -> dict[str, object]:
-        return render(get(session, job_id))
+        return render(get(session, job_id), session)
+
+    @r.post("/writing-jobs/{job_id}/bind-run")
+    def bind(job_id: str, body: BindRun, session: SessionDep, _: Json) -> dict[str, object]:
+        from aiwebnovel.ai_writing.persistence.models import (
+            AIWorkflowCandidateRecord,
+            AIWorkflowRunRecord,
+        )
+        from aiwebnovel.writing_jobs.persistence import WritingJobRunRecord
+
+        session.execute(text("BEGIN IMMEDIATE"))
+        job = get(session, job_id)
+        run = session.get(AIWorkflowRunRecord, body.run_id)
+        if (
+            job.version != body.expected_version
+            or job.status != "planned"
+            or run is None
+            or job.current_index >= len(job.chapter_ids)
+            or str(run.chapter_id) != job.chapter_ids[job.current_index]
+            or run.status != "ready"
+            or run.payload.get("generated_steps") != 0
+            or run.payload.get("in_flight")
+            or session.get(WritingJobRunRecord, body.run_id) is not None
+            or session.scalar(
+                select(AIWorkflowCandidateRecord.id)
+                .where(AIWorkflowCandidateRecord.run_id == body.run_id)
+                .limit(1)
+            )
+            is not None
+            or session.scalar(
+                select(WritingJobRunRecord.run_id)
+                .where(
+                    WritingJobRunRecord.job_id == job.id,
+                    WritingJobRunRecord.step_index == job.current_index,
+                )
+                .limit(1)
+            )
+            is not None
+        ):
+            raise fail("WRITING_JOB_CONFLICT")
+        session.add(
+            WritingJobRunRecord(
+                run_id=run.id, job_id=job.id, step_index=job.current_index, reserved_characters=0
+            )
+        )
+        job.version += 1
+        session.commit()
+        return render(job, session)
 
     @r.post("/writing-jobs/{job_id}/{action}")
     def change(
@@ -173,6 +253,6 @@ def router(api_prefix: str) -> APIRouter:
             raise fail("WRITING_JOB_CONFLICT")
         row.version += 1
         session.commit()
-        return render(row)
+        return render(row, session)
 
     return r
