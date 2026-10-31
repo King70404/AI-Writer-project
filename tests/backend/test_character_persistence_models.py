@@ -57,6 +57,8 @@ def test_registry_contains_exactly_authorized_business_tables() -> None:
         *CANDIDATE_BUDGET_TABLE_NAMES,
         *STORY_CONTROL_TABLE_NAMES,
         *IMPORT_TABLE_NAMES,
+        "external_candidates",
+        "handoff_snapshots",
     }
     assert "alembic_version" not in metadata.tables
 
