@@ -10,17 +10,6 @@ from sqlalchemy.orm import Session
 
 from aiwebnovel.ai_writing.web import require_json
 from aiwebnovel.core.errors import AppError
-from aiwebnovel.imports.persistence import ImportReceiptRecord
-from aiwebnovel.imports.service import (
-    _read,
-    append_chunk,
-    commit,
-    edit_preview,
-    finish_upload,
-    receipt_view,
-    render,
-    start_upload,
-)
 
 
 class StrictModel(BaseModel):
@@ -90,6 +79,8 @@ def create_import_router(api_prefix: str) -> APIRouter:
         session: Annotated[Session, Depends(import_session)],
         _: Annotated[None, Depends(require_json)],
     ) -> dict[str, str]:
+        from aiwebnovel.imports.service import start_upload
+
         return {"upload_id": start_upload(session, body.mode)}
 
     @router.put("/uploads/{upload_id}/chunks")
@@ -99,6 +90,8 @@ def create_import_router(api_prefix: str) -> APIRouter:
         session: Annotated[Session, Depends(import_session)],
         _: Annotated[None, Depends(require_json)],
     ) -> dict[str, int]:
+        from aiwebnovel.imports.service import append_chunk
+
         return {"next_offset": append_chunk(session, upload_id, body.offset, body.text)}
 
     @router.post("/uploads/{upload_id}/finish")
@@ -108,12 +101,16 @@ def create_import_router(api_prefix: str) -> APIRouter:
         session: Annotated[Session, Depends(import_session)],
         _: Annotated[None, Depends(require_json)],
     ) -> dict[str, object]:
+        from aiwebnovel.imports.service import finish_upload
+
         return finish_upload(session, upload_id)
 
     @router.get("/{preview_id}/preview")
     def get_preview(
         preview_id: str, session: Annotated[Session, Depends(import_session)]
     ) -> dict[str, object]:
+        from aiwebnovel.imports.service import _read, render
+
         record = _read(session, preview_id)
         if record.version == 0:
             raise AppError(
@@ -128,6 +125,8 @@ def create_import_router(api_prefix: str) -> APIRouter:
         session: Annotated[Session, Depends(import_session)],
         _: Annotated[None, Depends(require_json)],
     ) -> dict[str, object]:
+        from aiwebnovel.imports.service import edit_preview
+
         return edit_preview(
             session,
             preview_id,
@@ -139,9 +138,12 @@ def create_import_router(api_prefix: str) -> APIRouter:
     def save(
         preview_id: str,
         body: CommitRequest,
+        request: Request,
         session: Annotated[Session, Depends(import_session)],
         _: Annotated[None, Depends(require_json)],
     ) -> dict[str, object]:
+        from aiwebnovel.imports.service import commit
+
         return commit(
             session,
             preview_id,
@@ -149,12 +151,16 @@ def create_import_router(api_prefix: str) -> APIRouter:
             body.source_sha256,
             body.idempotency_key,
             body.title,
+            request.app.state.import_project_store,
         )
 
     @router.get("/{preview_id}/receipt")
     def get_receipt(
-        preview_id: str, session: Annotated[Session, Depends(import_session)]
+        preview_id: str, request: Request, session: Annotated[Session, Depends(import_session)]
     ) -> dict[str, object]:
+        from aiwebnovel.imports.persistence import ImportReceiptRecord
+        from aiwebnovel.imports.service import receipt_view
+
         receipt = session.scalar(
             select(ImportReceiptRecord).where(ImportReceiptRecord.preview_id == preview_id)
         )
@@ -162,6 +168,6 @@ def create_import_router(api_prefix: str) -> APIRouter:
             raise AppError(
                 code="IMPORT_NOT_FOUND", message="Import receipt not found.", status_code=404
             )
-        return receipt_view(session, receipt)
+        return receipt_view(session, receipt, request.app.state.import_project_store)
 
     return router
