@@ -14,9 +14,10 @@
 
 ## 活动开发
 
+- D3 跨章写作任务（PR #39，分支 `codex/d3-writing-jobs`，迁移 0016/0017，E2E-INT-030）：2026-11-04 由 Hark 接手并合入 D2。已实现持久任务清单（最多 10 章、按作者顺序）、run 绑定（同一步骤只能绑定一个未发送 run）、任务级总请求/总输出额度（在既有发送事务内预留，原 generate 路径同样受限，本地预算拒绝退回额度，失败/中断保留预留）、暂停/恢复/终止/结束本章（不改定稿状态）及生成/采用字数统计。Linux 验证：写作任务后端 9 项、前端 25 项通过（模块覆盖 97.7/94.7/100/100）；受影响的清单/迁移回归通过（其余失败均为缺 PowerShell 的 Windows 基线）；E2E 34 项中 33 通过，仅 INT-019 缺 DPAPI。最新 main 已合入，Windows 完整 IncludeE2E 门禁待运行，未合并。与规格的差异：用 `bind-run` 绑定由现有流程创建的 run，替代 `prepare-step`；任务状态只有 planned/paused/cancelled/completed，ready/running/waiting_author 由所绑定 run 的状态体现。
+
 - D1 已交付：完整 `quality_gate.ps1 -IncludeE2E` 通过，后述数字见“最新有效验证”；导入不调用模型，失败回滚，重复提交不重复建书。
 - D2 外部 AI 交接 [PR #38](https://github.com/King70404/AI-Writer-project/pull/38)：候选 `d08e5c8` Windows 完整 IncludeE2E PASS（2026-11-05），已于 2026-11-05 获用户授权并合并 main（merge `35480b8`）。支持选择来源、ZIP 导出、外部候选导入及作者采用。来源变化快照标记、统一下载文件名、纯文本入口删除的文档同步仍待合并后新分支修复。详见 [Windows 报告](docs/D2_WINDOWS_GATE_20261105.md)。
--
 - B-1 [PR #40](https://github.com/King70404/AI-Writer-project/pull/40)（实现 `c71a5d2`，记录 `5015121`）、B-4 [PR #41](https://github.com/King70404/AI-Writer-project/pull/41)（实现 `3eeb277`，记录 `aed1117`）已推送，均未合并。B-1 交接记录 Linux 定向 285 项通过；两者 Windows 门禁待 #38/#39 后按序 rebase 再执行。B-4 尚无费用列，待 B-3 补齐。
 - A/B 补全项见 [AB_FOLLOWUPS](docs/product/AB_FOLLOWUPS.md)。
 
