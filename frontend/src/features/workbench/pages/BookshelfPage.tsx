@@ -1,3 +1,4 @@
+import { ImportWorkbench } from "../../legacy-import/components/ImportWorkbench";
 import { chapterWritingPath } from "../../novel-structure/routing";
 import { ProjectsPage } from "../../projects";
 import type { ProjectApiClient } from "../../projects/api/client";
@@ -14,6 +15,9 @@ export function BookshelfPage({
   readonly client?: ProjectApiClient;
 }) {
   return (
-    <ProjectsPage client={client} continueWritingPath={continueWritingPath} />
+    <>
+      <ProjectsPage client={client} continueWritingPath={continueWritingPath} />
+      <ImportWorkbench />
+    </>
   );
 }

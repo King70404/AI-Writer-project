@@ -43,6 +43,7 @@ from aiwebnovel.db.health import check_database_health
 from aiwebnovel.db.session import create_database_session_factory
 from aiwebnovel.domain.time import utc_now
 from aiwebnovel.export.web import create_export_router
+from aiwebnovel.imports.web import create_import_router
 from aiwebnovel.model_gateway.web import create_model_gateway_router
 from aiwebnovel.novel_structure.application.services import (
     NovelStructureCommandService,
@@ -260,6 +261,9 @@ def create_app(
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         runtime_engine: Engine | None = None
+        from aiwebnovel.project.persistence.import_support import ImportProjectStore
+
+        application.state.import_project_store = ImportProjectStore()
         application.state.ai_workflow_schema_required = False
 
         if resolved_settings is not None:
@@ -654,6 +658,7 @@ def create_app(
     application.include_router(create_chapter_planning_router(api_prefix=api_prefix))
     application.include_router(create_story_memory_router(api_prefix=api_prefix))
     application.include_router(create_workbench_router(api_prefix=api_prefix))
+    application.include_router(create_import_router(api_prefix=api_prefix))
     application.include_router(create_usage_router(api_prefix=api_prefix))
     application.include_router(create_budget_router(api_prefix=api_prefix))
     application.include_router(create_story_control_router(api_prefix=api_prefix))

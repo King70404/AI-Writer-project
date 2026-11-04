@@ -28,6 +28,7 @@ from aiwebnovel.db.model_registry import (
     AI_WORKFLOW_TABLE_NAMES,
     BUSINESS_TABLE_NAMES,
     CANDIDATE_BUDGET_TABLE_NAMES,
+    IMPORT_TABLE_NAMES,
     STORY_CONTROL_TABLE_NAMES,
     STORY_MEMORY_TABLE_NAMES,
     USAGE_TABLE_NAMES,
@@ -41,7 +42,7 @@ from .test_novel_structure_migration import _run_alembic
 
 pytestmark = pytest.mark.integration
 _OLD = "0006_add_chapter_manuscript_content"
-_NEW = "0013_add_story_control"
+_NEW = "0014_add_manuscript_imports"
 _AUTHOR_TABLES = (
     BUSINESS_TABLE_NAMES
     - AI_WORKFLOW_TABLE_NAMES
@@ -51,6 +52,7 @@ _AUTHOR_TABLES = (
     - USAGE_TABLE_NAMES
     - CANDIDATE_BUDGET_TABLE_NAMES
     - STORY_CONTROL_TABLE_NAMES
+    - IMPORT_TABLE_NAMES
 )
 
 
@@ -251,7 +253,7 @@ def _snapshot(path: Path) -> tuple[dict[str, list[tuple]], list[tuple]]:
         objects = connection.execute(
             "SELECT type, name, tbl_name, sql FROM sqlite_master "
             "WHERE name NOT LIKE 'sqlite_%' AND tbl_name NOT LIKE 'ai_workflow_%' "
-            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions', 'model_usage_attempts', 'ai_candidate_edits', 'ai_candidate_edit_adoptions', 'model_price_revisions', 'project_budget_revisions', 'model_budget_reservations', 'story_control_revisions') ORDER BY name"
+            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions', 'model_usage_attempts', 'ai_candidate_edits', 'ai_candidate_edit_adoptions', 'model_price_revisions', 'project_budget_revisions', 'model_budget_reservations', 'story_control_revisions', 'import_previews', 'import_receipts') ORDER BY name"
         ).fetchall()
         return data, objects
 
@@ -439,3 +441,18 @@ def test_programmatic_alembic_uses_supplied_connection_without_loading_environme
     monkeypatch.setattr(storage_module, "initialize_storage", forbidden)
     upgrade_ai_workflow_database(legacy.engine, legacy.paths)
     assert _version(legacy.paths.database_file) == _NEW
+
+
+def test_story_control_upgrade_preserves_data_and_adds_empty_import_tables(legacy):
+    migrated = _run_alembic(legacy.paths.database_file, "upgrade", "0013_add_story_control")
+    assert migrated.returncode == 0, migrated.stderr
+    before = _snapshot(legacy.paths.database_file)
+    upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert _version(legacy.paths.database_file) == _NEW
+    assert _snapshot(legacy.paths.database_file) == before
+    with closing(sqlite3.connect(legacy.paths.database_file)) as connection:
+        for table in sorted(IMPORT_TABLE_NAMES):
+            assert connection.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone() == (0,)
+    backup = next(legacy.paths.backups.glob("before-ai-workflow-*.sqlite3"))
+    assert _version(backup) == "0013_add_story_control"
+    assert _snapshot(backup) == before

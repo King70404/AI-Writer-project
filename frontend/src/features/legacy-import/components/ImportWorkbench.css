@@ -1,0 +1,32 @@
+.legacy-import {
+  margin-block: 1rem;
+}
+.legacy-import__body {
+  padding: 1rem;
+  margin-top: 0.75rem;
+  border: 1px solid var(--line, #d8d0bf);
+  border-radius: 0.75rem;
+  background: var(--paper, #fffaf0);
+}
+.legacy-import form,
+.legacy-import__chapters li {
+  display: grid;
+  gap: 0.75rem;
+}
+.legacy-import label {
+  display: grid;
+  gap: 0.35rem;
+  margin-block: 0.5rem;
+}
+.legacy-import textarea,
+.legacy-import input,
+.legacy-import select {
+  width: 100%;
+  max-width: 100%;
+}
+.legacy-import__chapters {
+  padding-left: 1.5rem;
+}
+.legacy-import__chapters li {
+  padding-block: 0.75rem;
+}

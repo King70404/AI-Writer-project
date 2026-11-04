@@ -84,3 +84,13 @@ STORY_CONTROL_OPERATIONS = {
     ("PUT", "/api/v1/chapters/{chapter_id}/recall-policy"),
     ("POST", "/api/v1/chapters/{chapter_id}/recall-preview"),
 }
+
+IMPORT_OPERATIONS = {
+    ("POST", "/api/v1/imports/uploads"),
+    ("PUT", "/api/v1/imports/uploads/{upload_id}/chunks"),
+    ("POST", "/api/v1/imports/uploads/{upload_id}/finish"),
+    ("GET", "/api/v1/imports/{preview_id}/preview"),
+    ("PUT", "/api/v1/imports/{preview_id}/preview"),
+    ("POST", "/api/v1/imports/{preview_id}/commit"),
+    ("GET", "/api/v1/imports/{preview_id}/receipt"),
+}
