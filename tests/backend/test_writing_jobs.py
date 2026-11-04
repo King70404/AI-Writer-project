@@ -182,3 +182,144 @@ def test_locally_refused_budget_returns_job_reservation(workflow):
     assert result.status_code == 409
     after = w.client.get(path).json()
     assert after["claimed_requests"] == 0 and after["used_characters"] == 0
+
+
+def _job(w, **values):
+    response = w.client.post(
+        f"/api/v1/projects/{w.project}/writing-jobs",
+        headers=w.headers,
+        json={"title": "回归", "chapter_ids": [w.chapter], **values},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def _bind(w, job, run, version=1):
+    return w.client.post(
+        f"/api/v1/writing-jobs/{job['job_id']}/bind-run",
+        headers=w.headers,
+        json={"expected_version": version, "run_id": run["run_id"]},
+    )
+
+
+def test_invalid_jobs_and_bindings_are_rejected_without_requests(workflow):
+    from tests.backend.test_ai_workflow import create_run, generate
+
+    w = workflow
+    url = f"/api/v1/projects/{w.project}/writing-jobs"
+    for body in (
+        {"title": "  ", "chapter_ids": [w.chapter]},
+        {"title": "不存在", "chapter_ids": ["00000000-0000-0000-0000-000000000000"]},
+        {"title": "非法", "chapter_ids": ["not-a-chapter"]},
+    ):
+        assert w.client.post(url, headers=w.headers, json=body).status_code == 422
+    other = w.client.post("/api/v1/projects", headers=w.headers, json={"title": "另一本"})
+    other_url = f"/api/v1/projects/{other.json()['project_id']}/writing-jobs"
+    assert (
+        w.client.post(
+            other_url, headers=w.headers, json={"title": "越界", "chapter_ids": [w.chapter]}
+        ).status_code
+        == 422
+    )
+    missing = "/api/v1/writing-jobs/00000000-0000-0000-0000-000000000000"
+    assert w.client.get(missing).status_code == 404
+    assert (
+        w.client.post(missing + "/pause", headers=w.headers, json={"expected_version": 1})
+    ).status_code == 404
+    job = _job(w)
+    run = create_run(w)
+    assert _bind(w, job, run, version=2).status_code == 409
+    assert _bind(w, job, {"run_id": "00000000-0000-0000-0000-000000000000"}).status_code == 409
+    used = create_run(w)
+    generate(w, used)
+    assert _bind(w, job, used).status_code == 409
+    assert _bind(w, job, run).status_code == 200
+    # Double-click: the same step cannot be bound to a second run.
+    assert _bind(w, job, create_run(w), version=2).status_code == 409
+    assert _bind(w, job, run, version=2).status_code == 409
+    assert len(w.calls) == 1
+
+
+def test_project_job_limit_is_enforced(workflow):
+    w = workflow
+    url = f"/api/v1/projects/{w.project}/writing-jobs"
+    for index in range(100):
+        response = w.client.post(
+            url, headers=w.headers, json={"title": f"任务{index}", "chapter_ids": [w.chapter]}
+        )
+        assert response.status_code == 201
+    over = w.client.post(url, headers=w.headers, json={"title": "超额", "chapter_ids": [w.chapter]})
+    assert over.status_code == 422
+    assert over.json()["error"]["code"] == "WRITING_JOB_LIMIT"
+    assert not w.calls
+
+
+def test_provider_failure_and_restart_keep_reservation_and_block_resend(workflow):
+    from tests.backend.test_ai_workflow import create_run
+
+    w = workflow
+    job = _job(w, max_requests=2, max_output_characters=600)
+    path = f"/api/v1/writing-jobs/{job['job_id']}"
+    run = create_run(w, max_steps=2, max_output_characters=600)
+    assert _bind(w, job, run).status_code == 200
+
+    def broken(*args):
+        raise TimeoutError
+
+    w.service._provider = broken
+    import pytest
+
+    with pytest.raises(TimeoutError):
+        w.client.post(w.base + f"/ai/runs/{run['run_id']}/generate", headers=w.headers, json={})
+    after = w.client.get(path).json()
+    # The request may have been billed, so its reservation is not returned.
+    assert after["claimed_requests"] == 1 and after["used_characters"] == 300
+    w.service._repository.transition(w.chapter, run["run_id"], resume=True)
+    w.service._repository.claim(w.chapter, run["run_id"])
+    w.service.recover_interrupted()
+    recovered = w.client.get(path).json()
+    assert recovered["claimed_requests"] == 2 and recovered["used_characters"] == 600
+    assert w.service.get(w.chapter, run["run_id"]).status == "interrupted"
+    resend = w.client.post(
+        w.base + f"/ai/runs/{run['run_id']}/generate", headers=w.headers, json={}
+    )
+    assert resend.status_code == 409
+    assert not w.calls
+
+
+def test_paused_job_blocks_generation_and_counts_adopted_text(workflow):
+    from tests.backend.test_ai_workflow import TEXT, create_run, generate
+
+    w = workflow
+    job = _job(w, max_requests=2, max_output_characters=600)
+    path = f"/api/v1/writing-jobs/{job['job_id']}"
+    run = create_run(w, max_steps=2, max_output_characters=600)
+    assert _bind(w, job, run).status_code == 200
+    generated = generate(w, run)
+    candidate = generated["candidates"][0]
+    w.service.adopt(w.chapter, candidate["candidate_id"], 2, "job-adopt-key")
+    w.service.adopt(w.chapter, candidate["candidate_id"], 2, "job-adopt-key")
+    counted = w.client.get(path).json()
+    assert counted["adopted_characters"] == sum(not c.isspace() for c in TEXT)
+    assert counted["generated_characters"] == candidate["character_count"]
+    paused = w.client.post(path + "/pause", headers=w.headers, json={"expected_version": 2})
+    assert paused.json()["status"] == "paused"
+    blocked = w.client.post(
+        w.base + f"/ai/runs/{run['run_id']}/generate", headers=w.headers, json={}
+    )
+    assert blocked.status_code == 409
+    assert len(w.calls) == 1
+    assert w.client.get(path).json()["claimed_requests"] == 1
+
+
+def test_missing_job_tables_report_unavailable(workflow):
+    import sqlite3
+    from contextlib import closing
+
+    w = workflow
+    with closing(sqlite3.connect(w.db)) as connection:
+        connection.execute("DROP TABLE writing_job_runs")
+        connection.commit()
+    response = w.client.get(f"/api/v1/projects/{w.project}/writing-jobs")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "WRITING_JOB_UNAVAILABLE"
