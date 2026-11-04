@@ -463,7 +463,7 @@ def test_application_package_import_has_no_runtime_or_schema_side_effects(
     expected_tables = (
         '["ai_candidate_edit_adoptions", "ai_candidate_edits", "ai_workflow_candidates", "ai_workflow_runs", '
         '"chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
-        '"character_heads", "character_revisions", "characters", "import_previews", "import_receipts", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
+        '"character_heads", "character_revisions", "characters", "external_candidates", "handoff_snapshots", "import_previews", "import_receipts", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
         '"outline_heads", "outline_revisions", "outlines", '
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '
         '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", '
@@ -507,7 +507,7 @@ def test_web_package_import_has_no_runtime_or_schema_side_effects(
     expected_tables = (
         '["ai_candidate_edit_adoptions", "ai_candidate_edits", "ai_workflow_candidates", "ai_workflow_runs", '
         '"chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
-        '"character_heads", "character_revisions", "characters", "import_previews", "import_receipts", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
+        '"character_heads", "character_revisions", "characters", "external_candidates", "handoff_snapshots", "import_previews", "import_receipts", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
         '"outline_heads", "outline_revisions", "outlines", '
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '
         '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", '
