@@ -39,8 +39,8 @@ afterEach(() => {
 });
 
 function call(index: number): { url: string; init: RequestInit } {
-  const [url, init] = fetcher.mock.calls[index]!;
-  return { url: String(url), init: init ?? {} };
+  const [url, init] = fetcher.mock.calls[index];
+  return { url: url as string, init: init ?? {} };
 }
 
 function header(init: RequestInit, name: string): string | null {
@@ -73,7 +73,7 @@ describe("外部交接 API 客户端", () => {
     fetcher.mockResolvedValue(json([stored]));
     const list = await handoffClient.list("ch1");
     expect(list).toHaveLength(1);
-    expect(list[0]!.candidates[0]!.status).toBe("pending");
+    expect(list[0].candidates[0].status).toBe("pending");
   });
 
   it.each([

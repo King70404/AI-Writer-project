@@ -133,7 +133,7 @@ describe("外部交接异常与边界", () => {
     fireEvent.click(screen.getByRole("button", { name: "预览交接内容" }));
     await screen.findByText("确认交接内容");
     expect(screen.getByText(/4 字符/u)).toBeInTheDocument();
-    expect(vi.mocked(api.preview).mock.calls[0]![1].include_manuscript).toBe(
+    expect(vi.mocked(api.preview).mock.calls[0][1].include_manuscript).toBe(
       true,
     );
     fireEvent.click(screen.getByRole("button", { name: "确认保存交接任务" }));
@@ -192,7 +192,7 @@ describe("外部交接异常与边界", () => {
     fireEvent.click(fact);
     fireEvent.click(screen.getByRole("button", { name: "预览交接内容" }));
     await screen.findByText("确认交接内容");
-    expect(vi.mocked(api.preview).mock.calls[0]![1]).toMatchObject({
+    expect(vi.mocked(api.preview).mock.calls[0][1]).toMatchObject({
       rule_revision_ids: [],
       fact_revision_ids: [],
     });
@@ -311,6 +311,6 @@ describe("外部交接异常与边界", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "候选已采用，但列表刷新失败",
     );
-    expect(vi.mocked(api.adopt).mock.calls[0]![3]).toBe('"1"');
+    expect(vi.mocked(api.adopt).mock.calls[0][3]).toBe('"1"');
   });
 });
