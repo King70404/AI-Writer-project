@@ -20,6 +20,7 @@
 - D2 外部 AI 交接 [PR #38](https://github.com/King70404/AI-Writer-project/pull/38)：候选 `d08e5c8` Windows 完整 IncludeE2E PASS（2026-11-05），已于 2026-11-05 获用户授权并合并 main（merge `35480b8`）。支持选择来源、ZIP 导出、外部候选导入及作者采用。来源变化快照标记、统一下载文件名、纯文本入口删除的文档同步仍待合并后新分支修复。详见 [Windows 报告](docs/D2_WINDOWS_GATE_20261105.md)。
 - B-1 [PR #40](https://github.com/King70404/AI-Writer-project/pull/40)（实现 `c71a5d2`，记录 `5015121`）、B-4 [PR #41](https://github.com/King70404/AI-Writer-project/pull/41)（实现 `3eeb277`，记录 `aed1117`）已推送，均未合并。B-1 交接记录 Linux 定向 285 项通过；两者 Windows 门禁待 #38/#39 后按序 rebase 再执行。B-4 尚无费用列，待 B-3 补齐。
 - B-1 [PR #40](https://github.com/King70404/AI-Writer-project/pull/40)：代码已 rebase 到最新 main `bd1b10a`，Windows IncludeE2E 本机 PASS（head `7b079f9`）：后端 3248 passed/97.71%/92.94%，前端 77 文件/1071 项（94.24/90.20/95.97/95.40），E2E 34 场景通过，等待用户授权合并。GitHub Full 同候选因 INT-025 usage 取消 net::ERR_ABORTED 审计失败；详见 [B-1 报告](docs/B1_WINDOWS_GATE_20261106.md)。候选功能来自 `c71a5d2`；仅旧续写/改写计量与预算，不代表其他 B 项完成。
+- B-4 [PR #41](https://github.com/King70404/AI-Writer-project/pull/41)：已 rebase 到最新 main `324cab5`，Windows 完整门禁待运行。当前只含用量 CSV；单价、币种、逐条金额和缓存列待 B-3，尚未完整交付费用导出。
 - A/B 补全项见 [AB_FOLLOWUPS](docs/product/AB_FOLLOWUPS.md)。
 
 ## 最新有效验证
