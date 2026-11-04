@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { collectUsage, downloadUsageCsv, usageCsv } from "../api/usage-csv";
 
 import {
   OPERATION_LABELS,
@@ -154,6 +155,25 @@ export function ModelUsagePanel({
   }, [chapterId, client, key, open, projectId]);
 
   const reload = () => setReloads((value) => value + 1);
+  const [exporting, setExporting] = useState({ busy: false, error: "" });
+  const exportCsv = () => {
+    if (exporting.busy) return;
+    setExporting({ busy: true, error: "" });
+    collectUsage(client, projectId, chapterId)
+      .then((items) => {
+        downloadUsageCsv(usageCsv(items));
+        setExporting({ busy: false, error: "" });
+      })
+      .catch((error: unknown) => {
+        setExporting({
+          busy: false,
+          error:
+            error instanceof Error && error.name === "UsageExportTooLarge"
+              ? error.message
+              : usageError(error).message,
+        });
+      });
+  };
   const state =
     !open || result === null || result.key !== key
       ? ({ status: open ? "loading" : "idle" } as const)
@@ -246,6 +266,12 @@ export function ModelUsagePanel({
           <button type="button" onClick={reload}>
             刷新用量
           </button>
+          {state.page.totals.attempts > 0 ? (
+            <button type="button" disabled={exporting.busy} onClick={exportCsv}>
+              {exporting.busy ? "正在导出…" : "导出 CSV"}
+            </button>
+          ) : null}
+          {exporting.error ? <p role="alert">{exporting.error}</p> : null}
         </>
       ) : null}
     </details>
