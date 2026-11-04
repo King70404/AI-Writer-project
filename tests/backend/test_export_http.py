@@ -14,12 +14,12 @@ from tests.backend.ai_workflow_contract_support import (
     BACKUP_OPERATIONS,
     CANDIDATE_BUDGET_OPERATIONS,
     HANDOFF_OPERATIONS,
-    WRITING_JOB_OPERATIONS,
     IMPORT_OPERATIONS,
     STORY_CONTROL_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
     USAGE_OPERATIONS,
     WORKBENCH_OPERATIONS,
+    WRITING_JOB_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
 from tests.backend.character_http_support import issue_write_headers
