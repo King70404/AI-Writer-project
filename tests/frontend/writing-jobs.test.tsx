@@ -46,6 +46,11 @@ function job(
     status: "planned",
     version: 1,
     current_index: 0,
+    max_requests: 10,
+    max_output_characters: 3000,
+    claimed_requests: 0,
+    used_characters: 0,
+    active_run_id: null,
     steps: chapterIds.map((chapter_id) => ({ chapter_id, status: "pending" })),
     ...changes,
   };
@@ -53,6 +58,8 @@ function job(
 function setup(initial: readonly WritingJob[] = []) {
   const jobs: WritingJobsClient = {
     list: vi.fn().mockResolvedValue(initial),
+    get: vi.fn(),
+    bind: vi.fn(),
     create: vi
       .fn()
       .mockImplementation(
@@ -79,14 +86,12 @@ function setup(initial: readonly WritingJob[] = []) {
   };
   const workspace = {
     ...workspaceClient,
-    chapters: vi
-      .fn()
-      .mockResolvedValue({
-        items: chapters,
-        total: 2,
-        offset: 0,
-        next_offset: null,
-      }),
+    chapters: vi.fn().mockResolvedValue({
+      items: chapters,
+      total: 2,
+      offset: 0,
+      next_offset: null,
+    }),
   };
   render(
     <MemoryRouter>
@@ -116,17 +121,20 @@ describe("跨章写作任务", () => {
     expect(
       await screen.findByText("任务已创建；请选择当前章节进入写作台。"),
     ).toBeInTheDocument();
-    expect(jobs.create).toHaveBeenCalledWith(structureProjectId, "首卷写作", [
-      secondChapterId,
-      chapterId,
-    ]);
+    expect(jobs.create).toHaveBeenCalledWith(
+      structureProjectId,
+      "首卷写作",
+      [secondChapterId, chapterId],
+      10,
+      3000,
+    );
     expect(
       screen.getByRole("link", { name: "进入当前章节写作" }),
     ).toHaveAttribute(
       "href",
-      `/projects/${structureProjectId}/chapters/${secondChapterId}/write`,
+      `/projects/${structureProjectId}/chapters/${secondChapterId}/write?job=job-1`,
     );
-    expect(screen.getByText(/本清单尚未设置跨章总额度/u)).toBeInTheDocument();
+    expect(screen.getByText(/任务总额度限制本清单的发送/u)).toBeInTheDocument();
   });
   it("恢复已保存清单，作者结束当前章后才显示下一章", async () => {
     const { jobs } = setup([job([chapterId, secondChapterId])]);
@@ -139,7 +147,7 @@ describe("跨章写作任务", () => {
       within(item!).getByRole("link", { name: "进入当前章节写作" }),
     ).toHaveAttribute(
       "href",
-      `/projects/${structureProjectId}/chapters/${chapterId}/write`,
+      `/projects/${structureProjectId}/chapters/${chapterId}/write?job=job-1`,
     );
     fireEvent.click(
       within(item!).getByRole("button", { name: "结束本章任务" }),
@@ -152,7 +160,7 @@ describe("跨章写作任务", () => {
       within(item!).getByRole("link", { name: "进入当前章节写作" }),
     ).toHaveAttribute(
       "href",
-      `/projects/${structureProjectId}/chapters/${secondChapterId}/write`,
+      `/projects/${structureProjectId}/chapters/${secondChapterId}/write?job=job-1`,
     );
   });
 });

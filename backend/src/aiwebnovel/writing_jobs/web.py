@@ -44,7 +44,11 @@ def session_dep(request: Request, response: Response) -> Generator[Session, None
     parent = import_session(request, response)
     try:
         session = next(parent)
-        if not inspect(session.get_bind()).has_table("writing_jobs"):
+        inspector = inspect(session.get_bind())
+        if not all(
+            inspector.has_table(name)
+            for name in ("writing_jobs", "writing_job_budgets", "writing_job_runs")
+        ):
             raise fail("WRITING_JOB_UNAVAILABLE", 503)
         session.info["writing_job_project_store"] = request.app.state.writing_job_project_store
         yield session
@@ -60,6 +64,13 @@ def render(row: object, session: Session) -> dict[str, object]:
     )
 
     assert isinstance(row, WritingJobRecord)
+    from aiwebnovel.ai_writing.persistence.models import (
+        AICandidateEditAdoptionRecord,
+        AICandidateEditRecord,
+        AIWorkflowCandidateRecord,
+        AIWorkflowRunRecord,
+    )
+
     budget = session.get(WritingJobBudgetRecord, row.id)
     active = session.scalar(
         select(WritingJobRunRecord).where(
@@ -67,7 +78,30 @@ def render(row: object, session: Session) -> dict[str, object]:
             WritingJobRunRecord.step_index == row.current_index,
         )
     )
+    bindings = session.scalars(
+        select(WritingJobRunRecord).where(WritingJobRunRecord.job_id == row.id)
+    ).all()
+    runs = [session.get(AIWorkflowRunRecord, binding.run_id) for binding in bindings]
+    generated_characters = sum(
+        int(run.payload.get("generated_characters", 0)) for run in runs if run is not None
+    )
+    adopted_characters = 0
+    for run in runs:
+        if run is None:
+            continue
+        for candidate in session.scalars(
+            select(AIWorkflowCandidateRecord).where(
+                AIWorkflowCandidateRecord.run_id == run.id,
+                AIWorkflowCandidateRecord.status == "adopted",
+            )
+        ):
+            adoption = session.get(AICandidateEditAdoptionRecord, candidate.id)
+            edit = session.get(AICandidateEditRecord, adoption.edit_id) if adoption else None
+            adopted_text = edit.text if edit else candidate.text
+            adopted_characters += sum(not character.isspace() for character in adopted_text)
     return {
+        "generated_characters": generated_characters,
+        "adopted_characters": adopted_characters,
         "max_requests": budget.max_requests if budget else 0,
         "max_output_characters": budget.max_output_characters if budget else 0,
         "claimed_requests": budget.claimed_requests if budget else 0,
@@ -246,6 +280,30 @@ def router(api_prefix: str) -> APIRouter:
         elif action == "cancel" and row.status in ("planned", "paused"):
             row.status = "cancelled"
         elif action == "finish-step" and row.status == "planned":
+            from aiwebnovel.ai_writing.persistence.models import (
+                AIWorkflowCandidateRecord,
+                AIWorkflowRunRecord,
+            )
+            from aiwebnovel.writing_jobs.persistence import WritingJobRunRecord
+
+            bindings = session.scalars(
+                select(WritingJobRunRecord).where(
+                    WritingJobRunRecord.job_id == row.id,
+                    WritingJobRunRecord.step_index == row.current_index,
+                )
+            ).all()
+            for binding in bindings:
+                run = session.get(AIWorkflowRunRecord, binding.run_id)
+                pending = session.scalar(
+                    select(AIWorkflowCandidateRecord.id)
+                    .where(
+                        AIWorkflowCandidateRecord.run_id == binding.run_id,
+                        AIWorkflowCandidateRecord.status == "pending",
+                    )
+                    .limit(1)
+                )
+                if (run is not None and run.payload.get("in_flight")) or pending is not None:
+                    raise fail("WRITING_JOB_CONFLICT")
             row.current_index += 1
             if row.current_index == len(row.chapter_ids):
                 row.status = "completed"

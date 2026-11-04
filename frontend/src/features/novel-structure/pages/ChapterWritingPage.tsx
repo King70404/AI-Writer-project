@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { isCanonicalPrefixedUlid } from "../../../api/identifiers";
 import { useProjectDetails } from "../../projects/hooks/useProjectDetails";
@@ -50,6 +50,7 @@ function WritingEditor({
   projectTitle,
   client,
   loadStorageInstance,
+  jobId,
 }: {
   readonly initial: VersionedChapterContent;
   readonly chapter: ChapterResponse;
@@ -57,6 +58,7 @@ function WritingEditor({
   readonly projectTitle: string;
   readonly client: NovelStructureApiClient;
   readonly loadStorageInstance?: () => Promise<string>;
+  readonly jobId?: string;
 }) {
   const writing = useChapterWriting(initial, client);
   const { state, edit, save, reloadServer, flush } = writing;
@@ -374,6 +376,7 @@ function WritingEditor({
         <AIWorkflowAssistant
           chapterId={chapter.chapter_id}
           projectId={chapter.project_id}
+          jobId={jobId}
           writing={writing}
           selection={selection}
           onTaskStatus={setTaskStatus}
@@ -395,6 +398,7 @@ type LoadState =
     };
 
 function ChapterLoader({
+  jobId,
   projectId,
   chapterId,
   projectTitle,
@@ -404,6 +408,7 @@ function ChapterLoader({
   readonly chapterId: string;
   readonly projectTitle: string;
   readonly client: NovelStructureApiClient;
+  readonly jobId?: string;
 }) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -487,6 +492,7 @@ function ChapterLoader({
     );
   return (
     <WritingEditor
+      jobId={jobId}
       initial={state.content}
       chapter={state.chapter}
       volume={state.volume}
@@ -497,6 +503,7 @@ function ChapterLoader({
 }
 
 function ProjectWritingPage({
+  jobId,
   projectId,
   chapterId,
   client,
@@ -506,6 +513,7 @@ function ProjectWritingPage({
   readonly chapterId: string;
   readonly client: NovelStructureApiClient;
   readonly projectClient?: ProjectDetailApiClient;
+  readonly jobId?: string;
 }) {
   const project = useProjectDetails(projectId, projectClient);
   if (project.state.status === "loading")
@@ -526,6 +534,7 @@ function ProjectWritingPage({
     );
   return (
     <ChapterLoader
+      jobId={jobId}
       projectId={projectId}
       chapterId={chapterId}
       projectTitle={project.state.resource.project.title}
@@ -542,6 +551,8 @@ export function ChapterWritingPage({
   readonly projectClient?: ProjectDetailApiClient;
 }) {
   const { projectId, chapterId } = useParams();
+  const [searchParams] = useSearchParams();
+  const jobId = searchParams.get("job") ?? undefined;
   if (
     !isCanonicalPrefixedUlid(projectId, "prj") ||
     !isCanonicalPrefixedUlid(chapterId, "chp")
@@ -549,6 +560,7 @@ export function ChapterWritingPage({
     return <p role="alert">项目或章节编号无效。</p>;
   return (
     <ProjectWritingPage
+      jobId={jobId}
       key={`${projectId}:${chapterId}`}
       projectId={projectId}
       chapterId={chapterId}

@@ -49,6 +49,8 @@ export function WritingJobsPanel({
   const [next, setNext] = useState<number | null>(0);
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [title, setTitle] = useState("");
+  const [maxRequests, setMaxRequests] = useState(10);
+  const [maxOutput, setMaxOutput] = useState(3000);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -95,7 +97,13 @@ export function WritingJobsPanel({
     setError("");
     setNotice("");
     try {
-      const job = await client.create(projectId, title.trim(), selected);
+      const job = await client.create(
+        projectId,
+        title.trim(),
+        selected,
+        maxRequests,
+        maxOutput,
+      );
       setJobs((old) => [job, ...old]);
       setSelected([]);
       setTitle("");
@@ -145,7 +153,7 @@ export function WritingJobsPanel({
             按选择顺序安排章节；创建任务不会发送模型请求。进入写作台后，每次发送和采用仍由你确认。
           </p>
           <p>
-            本清单尚未设置跨章总额度；每次生成仍使用现有模型预算和发送前确认。
+            任务总额度限制本清单的发送，模型费用预算按你的设置生效。每次发送和采用都需要你的确认。
           </p>
           {error ? (
             <div role="alert">
@@ -167,6 +175,28 @@ export function WritingJobsPanel({
                 value={title}
                 maxLength={120}
                 onChange={(event) => setTitle(event.target.value)}
+                disabled={busy}
+              />
+            </label>
+            <label>
+              任务最多发送次数
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={maxRequests}
+                onChange={(event) => setMaxRequests(Number(event.target.value))}
+                disabled={busy}
+              />
+            </label>
+            <label>
+              任务最多生成字数
+              <input
+                type="number"
+                min={200}
+                max={3000}
+                value={maxOutput}
+                onChange={(event) => setMaxOutput(Number(event.target.value))}
                 disabled={busy}
               />
             </label>
@@ -211,7 +241,17 @@ export function WritingJobsPanel({
             ) : null}
             <button
               type="submit"
-              disabled={busy || !title.trim() || selected.length === 0}
+              disabled={
+                busy ||
+                !title.trim() ||
+                selected.length === 0 ||
+                !Number.isSafeInteger(maxRequests) ||
+                maxRequests < 1 ||
+                maxRequests > 10 ||
+                !Number.isSafeInteger(maxOutput) ||
+                maxOutput < 200 ||
+                maxOutput > 3000
+              }
             >
               创建任务清单
             </button>
@@ -230,6 +270,10 @@ export function WritingJobsPanel({
                   }
                   /{job.steps.length} 章
                 </p>
+                <p>
+                  请求已用 {job.claimed_requests}/{job.max_requests} 次 · 生成{" "}
+                  {job.used_characters}/{job.max_output_characters} 字
+                </p>
                 <ol>
                   {job.steps.map((step, index) => (
                     <li key={step.chapter_id}>
@@ -246,10 +290,7 @@ export function WritingJobsPanel({
                 {job.status === "planned" && job.steps[job.current_index] ? (
                   <>
                     <Link
-                      to={chapterWritingPath(
-                        projectId,
-                        job.steps[job.current_index].chapter_id,
-                      )}
+                      to={`${chapterWritingPath(projectId, job.steps[job.current_index].chapter_id)}?job=${encodeURIComponent(job.job_id)}`}
                     >
                       进入当前章节写作
                     </Link>{" "}
