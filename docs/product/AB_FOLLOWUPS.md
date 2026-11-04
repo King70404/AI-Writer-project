@@ -64,6 +64,8 @@
 
 ## B-1 旧 `/ai/continue`、`/ai/rewrite` 计量与预算
 
+> 状态（2026-11-05，分支 `codex/b1-legacy-metering`）：已实现。两个旧接口改走工作流的网关 provider，按 `generation` 归属写入用量台账，并受 B2 预算约束（strict 拒绝不发送、不写台账）。台账不可用时拒绝发送（503 `AI_USAGE_LEDGER_UNAVAILABLE`），不再出现未计量的请求。响应字段保持不变；未配置默认模型仍返回 503 `AI_PROVIDER_NOT_CONFIGURED`。测试：`tests/backend/test_legacy_ai_metering.py`。Windows 门禁待运行。
+
 - 现状：`backend/src/aiwebnovel/ai_writing/web.py` 的两个旧接口仍不写 B1 台账、不受 B2 预算约束。
 - 目标：旧接口与新流程同一套用量/预算规则，同时保持响应兼容。
 - 实施要点：发送前开账、结束结算（完成/失败/超时/中断），token 只取服务商响应；严格预算在同一事务检查并以 409 `AI_BUDGET_REFUSED` 拒绝且不发送；不重复计量（不要与 workflow 层双开账）；旧客户端响应字段不变。

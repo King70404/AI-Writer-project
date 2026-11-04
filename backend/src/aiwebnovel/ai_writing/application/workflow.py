@@ -192,6 +192,10 @@ class AIWorkflowService:
             messages=self._messages(run, max(200, self._step_limit(run))),
         )
 
+    def send_text(self, messages: tuple[GenerationMessage, ...]) -> GeneratedText:
+        """Send through the metered, budget-checked provider; the caller attributes it."""
+        return self._provider(None, messages, 0, None)
+
     def generate(self, chapter_id: str, run_id: str) -> WorkflowRun:
         chapter_id = str(ChapterId.parse(chapter_id))
         run = self._repository.claim(chapter_id, run_id)

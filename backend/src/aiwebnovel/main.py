@@ -446,6 +446,14 @@ def create_app(
                             application.state.usage_budget_service,
                             application.state.story_control_service,
                         ) = workflow
+                        application.state.ai_writing_service = compose_ai_writing(
+                            resolved_settings,
+                            application.state.novel_structure_query_service,
+                            application.state.project_query_service,
+                            application.state.story_bible_query_service,
+                            application.state.character_query_service,
+                            application.state.ai_workflow_service,
+                        )
 
                     # Capture this lifespan's engine: the request cannot choose a path,
                     # database URL or migration revision.
@@ -511,6 +519,14 @@ def create_app(
                             application.state.usage_budget_service,
                             application.state.story_control_service,
                         ) = enabled
+                        application.state.ai_writing_service = compose_ai_writing(
+                            resolved_settings,
+                            application.state.novel_structure_query_service,
+                            application.state.project_query_service,
+                            application.state.story_bible_query_service,
+                            application.state.character_query_service,
+                            application.state.ai_workflow_service,
+                        )
                         application.state.ai_workflow_schema_required = False
 
                     application.state.ai_workflow_setup_service = AIWorkflowSetupService(
