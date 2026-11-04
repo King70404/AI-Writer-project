@@ -42,6 +42,7 @@ export interface BrowserAudit {
   readonly allowOneExpectedSessionCookie: () => void;
   readonly allowOneExpectedManuscriptDownload: (filename: string) => void;
   readonly allowOneExpectedBackupDownload: () => void;
+  readonly allowOneExpectedHandoffDownload: () => void;
   readonly allowExpectedConsoleHttpFailure: (
     path: string,
     status: number,
@@ -333,6 +334,18 @@ export async function installBrowserAudit(
       }
       downloadAllowanceIssued = true;
       expectedDownloads.push(filename);
+    },
+    allowOneExpectedHandoffDownload: () => {
+      if (
+        !testInfo.title.startsWith("E2E-INT-029 ") ||
+        downloadAllowanceIssued
+      ) {
+        throw new Error(
+          "Only INT-029 may permit one handoff archive download.",
+        );
+      }
+      downloadAllowanceIssued = true;
+      expectedDownloads.push("外部AI交接.zip");
     },
     allowOneExpectedBackupDownload: () => {
       if (

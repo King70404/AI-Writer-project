@@ -13,6 +13,7 @@ from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
     BACKUP_OPERATIONS,
     CANDIDATE_BUDGET_OPERATIONS,
+    HANDOFF_OPERATIONS,
     IMPORT_OPERATIONS,
     STORY_CONTROL_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
@@ -102,7 +103,7 @@ def test_real_export_is_utf8_current_heads_and_changes_no_database_rows(
                     connection.execute(
                         "select count(*) from sqlite_master where type='trigger'"
                     ).fetchone()[0]
-                    == 35
+                    == 39
                 )
             files_before = {p.relative_to(tmp_path) for p in tmp_path.rglob("*") if p.is_file()}
             for _ in range(2):
@@ -141,7 +142,7 @@ def test_openapi_preserves_m6_with_exact_export_and_project_deletion_additions(
     }
     old = {(item["method"], item["path"]) for item in baseline["production_api_operations"]}
     assert len(old) == 36
-    assert len(operations) == 106
+    assert len(operations) == 112
     assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
     assert len(BACKUP_OPERATIONS) == 5
@@ -159,6 +160,7 @@ def test_openapi_preserves_m6_with_exact_export_and_project_deletion_additions(
         | CANDIDATE_BUDGET_OPERATIONS
         | STORY_CONTROL_OPERATIONS
         | IMPORT_OPERATIONS
+        | HANDOFF_OPERATIONS
     )
     assert old < operations
     assert operations - AI_WORKFLOW_OPERATIONS - (
@@ -170,6 +172,7 @@ def test_openapi_preserves_m6_with_exact_export_and_project_deletion_additions(
         | CANDIDATE_BUDGET_OPERATIONS
         | STORY_CONTROL_OPERATIONS
         | IMPORT_OPERATIONS
+        | HANDOFF_OPERATIONS
     ) - old == {
         ("GET", "/api/v1/projects/{project_id}/export.txt"),
         ("POST", "/api/v1/projects/{project_id}/delete"),

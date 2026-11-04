@@ -94,3 +94,13 @@ IMPORT_OPERATIONS = {
     ("POST", "/api/v1/imports/{preview_id}/commit"),
     ("GET", "/api/v1/imports/{preview_id}/receipt"),
 }
+
+
+HANDOFF_OPERATIONS = {
+    ("POST", "/api/v1/chapters/{chapter_id}/handoffs/preview"),
+    ("POST", "/api/v1/chapters/{chapter_id}/handoffs"),
+    ("GET", "/api/v1/chapters/{chapter_id}/handoffs"),
+    ("GET", "/api/v1/chapters/{chapter_id}/handoffs/{handoff_id}/download"),
+    ("POST", "/api/v1/chapters/{chapter_id}/handoffs/{handoff_id}/candidates"),
+    ("POST", "/api/v1/chapters/{chapter_id}/handoffs/{handoff_id}/candidates/{candidate_id}/adopt"),
+}

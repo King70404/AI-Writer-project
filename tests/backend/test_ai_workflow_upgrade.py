@@ -28,6 +28,7 @@ from aiwebnovel.db.model_registry import (
     AI_WORKFLOW_TABLE_NAMES,
     BUSINESS_TABLE_NAMES,
     CANDIDATE_BUDGET_TABLE_NAMES,
+    HANDOFF_TABLE_NAMES,
     IMPORT_TABLE_NAMES,
     STORY_CONTROL_TABLE_NAMES,
     STORY_MEMORY_TABLE_NAMES,
@@ -42,7 +43,7 @@ from .test_novel_structure_migration import _run_alembic
 
 pytestmark = pytest.mark.integration
 _OLD = "0006_add_chapter_manuscript_content"
-_NEW = "0014_add_manuscript_imports"
+_NEW = "0015_add_external_handoffs"
 _AUTHOR_TABLES = (
     BUSINESS_TABLE_NAMES
     - AI_WORKFLOW_TABLE_NAMES
@@ -53,6 +54,7 @@ _AUTHOR_TABLES = (
     - CANDIDATE_BUDGET_TABLE_NAMES
     - STORY_CONTROL_TABLE_NAMES
     - IMPORT_TABLE_NAMES
+    - HANDOFF_TABLE_NAMES
 )
 
 
@@ -253,7 +255,7 @@ def _snapshot(path: Path) -> tuple[dict[str, list[tuple]], list[tuple]]:
         objects = connection.execute(
             "SELECT type, name, tbl_name, sql FROM sqlite_master "
             "WHERE name NOT LIKE 'sqlite_%' AND tbl_name NOT LIKE 'ai_workflow_%' "
-            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions', 'model_usage_attempts', 'ai_candidate_edits', 'ai_candidate_edit_adoptions', 'model_price_revisions', 'project_budget_revisions', 'model_budget_reservations', 'story_control_revisions', 'import_previews', 'import_receipts') ORDER BY name"
+            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions', 'model_usage_attempts', 'ai_candidate_edits', 'ai_candidate_edit_adoptions', 'model_price_revisions', 'project_budget_revisions', 'model_budget_reservations', 'story_control_revisions', 'import_previews', 'import_receipts', 'handoff_snapshots', 'external_candidates') ORDER BY name"
         ).fetchall()
         return data, objects
 

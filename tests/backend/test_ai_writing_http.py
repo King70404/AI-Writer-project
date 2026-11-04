@@ -10,6 +10,7 @@ from tests.backend.ai_workflow_contract_support import (
     AI_WORKFLOW_OPERATIONS,
     BACKUP_OPERATIONS,
     CANDIDATE_BUDGET_OPERATIONS,
+    HANDOFF_OPERATIONS,
     IMPORT_OPERATIONS,
     STORY_CONTROL_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
@@ -171,7 +172,7 @@ def test_openapi_preserves_all_m5_operations_adds_exactly_two(tmp_path: Path) ->
         if m in {"get", "post", "put", "patch", "delete"}
     }
     old = {(i["method"], i["path"]) for i in baseline["production_api_operations"]}
-    assert len(operations) == 106
+    assert len(operations) == 112
     assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
     assert len(BACKUP_OPERATIONS) == 5
@@ -189,6 +190,7 @@ def test_openapi_preserves_all_m5_operations_adds_exactly_two(tmp_path: Path) ->
         | CANDIDATE_BUDGET_OPERATIONS
         | STORY_CONTROL_OPERATIONS
         | IMPORT_OPERATIONS
+        | HANDOFF_OPERATIONS
     )
     assert operations - AI_WORKFLOW_OPERATIONS - (
         WRITING_PREPARATION_OPERATIONS
@@ -199,6 +201,7 @@ def test_openapi_preserves_all_m5_operations_adds_exactly_two(tmp_path: Path) ->
         | CANDIDATE_BUDGET_OPERATIONS
         | STORY_CONTROL_OPERATIONS
         | IMPORT_OPERATIONS
+        | HANDOFF_OPERATIONS
     ) - old - {
         ("GET", "/api/v1/projects/{project_id}/export.txt"),
         ("POST", "/api/v1/projects/{project_id}/delete"),
