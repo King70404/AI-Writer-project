@@ -24,6 +24,7 @@ from aiwebnovel.novel_structure.web.dependencies import get_required_version
 
 if TYPE_CHECKING:
     from aiwebnovel.handoff.persistence import ExternalCandidateRecord, HandoffRecord
+    from aiwebnovel.novel_structure.entities import ChapterAggregate
 
 
 class Input(BaseModel):
@@ -47,13 +48,31 @@ def fail(code: str, status: int = 409) -> AppError:
     )
 
 
+def load_chapter(session: Session, chapter_id: str) -> "ChapterAggregate":
+    from aiwebnovel.domain.errors import InvalidDomainIdentifier
+    from aiwebnovel.novel_structure.errors import ChapterNotFound
+    from aiwebnovel.novel_structure.persistence.workflow_transaction import load_workflow_chapter
+
+    try:
+        return load_workflow_chapter(session, chapter_id)
+    except InvalidDomainIdentifier:
+        raise AppError(
+            code="INVALID_CHAPTER_ID",
+            message="The Chapter identifier is invalid.",
+            status_code=422,
+        ) from None
+    except ChapterNotFound:
+        raise AppError(
+            code="CHAPTER_NOT_FOUND", message="The Chapter was not found.", status_code=404
+        ) from None
+
+
 def build(session: Session, chapter_id: str, data: Input) -> dict[str, object]:
     from aiwebnovel.chapter_planning.persistence import ChapterPlanRevisionRecord
-    from aiwebnovel.novel_structure.persistence.workflow_transaction import load_workflow_chapter
     from aiwebnovel.story_memory.persistence import StoryMemoryRevisionRecord
     from aiwebnovel.writing_studio.persistence.models import WritingRuleVersionRecord
 
-    chapter = load_workflow_chapter(session, chapter_id)
+    chapter = load_chapter(session, chapter_id)
     prose = str(chapter.current_revision.content) if data.include_manuscript else ""
     if len(set(data.rule_revision_ids)) != len(data.rule_revision_ids) or len(
         set(data.fact_revision_ids)
@@ -94,7 +113,7 @@ def build(session: Session, chapter_id: str, data: Input) -> dict[str, object]:
             .order_by(StoryMemoryRevisionRecord.version.desc())
             .limit(1)
         )
-        origin = load_workflow_chapter(session, str(fact.chapter_id))
+        origin = load_chapter(session, str(fact.chapter_id))
         if (
             latest is None
             or latest.id != fact.id
@@ -203,11 +222,8 @@ def router(api_prefix: str) -> APIRouter:
 
     def get(s: Session, chapter_id: str, handoff_id: str) -> "HandoffRecord":
         from aiwebnovel.handoff.persistence import HandoffRecord
-        from aiwebnovel.novel_structure.persistence.workflow_transaction import (
-            load_workflow_chapter,
-        )
 
-        load_workflow_chapter(s, chapter_id)
+        load_chapter(s, chapter_id)
         h = s.get(HandoffRecord, handoff_id)
         if h is None or h.chapter_id != chapter_id:
             raise fail("HANDOFF_NOT_FOUND", 404)
@@ -216,11 +232,8 @@ def router(api_prefix: str) -> APIRouter:
     @r.get("")
     def listing(chapter_id: str, s: SessionDep) -> list[dict[str, object]]:
         from aiwebnovel.handoff.persistence import ExternalCandidateRecord, HandoffRecord
-        from aiwebnovel.novel_structure.persistence.workflow_transaction import (
-            load_workflow_chapter,
-        )
 
-        load_workflow_chapter(s, chapter_id)
+        load_chapter(s, chapter_id)
         rows = s.scalars(
             select(HandoffRecord)
             .where(HandoffRecord.chapter_id == chapter_id)
@@ -286,9 +299,7 @@ def router(api_prefix: str) -> APIRouter:
         content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
         try:
             decoded = raw.decode("utf-8", "strict")
-            if content_type == "text/plain":
-                value = decoded
-            elif content_type == "application/json":
+            if content_type == "application/json":
                 data = json.loads(decoded, object_pairs_hook=pairs)
                 if (
                     not isinstance(data, dict)
@@ -342,7 +353,6 @@ def router(api_prefix: str) -> APIRouter:
         from aiwebnovel.handoff.persistence import ExternalCandidateRecord
         from aiwebnovel.novel_structure.persistence.workflow_transaction import (
             adopt_workflow_content,
-            load_workflow_chapter,
         )
 
         try:
@@ -358,7 +368,7 @@ def router(api_prefix: str) -> APIRouter:
             if c.adoption_key != body.idempotency_key:
                 raise fail("HANDOFF_CHANGED")
             return candidate(c, h.base_version)
-        chapter = load_workflow_chapter(s, chapter_id)
+        chapter = load_chapter(s, chapter_id)
         if str(chapter.head.revision_id) != h.base_revision or int(expected) != h.base_version:
             raise fail("HANDOFF_CHANGED")
         frozen = json.loads(h.context)
