@@ -7,6 +7,7 @@ from tests.backend.ai_workflow_contract_support import (
     BACKUP_OPERATIONS,
     CANDIDATE_BUDGET_OPERATIONS,
     HANDOFF_OPERATIONS,
+    WRITING_JOB_OPERATIONS,
     IMPORT_OPERATIONS,
     STORY_CONTROL_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
@@ -27,7 +28,7 @@ def test_production_api_has_exactly_thirty_eight_operations_and_six_character_ro
         for method in path_operations
         if method in {"get", "post", "put", "patch", "delete"}
     }
-    assert len(operations) == 112
+    assert len(operations) == 117
     assert len(AI_WORKFLOW_OPERATIONS) == 13
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
     assert len(BACKUP_OPERATIONS) == 5
@@ -45,6 +46,7 @@ def test_production_api_has_exactly_thirty_eight_operations_and_six_character_ro
         | STORY_CONTROL_OPERATIONS
         | IMPORT_OPERATIONS
         | HANDOFF_OPERATIONS
+        | WRITING_JOB_OPERATIONS
     )
     assert {
         ("GET", "/api/v1/projects/{project_id}/characters"),

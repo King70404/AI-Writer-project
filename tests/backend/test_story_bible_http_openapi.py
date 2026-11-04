@@ -8,6 +8,7 @@ from tests.backend.ai_workflow_contract_support import (
     BACKUP_OPERATIONS,
     CANDIDATE_BUDGET_OPERATIONS,
     HANDOFF_OPERATIONS,
+    WRITING_JOB_OPERATIONS,
     IMPORT_OPERATIONS,
     STORY_CONTROL_OPERATIONS,
     STORY_MEMORY_OPERATIONS,
@@ -80,6 +81,7 @@ def test_production_api_inventory_has_exactly_fifty_routes(tmp_path: Path) -> No
         | STORY_CONTROL_OPERATIONS
         | IMPORT_OPERATIONS
         | HANDOFF_OPERATIONS
+        | WRITING_JOB_OPERATIONS
     )
 
 

@@ -104,3 +104,10 @@ HANDOFF_OPERATIONS = {
     ("POST", "/api/v1/chapters/{chapter_id}/handoffs/{handoff_id}/candidates"),
     ("POST", "/api/v1/chapters/{chapter_id}/handoffs/{handoff_id}/candidates/{candidate_id}/adopt"),
 }
+WRITING_JOB_OPERATIONS = {
+    ("POST", "/api/v1/projects/{project_id}/writing-jobs"),
+    ("GET", "/api/v1/projects/{project_id}/writing-jobs"),
+    ("GET", "/api/v1/writing-jobs/{job_id}"),
+    ("POST", "/api/v1/writing-jobs/{job_id}/bind-run"),
+    ("POST", "/api/v1/writing-jobs/{job_id}/{action}"),
+}

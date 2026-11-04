@@ -22,8 +22,8 @@ class WritingJobBudgetRecord(Base):
     job_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     max_requests: Mapped[int] = mapped_column(Integer, nullable=False)
     max_output_characters: Mapped[int] = mapped_column(Integer, nullable=False)
-    claimed_requests: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    used_characters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    claimed_requests: Mapped[int] = mapped_column(Integer, nullable=False)
+    used_characters: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
 class WritingJobRunRecord(Base):
@@ -31,4 +31,4 @@ class WritingJobRunRecord(Base):
     run_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     job_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     step_index: Mapped[int] = mapped_column(Integer, nullable=False)
-    reserved_characters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    reserved_characters: Mapped[int] = mapped_column(Integer, nullable=False)

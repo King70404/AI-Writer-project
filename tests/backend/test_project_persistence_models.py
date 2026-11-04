@@ -105,6 +105,9 @@ def test_model_registry_is_exact_idempotent_and_uses_shared_metadata() -> None:
         *IMPORT_TABLE_NAMES,
         "external_candidates",
         "handoff_snapshots",
+        "writing_job_budgets",
+        "writing_job_runs",
+        "writing_jobs",
     }
     assert "alembic_version" not in first.tables
     assert all(table.metadata is first for table in first.tables.values())
@@ -144,7 +147,7 @@ def test_domain_import_does_not_register_models_or_create_database(tmp_path: Pat
             "outline_heads,outline_revisions,outlines,"
             "project_budget_revisions,project_heads,project_revisions,projects,"
             "story_bible_heads,story_bible_revisions,story_bibles,story_control_revisions,story_memory_revisions,"
-            "volume_heads,volume_revisions,volumes,writing_references,writing_rule_versions"
+            "volume_heads,volume_revisions,volumes,writing_job_budgets,writing_job_runs,writing_jobs,writing_references,writing_rule_versions"
         ),
     ]
     assert not database_path.exists()
