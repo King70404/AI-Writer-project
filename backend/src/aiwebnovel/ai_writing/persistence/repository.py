@@ -223,6 +223,13 @@ class SqlAlchemyWorkflowRepository:
                 or any(c.status == "pending" for c in self._candidates(session, run_id))
             ):
                 raise WorkflowConflict
+            from aiwebnovel.writing_jobs.transaction import claim as claim_job
+
+            upper = min(
+                300,
+                record.payload["max_output_characters"] - record.payload["generated_characters"],
+            )
+            claim_job(session, run_id, upper)
             record.status = "generating"
             record.payload = {
                 **record.payload,
@@ -240,6 +247,9 @@ class SqlAlchemyWorkflowRepository:
             if not record.payload.get("in_flight"):
                 raise WorkflowConflict
             self._check_head(session, record)
+            from aiwebnovel.writing_jobs.transaction import settle as settle_job
+
+            settle_job(session, run_id, character_count)
             record.payload = {
                 **record.payload,
                 "in_flight": False,
@@ -271,6 +281,9 @@ class SqlAlchemyWorkflowRepository:
                 and str(record.chapter_id) == chapter_id
                 and record.payload.get("in_flight")
             ):
+                from aiwebnovel.writing_jobs.transaction import settle as settle_job
+
+                settle_job(session, run_id, None)
                 record.status = "paused"
                 record.payload = {**record.payload, "in_flight": False, "last_error": error_code}
 
@@ -451,6 +464,9 @@ class SqlAlchemyWorkflowRepository:
                 and str(record.chapter_id) == chapter_id
                 and record.payload.get("in_flight")
             ):
+                from aiwebnovel.writing_jobs.transaction import settle as settle_job
+
+                settle_job(session, run_id, None, unsent=True)
                 if record.status == "generating":
                     record.status = "ready"
                 record.payload = {
@@ -477,6 +493,9 @@ class SqlAlchemyWorkflowRepository:
                 )
             ):
                 if record.status == "generating" or record.payload.get("in_flight"):
+                    from aiwebnovel.writing_jobs.transaction import settle as settle_job
+
+                    settle_job(session, record.id, None)
                     record.status = "interrupted"
                     record.payload = {
                         **record.payload,

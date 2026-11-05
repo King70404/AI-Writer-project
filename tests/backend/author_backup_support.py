@@ -22,7 +22,7 @@ from aiwebnovel.storage.initializer import (
 )
 from aiwebnovel.storage.paths import StoragePaths
 
-CURRENT = "0015_add_external_handoffs"
+CURRENT = "0017_add_writing_job_budgets"
 STUDIO = "0008_add_writing_studio"
 FIRST_TEXT = "雨落渡口，船夫😀收桨。"
 SECOND_TEXT = "雨落渡口，船夫😀收桨。远处灯火摇晃。"

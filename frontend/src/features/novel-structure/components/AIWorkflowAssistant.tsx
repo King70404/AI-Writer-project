@@ -1,4 +1,5 @@
 import { ExternalHandoff } from "../../external-handoff/ExternalHandoff";
+import { writingJobsClient, type WritingJob } from "../../writing-jobs/client";
 import {
   useCallback,
   useEffect,
@@ -68,6 +69,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 export function AIWorkflowAssistant({
   chapterId,
+  jobId,
   writing,
   selection,
   onTaskStatus,
@@ -78,6 +80,7 @@ export function AIWorkflowAssistant({
   storyControlClient,
 }: {
   readonly chapterId: string;
+  readonly jobId?: string;
   /** 用于读取本章模型用量；缺省时不显示用量面板。 */
   readonly projectId?: string;
   readonly usageClient?: UsageClient;
@@ -104,6 +107,73 @@ export function AIWorkflowAssistant({
   const [settingsFocus, setSettingsFocus] = useState(0);
   const [editorDirty, setEditorDirty] = useState(false);
   const [budgetGate, setBudgetGate] = useState({ allowed: true, reason: "" });
+  const [jobState, setJobState] = useState<{
+    readonly id: string;
+    readonly job: WritingJob | null;
+    readonly error: string;
+  } | null>(null);
+  const [jobBusy, setJobBusy] = useState(false);
+  const [jobRefresh, setJobRefresh] = useState(0);
+  useEffect(() => {
+    if (!jobId) return;
+    let cancelled = false;
+    void writingJobsClient
+      .get(jobId)
+      .then((job) => {
+        if (!cancelled) setJobState({ id: jobId, job, error: "" });
+      })
+      .catch(() => {
+        if (!cancelled)
+          setJobState({
+            id: jobId,
+            job: null,
+            error: "跨章任务读取失败，请刷新后再发送。",
+          });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    jobId,
+    jobRefresh,
+    ai.active?.run_id,
+    ai.active?.generated_steps,
+    ai.active?.candidates.length,
+    ai.generating,
+  ]);
+  const job = jobState?.id === jobId ? (jobState?.job ?? null) : null;
+  const jobMatches =
+    !!job &&
+    job.project_id === projectId &&
+    job.status === "planned" &&
+    job.steps[job.current_index]?.chapter_id === chapterId;
+  const jobBound =
+    !!jobMatches && !!ai.active && job?.active_run_id === ai.active.run_id;
+  const jobQuotaAvailable =
+    !!job &&
+    job.claimed_requests < job.max_requests &&
+    job.used_characters < job.max_output_characters;
+  const jobCanSend = !jobId || (jobBound && jobQuotaAvailable);
+  const bindRun = async () => {
+    if (!job || !jobId || !ai.active || jobBusy) return;
+    setJobBusy(true);
+    try {
+      const result = await writingJobsClient.bind(
+        jobId,
+        ai.active.run_id,
+        job.version,
+      );
+      setJobState({ id: jobId, job: result, error: "" });
+    } catch {
+      setJobState({
+        id: jobId,
+        job: null,
+        error: "关联任务失败，状态可能已变化；请刷新后重试。",
+      });
+    } finally {
+      setJobBusy(false);
+    }
+  };
   const onBudgetGate = useCallback((allowed: boolean, reason: string) => {
     setBudgetGate((current) =>
       current.allowed === allowed && current.reason === reason
@@ -199,19 +269,22 @@ export function AIWorkflowAssistant({
   };
   const consented =
     runProfile?.kind !== "cloud" || confirmedRunId === run?.run_id;
-  const canSend = consented && budgetGate.allowed;
+  const canSend = consented && budgetGate.allowed && jobCanSend;
   const taskError = ai.errorRunId === run?.run_id ? ai.error : "";
-  const sendBlockedReason = writing.state.reloadFailed
-    ? "正文读取失败，请先重新加载服务器正文，再继续生成。"
-    : writing.state.reloading
-      ? "正在读取最新正文，请稍候。"
-      : !runProfile
-        ? "原模型配置不可用，请选择可用模型并重新准备任务。"
-        : !consented
-          ? "请先勾选上面的发送同意，再确认生成。"
-          : !budgetGate.allowed
-            ? budgetGate.reason
-            : "";
+  const sendBlockedReason =
+    jobId && !jobCanSend
+      ? "请先为本章准备并关联任务，且确认跨章额度尚有余量。"
+      : writing.state.reloadFailed
+        ? "正文读取失败，请先重新加载服务器正文，再继续生成。"
+        : writing.state.reloading
+          ? "正在读取最新正文，请稍候。"
+          : !runProfile
+            ? "原模型配置不可用，请选择可用模型并重新准备任务。"
+            : !consented
+              ? "请先勾选上面的发送同意，再确认生成。"
+              : !budgetGate.allowed
+                ? budgetGate.reason
+                : "";
   const kindLabel = (item: {
     readonly kind: string;
     readonly has_key: boolean;
@@ -672,6 +745,53 @@ export function AIWorkflowAssistant({
                 client={budgetClient}
               />
             ) : null}
+            {jobId ? (
+              <div className="writing-job-binding" aria-label="跨章任务额度">
+                {job ? (
+                  <>
+                    <p>
+                      跨章任务：{job.title} · 已发送 {job.claimed_requests}/
+                      {job.max_requests} 次 · 已用或保留 {job.used_characters}/
+                      {job.max_output_characters} 字
+                    </p>
+                    <p>
+                      {jobBound
+                        ? "本次任务已关联；每次发送仍需确认。"
+                        : "先准备本章任务并关联到跨章任务，再确认发送。"}
+                    </p>
+                    {!jobMatches ? (
+                      <p>
+                        任务已暂停、结束或当前章节已变化，请返回小说结构查看。
+                      </p>
+                    ) : null}
+                    {jobMatches &&
+                    !jobBound &&
+                    !job.active_run_id &&
+                    run.status === "ready" &&
+                    run.generated_steps === 0 &&
+                    run.candidates.length === 0 ? (
+                      <button
+                        type="button"
+                        disabled={jobBusy || unavailable}
+                        onClick={() => void bindRun()}
+                      >
+                        关联本次任务
+                      </button>
+                    ) : null}
+                  </>
+                ) : (
+                  <p>{jobState?.error || "正在读取跨章任务…"}</p>
+                )}
+                {jobState?.error ? (
+                  <button
+                    type="button"
+                    onClick={() => setJobRefresh((value) => value + 1)}
+                  >
+                    刷新跨章任务
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             {sendBlockedReason ? <p>{sendBlockedReason}</p> : null}
             {ai.busy ? (
               <p role="status">
@@ -783,7 +903,8 @@ export function AIWorkflowAssistant({
                       : "替换选中文本"}
                   </button>
                 )}
-                {run.operation === "continue" &&
+                {!jobId &&
+                run.operation === "continue" &&
                 run.generated_steps < run.max_steps &&
                 run.status !== "paused" ? (
                   <button

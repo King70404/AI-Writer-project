@@ -13,6 +13,7 @@ from tests.backend.ai_workflow_contract_support import (
     STORY_MEMORY_OPERATIONS,
     USAGE_OPERATIONS,
     WORKBENCH_OPERATIONS,
+    WRITING_JOB_OPERATIONS,
     WRITING_PREPARATION_OPERATIONS,
 )
 from tests.backend.factories import create_test_app
@@ -80,6 +81,7 @@ def test_production_api_inventory_has_exactly_fifty_routes(tmp_path: Path) -> No
         | STORY_CONTROL_OPERATIONS
         | IMPORT_OPERATIONS
         | HANDOFF_OPERATIONS
+        | WRITING_JOB_OPERATIONS
     )
 
 

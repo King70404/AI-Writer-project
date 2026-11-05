@@ -468,7 +468,7 @@ def test_application_package_import_has_no_runtime_or_schema_side_effects(
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '
         '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", '
         '"volume_heads", "volume_revisions", "volumes", '
-        '"writing_references", "writing_rule_versions"]'
+        '"writing_job_budgets", "writing_job_runs", "writing_jobs", "writing_references", "writing_rule_versions"]'
     )
     assert f'"before": {expected_tables}' in evidence
     assert f'"after": {expected_tables}' in evidence
@@ -512,7 +512,7 @@ def test_web_package_import_has_no_runtime_or_schema_side_effects(
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '
         '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", '
         '"volume_heads", "volume_revisions", "volumes", '
-        '"writing_references", "writing_rule_versions"]'
+        '"writing_job_budgets", "writing_job_runs", "writing_jobs", "writing_references", "writing_rule_versions"]'
     )
     assert f'"before": {expected_tables}' in evidence
     assert f'"after": {expected_tables}' in evidence

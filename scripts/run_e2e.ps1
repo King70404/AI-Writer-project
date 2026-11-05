@@ -1679,6 +1679,7 @@ function Invoke-E2EScenario {
             "E2E-INT-027",
             "E2E-INT-028",
             "E2E-INT-029",
+            "E2E-INT-030",
             "E2E-STARTUP-001"
         )]
         [string]$SelectedScenario
@@ -1715,7 +1716,8 @@ function Invoke-E2EScenario {
         "E2E-INT-026",
         "E2E-INT-027",
         "E2E-INT-028",
-        "E2E-INT-029"
+        "E2E-INT-029",
+        "E2E-INT-030"
     )
     $modeName = if ($isDevelopment) { "development" } else { "integrated" }
     $scenarioName = $SelectedScenario.ToLowerInvariant()
@@ -2066,6 +2068,7 @@ try {
         "E2E-INT-027" = "Integrated"
         "E2E-INT-028" = "Integrated"
         "E2E-INT-029" = "Integrated"
+        "E2E-INT-030" = "Integrated"
         "E2E-STARTUP-001" = "Integrated"
     }
     $developmentScenarios = @("E2E-DEV-001", "E2E-DEV-002", "E2E-DEV-003")
@@ -2099,6 +2102,7 @@ try {
         "E2E-INT-027",
         "E2E-INT-028",
         "E2E-INT-029",
+        "E2E-INT-030",
         "E2E-STARTUP-001"
     )
 
