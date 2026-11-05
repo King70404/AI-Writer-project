@@ -12,8 +12,7 @@ from tests.backend.factories import create_test_app
 from tests.backend.test_novel_structure_migration import migrated_novel_structure_database_context
 
 from aiwebnovel.ai_writing.application.services import AIWritingService
-from aiwebnovel.ai_writing.composition import MeteredWorkflowProvider
-from aiwebnovel.ai_writing.composition import compose_ai_writing
+from aiwebnovel.ai_writing.composition import MeteredWorkflowProvider, compose_ai_writing
 from aiwebnovel.ai_writing.web import get_ai_writing_service
 
 
