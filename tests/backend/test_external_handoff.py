@@ -75,6 +75,7 @@ def test_external_handoff_rejects_forged_or_stale_input(workflow):
     imported = w.client.post(path, headers=w.headers, json=payload)
     assert imported.status_code == 200, imported.text
     cid = imported.json()["candidate_id"]
+    assert imported.json()["status"] == "pending"
     assert w.client.post(path, headers=w.headers, json=payload).json()["candidate_id"] == cid
     changed = w.client.put(
         w.base + "/content",
@@ -82,6 +83,8 @@ def test_external_handoff_rejects_forged_or_stale_input(workflow):
         json={"content": "作者新正文"},
     )
     assert changed.status_code == 200
+    listing = w.client.get(root, headers=w.headers).json()
+    assert listing[0]["candidates"][0]["status"] == "needs_recheck"
     response = w.client.post(
         path + "/" + cid + "/adopt",
         headers={**w.headers, "If-Match": '"2"'},
@@ -193,6 +196,61 @@ def _task(w, request=None):
     return root, task
 
 
+def test_changed_plan_marks_imported_candidate_for_recheck(workflow):
+    import json
+    import sqlite3
+    from contextlib import closing
+
+    w = workflow
+    with closing(sqlite3.connect(w.db)) as db, db:
+        db.execute(
+            "INSERT INTO chapter_plan_revisions (id,chapter_id,project_id,version,payload,created_at) VALUES (?,?,?,?,?,?)",
+            (
+                str(uuid4()),
+                w.chapter,
+                w.project,
+                1,
+                json.dumps({"chapter_goal": "旧规划"}),
+                "2026-01-01",
+            ),
+        )
+    root, task = _task(
+        w,
+        {"instruction": "续写", "include_manuscript": False, "include_plan": True},
+    )
+    with closing(sqlite3.connect(w.db)) as db, db:
+        db.execute(
+            "INSERT INTO chapter_plan_revisions (id,chapter_id,project_id,version,payload,created_at) VALUES (?,?,?,?,?,?)",
+            (
+                str(uuid4()),
+                w.chapter,
+                w.project,
+                2,
+                json.dumps({"chapter_goal": "新" * 61_000}),
+                "2026-01-02",
+            ),
+        )
+    path = root + "/" + task["handoff_id"] + "/candidates"
+    payload = {
+        "format_version": 1,
+        "handoff_id": task["handoff_id"],
+        "context_sha256": task["context_sha256"],
+        "text": "旅人沿旧路走过石桥。" * 30,
+    }
+    imported = w.client.post(path, headers=w.headers, json=payload)
+    assert imported.status_code == 200, imported.text
+    assert imported.json()["status"] == "needs_recheck"
+    listing = w.client.get(root, headers=w.headers).json()
+    assert listing[0]["candidates"][0]["status"] == "needs_recheck"
+    adopted = w.client.post(
+        path + "/" + imported.json()["candidate_id"] + "/adopt",
+        headers={**w.headers, "If-Match": '"2"'},
+        json={"idempotency_key": str(uuid4())},
+    )
+    assert adopted.status_code == 422
+    assert w.client.get(w.base + "/content").json()["content"] == "雨😀雨。"
+
+
 def test_listing_and_download_contain_only_the_frozen_snapshot(workflow):
     import io
     import json
@@ -208,6 +266,7 @@ def test_listing_and_download_contain_only_the_frozen_snapshot(workflow):
     download = w.client.get(root + "/" + task["handoff_id"] + "/download", headers=w.headers)
     assert download.status_code == 200
     assert download.headers["content-type"] == "application/zip"
+    assert download.headers["content-disposition"] == 'attachment; filename="handoff.zip"'
     assert download.headers["cache-control"] == "no-store"
     with zipfile.ZipFile(io.BytesIO(download.content)) as archive:
         assert sorted(archive.namelist()) == ["context.json", "manifest.json", "task.md"]

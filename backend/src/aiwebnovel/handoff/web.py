@@ -160,22 +160,49 @@ def build(session: Session, chapter_id: str, data: Input) -> dict[str, object]:
     }
 
 
-def view(h: "HandoffRecord", candidates: list["ExternalCandidateRecord"]) -> dict[str, object]:
+def view(
+    h: "HandoffRecord",
+    candidates: list["ExternalCandidateRecord"],
+    *,
+    recheck: bool = False,
+) -> dict[str, object]:
     return {
         "handoff_id": h.id,
         "chapter_id": h.chapter_id,
         "base_version": h.base_version,
         "context_sha256": h.context_sha256,
         "context": h.context,
-        "candidates": [candidate(c, h.base_version) for c in candidates],
+        "candidates": [candidate(c, h.base_version, recheck=recheck) for c in candidates],
     }
 
 
-def candidate(c: "ExternalCandidateRecord", version: int) -> dict[str, object]:
+def needs_recheck(session: Session, h: "HandoffRecord") -> bool:
+    frozen = json.loads(h.context)
+    try:
+        current = build(
+            session,
+            h.chapter_id,
+            Input(instruction=frozen["instruction"], **frozen["selection"]),
+        )
+    except AppError as error:
+        if error.code in {
+            "CHAPTER_NOT_FOUND",
+            "HANDOFF_SOURCE_CHANGED",
+            "HANDOFF_SOURCE_MISSING",
+            "HANDOFF_TOO_LARGE",
+        }:
+            return True
+        raise
+    return current["context_sha256"] != h.context_sha256
+
+
+def candidate(
+    c: "ExternalCandidateRecord", version: int, *, recheck: bool = False
+) -> dict[str, object]:
     return {
         "candidate_id": c.id,
         "text": c.text,
-        "status": "adopted" if c.adoption_key else "pending",
+        "status": "adopted" if c.adoption_key else ("needs_recheck" if recheck else "pending"),
         "base_version": version,
     }
 
@@ -240,19 +267,18 @@ def router(api_prefix: str) -> APIRouter:
             .order_by(HandoffRecord.id.desc())
             .limit(100)
         ).all()
-        return [
-            view(
-                h,
-                list(
-                    s.scalars(
-                        select(ExternalCandidateRecord).where(
-                            ExternalCandidateRecord.handoff_id == h.id
-                        )
-                    ).all()
-                ),
+        result = []
+        for h in rows:
+            candidates = list(
+                s.scalars(
+                    select(ExternalCandidateRecord).where(
+                        ExternalCandidateRecord.handoff_id == h.id
+                    )
+                ).all()
             )
-            for h in rows
-        ]
+            recheck = any(not item.adoption_key for item in candidates) and needs_recheck(s, h)
+            result.append(view(h, candidates, recheck=recheck))
+        return result
 
     @r.get("/{handoff_id}/download")
     def download(chapter_id: str, handoff_id: str, s: SessionDep) -> Response:
@@ -272,7 +298,7 @@ def router(api_prefix: str) -> APIRouter:
             buffer.getvalue(),
             media_type="application/zip",
             headers={
-                "Content-Disposition": "attachment; filename=handoff.zip",
+                "Content-Disposition": 'attachment; filename="handoff.zip"',
                 "Cache-Control": "no-store",
             },
         )
@@ -338,7 +364,7 @@ def router(api_prefix: str) -> APIRouter:
             )
             s.add(c)
             s.commit()
-        return candidate(c, h.base_version)
+        return candidate(c, h.base_version, recheck=needs_recheck(s, h))
 
     @r.post("/{handoff_id}/candidates/{candidate_id}/adopt")
     def adopt(

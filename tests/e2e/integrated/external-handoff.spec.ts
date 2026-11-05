@@ -136,7 +136,7 @@ test("E2E-INT-029 External handoff selects sources, exports, imports and adopts 
   const downloaded = page.waitForEvent("download");
   await panel.getByRole("button", { name: "下载交接包" }).click();
   const file = await downloaded;
-  expect(file.suggestedFilename()).toBe("外部AI交接.zip");
+  expect(file.suggestedFilename()).toBe("handoff.zip");
   expect(await file.failure()).toBeNull();
   const archive = await readFile(await file.path());
   const entries = new Map<string, string>();

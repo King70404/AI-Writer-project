@@ -4,7 +4,7 @@ import { securitySession } from "../../api/security-session";
 export interface HandoffCandidate {
   readonly candidate_id: string;
   readonly text: string;
-  readonly status: "pending" | "adopted";
+  readonly status: "pending" | "needs_recheck" | "adopted";
   readonly base_version: number;
 }
 export interface Handoff {
@@ -76,7 +76,11 @@ function parsePreview(value: unknown): Preview {
 }
 function parseCandidate(value: unknown): HandoffCandidate {
   const d = obj(value);
-  if (d.status !== "pending" && d.status !== "adopted")
+  if (
+    d.status !== "pending" &&
+    d.status !== "needs_recheck" &&
+    d.status !== "adopted"
+  )
     throw new Error("交接数据无法读取。");
   return {
     candidate_id: str(d.candidate_id),
