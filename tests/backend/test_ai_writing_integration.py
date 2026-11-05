@@ -12,8 +12,7 @@ from tests.backend.factories import create_test_app
 from tests.backend.test_novel_structure_migration import migrated_novel_structure_database_context
 
 from aiwebnovel.ai_writing.application.services import AIWritingService
-from aiwebnovel.ai_writing.composition import compose_ai_writing
-from aiwebnovel.ai_writing.provider import LocalOpenAICompatibleProvider
+from aiwebnovel.ai_writing.composition import MeteredWorkflowProvider, compose_ai_writing
 from aiwebnovel.ai_writing.web import get_ai_writing_service
 
 
@@ -52,7 +51,7 @@ def test_real_read_services_generate_candidates_without_changing_any_business_ro
                 json={"content": "保留正文"},
             )
             assert original.status_code == 200
-            assert isinstance(app.state.ai_writing_service._provider, LocalOpenAICompatibleProvider)
+            assert isinstance(app.state.ai_writing_service._provider, MeteredWorkflowProvider)
             not_configured = client.post(base + "/ai/continue", headers=headers, json={})
             assert not_configured.status_code == 503
             assert not_configured.json()["error"]["message"] == "AI provider not configured"

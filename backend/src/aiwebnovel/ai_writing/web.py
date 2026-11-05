@@ -24,6 +24,12 @@ from aiwebnovel.ai_writing.errors import (
 )
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.domain.errors import DomainError, InvalidDomainIdentifier
+from aiwebnovel.model_gateway.errors import (
+    InvalidModelProfile,
+    ModelConfigurationUnavailable,
+    ModelCredentialUnavailable,
+    ModelProfileNotFound,
+)
 from aiwebnovel.novel_structure.errors import ChapterNotFound
 from aiwebnovel.security.request_limits import is_json_media_type
 from aiwebnovel.story_memory.models import RecallPinsInvalid
@@ -85,6 +91,19 @@ def require_json(request: Request) -> None:
 
 
 def map_error(error: DomainError) -> AppError:
+    if isinstance(
+        error,
+        (
+            InvalidModelProfile,
+            ModelProfileNotFound,
+            ModelConfigurationUnavailable,
+            ModelCredentialUnavailable,
+        ),
+    ):
+        # Legacy requests now use the gateway profile, so they share its error contract.
+        from aiwebnovel.model_gateway.web import map_model_error  # avoids an import cycle
+
+        return map_model_error(error)
     statuses: dict[type[DomainError], tuple[int, str, str]] = {
         AIProviderNotConfigured: (
             503,

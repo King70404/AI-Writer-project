@@ -10,13 +10,13 @@ from aiwebnovel.ai_writing.application.models import ContextSource, GeneratedTex
 from aiwebnovel.ai_writing.application.services import AIWritingService
 from aiwebnovel.ai_writing.application.workflow import AIWorkflowService
 from aiwebnovel.ai_writing.application.workflow_models import ModelSnapshot
-from aiwebnovel.ai_writing.errors import AIWorkflowSchemaRequired
-from aiwebnovel.ai_writing.provider import LocalOpenAICompatibleProvider
+from aiwebnovel.ai_writing.errors import AIProviderNotConfigured, AIWorkflowSchemaRequired
 from aiwebnovel.ai_writing.runtime import WorkflowRuntimeLock
 from aiwebnovel.chapter_planning.service import ChapterPlanningService
 from aiwebnovel.character.application.services import CharacterQueryService
 from aiwebnovel.core.config import Settings
 from aiwebnovel.db.engine import database_file_path
+from aiwebnovel.model_gateway.errors import ModelProfileNotFound
 from aiwebnovel.model_gateway.service import ModelGatewayService
 from aiwebnovel.novel_structure.application.services import NovelStructureQueryService
 from aiwebnovel.project.application.services import ProjectQueryService
@@ -28,11 +28,33 @@ from aiwebnovel.story_memory.composition import compose_story_memory
 from aiwebnovel.story_memory.service import StoryMemoryService
 from aiwebnovel.usage.budget_service import UsageBudgetService
 from aiwebnovel.usage.composition import compose_usage_ledger
+from aiwebnovel.usage.models import UsageLedgerUnavailable
 from aiwebnovel.usage.service import UsageLedgerService
 from aiwebnovel.workbench.composition import compose_workbench
 from aiwebnovel.workbench.service import WorkbenchService
 from aiwebnovel.writing_studio.application.service import WritingStudioService
 from aiwebnovel.writing_studio.composition import compose_writing_studio
+
+
+class UnmeteredSendRefused:
+    """Stands in until the usage ledger is ready: legacy endpoints never send unmetered."""
+
+    def generate(self, messages: tuple[GenerationMessage, ...]) -> GeneratedText:
+        raise UsageLedgerUnavailable
+
+
+class MeteredWorkflowProvider:
+    """Routes legacy continue/rewrite through the workflow's metered, budgeted gateway."""
+
+    def __init__(self, workflow: AIWorkflowService) -> None:
+        self._workflow = workflow
+
+    def generate(self, messages: tuple[GenerationMessage, ...]) -> GeneratedText:
+        try:
+            return self._workflow.send_text(messages)
+        except ModelProfileNotFound:
+            # Keep the legacy contract: no default model means "not configured".
+            raise AIProviderNotConfigured from None
 
 
 def compose_ai_writing(
@@ -41,10 +63,12 @@ def compose_ai_writing(
     projects: ProjectQueryService,
     story_bibles: StoryBibleQueryService,
     characters: CharacterQueryService,
+    workflow: AIWorkflowService | None = None,
 ) -> AIWritingService:
+    del settings  # The model endpoint comes from the gateway profile, not raw settings.
     return AIWritingService(
         ChapterWritingContextBuilder(structure, projects, story_bibles, characters),
-        LocalOpenAICompatibleProvider(settings.ai_base_url, settings.ai_model),
+        UnmeteredSendRefused() if workflow is None else MeteredWorkflowProvider(workflow),
     )
 
 

@@ -9,7 +9,6 @@ no business data models.
 此迁移仅建立数据库迁移基线，不包含业务数据模型。
 """
 
-
 revision: str = "0001_initialize_database"
 down_revision: None = None
 branch_labels: None = None

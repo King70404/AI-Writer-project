@@ -1,6 +1,7 @@
 """Pure generation orchestration; candidates never invoke a write service."""
 
 from typing import Literal
+from uuid import uuid4
 
 from aiwebnovel.ai_writing.application.context import ChapterWritingContextBuilder
 from aiwebnovel.ai_writing.application.models import (
@@ -14,6 +15,7 @@ from aiwebnovel.ai_writing.application.models import (
 )
 from aiwebnovel.ai_writing.errors import AIProviderInvalidResponse
 from aiwebnovel.novel_structure.identifiers import ChapterId
+from aiwebnovel.usage.attribution import usage_attribution
 
 CONTINUE_PROMPT = (
     "继续当前小说正文，保持已有语言、叙事人称和风格，遵守提供的设定、大纲与角色信息。"
@@ -62,7 +64,10 @@ class AIWritingService:
         )
         if operation == "rewrite":
             messages += (GenerationMessage("user", "待改写text:\n" + text),)
-        generated = self._provider.generate(messages)
+        # Legacy endpoints are attributed like workflow generation, so the composed
+        # provider records the attempt and enforces the same budget before sending.
+        with usage_attribution("generation", str(uuid4()), chapter_id=canonical_id):
+            generated = self._provider.generate(messages)
         if type(generated) is not GeneratedText:
             raise AIProviderInvalidResponse
         return GenerationCandidate(operation, generated.text, generated.model, context.manifest)
