@@ -206,13 +206,17 @@ describe("外部交接异常与边界", () => {
       "URL",
       Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke }),
     );
+    const filenames: string[] = [];
     const click = vi
       .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => undefined);
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        filenames.push(this.download);
+      });
     const { api } = setup();
     await selectTask();
     fireEvent.click(screen.getByRole("button", { name: "下载交接包" }));
     await waitFor(() => expect(click).toHaveBeenCalledOnce());
+    expect(filenames).toEqual(["handoff.zip"]);
     expect(revoke).toHaveBeenCalledWith("blob:x");
     vi.mocked(api.download).mockRejectedValueOnce(new Error("交接包下载失败"));
     fireEvent.click(screen.getByRole("button", { name: "下载交接包" }));
@@ -220,6 +224,22 @@ describe("外部交接异常与边界", () => {
       "交接包下载失败",
     );
     vi.unstubAllGlobals();
+  });
+
+  it("来源变化的候选显示待重新核对且不提供采用操作", async () => {
+    setup({
+      list: vi.fn().mockResolvedValue([
+        {
+          ...task,
+          candidates: [{ ...candidate, status: "needs_recheck" as const }],
+        },
+      ]),
+    });
+    await selectTask();
+    expect(await screen.findByRole("status")).toHaveTextContent("待重新核对");
+    expect(
+      screen.queryByRole("button", { name: "确认追加候选到正文" }),
+    ).not.toBeInTheDocument();
   });
 
   it("返回文件：超限、非 UTF-8、JSON 原样、TXT 填入正文", async () => {

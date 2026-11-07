@@ -345,7 +345,7 @@ export async function installBrowserAudit(
         );
       }
       downloadAllowanceIssued = true;
-      expectedDownloads.push("外部AI交接.zip");
+      expectedDownloads.push("handoff.zip");
     },
     allowOneExpectedBackupDownload: () => {
       if (

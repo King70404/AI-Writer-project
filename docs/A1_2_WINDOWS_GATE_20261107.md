@@ -9,3 +9,4 @@
 日志：.runtime/a1-2-final-gate-20261107.log；SHA256：2F341D02FA99D305B64E6852D2884DCD3FC5429A0E42444826DA88F92D0A013B。
 
 警告：Starlette/httpx 弃用、SQLite datetime adapter 弃用、Vite 大 chunk、Node 颜色环境变量提示。仅假传输及自有隔离数据，未用真实模型或 Key。未发布、未打 tag。尚未合并，等待用户授权。PR #42 已合并 main dea6eaf；本候选未包含该后续合并，合并本 PR 前需同步并检查受影响部分。
+2026-11-07：PR #43 已合入 main dea6eaf；冲突仅为 PLAN 文档，解决时未修改运行时代码或测试。复用上述 A1-2 完整门禁及 D2 独立完整门禁证据；不声称重新运行过合并后的整套门禁。

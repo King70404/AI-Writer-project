@@ -76,6 +76,19 @@ describe("外部交接 API 客户端", () => {
     expect(list[0].candidates[0].status).toBe("pending");
   });
 
+  it("接受来源变化后待重新核对的候选状态", async () => {
+    fetcher.mockResolvedValue(
+      json([
+        {
+          ...stored,
+          candidates: [{ ...candidate, status: "needs_recheck" }],
+        },
+      ]),
+    );
+    const list = await handoffClient.list("ch1");
+    expect(list[0].candidates[0].status).toBe("needs_recheck");
+  });
+
   it.each([
     ["不是数组", { items: [] }],
     ["缺少交接编号", [{ ...stored, handoff_id: null }]],
