@@ -179,7 +179,7 @@ export function ExternalHandoff({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "外部AI交接.zip";
+      a.download = "handoff.zip";
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -475,6 +475,10 @@ export function ExternalHandoff({
               <pre>{candidate.text}</pre>
               {candidate.status === "adopted" ? (
                 <p>已采用</p>
+              ) : candidate.status === "needs_recheck" ? (
+                <p role="status">
+                  待重新核对：交接来源已变化，请重新准备交接后再导入候选。
+                </p>
               ) : (
                 <button
                   type="button"
