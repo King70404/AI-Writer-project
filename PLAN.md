@@ -1,49 +1,19 @@
 # 当前交付
 
-更新：2026-11-05。D1 旧稿导入与窄屏写作助手已在 Windows 完成完整质量门禁并合并 main（[PR #37](https://github.com/King70404/AI-Writer-project/pull/37)，merge `f1caf4e`）。A1/A2/B1/B2/C 已在 Windows 验证并合并（PR #35，merge `12d19d5`）。
+更新：2026-11-07。
 
 ## 当前状态
 
-- main `35480b897212caf00a941a166e074bf6d1e906e2`；D1 候选 `e6a4666ea87b6e141034d12a73dae4caa0fe3840`；A1–C 候选 `b5117b2`。
-- 既有 V1、AI 协作、范文/章节规划、记忆评审、备份与规模评测见 [发布验收](docs/RELEASE_ACCEPTANCE.md)。
-- A1：作者首页/书架、三栏写作、专注、保存切章、原地模型设置、范文规则捷径。
-- A2：全书字数、分页、章节状态、派生待办。
-- B1/B2：候选对照与编辑采用、用量、作者填写价格、预算拒绝与提示、本机草稿隔离及冲突对照。
-- C：全书/卷规划、伏笔证据与到期提醒、故事时间线、人物状态区间、可调事实召回和准备时冻结作者规划。
-- D1：旧稿导入（TXT/Markdown/粘贴、分章预览、分片上传、单事务建书与幂等回执）及窄屏写作助手抽屉（Esc、焦点管理、草稿保持）。
+main dea6eaf：PR #38、#39、#40、#41、#42 均经用户授权合并。D2 三个缺口已修复；B-4 当前只含用量 CSV，费用列待 B-3。
 
-## 活动开发
+## 活动工作与证据
 
-- D3 跨章写作任务 [PR #39](https://github.com/King70404/AI-Writer-project/pull/39)：最新 main `35480b8` 已合入，候选 `9492516` Windows 完整门禁 PASS，尚未合并，等待用户授权。实现最多 10 章的手动清单、run 绑定、事务内总请求/输出额度预留、暂停/恢复/终止/结束本章及生成/采用字数统计。规格差异：`bind-run` 替代 `prepare-step`；任务状态为 planned/paused/cancelled/completed，其余运行状态由绑定 run 体现。详细范围及首轮 Ruff 失败修复见 [D3 报告](docs/D3_WINDOWS_GATE_20261105.md)。
-
-- D1 已交付：完整 `quality_gate.ps1 -IncludeE2E` 通过，后述数字见“最新有效验证”；导入不调用模型，失败回滚，重复提交不重复建书。
-- D2 外部 AI 交接 [PR #38](https://github.com/King70404/AI-Writer-project/pull/38)：候选 `d08e5c8` Windows 完整 IncludeE2E PASS（2026-11-05），已于 2026-11-05 获用户授权并合并 main（merge `35480b8`）。支持选择来源、ZIP 导出、外部候选导入及作者采用。来源变化快照标记、统一下载文件名、纯文本入口删除的文档同步仍待合并后新分支修复。详见 [Windows 报告](docs/D2_WINDOWS_GATE_20261105.md)。
-- B-1 [PR #40](https://github.com/King70404/AI-Writer-project/pull/40)（实现 `c71a5d2`，记录 `5015121`）、B-4 [PR #41](https://github.com/King70404/AI-Writer-project/pull/41)（实现 `3eeb277`，记录 `aed1117`）已推送，均未合并。B-1 交接记录 Linux 定向 285 项通过；两者 Windows 门禁待 #38/#39 后按序 rebase 再执行。B-4 尚无费用列，待 B-3 补齐。
-- B-1 [PR #40](https://github.com/King70404/AI-Writer-project/pull/40)：代码已 rebase 到最新 main `bd1b10a`，Windows IncludeE2E 本机 PASS（head `7b079f9`）：后端 3248 passed/97.71%/92.94%，前端 77 文件/1071 项（94.24/90.20/95.97/95.40），E2E 34 场景通过，等待用户授权合并。GitHub Full 同候选因 INT-025 usage 取消 net::ERR_ABORTED 审计失败；详见 [B-1 报告](docs/B1_WINDOWS_GATE_20261106.md)。候选功能来自 `c71a5d2`；仅旧续写/改写计量与预算，不代表其他 B 项完成。
-- B-4 [PR #41](https://github.com/King70404/AI-Writer-project/pull/41)：已 rebase 到最新 main `324cab5`，Windows IncludeE2E 本机 PASS (2026-11-06)，后端 3248/97.71%/92.94%，前端 77 文件/1074 项 (94.26/90.24/95.99/95.42)，E2E 34 场景通过；等待授权合并。GitHub Full 尚在运行。详见 [B-4 报告](docs/B4_WINDOWS_GATE_20261106.md)。当前只含用量 CSV；单价、币种、逐条金额和缓存列待 B-3，尚未完整交付费用导出。
-- A/B 补全项见 [AB_FOLLOWUPS](docs/product/AB_FOLLOWUPS.md)。
-
-## 最新有效验证
-
-- D3 `9492516`：Windows IncludeE2E exit 0；后端 3243 passed，语句/分支 97.70%/92.94%；前端 77 文件/1071 项，覆盖 94.24/90.21/95.97/95.40%；E2E 34 场景及清理通过。精确 SHA、失败保留、日志散列和 warning 见 [D3 报告](docs/D3_WINDOWS_GATE_20261105.md)。
-
-[Windows 模块记录](docs/WINDOWS_MODULE_VALIDATION.md)保存 A1–C 的精确候选、来源、日志散列和限制；D1 结果如下。
-
-- D2 Windows 完整门禁：`d08e5c8`，exit 0；后端 3233 passed，语句/分支 97.68%/93.00%；前端 75 文件/1046 项，覆盖 94.44/90.76/96.24/95.55%；E2E 33 场景及清理通过。精确 SHA、日志散列与 warning 见 [D2 报告](docs/D2_WINDOWS_GATE_20261105.md)。
-
-- D1 Windows 完整门禁（`e6a4666`，`.runtime/d1-full-gate-20261104.log`）：`quality_gate.ps1 -IncludeE2E` **passed，exit 0**；E2E 清理验证通过。
-- 后端 3225 passed / 1 skipped（本机无 PowerShell 7 可选参数）；语句/分支覆盖 97.66%/92.99%。
-- 前端 72 文件 1012 项通过；语句/分支/函数/行 94.31%/90.71%/96.13%/95.39%；类型、格式、构建、依赖检查通过。
-- 浏览器：集成 E2E INT-001–028 加 STARTUP-001 共 29 项通过，含 Windows Key/升级、备份、C 与 D1 导入。
-- D1 当时 GitHub Actions 因账号账单/额度不可用；该限制不代表当前状态。2026-11-05 查询 #38 最新 Windows Default/Full checks 均成功，本轮另有本机完整门禁通过证据。
+A1-2 分支 codex/a1-2-planning-next，实现 1571239，Windows 完整 IncludeE2E exit 0：后端 3248 项，前端 1077 项，E2E 34 场景与清理通过。详见 [报告](docs/A1_2_WINDOWS_GATE_20261107.md)。等待合并授权；基于 015c82c，合并前同步最新 main 并检查受影响部分。
 
 ## 下一步
 
-1. #38 已授权合并；D3 / #39 已合入最新 main 并通过 Windows 全门（含 E2E 34 场景及前端全量覆盖率），等待用户单独授权合并。
-2. B-1 / #40、B-4 / #41 依次 rebase 最新 main、运行门禁、报告并各自等待合并授权。
-3. #38 合并后新分支修复 D2 三个缺口：来源变化快照标记、统一文件名、同步纯文本入口已删除。
-4. A/B 按 A1-2、A1-1、A2-1、A2-2、B-2、B-3 顺序，每项一个分支并遵循 [AB_FOLLOWUPS](docs/product/AB_FOLLOWUPS.md)；B-3 含缓存迁移与 B-4 单价/币种/逐条金额列。之后按 FUNCTION_DESIGN 的 F08 实现 E 方法验证。
-5. C 其他缺口及真实付费模型文学质量/实际费用评价未纳入本轮交付。
+依次 A1-1、A2-1、A2-2、B-2、B-3，每项独立分支，遵循 [AB_FOLLOWUPS](docs/product/AB_FOLLOWUPS.md)。B-3 包括缓存 token 迁移和 CSV 单价、币种、逐条金额列。随后实施 FUNCTION_DESIGN 的 F08。上述剩余项尚未完成。
+
 ## 边界
 
-正式创作数据、备份及真实 Key 不进入开发验收；作者确认后才采用 AI 正文/事实/规则。本轮禁止真实/付费模型、正式数据、真实 Key、tag 与发布；任何 PR 合并均须先获用户明确授权。不改冻结文件。实际能力见 [功能索引](docs/FEATURE_REALITY_MATRIX.md)。
+只用假传输与隔离测试数据；不得接触正式创作数据或真实 Key；不打 tag、不发布。任何 PR 合并前均须用户明确授权。运行时内容仍由作者确认后采用，不改冻结文件。
