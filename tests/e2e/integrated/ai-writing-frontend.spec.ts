@@ -373,7 +373,9 @@ test("E2E-INT-019 AI writing assistance flow", async ({
       .getByRole("textbox", { name: "场景 1 推进点 1 变化", exact: true })
       .fill("证人愿意透露船名");
     await expect(
-      page.getByText("章节规划有未保存修改；保存后再准备新任务。"),
+      page.getByText(
+        "章节规划有未保存修改；可保存并进入生成准备。此操作不会发送模型请求。",
+      ),
     ).toBeVisible();
     await page.getByRole("tab", { name: "生成", exact: true }).click();
     await expect(
@@ -381,9 +383,15 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     ).toBeDisabled();
     await page.getByRole("tab", { name: "准备", exact: true }).click();
     await workbench
-      .getByRole("button", { name: "保存章节规划", exact: true })
+      .getByRole("button", { name: "保存规划并进入生成准备", exact: true })
       .click();
-    await expect(workbench.getByText(/规划已保存 · 版本 1/u)).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: "生成", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(
+      page.getByRole("button", { name: "准备续写", exact: true }),
+    ).toBeFocused();
+    expect(requests).toHaveLength(5);
     await page.reload();
     await page.getByRole("tab", { name: "准备", exact: true }).click();
     await expect(
