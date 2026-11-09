@@ -671,9 +671,9 @@ def test_openapi_inventory_is_exact_and_forbidden_operations_are_absent(tmp_path
         ("GET", "/api/v1/chapters/{chapter_id}"),
         ("PUT", "/api/v1/chapters/{chapter_id}"),
     }
-    assert len(operations) == 118
+    assert len(operations) == 120
     assert len(AI_WORKFLOW_OPERATIONS) == 14
-    assert len(WRITING_PREPARATION_OPERATIONS) == 9
+    assert len(WRITING_PREPARATION_OPERATIONS) == 10
     assert len(BACKUP_OPERATIONS) == 5
     assert len(WORKBENCH_OPERATIONS) == 5
     assert len(USAGE_OPERATIONS) == 1

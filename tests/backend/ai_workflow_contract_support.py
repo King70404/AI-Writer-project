@@ -18,6 +18,7 @@ AI_WORKFLOW_OPERATIONS = {
 }
 
 WRITING_PREPARATION_OPERATIONS = {
+    ("GET", "/api/v1/projects/{project_id}/writing/references/{reference_id}/estimate"),
     ("GET", "/api/v1/projects/{project_id}/writing/references"),
     ("POST", "/api/v1/projects/{project_id}/writing/references"),
     ("GET", "/api/v1/projects/{project_id}/writing/references/{reference_id}"),
@@ -30,6 +31,7 @@ WRITING_PREPARATION_OPERATIONS = {
 }
 
 STORY_MEMORY_OPERATIONS = {
+    ("GET", "/api/v1/chapters/{chapter_id}/memory/reviews/{review_id}/estimate"),
     ("GET", "/api/v1/chapters/{chapter_id}/memory"),
     ("POST", "/api/v1/chapters/{chapter_id}/memory/facts"),
     ("PUT", "/api/v1/chapters/{chapter_id}/memory/facts/{fact_id}"),

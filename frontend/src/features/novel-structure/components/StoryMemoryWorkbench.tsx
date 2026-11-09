@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { analysisEstimateClient } from "../../usage/api/budget";
+import { OperationSendGuard } from "../../usage/components/SendEstimatePanel";
 import { Link } from "react-router";
 import type { ModelProfile } from "../api/ai-workflow";
 import {
@@ -57,6 +59,10 @@ export function StoryMemoryWorkbench({
   const selected =
     workspace?.reviews.find((item) => item.id === selectedId) ??
     workspace?.reviews[0];
+  const loadEstimate = useCallback(
+    () => analysisEstimateClient.review(chapterId, selected?.id ?? ""),
+    [chapterId, selected?.id],
+  );
   useEffect(() => {
     alive.current = true;
     void client
@@ -370,18 +376,28 @@ export function StoryMemoryWorkbench({
             </label>
           ) : null}
           {selected.status === "ready" || selected.status === "failed" ? (
-            <button
-              type="button"
-              disabled={
-                blocked ||
-                selected.stale ||
-                selected.attempts >= 3 ||
-                (selected.model.kind === "cloud" && consentId !== selected.id)
-              }
-              onClick={() => void action(() => send(selected))}
+            <OperationSendGuard
+              key={`${selected.id}:${selected.version}`}
+              loadEstimate={loadEstimate}
+              refreshKey={`${selected.id}:${selected.version}`}
             >
-              确认发送并评审
-            </button>
+              {(allowed) => (
+                <button
+                  type="button"
+                  disabled={
+                    !allowed ||
+                    blocked ||
+                    selected.stale ||
+                    selected.attempts >= 3 ||
+                    (selected.model.kind === "cloud" &&
+                      consentId !== selected.id)
+                  }
+                  onClick={() => void action(() => send(selected))}
+                >
+                  确认发送并评审
+                </button>
+              )}
+            </OperationSendGuard>
           ) : null}
           {selected.last_error ? (
             <p role="alert">

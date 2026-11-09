@@ -16,6 +16,9 @@ from aiwebnovel.model_gateway.errors import (
     ModelProfileNotFound,
 )
 from aiwebnovel.model_gateway.web import map_model_error
+from aiwebnovel.usage.budget import SendEstimate
+from aiwebnovel.usage.budget_service import UsageBudgetService
+from aiwebnovel.usage.budget_web import get_budget_service
 from aiwebnovel.writing_studio.application.models import (
     WritingConflict,
     WritingConsentRequired,
@@ -114,6 +117,26 @@ Json = Annotated[None, Depends(require_json)]
 
 def create_writing_studio_router(*, api_prefix: str) -> APIRouter:
     router = APIRouter(prefix=api_prefix + "/projects/{project_id}/writing", tags=["Writing Study"])
+
+    @router.get("/references/{reference_id}/estimate", response_model=SendEstimate)
+    def reference_estimate(
+        project_id: str,
+        reference_id: str,
+        response: Response,
+        service: Service,
+        budgets: Annotated[UsageBudgetService, Depends(get_budget_service)],
+    ) -> SendEstimate:
+        def estimate() -> SendEstimate:
+            reference = service.get_reference(project_id, reference_id)
+            return budgets.estimate(
+                project_id=reference.project_id,
+                chapter_id=None,
+                task_id=reference.id,
+                profile_id=reference.model_snapshot.id,
+                messages=reference.messages,
+            )
+
+        return _invoke(response, estimate)
 
     @router.get("/references", response_model=tuple[WritingReference, ...])
     def list_references(
