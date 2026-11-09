@@ -5,7 +5,7 @@
 ## 活动工作
 
 - A1-2 保存规划后准备下一步：PR [#43](https://github.com/King70404/AI-Writer-project/pull/43) 已推送，等待授权；代码 `157123995fc60a68945f3463a2e27019d1343426` 的完整门禁证据见 [报告](docs/A1_2_WINDOWS_GATE_20261107.md)。
-- A1-1 检查连接：本分支代码 `ae23efaefedaed5aad0a8924565e4a6475c8d0bb` 已完成完整门禁，详见 [Windows 验证](docs/A1_1_WINDOWS_GATE_20261109.md)，尚待推送、建 PR 和授权合并。优先使用元数据检查，只有作者再次确认才发送可能计费的测试消息，发送路径受台账和预算约束。
+- A1-1 检查连接：本分支代码 `ae23efaefedaed5aad0a8924565e4a6475c8d0bb` 已完成完整门禁，详见 [Windows 验证](docs/A1_1_WINDOWS_GATE_20261109.md)，PR [#44](https://github.com/King70404/AI-Writer-project/pull/44) 已推送，等待用户授权合并。优先使用元数据检查，只有作者再次确认才发送可能计费的测试消息，发送路径受台账和预算约束。
 - A2-1、A2-2、B-2、B-3 与 E/F08 仍在实施或验证；未合并成果不计入 main 已交付。
 
 ## 后续与约束
