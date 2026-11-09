@@ -33,7 +33,7 @@ STORY_CONTROL_REVISION = "0013_add_story_control"
 IMPORT_REVISION = "0014_add_manuscript_imports"
 HANDOFF_REVISION = "0015_add_external_handoffs"
 WRITING_JOB_REVISION = "0016_add_writing_jobs"
-CURRENT_REVISION = "0017_add_writing_job_budgets"
+CURRENT_REVISION = "0018_add_connection_check_usage"
 
 SUPPORTED_SCHEMA_TABLES: Mapping[str, frozenset[str]] = MappingProxyType(
     {
@@ -114,6 +114,7 @@ SUPPORTED_SCHEMA_TABLES: Mapping[str, frozenset[str]] = MappingProxyType(
         - WRITING_JOB_BUDGET_TABLE_NAMES,
         WRITING_JOB_REVISION: BUSINESS_TABLE_NAMES - WRITING_JOB_BUDGET_TABLE_NAMES,
         CURRENT_REVISION: BUSINESS_TABLE_NAMES,
+        "0017_add_writing_job_budgets": BUSINESS_TABLE_NAMES,
     }
 )
 TABLE_QUERY = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"

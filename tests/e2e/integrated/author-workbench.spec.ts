@@ -2,7 +2,7 @@ import { expectCleanBrowserAudit } from "../support/assertions";
 import { expect, test } from "../support/fixture";
 
 const MODEL_CALL_PATH =
-  /\/(?:generate|analyze|analysis|review|reviews|chat\/completions)(?:\/|$)/u;
+  /\/(?:generate|analyze|analysis|review|reviews|connection-check|chat\/completions)(?:\/|$)/u;
 
 test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-place model and rule shortcut", async ({
   page,

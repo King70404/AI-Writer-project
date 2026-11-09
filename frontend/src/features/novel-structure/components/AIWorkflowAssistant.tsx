@@ -512,6 +512,7 @@ export function AIWorkflowAssistant({
           )}
         </section>
         <AIModelSettings
+          projectId={writing.state.snapshot.resource.project_id}
           models={ai.models}
           disabled={ai.busy || ai.upgradeRequired}
           onUpgradeRequired={ai.modelError}
