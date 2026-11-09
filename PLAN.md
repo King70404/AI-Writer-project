@@ -6,7 +6,7 @@
 
 - A1-2：[PR #43](https://github.com/King70404/AI-Writer-project/pull/43) 已推送，等待用户授权合并。
 - A1-1：[PR #44](https://github.com/King70404/AI-Writer-project/pull/44) 已推送，等待用户授权合并；代码 `ae23efaefedaed5aad0a8924565e4a6475c8d0bb` 的完整 Windows 门禁通过。
-- B-2：本分支代码 `a447119013c6e37f6d2873544b2bdf0b7eed8a13` 已通过完整 Windows 门禁，范文分析与一致性评审显示发送前预估，严格预算禁止发送、提示模式需确认；详见 [验证报告](docs/B2_ESTIMATES_WINDOWS_GATE_20261109.md)。尚待推送、建 PR 和授权合并。
+- B-2：本分支代码 `a447119013c6e37f6d2873544b2bdf0b7eed8a13` 已通过完整 Windows 门禁，范文分析与一致性评审显示发送前预估，严格预算禁止发送、提示模式需确认；详见 [验证报告](docs/B2_ESTIMATES_WINDOWS_GATE_20261109.md)。PR [#45](https://github.com/King70404/AI-Writer-project/pull/45) 已推送，等待用户授权合并。
 - A2-1、A2-2、B-3 与 E/F08 仍在实施或验证；未合并成果不计入 main 已交付。
 
 ## 后续与约束
