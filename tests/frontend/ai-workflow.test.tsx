@@ -7,7 +7,9 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { budgetClient } from "../../frontend/src/features/usage/api/budget";
+import { allowedAnalysisEstimate } from "./analysis-estimate-support";
 import { AIWorkflowAssistant } from "../../frontend/src/features/novel-structure/components/AIWorkflowAssistant";
 import { AIModelSettings } from "../../frontend/src/features/novel-structure/components/AIModelSettings";
 import { securitySession } from "../../frontend/src/api/security-session";
@@ -25,6 +27,11 @@ import { AIWritingError } from "../../frontend/src/features/novel-structure/api/
 import { chapterId } from "./novel-structure-support";
 import { deferred, written, writingClient } from "./chapter-writing-support";
 
+beforeEach(() => {
+  vi.spyOn(budgetClient, "estimate").mockResolvedValue(
+    allowedAnalysisEstimate(),
+  );
+});
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();

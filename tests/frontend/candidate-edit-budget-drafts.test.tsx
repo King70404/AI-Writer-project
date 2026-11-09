@@ -600,10 +600,13 @@ describe("AIWorkflowAssistant with edits and budgets", () => {
 });
 
 describe("SendEstimatePanel", () => {
-  it("shows the conservative bound and keeps sending possible when the estimate is unavailable", async () => {
+  it("requires a successful estimate before sending and allows an explicit retry", async () => {
     const gate = vi.fn();
     const failing = fakeBudget({
-      estimate: vi.fn().mockRejectedValue(new Error("x")),
+      estimate: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("x"))
+        .mockResolvedValueOnce(estimate()),
     });
     const view = render(
       <SendEstimatePanel
@@ -616,7 +619,12 @@ describe("SendEstimatePanel", () => {
     );
     expect(screen.getByText("正在计算发送前预估…")).toBeVisible();
     expect(await screen.findByText(/暂时无法读取发送前预估/u)).toBeVisible();
-    expect(gate).toHaveBeenLastCalledWith(true, "");
+    expect(gate).toHaveBeenLastCalledWith(
+      false,
+      "请先完成发送前预估，再确认发送。",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "重新预估" }));
+    await waitFor(() => expect(gate).toHaveBeenLastCalledWith(true, ""));
     view.unmount();
     render(
       <SendEstimatePanel
@@ -638,7 +646,9 @@ describe("SendEstimatePanel", () => {
       />,
     );
     expect(await screen.findByText(/输入不超过 340/u)).toBeVisible();
-    expect(screen.getByText("当前模型未填写价格，不估算金额。")).toBeVisible();
+    expect(
+      screen.getByText("未计价：当前模型未填写价格，不估算金额。"),
+    ).toBeVisible();
     expect(screen.getByText(/另有 2 次请求发生在填写价格前/u)).toBeVisible();
     render(
       <SendEstimatePanel

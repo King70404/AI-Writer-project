@@ -460,6 +460,14 @@ class StoryMemoryService:
             ),
         )
 
+    def review_for_estimate(self, chapter_id: str, review_id: str) -> Review:
+        review = next(
+            (item for item in self.workspace(chapter_id).reviews if item.id == review_id), None
+        )
+        if review is None:
+            raise MemoryNotFound
+        return review
+
     def _save_review(self, review: Review, **changes: object) -> Review:
         updated = Review.model_validate(
             {

@@ -72,7 +72,7 @@ def test_route_inventory_contains_all_declared_business_routes(tmp_path: Path) -
         ("POST", "/api/v1/chapters/{chapter_id}/ai/continue"),
         ("POST", "/api/v1/chapters/{chapter_id}/ai/rewrite"),
     }
-    assert len(routes) == 117
+    assert len(routes) == 119
     assert routes == expected_routes | AI_WORKFLOW_OPERATIONS | (
         WRITING_PREPARATION_OPERATIONS
         | STORY_MEMORY_OPERATIONS
