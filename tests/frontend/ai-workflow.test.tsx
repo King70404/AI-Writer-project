@@ -537,6 +537,7 @@ it("cloud UI requires visible transmission consent before sending", async () => 
   const generate = await screen.findByRole("button", {
     name: "确认发送并生成",
   });
+  await screen.findByText(/输入不超过/u);
   expect(generate).toBeDisabled();
   expect(
     screen.getByText(/https:\/\/api.example.com\/v1/u),
@@ -546,7 +547,7 @@ it("cloud UI requires visible transmission consent before sending", async () => 
       name: "我同意本轮任务向该模型发送上述内容",
     }),
   );
-  expect(generate).toBeEnabled();
+  await waitFor(() => expect(generate).toBeEnabled());
   fireEvent.click(generate);
   await waitFor(() =>
     expect(api.action).toHaveBeenCalledExactlyOnceWith(
@@ -598,6 +599,7 @@ it("shows cloud generation progress and errors next to the clicked button and re
       name: "我同意本轮任务向该模型发送上述内容",
     }),
   );
+  await waitFor(() => expect(generate).toBeEnabled());
   fireEvent.click(generate);
   const task = within(screen.getByRole("region", { name: "当前AI任务" }));
   expect(task.getByText(/正在发送请求并等待模型回复/u)).toBeVisible();
@@ -893,7 +895,7 @@ it("cloud confirmation does not transfer to a different restored task", async ()
       name: "我同意本轮任务向该模型发送上述内容",
     }),
   );
-  expect(generate).toBeEnabled();
+  await waitFor(() => expect(generate).toBeEnabled());
   vi.mocked(api.list).mockResolvedValue([
     { ...run, run_id: "different-run", model_snapshot: cloud },
   ]);
