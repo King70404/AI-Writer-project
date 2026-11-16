@@ -13,7 +13,7 @@
 ## 活动交付
 
 - A1-2 [PR #43](https://github.com/King70404/AI-Writer-project/pull/43)、A1-1 [PR #44](https://github.com/King70404/AI-Writer-project/pull/44) 与 B-2 [PR #45](https://github.com/King70404/AI-Writer-project/pull/45) 未合并，分别等待授权。
-- A2-1 代码候选 `7f29b689f39b363c95c8826792e753f3a8b47237`：书架汇总读取真实统计，分页且不返回正文；独立全量后端 3,256 项和前端检查通过，首轮开发模式 E2E 发现问题并已修复，定向 E2E-DEV-001 重测通过。修复后的完整门禁正在运行，结果未出，不视为交付。
+- A2-1 [PR #47](https://github.com/King70404/AI-Writer-project/pull/47) 完整 Windows 门禁通过，尚未合并；本分支依赖其代码。
 - A2-2 [PR #48](https://github.com/King70404/AI-Writer-project/pull/48) 代码候选 `8ae7611cc426c4c922b52bcb780ccb33c47a5798` 基于 A2-1，完整 Windows 门禁通过，详见 [验证记录](docs/A2_2_WINDOWS_GATE_20261116.md)；尚未合并，等待依赖 PR 和用户授权。
 - E 方法验证 F08 仍在开发和验证；B-3 独立候选已通过全量门禁，草稿 [PR #46](https://github.com/King70404/AI-Writer-project/pull/46) 尚需与 A2-2 整合后重验。
 
