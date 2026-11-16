@@ -107,5 +107,7 @@ it("does not send a cancelled duplicate request during strict-mode mounting", as
   );
   await screen.findByRole("table");
   expect(read).toHaveBeenCalledTimes(1);
-  expect(read.mock.calls[0][2].aborted).toBe(false);
+  const signal: unknown = read.mock.calls[0][2];
+  expect(signal).toBeInstanceOf(AbortSignal);
+  expect((signal as AbortSignal).aborted).toBe(false);
 });
