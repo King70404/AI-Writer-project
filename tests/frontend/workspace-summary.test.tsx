@@ -732,3 +732,48 @@ it("re-reads the derived summary when the page reports a structure change", asyn
   );
   await waitFor(() => expect(client.summary).toHaveBeenCalledTimes(2));
 });
+
+it("filters the new reminder types and links to their persisted source", async () => {
+  const thread = parseActionItem(
+    rawAction({
+      kind: "due_thread",
+      entity_id: "thread-one",
+      target_kind: "thread",
+      chapter_title: "渡口计划",
+    }),
+  );
+  const budget = parseActionItem(
+    rawAction({
+      kind: "budget_reminder",
+      entity_id: "monthly-budget",
+      target_kind: "budget",
+      chapter_id: null,
+      volume_id: null,
+      chapter_title: "本月预算需核对",
+    }),
+  );
+  const client = fakeClient({
+    actions: vi.fn().mockResolvedValue(page([thread, budget], 2, null)),
+  });
+  render(
+    <MemoryRouter>
+      <WorkspaceSummaryPanel projectId={structureProjectId} client={client} />
+    </MemoryRouter>,
+  );
+  const threadLink = await screen.findByRole("link", { name: "渡口计划" });
+  expect(threadLink).toHaveAttribute(
+    "href",
+    `/projects/${structureProjectId}/structure#thread-thread-one`,
+  );
+  expect(screen.getByRole("link", { name: "本月预算需核对" })).toHaveAttribute(
+    "href",
+    `/projects/${structureProjectId}/structure#project-budget`,
+  );
+  fireEvent.change(screen.getByRole("combobox", { name: "筛选已加载事项" }), {
+    target: { value: "budget_reminder" },
+  });
+  expect(
+    screen.queryByRole("link", { name: "渡口计划" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "本月预算需核对" })).toBeVisible();
+});

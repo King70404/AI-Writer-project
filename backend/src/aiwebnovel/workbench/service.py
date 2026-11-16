@@ -28,6 +28,7 @@ from aiwebnovel.workbench.models import (
     VolumeSummary,
     WorkspaceSummary,
 )
+from aiwebnovel.workbench.reminders import reminder_actions
 from aiwebnovel.workbench.snapshot import ChapterRow, MemoryRow, ProjectSnapshot
 
 
@@ -129,7 +130,14 @@ def derive_actions(snapshot: ProjectSnapshot) -> list[ActionItem]:
         for (kind, chapter_id), count in counts.items()
         if chapter_id in chapters
     ]
-    items.sort(key=lambda item: (rank[item.kind], order[item.chapter_id]))
+    items.extend(reminder_actions(snapshot))
+    items.sort(
+        key=lambda item: (
+            rank[item.kind],
+            order.get(item.chapter_id or "", -1),
+            item.entity_id or "",
+        )
+    )
     return items
 
 
@@ -228,7 +236,13 @@ class WorkbenchService:
                 ActionCount(
                     kind=kind,
                     items=sum(item.count for item in actions if item.kind == kind),
-                    chapters=sum(1 for item in actions if item.kind == kind),
+                    chapters=len(
+                        {
+                            item.chapter_id
+                            for item in actions
+                            if item.kind == kind and item.chapter_id is not None
+                        }
+                    ),
                 )
                 for kind in ACTION_ORDER
             ],
@@ -244,7 +258,8 @@ class WorkbenchService:
             raise WorkbenchVolumeNotFound
         open_actions: Counter[str] = Counter()
         for item in derive_actions(snapshot):
-            open_actions[item.chapter_id] += item.count
+            if item.chapter_id is not None:
+                open_actions[item.chapter_id] += item.count
         selected = [
             chapter
             for chapter in snapshot.chapters
