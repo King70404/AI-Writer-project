@@ -3,6 +3,7 @@ import { chapterWritingPath } from "../../novel-structure/routing";
 import { ProjectsPage } from "../../projects";
 import type { ProjectApiClient } from "../../projects/api/client";
 import { recentChapterForProject } from "../recentWriting";
+import { BookshelfOverview } from "../components/BookshelfOverview";
 
 function continueWritingPath(projectId: string): string | null {
   const recent = recentChapterForProject(projectId);
@@ -16,6 +17,7 @@ export function BookshelfPage({
 }) {
   return (
     <>
+      <BookshelfOverview />
       <ProjectsPage client={client} continueWritingPath={continueWritingPath} />
       <ImportWorkbench />
     </>

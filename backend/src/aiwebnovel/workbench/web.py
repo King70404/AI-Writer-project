@@ -13,6 +13,7 @@ from aiwebnovel.workbench.models import (
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
     ActionPage,
+    BookshelfPage,
     ChapterSummaryPage,
     EditorialConflict,
     EditorialState,
@@ -118,6 +119,22 @@ Service = Annotated[WorkbenchService, Depends(get_workbench_service)]
 
 def create_workbench_router(*, api_prefix: str) -> APIRouter:
     router = APIRouter(prefix=api_prefix, tags=["Author Workbench"])
+
+    @router.get("/workspace/overview", response_model=BookshelfPage | None)
+    def overview(
+        request: Request,
+        response: Response,
+        page: Annotated[tuple[int, int], Depends(get_action_page)],
+    ) -> BookshelfPage | None:
+        response.headers["Cache-Control"] = "no-store"
+        # A healthy foundation database may not have author-workflow tables yet.
+        # Signal unavailable explicitly; never invent an empty bookshelf.
+        service = getattr(request.app.state, "workbench_service", None)
+        if getattr(request.app.state, "ai_workflow_schema_required", False) or not isinstance(
+            service, WorkbenchService
+        ):
+            return None
+        return service.overview(*page)
 
     @router.get("/projects/{project_id}/workspace", response_model=WorkspaceSummary)
     def summary(project_id: str, response: Response, service: Service) -> WorkspaceSummary:

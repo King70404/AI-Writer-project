@@ -115,6 +115,11 @@ class ProjectQueryService:
     def __init__(self, repository: ProjectRepository) -> None:
         self._repository = repository
 
+    def overview_page(self, offset: int, limit: int) -> tuple[int, list[tuple[str, str]]]:
+        if type(offset) is not int or type(limit) is not int or offset < 0 or not 1 <= limit <= 100:
+            raise ValueError("Invalid overview page")
+        return self._repository.overview_page(offset, limit)
+
     def get_project(self, query: GetProjectQuery) -> ProjectSnapshot | None:
         """Return one current snapshot, or None when the Project does not exist."""
         if type(query) is not GetProjectQuery:

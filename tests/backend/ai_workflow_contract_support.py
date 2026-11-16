@@ -45,6 +45,7 @@ BACKUP_OPERATIONS = {
 }
 
 WORKBENCH_OPERATIONS = {
+    ("GET", "/api/v1/workspace/overview"),
     ("GET", "/api/v1/projects/{project_id}/workspace"),
     ("GET", "/api/v1/projects/{project_id}/workspace/chapters"),
     ("GET", "/api/v1/projects/{project_id}/workspace/actions"),

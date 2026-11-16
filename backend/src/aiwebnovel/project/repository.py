@@ -13,6 +13,10 @@ from aiwebnovel.project.values import ProjectDescription, ProjectTitle
 class ProjectRepository(Protocol):
     """Store and restore only the current Project aggregate transactionally."""
 
+    def overview_page(self, offset: int, limit: int) -> tuple[int, list[tuple[str, str]]]:
+        """Read a bounded page of active project identifiers and current titles."""
+        ...
+
     def create(self, aggregate: ProjectAggregate) -> ProjectAggregate:
         """Atomically persist a new Project, its first revision, and its head."""
         ...

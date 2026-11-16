@@ -17,6 +17,8 @@ from aiwebnovel.workbench.models import (
     ActionItem,
     ActionKind,
     ActionPage,
+    BookshelfPage,
+    BookshelfSummary,
     ChapterSummary,
     ChapterSummaryPage,
     EditorialCounts,
@@ -34,6 +36,9 @@ class WorkbenchVolumeNotFound(DomainError):
 
 
 class WorkbenchRepository(Protocol):
+    def bookshelf(
+        self, offset: int, limit: int
+    ) -> tuple[int, list[tuple[str, str, ProjectSnapshot]]]: ...
     def snapshot(self, project_id: str) -> ProjectSnapshot: ...
 
     def get_editorial(self, chapter_id: str) -> EditorialState: ...
@@ -155,6 +160,35 @@ class WorkbenchService:
 
     def summary(self, project_id: str) -> WorkspaceSummary:
         snapshot = self._repository.snapshot(project_id)
+        return self._summary(project_id, snapshot)
+
+    def overview(self, offset: int, limit: int) -> BookshelfPage:
+        total, snapshots = self._repository.bookshelf(offset, limit)
+        items = []
+        for project_id, title, snapshot in snapshots:
+            actions = derive_actions(snapshot)
+            items.append(
+                BookshelfSummary(
+                    project_id=project_id,
+                    title=title,
+                    characters=sum(chapter.characters for chapter in snapshot.chapters),
+                    chapter_count=len(snapshot.chapters),
+                    volume_count=len(snapshot.volumes),
+                    editorial=_editorial_counts(snapshot.chapters, snapshot),
+                    action_total=sum(item.count for item in actions),
+                )
+            )
+        end = offset + len(items)
+        return BookshelfPage(
+            total=total,
+            offset=offset,
+            limit=limit,
+            next_offset=end if end < total else None,
+            items=items,
+            generated_at=self._clock(),
+        )
+
+    def _summary(self, project_id: str, snapshot: ProjectSnapshot) -> WorkspaceSummary:
         actions = derive_actions(snapshot)
         latest = max(
             snapshot.chapters,

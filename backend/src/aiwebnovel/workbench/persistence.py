@@ -132,6 +132,72 @@ class SqlAlchemyWorkbenchRepository:
         self._sessions = sessions
         self._projects = projects
 
+    def bookshelf(
+        self, offset: int, limit: int
+    ) -> tuple[int, list[tuple[str, str, ProjectSnapshot]]]:
+        """A bounded project page with a constant number of batched metadata queries."""
+        total, projects = self._projects.overview_page(offset, limit)
+        with self._sessions() as session:
+            identifiers = tuple(ProjectId.parse(row[0]) for row in projects)
+            if not identifiers:
+                return total, []
+            volume_owners = {
+                str(row[0]): str(row[1])
+                for row in session.execute(
+                    select(VolumeRecord.id, VolumeRecord.project_id).where(
+                        VolumeRecord.project_id.in_(identifiers)
+                    )
+                )
+            }
+            chapter_owners = {
+                str(row[0]): str(row[1])
+                for row in session.execute(
+                    select(ChapterRecord.id, ChapterRecord.project_id).where(
+                        ChapterRecord.project_id.in_(identifiers)
+                    )
+                )
+            }
+            volumes = self._volumes(session, identifiers)
+            chapters = self._chapters(session, identifiers)
+            editorial = self._editorial(session, identifiers)
+            pending = self._pending_candidates(session, identifiers)
+            memory = self._memory(session, identifiers)
+            result = []
+            for identifier, title in projects:
+                project = str(identifier)
+                result.append(
+                    (
+                        project,
+                        title,
+                        ProjectSnapshot(
+                            volumes=tuple(
+                                item for item in volumes if volume_owners[item.volume_id] == project
+                            ),
+                            chapters=tuple(
+                                item
+                                for item in chapters
+                                if chapter_owners[item.chapter_id] == project
+                            ),
+                            editorial={
+                                key: value
+                                for key, value in editorial.items()
+                                if chapter_owners.get(key) == project
+                            },
+                            pending_candidates={
+                                key: value
+                                for key, value in pending.items()
+                                if chapter_owners.get(key) == project
+                            },
+                            memory=tuple(
+                                item
+                                for item in memory
+                                if chapter_owners.get(item.chapter_id) == project
+                            ),
+                        ),
+                    )
+                )
+            return total, result
+
     def snapshot(self, project_id: str) -> ProjectSnapshot:
         identifier = ProjectId.parse(project_id)
         # The project query service hides logically deleted Projects.
@@ -147,7 +213,9 @@ class SqlAlchemyWorkbenchRepository:
             )
 
     @staticmethod
-    def _volumes(session: Session, project_id: ProjectId) -> tuple[VolumeRow, ...]:
+    def _volumes(
+        session: Session, project_id: ProjectId | tuple[ProjectId, ...]
+    ) -> tuple[VolumeRow, ...]:
         rows = session.execute(
             select(VolumeRecord.id, VolumeRevisionRecord.title, VolumeRecord.current_position)
             .join(VolumeHeadRecord, VolumeHeadRecord.volume_id == VolumeRecord.id)
@@ -158,13 +226,19 @@ class SqlAlchemyWorkbenchRepository:
                     VolumeRevisionRecord.id == VolumeHeadRecord.revision_id,
                 ),
             )
-            .where(VolumeRecord.project_id == project_id)
+            .where(
+                VolumeRecord.project_id.in_(
+                    project_id if isinstance(project_id, tuple) else (project_id,)
+                )
+            )
             .order_by(VolumeRecord.current_position, VolumeRecord.id)
         )
         return tuple(VolumeRow(str(row[0]), row[1], row[2]) for row in rows)
 
     @staticmethod
-    def _chapters(session: Session, project_id: ProjectId) -> tuple[ChapterRow, ...]:
+    def _chapters(
+        session: Session, project_id: ProjectId | tuple[ProjectId, ...]
+    ) -> tuple[ChapterRow, ...]:
         rows = session.execute(
             select(
                 ChapterRecord.id,
@@ -185,7 +259,12 @@ class SqlAlchemyWorkbenchRepository:
                     ChapterRevisionRecord.id == ChapterHeadRecord.revision_id,
                 ),
             )
-            .where(ChapterRecord.project_id == project_id, VolumeRecord.project_id == project_id)
+            .where(
+                ChapterRecord.project_id.in_(
+                    project_id if isinstance(project_id, tuple) else (project_id,)
+                ),
+                VolumeRecord.project_id == ChapterRecord.project_id,
+            )
             .order_by(
                 VolumeRecord.current_position,
                 VolumeRecord.id,
@@ -208,11 +287,17 @@ class SqlAlchemyWorkbenchRepository:
         )
 
     @staticmethod
-    def _editorial(session: Session, project_id: ProjectId) -> dict[str, EditorialRow]:
+    def _editorial(
+        session: Session, project_id: ProjectId | tuple[ProjectId, ...]
+    ) -> dict[str, EditorialRow]:
         record = ChapterEditorialRevisionRecord
         latest = (
             select(record.chapter_id, func.max(record.version).label("version"))
-            .where(record.project_id == project_id)
+            .where(
+                record.project_id.in_(
+                    project_id if isinstance(project_id, tuple) else (project_id,)
+                )
+            )
             .group_by(record.chapter_id)
             .subquery()
         )
@@ -233,22 +318,35 @@ class SqlAlchemyWorkbenchRepository:
         return EditorialRow(status, row.version, str(row.chapter_revision_id), _iso(row.created_at))
 
     @staticmethod
-    def _pending_candidates(session: Session, project_id: ProjectId) -> dict[str, int]:
+    def _pending_candidates(
+        session: Session, project_id: ProjectId | tuple[ProjectId, ...]
+    ) -> dict[str, int]:
         record = AIWorkflowCandidateRecord
         rows = session.execute(
             select(record.chapter_id, func.count())
             .join(ChapterRecord, ChapterRecord.id == record.chapter_id)
-            .where(ChapterRecord.project_id == project_id, record.status == "pending")
+            .where(
+                ChapterRecord.project_id.in_(
+                    project_id if isinstance(project_id, tuple) else (project_id,)
+                ),
+                record.status == "pending",
+            )
             .group_by(record.chapter_id)
         )
         return {str(row[0]): int(row[1]) for row in rows}
 
     @staticmethod
-    def _memory(session: Session, project_id: ProjectId) -> tuple[MemoryRow, ...]:
+    def _memory(
+        session: Session, project_id: ProjectId | tuple[ProjectId, ...]
+    ) -> tuple[MemoryRow, ...]:
         record = StoryMemoryRevisionRecord
         latest = (
             select(record.entity_id, func.max(record.version).label("version"))
-            .where(record.project_id == project_id)
+            .where(
+                record.project_id.in_(
+                    project_id if isinstance(project_id, tuple) else (project_id,)
+                )
+            )
             .group_by(record.entity_id)
             .subquery()
         )

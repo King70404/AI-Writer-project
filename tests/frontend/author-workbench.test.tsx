@@ -10,6 +10,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthorHomePage } from "../../frontend/src/features/workbench/pages/AuthorHomePage";
+import { bookshelfClient } from "../../frontend/src/features/workbench/api/workspace";
 import { BookshelfPage } from "../../frontend/src/features/workbench/pages/BookshelfPage";
 import {
   forgetRecentChapter,
@@ -62,6 +63,14 @@ function LocationProbe() {
 }
 
 beforeEach(() => {
+  vi.spyOn(bookshelfClient, "page").mockResolvedValue({
+    total: 0,
+    offset: 0,
+    limit: 20,
+    next_offset: null,
+    items: [],
+    generated_at: "now",
+  });
   localStorage.clear();
   vi.spyOn(aiWorkflowClient, "models").mockResolvedValue([localModel]);
   vi.spyOn(aiWorkflowClient, "list").mockResolvedValue([]);
