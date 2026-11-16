@@ -1,6 +1,7 @@
 import { getJson, putJson } from "../../../api/client";
 import { ApiError } from "../../../api/errors";
 import { securitySession } from "../../../api/security-session";
+import { isCanonicalProjectId } from "../../projects/api/parsers";
 
 /**
  * 工作台汇总读模型（A2）。所有数字由服务端从已保存数据派生：
@@ -13,7 +14,9 @@ export type ActionKind =
   | "pending_fact"
   | "stale_review"
   | "unfinished_review"
-  | "final_changed";
+  | "final_changed"
+  | "due_thread"
+  | "budget_reminder";
 
 export const EDITORIAL_LABELS: Record<EditorialStatus, string> = {
   draft: "草稿",
@@ -28,6 +31,8 @@ export const ACTION_LABELS: Record<ActionKind, string> = {
   pending_candidate: "未处理的 AI 候选",
   pending_fact: "待确认事实",
   unfinished_review: "未完成的评审",
+  due_thread: "到期伏笔或证据待复核",
+  budget_reminder: "预算提醒",
 };
 
 export interface EditorialCounts {
@@ -80,12 +85,14 @@ export interface ChapterSummary {
 }
 export interface ActionItem {
   readonly kind: ActionKind;
-  readonly chapter_id: string;
-  readonly volume_id: string;
+  readonly chapter_id: string | null;
+  readonly volume_id: string | null;
   readonly chapter_title: string;
   readonly chapter_position: number;
   readonly volume_position: number;
   readonly count: number;
+  readonly entity_id?: string | null;
+  readonly target_kind?: "chapter" | "thread" | "budget";
 }
 export interface Page<T> {
   readonly total: number;
@@ -246,14 +253,22 @@ export function parseChapterSummary(value: unknown): ChapterSummary {
 
 export function parseActionItem(value: unknown): ActionItem {
   const item = obj(value);
+  const target = item.target_kind ?? "chapter";
+  if (target !== "chapter" && target !== "thread" && target !== "budget")
+    invalid();
+  if (target === "chapter" && item.chapter_id === null) invalid();
   return {
     kind: actionKind(item.kind),
-    chapter_id: id(item.chapter_id),
-    volume_id: id(item.volume_id),
+    chapter_id: nullable(item.chapter_id, id),
+    volume_id: nullable(item.volume_id, id),
     chapter_title: str(item.chapter_title),
     chapter_position: count(item.chapter_position),
     volume_position: count(item.volume_position),
     count: count(item.count),
+    ...(item.entity_id === undefined
+      ? {}
+      : { entity_id: nullable(item.entity_id, id) }),
+    ...(item.target_kind === undefined ? {} : { target_kind: target }),
   };
 }
 
@@ -388,3 +403,68 @@ export const workspaceClient = {
     }),
 };
 export type WorkspaceClient = typeof workspaceClient;
+
+export interface BookshelfSummary extends Pick<
+  WorkspaceSummary,
+  | "project_id"
+  | "characters"
+  | "chapter_count"
+  | "volume_count"
+  | "editorial"
+  | "action_total"
+> {
+  readonly title: string;
+}
+export interface BookshelfOverviewPage {
+  readonly total: number;
+  readonly offset: number;
+  readonly limit: number;
+  readonly next_offset: number | null;
+  readonly items: readonly BookshelfSummary[];
+  readonly generated_at: string;
+}
+export function parseBookshelfOverview(
+  value: unknown,
+): BookshelfOverviewPage | null {
+  if (value === null) return null;
+  const item = obj(value);
+  const result = {
+    total: count(item.total),
+    offset: count(item.offset),
+    limit: count(item.limit),
+    next_offset: nullable(item.next_offset, count),
+    generated_at: str(item.generated_at),
+    items: array(item.items, (raw) => {
+      const book = obj(raw);
+      if (!isCanonicalProjectId(book.project_id)) invalid();
+      return {
+        project_id: id(book.project_id),
+        title: str(book.title),
+        characters: count(book.characters),
+        chapter_count: count(book.chapter_count),
+        volume_count: count(book.volume_count),
+        editorial: editorialCounts(book.editorial),
+        action_total: count(book.action_total),
+      };
+    }),
+  };
+  if (
+    result.limit < 1 ||
+    result.limit > 100 ||
+    result.items.length > result.limit ||
+    (result.next_offset !== null &&
+      result.next_offset !== result.offset + result.items.length)
+  )
+    invalid();
+  return result;
+}
+export const bookshelfClient = {
+  page: (offset: number, limit: number, signal?: AbortSignal) =>
+    request(() =>
+      getJson(
+        `workspace/overview?${pageQuery(offset, limit)}`,
+        parseBookshelfOverview,
+        { signal },
+      ),
+    ),
+};

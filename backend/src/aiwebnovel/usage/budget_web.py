@@ -35,6 +35,8 @@ class PutPriceRequest(_Body):
     currency: str = Field(min_length=3, max_length=3)
     input_per_million: str = Field(min_length=1, max_length=20)
     output_per_million: str = Field(min_length=1, max_length=20)
+    cached_input_per_million: str | None = Field(default=None, min_length=1, max_length=20)
+    cache_write_per_million: str | None = Field(default=None, min_length=1, max_length=20)
 
 
 class PutBudgetRequest(_Body):

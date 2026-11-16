@@ -56,6 +56,24 @@ class UsageAttemptView(UsageModel):
     started_at: str
     finished_at: str | None
     duration_ms: int | None
+    cached_input_tokens: int | None = None
+    cache_write_tokens: int | None = None
+    cache_details_status: Literal["not_reported", "reported", "invalid"] = "not_reported"
+    price_version: int | None = None
+    input_per_million: str | None = None
+    output_per_million: str | None = None
+    cached_input_per_million: str | None = None
+    cache_write_per_million: str | None = None
+    currency: str | None = None
+    amount: str | None = None
+    amount_basis: Literal[
+        "reported_tokens",
+        "cache_upper",
+        "total_tokens_upper",
+        "reserved_upper",
+        "unknown",
+        "unpriced",
+    ] = "unpriced"
 
 
 class UsageTotals(UsageModel):

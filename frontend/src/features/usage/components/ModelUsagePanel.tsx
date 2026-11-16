@@ -74,6 +74,17 @@ function AttemptRow({ item }: { readonly item: UsageAttempt }) {
         {STATUS_LABELS[item.status]}
       </span>
       <span>
+        缓存读取 {tokens(item.cached_input_tokens ?? null)} · 缓存写入{" "}
+        {tokens(item.cache_write_tokens ?? null)}
+        {item.cache_details_status === "invalid"
+          ? "（报告异常，金额待确认）"
+          : ""}
+        {" · "}
+        {item.amount == null
+          ? "未计价"
+          : `${item.amount} ${item.currency ?? ""}（${item.amount_basis === "reported_tokens" ? "报告 token 按冻结单价计算" : item.amount_basis === "cache_upper" ? "缓存明细未报告，金额保守上限" : item.amount_basis === "total_tokens_upper" ? "合计 token 保守上限" : "待确认，预留上限"}）`}
+      </span>
+      <span>
         {item.usage_source === "provider_reported"
           ? `服务商报告：输入 ${tokens(item.reported_input_tokens)} · 输出 ${tokens(item.reported_output_tokens)} token`
           : "用量未知（服务商未报告）"}
@@ -99,7 +110,7 @@ type Result =
 
 /**
  * 模型用量面板（B1）：打开时才读取台账，查看与刷新都不调用模型。
- * 只显示服务商报告的 token、未知次数与本机字符计数；不估算金额（价格与预算属 B2）。
+ * 显示报告 token、未知次数及按冻结价格计算的金额和估算依据。
  */
 export function ModelUsagePanel({
   projectId,
@@ -213,7 +224,8 @@ export function ModelUsagePanel({
       <summary>{title}</summary>
       <p className="model-usage__note">
         只记录已经发出的模型请求。“服务商报告”取自模型响应；服务商未报告、请求失败、超时或中断时记为“未知”，不按
-        0 计。字符数是本机计数，不是 token，也不是账单；未设置价格，不估算金额。
+        0 计。字符数是本机计数，不是
+        token。逐条金额按发送时的价格版本计算，缺少报告时保留预留上限；未设置价格时未计价。不同币种不相加，金额不是服务商账单。
       </p>
       {state.status === "loading" ? (
         <p role="status">正在读取模型用量…</p>

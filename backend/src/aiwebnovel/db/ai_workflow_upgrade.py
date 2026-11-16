@@ -19,8 +19,8 @@ from aiwebnovel.db.author_schema import (
     CURRENT_REVISION,
     SUPPORTED_SCHEMA_TABLES,
     TABLE_QUERY,
+    expected_columns,
 )
-from aiwebnovel.db.model_registry import load_model_metadata
 from aiwebnovel.storage.paths import StoragePaths
 
 _TARGET_REVISION = CURRENT_REVISION
@@ -85,10 +85,9 @@ def _check_schema(connection: Connection) -> str:
     expected_tables = _SCHEMA_TABLES[revision]
     if tables != expected_tables | {"alembic_version"}:
         raise AIWorkflowUpgradeUnsupported("The database version or tables are not supported")
-    metadata = load_model_metadata()
     for table in sorted(expected_tables):
         columns = {row[1] for row in connection.exec_driver_sql(f'PRAGMA table_info("{table}")')}
-        if columns != set(metadata.tables[table].columns.keys()):
+        if columns != expected_columns(revision, table):
             raise AIWorkflowUpgradeUnsupported("The existing author schema is incomplete")
     return revision
 

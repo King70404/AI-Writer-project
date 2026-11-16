@@ -36,7 +36,13 @@ from aiwebnovel.project.application.queries import GetProjectQuery
 from aiwebnovel.project.application.services import ProjectQueryService
 from aiwebnovel.project.errors import ProjectNotFound
 from aiwebnovel.project.identifiers import ProjectId
-from aiwebnovel.usage.budget import BudgetRefused
+from aiwebnovel.usage.budget import (
+    AttemptCost,
+    BudgetRefused,
+    cache_cost_is_upper,
+    format_amount,
+    settled_cost,
+)
 from aiwebnovel.usage.models import (
     ModelUsage,
     OperationUsage,
@@ -111,6 +117,9 @@ class ModelUsageAttemptRecord(Base):
     reported_input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reported_output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reported_total_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cached_input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cache_write_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cache_details_status: Mapped[str] = mapped_column(String(20), nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -195,6 +204,9 @@ def _view(record: ModelUsageAttemptRecord) -> UsageAttemptView:
             "started_at": _iso(record.started_at),
             "finished_at": None if record.finished_at is None else _iso(record.finished_at),
             "duration_ms": record.duration_ms,
+            "cached_input_tokens": record.cached_input_tokens,
+            "cache_write_tokens": record.cache_write_tokens,
+            "cache_details_status": record.cache_details_status,
         }
     )
 
@@ -260,6 +272,7 @@ class SqlAlchemyUsageLedger:
                             reported_input_tokens=None,
                             reported_output_tokens=None,
                             reported_total_tokens=None,
+                            cache_details_status="not_reported",
                             started_at=self._clock(),
                             finished_at=None,
                             duration_ms=None,
@@ -302,6 +315,11 @@ class SqlAlchemyUsageLedger:
             record.reported_input_tokens = None if usage is None else usage.input_tokens
             record.reported_output_tokens = None if usage is None else usage.output_tokens
             record.reported_total_tokens = None if usage is None else usage.total_tokens
+            record.cached_input_tokens = None if usage is None else usage.cached_input_tokens
+            record.cache_write_tokens = None if usage is None else usage.cache_write_tokens
+            record.cache_details_status = (
+                "not_reported" if usage is None else usage.cache_details_status
+            )
             record.finished_at = finished
             record.duration_ms = max(
                 0, int((_aware(finished) - _aware(record.started_at)).total_seconds() * 1000)
@@ -360,14 +378,69 @@ class SqlAlchemyUsageLedger:
                     .order_by(_R.model_kind, _R.model_name)
                 )
             ]
-            records = session.scalars(
-                select(_R)
+            from aiwebnovel.usage.budget_persistence import (
+                ModelBudgetReservationRecord as Reservation,
+            )
+            from aiwebnovel.usage.budget_persistence import (
+                ModelPriceRevisionRecord as PriceRecord,
+            )
+
+            records = session.execute(
+                select(_R, Reservation, PriceRecord)
+                .outerjoin(Reservation, Reservation.attempt_id == _R.id)
+                .outerjoin(PriceRecord, PriceRecord.id == Reservation.price_revision_id)
                 .where(*conditions)
                 .order_by(_R.started_at.desc(), _R.id.desc())
                 .offset(offset)
                 .limit(limit)
             ).all()
-        items = [_view(record) for record in records]
+            items = []
+            for record, reservation, price in records:
+                view = _view(record)
+                if reservation is not None and price is not None:
+                    cost_row = AttemptCost(
+                        record.status,
+                        record.reported_input_tokens,
+                        record.reported_output_tokens,
+                        record.reported_total_tokens,
+                        reservation.reserved_micros,
+                        reservation.currency,
+                        price.input_micros_per_million,
+                        price.output_micros_per_million,
+                        record.cached_input_tokens,
+                        record.cache_write_tokens,
+                        price.cached_input_micros_per_million,
+                        price.cache_write_micros_per_million,
+                        record.cache_details_status,
+                    )
+                    cost = settled_cost(cost_row)
+                    basis = (
+                        "reserved_upper"
+                        if cost is None
+                        else (
+                            ("cache_upper" if cache_cost_is_upper(cost_row) else "reported_tokens")
+                            if record.reported_input_tokens is not None
+                            and record.reported_output_tokens is not None
+                            else "total_tokens_upper"
+                        )
+                    )
+                    values = view.model_dump()
+                    values.update(
+                        price_version=price.version,
+                        input_per_million=format_amount(price.input_micros_per_million),
+                        output_per_million=format_amount(price.output_micros_per_million),
+                        cached_input_per_million=None
+                        if price.cached_input_micros_per_million is None
+                        else format_amount(price.cached_input_micros_per_million),
+                        cache_write_per_million=None
+                        if price.cache_write_micros_per_million is None
+                        else format_amount(price.cache_write_micros_per_million),
+                        currency=reservation.currency,
+                        amount=format_amount(reservation.reserved_micros if cost is None else cost),
+                        amount_basis=basis,
+                    )
+                    view = UsageAttemptView.model_validate(values)
+                items.append(view)
         following = offset + len(items)
         return UsagePage(
             project_id=str(identifier),

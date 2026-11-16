@@ -44,6 +44,9 @@ class ProviderUsage:
     input_tokens: int | None
     output_tokens: int | None
     total_tokens: int | None
+    cached_input_tokens: int | None = None
+    cache_write_tokens: int | None = None
+    cache_details_status: Literal["not_reported", "reported", "invalid"] = "not_reported"
 
 
 def _reported_count(value: object) -> int | None:
@@ -68,7 +71,47 @@ def parse_provider_usage(data: object) -> ProviderUsage | None:
     total_tokens = _reported_count(usage.get("total_tokens"))
     if input_tokens is None and output_tokens is None and total_tokens is None:
         return None
-    return ProviderUsage(input_tokens, output_tokens, total_tokens)
+    details = usage.get("prompt_tokens_details", usage.get("input_tokens_details"))
+    status: Literal["not_reported", "reported", "invalid"] = "not_reported"
+    cached = written = None
+    details_present = "prompt_tokens_details" in usage or "input_tokens_details" in usage
+    if details_present:
+        if type(details) is not dict:
+            status = "invalid"
+        elif any(
+            key in details
+            for key in ("cached_tokens", "cache_creation_tokens", "cache_write_tokens")
+        ):
+            status = "reported"
+            cached = _reported_count(details.get("cached_tokens"))
+            written = _reported_count(
+                details.get("cache_creation_tokens", details.get("cache_write_tokens"))
+            )
+            if ("cached_tokens" in details and cached is None) or (
+                any(key in details for key in ("cache_creation_tokens", "cache_write_tokens"))
+                and written is None
+            ):
+                status = "invalid"
+            if (cached or 0) + (written or 0) > (
+                input_tokens if input_tokens is not None else MAX_REPORTED_TOKENS
+            ):
+                status = "invalid"
+            if (
+                "cache_creation_tokens" in details
+                and "cache_write_tokens" in details
+                and details["cache_creation_tokens"] != details["cache_write_tokens"]
+            ):
+                status = "invalid"
+    if (
+        "prompt_tokens_details" in usage
+        and "input_tokens_details" in usage
+        and usage["prompt_tokens_details"] != usage["input_tokens_details"]
+    ):
+        status = "invalid"
+    if any(key in usage for key in ("cache_read_input_tokens", "cache_creation_input_tokens")):
+        # These providers can exclude cache from input_tokens; do not guess inclusive semantics.
+        status = "invalid"
+    return ProviderUsage(input_tokens, output_tokens, total_tokens, cached, written, status)
 
 
 @dataclass(frozen=True, slots=True)

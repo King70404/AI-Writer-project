@@ -1301,3 +1301,35 @@ describe("writing desk story control", () => {
     fireEvent(details, new Event("toggle"));
   });
 });
+
+it("opens and focuses the linked persisted plot thread", async () => {
+  const original = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    "scrollIntoView",
+  );
+  const scroll = vi.fn();
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: scroll,
+  });
+  try {
+    render(
+      <StoryControlSection
+        projectId={projectId}
+        focusThreadId={thread.id}
+        client={fakeClient()}
+      />,
+    );
+    await waitFor(() =>
+      expect(document.getElementById(`thread-${thread.id}`)).toHaveFocus(),
+    );
+    expect(scroll).toHaveBeenCalled();
+    expect(
+      document.querySelector("details.story-control-section"),
+    ).toHaveAttribute("open");
+  } finally {
+    if (original)
+      Object.defineProperty(HTMLElement.prototype, "scrollIntoView", original);
+    else Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+  }
+});

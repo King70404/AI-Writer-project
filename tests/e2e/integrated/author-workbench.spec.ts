@@ -19,6 +19,11 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
     page.getByText(/项目总数|章节总数|今日字数|总字数|待办/u),
   ).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  await expect(
+    page
+      .getByRole("region", { name: "全书架汇总" })
+      .getByText("书架暂无小说。"),
+  ).toBeVisible();
 
   await expect(
     page.getByText("本地后端已连接，数据库基础检查通过。"),
@@ -244,6 +249,11 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
     name: "继续上次创作",
   });
   await expect(continueSection).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "全书架汇总" })
+      .getByRole("link", { name: title, exact: true }),
+  ).toBeVisible();
   await expect(continueSection.getByText(title, { exact: true })).toBeVisible();
   await expect(continueSection.getByText("第1章 · 雨夜")).toBeVisible();
   await expect(
@@ -294,6 +304,17 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
   );
 
   // 零额外模型调用：工作台只读写已有资源。
+  const overview = page.getByRole("region", { name: "全书架汇总" });
+  const row = overview
+    .getByRole("row")
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  await expect(row.getByRole("cell").nth(0)).toHaveText(
+    Array.from(firstText)
+      .filter((value) => !/\s/u.test(value))
+      .length.toString(),
+  );
+  await expect(row.getByRole("cell").nth(1)).toHaveText("1");
+  await expect(row.getByRole("cell").nth(2)).toHaveText("2");
   expect(
     browserAudit.events.filter(
       (event) => event.type === "request" && MODEL_CALL_PATH.test(event.path),
