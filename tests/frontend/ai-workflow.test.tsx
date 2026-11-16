@@ -646,6 +646,7 @@ it("explains unsaved prose at the send button before any provider request", asyn
   const generate = await screen.findByRole("button", {
     name: "确认发送并生成",
   });
+  await waitFor(() => expect(generate).toBeEnabled());
   fireEvent.click(screen.getByRole("button", { name: "修改正文" }));
   fireEvent.click(generate);
   const task = within(screen.getByRole("region", { name: "当前AI任务" }));
