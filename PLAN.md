@@ -14,7 +14,7 @@
 
 - A1-2 [PR #43](https://github.com/King70404/AI-Writer-project/pull/43)、A1-1 [PR #44](https://github.com/King70404/AI-Writer-project/pull/44)、B-2 [PR #45](https://github.com/King70404/AI-Writer-project/pull/45) 均未合并，等待用户分别授权。
 - B-3 分支 `codex/b3-cache-pricing` 的独立代码候选 `14f255d` 包含缓存 token 计价、迁移和 CSV 价格/金额列。独立完整 Windows 门禁已通过，证据见 [B-3 验证记录](docs/B3_PRICING_WINDOWS_GATE_20261116.md)；现已接入 A2-2，组合候选 `4265c24021f7f3e978e0fa2a829f209388e8c8e5` 完整 Windows 门禁通过，等待依赖 PR 合并及用户单独授权。
-- A2-1、A2-2 与 E 方法验证 F08 仍在开发和验证；不得把专项测试通过等同最终交付。
+- A2-1 [PR #47](https://github.com/King70404/AI-Writer-project/pull/47) 与 A2-2 [PR #48](https://github.com/King70404/AI-Writer-project/pull/48) 完整门禁通过，均尚未合并；E 方法验证 [PR #49](https://github.com/King70404/AI-Writer-project/pull/49) 的完整门禁仍在运行。
 
 ## 下一步
 
