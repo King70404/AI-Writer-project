@@ -17,7 +17,7 @@
 | B-2 分析与评审发送前预估 | [#45](https://github.com/King70404/AI-Writer-project/pull/45) | 完整 Windows 门禁通过；等待合并授权 |
 | B-3 缓存计价及 B-4 费用 CSV | [#46](https://github.com/King70404/AI-Writer-project/pull/46) | 含迁移、缓存列、单价、币种和逐条金额；组合完整门禁通过，等待依赖与授权 |
 
-B-1 和 B-4 用量导出已分别经 PR #40、#41 合并；B-4 的费用扩展仍在 PR #46。后续 F08 在独立 PR #49 验证，详情见 PLAN。
+B-1 和 B-4 用量导出已分别经 PR #40、#41 合并；B-4 的费用扩展仍在 PR #46。F08 的独立 PR #49 也已通过最终完整 Windows 门禁，详情见 PLAN；仍须授权后合并。
 
 ## 建议顺序与规模
 

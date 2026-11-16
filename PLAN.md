@@ -13,11 +13,11 @@
 ## 活动交付
 
 - 第四步各项均已实现并推送，尚未合并：A1-2 [PR #43](https://github.com/King70404/AI-Writer-project/pull/43)、A1-1 [#44](https://github.com/King70404/AI-Writer-project/pull/44)、A2-1 [#47](https://github.com/King70404/AI-Writer-project/pull/47)、A2-2 [#48](https://github.com/King70404/AI-Writer-project/pull/48)、B-2 [#45](https://github.com/King70404/AI-Writer-project/pull/45)、B-3 及费用 CSV [#46](https://github.com/King70404/AI-Writer-project/pull/46)。各项验证范围见 PR 与报告；A2、B-3 最终组合完整门禁已通过。
-- E 方法验证 [PR #49](https://github.com/King70404/AI-Writer-project/pull/49) 包含上述代码依赖、手工标注、两份显式 A/B 候选、作者评分及跨书模板。当前修复同试验重叠发送冲突，并补 E2E-INT-024 的初始读取完成等待；专项测试通过，完整门禁待重验，PR 保持草稿。操作与边界见 [方法验证](docs/METHOD_VALIDATION.md)。
+- E 方法验证 [PR #49](https://github.com/King70404/AI-Writer-project/pull/49) 代码候选 `8dcf46cfa9b91806acb5225268e37ccdb3301a15` 完整 Windows 门禁通过：后端 3,334 项、前端 1,098 项、E2E 34 场景及清理通过。精确覆盖率、日志散列和修复记录见 [F08 验证](docs/F08_WINDOWS_GATE_20261117.md)，操作与边界见 [方法验证](docs/METHOD_VALIDATION.md)。候选均未合并，不视为 main 已交付。
 
 ## 下一步
 
-完成 F08 最终完整门禁并记录精确版本；按依赖顺序在用户分别授权后合并。不会把未合并候选称为 main 已交付，不发布或打 tag。
+实施与验证已完成；按 A1-2 → A1-1 → A2-1 → A2-2 → B-2 → B-3 → F08 的依赖顺序，在用户分别授权后处理合并。不会把未合并候选称为 main 已交付，不发布或打 tag。
 
 ## 边界
 
