@@ -113,6 +113,9 @@ def compose_ai_workflow(
         "ai_candidate_edits",
         "model_budget_reservations",
         "story_control_revisions",
+        "method_trials",
+        "method_annotations",
+        "method_templates",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
@@ -171,7 +174,14 @@ def compose_ai_workflow(
             )
 
         studio, planning = compose_writing_studio(
-            session_factory, structure, projects, characters, story_bibles, generate, read_model
+            session_factory,
+            structure,
+            projects,
+            characters,
+            story_bibles,
+            generate,
+            read_model,
+            budgets,
         )
 
         def generation_sources(chapter_id: str) -> tuple[ContextSource, ...]:

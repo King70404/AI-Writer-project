@@ -19,6 +19,18 @@ AI_WORKFLOW_OPERATIONS = {
 
 WRITING_PREPARATION_OPERATIONS = {
     ("GET", "/api/v1/projects/{project_id}/writing/references/{reference_id}/estimate"),
+    ("POST", "/api/v1/projects/{project_id}/writing/method-trials"),
+    ("GET", "/api/v1/projects/{project_id}/writing/method-trials"),
+    ("GET", "/api/v1/projects/{project_id}/writing/method-trials/{trial_id}"),
+    ("GET", "/api/v1/projects/{project_id}/writing/method-trials/{trial_id}/estimate/{slot}"),
+    ("POST", "/api/v1/projects/{project_id}/writing/method-trials/{trial_id}/send"),
+    ("POST", "/api/v1/projects/{project_id}/writing/method-trials/{trial_id}/rate"),
+    ("POST", "/api/v1/projects/{project_id}/writing/method-annotations"),
+    ("GET", "/api/v1/projects/{project_id}/writing/method-annotations/{chapter_id}"),
+    ("POST", "/api/v1/projects/{project_id}/writing/method-templates"),
+    ("GET", "/api/v1/projects/{project_id}/writing/method-templates"),
+    ("DELETE", "/api/v1/projects/{project_id}/writing/method-templates/{template_id}"),
+    ("POST", "/api/v1/projects/{project_id}/writing/method-templates/{template_id}/copy"),
     ("GET", "/api/v1/projects/{project_id}/writing/references"),
     ("POST", "/api/v1/projects/{project_id}/writing/references"),
     ("GET", "/api/v1/projects/{project_id}/writing/references/{reference_id}"),

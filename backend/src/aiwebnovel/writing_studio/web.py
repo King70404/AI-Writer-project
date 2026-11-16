@@ -52,6 +52,9 @@ class RuleRequest(StrictRequest):
     name: str = Field(min_length=1, max_length=80)
     instruction: str = Field(min_length=1, max_length=1000)
     applies_to: str = Field(min_length=1, max_length=200)
+    scene_tags: list[str] = Field(default_factory=list, max_length=8)
+    excludes: str = Field(default="", max_length=200)
+    priority: int = Field(default=3, ge=1, le=5)
 
 
 class CreateRulesRequest(StrictRequest):

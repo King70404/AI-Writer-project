@@ -62,6 +62,9 @@ def test_registry_contains_exactly_authorized_business_tables() -> None:
         "writing_job_budgets",
         "writing_job_runs",
         "writing_jobs",
+        "method_trials",
+        "method_annotations",
+        "method_templates",
     }
     assert "alembic_version" not in metadata.tables
 

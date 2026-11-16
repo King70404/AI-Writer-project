@@ -30,6 +30,7 @@ from aiwebnovel.db.model_registry import (
     CANDIDATE_BUDGET_TABLE_NAMES,
     HANDOFF_TABLE_NAMES,
     IMPORT_TABLE_NAMES,
+    METHOD_VALIDATION_TABLE_NAMES,
     STORY_CONTROL_TABLE_NAMES,
     STORY_MEMORY_TABLE_NAMES,
     USAGE_TABLE_NAMES,
@@ -45,9 +46,10 @@ from .test_novel_structure_migration import _run_alembic
 
 pytestmark = pytest.mark.integration
 _OLD = "0006_add_chapter_manuscript_content"
-_NEW = "0019_add_cache_token_prices"
+_NEW = "0020_add_method_validation"
 _AUTHOR_TABLES = (
     BUSINESS_TABLE_NAMES
+    - METHOD_VALIDATION_TABLE_NAMES
     - AI_WORKFLOW_TABLE_NAMES
     - WRITING_STUDIO_TABLE_NAMES
     - STORY_MEMORY_TABLE_NAMES
@@ -224,7 +226,7 @@ class LegacyDatabase:
     paths: StoragePaths
 
 
-def test_cache_migration_preserves_existing_usage_prices_and_immutable_triggers(legacy):
+def test_method_migration_preserves_existing_usage_and_reservation_triggers(legacy):
     migrated = _run_alembic(legacy.paths.database_file, "upgrade", "0017_add_writing_job_budgets")
     assert migrated.returncode == 0, migrated.stderr
     with legacy.engine.begin() as connection:
@@ -237,18 +239,39 @@ def test_cache_migration_preserves_existing_usage_prices_and_immutable_triggers(
         connection.exec_driver_sql(
             "INSERT INTO model_budget_reservations VALUES ('attempt-old','project-fixture','task','price-old','CNY',100,10,500,'2026-01-01')"
         )
+    migrated = _run_alembic(legacy.paths.database_file, "upgrade", "0019_add_cache_token_prices")
+    assert migrated.returncode == 0, migrated.stderr
+    with legacy.engine.begin() as connection:
+        connection.exec_driver_sql(
+            "INSERT INTO model_price_revisions (id,profile_id,version,currency,input_micros_per_million,output_micros_per_million,created_at,cached_input_micros_per_million,cache_write_micros_per_million) VALUES ('price-cache','profile',2,'CNY',2000000,4000000,'2026-01-01',500000,3000000)"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO model_usage_attempts (id,project_id,operation,task_id,profile_id,model_kind,model_name,input_characters,output_characters,status,usage_source,reported_input_tokens,reported_output_tokens,reported_total_tokens,started_at,finished_at,duration_ms,cached_input_tokens,cache_write_tokens,cache_details_status) VALUES ('attempt-cache','project-fixture','generation','task-cache','profile','local','fake',10,5,'completed','provider_reported',100,10,110,'2026-01-01','2026-01-01',1,60,20,'reported')"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO model_budget_reservations VALUES ('attempt-cache','project-fixture','task-cache','price-cache','CNY',100,10,500,'2026-01-01')"
+        )
     upgrade_ai_workflow_database(legacy.engine, legacy.paths)
     assert _version(legacy.paths.database_file) == _NEW
     with closing(sqlite3.connect(legacy.paths.database_file)) as connection:
+        assert connection.execute(
+            "SELECT cached_input_tokens,cache_write_tokens,cache_details_status FROM model_usage_attempts WHERE id='attempt-cache'"
+        ).fetchone() == (60, 20, "reported")
+        assert connection.execute(
+            "SELECT cached_input_micros_per_million,cache_write_micros_per_million FROM model_price_revisions WHERE id='price-cache'"
+        ).fetchone() == (500000, 3000000)
+        assert connection.execute(
+            "SELECT price_revision_id,reserved_micros FROM model_budget_reservations WHERE attempt_id='attempt-cache'"
+        ).fetchone() == ("price-cache", 500)
+        assert connection.execute(
+            "SELECT operation,reported_input_tokens,reported_output_tokens FROM model_usage_attempts WHERE id='attempt-old'"
+        ).fetchone() == ("generation", 100, 10)
         assert connection.execute(
             "SELECT cached_input_tokens,cache_write_tokens,cache_details_status FROM model_usage_attempts WHERE id='attempt-old'"
         ).fetchone() == (None, None, "not_reported")
         assert connection.execute(
             "SELECT input_micros_per_million,output_micros_per_million,cached_input_micros_per_million,cache_write_micros_per_million FROM model_price_revisions WHERE id='price-old'"
         ).fetchone() == (2000000, 4000000, None, None)
-        assert connection.execute(
-            "SELECT price_revision_id,reserved_micros FROM model_budget_reservations WHERE attempt_id='attempt-old'"
-        ).fetchone() == ("price-old", 500)
         with pytest.raises(sqlite3.IntegrityError):
             connection.execute(
                 "UPDATE model_usage_attempts SET cached_input_tokens=1 WHERE id='attempt-old'"
@@ -256,6 +279,17 @@ def test_cache_migration_preserves_existing_usage_prices_and_immutable_triggers(
         with pytest.raises(sqlite3.IntegrityError):
             connection.execute(
                 "UPDATE model_price_revisions SET cached_input_micros_per_million=1 WHERE id='price-old'"
+            )
+        assert connection.execute(
+            "SELECT price_revision_id,reserved_micros FROM model_budget_reservations WHERE attempt_id='attempt-old'"
+        ).fetchone() == ("price-old", 500)
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "UPDATE model_usage_attempts SET reported_input_tokens=1 WHERE id='attempt-old'"
+            )
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "DELETE FROM model_budget_reservations WHERE attempt_id='attempt-old'"
             )
 
 
@@ -294,7 +328,7 @@ def _snapshot(path: Path) -> tuple[dict[str, list[tuple]], list[tuple]]:
         objects = connection.execute(
             "SELECT type, name, tbl_name, sql FROM sqlite_master "
             "WHERE name NOT LIKE 'sqlite_%' AND tbl_name NOT LIKE 'ai_workflow_%' "
-            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions', 'model_usage_attempts', 'ai_candidate_edits', 'ai_candidate_edit_adoptions', 'model_price_revisions', 'project_budget_revisions', 'model_budget_reservations', 'story_control_revisions', 'import_previews', 'import_receipts', 'handoff_snapshots', 'external_candidates', 'writing_jobs', 'writing_job_budgets', 'writing_job_runs') ORDER BY name"
+            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions', 'model_usage_attempts', 'ai_candidate_edits', 'ai_candidate_edit_adoptions', 'model_price_revisions', 'project_budget_revisions', 'model_budget_reservations', 'story_control_revisions', 'import_previews', 'import_receipts', 'handoff_snapshots', 'external_candidates', 'writing_jobs', 'writing_job_budgets', 'writing_job_runs', 'method_trials', 'method_annotations', 'method_templates') ORDER BY name"
         ).fetchall()
         return data, objects
 

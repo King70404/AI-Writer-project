@@ -108,6 +108,7 @@ from aiwebnovel.usage.web import create_usage_router
 from aiwebnovel.web.frontend import FrontendStaticService
 from aiwebnovel.workbench.web import create_workbench_router
 from aiwebnovel.writing_jobs.web import router as create_writing_jobs_router
+from aiwebnovel.writing_studio.method_web import create_method_router
 from aiwebnovel.writing_studio.web import create_writing_studio_router
 
 logger = get_logger("health")
@@ -676,6 +677,7 @@ def create_app(
     application.include_router(create_ai_writing_router(api_prefix=api_prefix))
     application.include_router(create_ai_workflow_router(api_prefix=api_prefix))
     application.include_router(create_writing_studio_router(api_prefix=api_prefix))
+    application.include_router(create_method_router(api_prefix=api_prefix))
     application.include_router(create_chapter_planning_router(api_prefix=api_prefix))
     application.include_router(create_story_memory_router(api_prefix=api_prefix))
     application.include_router(create_workbench_router(api_prefix=api_prefix))

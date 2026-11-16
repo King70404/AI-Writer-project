@@ -12,6 +12,9 @@ export interface WritingRule {
   readonly name: string;
   readonly instruction: string;
   readonly applies_to: string;
+  readonly scene_tags?: readonly string[];
+  readonly excludes?: string;
+  readonly priority?: number;
 }
 export interface RuleRevision {
   readonly id: string;
@@ -122,13 +125,21 @@ function rule(value: unknown): WritingRule {
     !object(value) ||
     !text(value.name) ||
     !text(value.instruction) ||
-    !text(value.applies_to)
+    !text(value.applies_to) ||
+    (value.scene_tags !== undefined &&
+      (!strings(value.scene_tags) || value.scene_tags.length > 8)) ||
+    (value.excludes !== undefined && !text(value.excludes)) ||
+    (value.priority !== undefined &&
+      (!integer(value.priority, 1) || value.priority > 5))
   )
     invalid();
   return {
     name: value.name,
     instruction: value.instruction,
     applies_to: value.applies_to,
+    ...(value.scene_tags === undefined ? {} : { scene_tags: value.scene_tags }),
+    ...(value.excludes === undefined ? {} : { excludes: value.excludes }),
+    ...(value.priority === undefined ? {} : { priority: value.priority }),
   };
 }
 export function parseRuleRevision(

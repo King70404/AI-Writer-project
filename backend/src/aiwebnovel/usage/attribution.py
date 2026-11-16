@@ -11,7 +11,9 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Literal
 
-UsageOperation = Literal["generation", "reference_analysis", "story_review", "connection_check"]
+UsageOperation = Literal[
+    "generation", "reference_analysis", "story_review", "connection_check", "method_trial"
+]
 
 
 @dataclass(frozen=True, slots=True)

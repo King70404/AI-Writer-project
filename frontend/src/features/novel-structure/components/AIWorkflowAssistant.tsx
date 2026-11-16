@@ -421,6 +421,10 @@ export function AIWorkflowAssistant({
               chapterId={chapterId}
               profile={profile}
               content={writing.state.content}
+              savedContent={writing.state.snapshot.resource.content}
+              manuscriptRevision={
+                writing.state.snapshot.resource.current_revision_id
+              }
               onDirty={setPlanningDirty}
               onOpenGenerate={() => {
                 setTab("generate");

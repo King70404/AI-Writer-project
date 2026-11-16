@@ -76,9 +76,19 @@ def split_reference(text: str, granularity: str) -> tuple[ReferenceUnit, ...]:
 def validate_rules(rules: tuple[WritingRule, ...]) -> tuple[WritingRule, ...]:
     if not 1 <= len(rules) <= 8:
         raise WritingInputInvalid
+    if any(
+        type(rule.priority) is not int or not 1 <= rule.priority <= 5 or len(rule.scene_tags) > 8
+        for rule in rules
+    ):
+        raise WritingInputInvalid
     return tuple(
         WritingRule(
-            _text(rule.name, 80), _text(rule.instruction, 1000), _text(rule.applies_to, 200)
+            _text(rule.name, 80),
+            _text(rule.instruction, 1000),
+            _text(rule.applies_to, 200),
+            tuple(_text(tag, 40) for tag in rule.scene_tags),
+            _text(rule.excludes, 200) if rule.excludes else "",
+            rule.priority,
         )
         for rule in rules
     )
@@ -141,6 +151,7 @@ class WritingStudioService:
         self._repository = repository
         self._provider = provider
         self._model_reader = model_reader
+        self.method_service: object | None = None
 
     def create_reference(
         self,
@@ -236,6 +247,9 @@ class WritingStudioService:
         confirmed: bool,
         rule_id: str | None = None,
         expected_version: int | None = None,
+        template_source_id: str | None = None,
+        template_source_rule_version_id: str | None = None,
+        template_source_rule_index: int | None = None,
     ) -> WritingRuleVersion:
         if confirmed is not True or (
             rule_id is not None and (type(expected_version) is not int or expected_version < 1)
@@ -251,6 +265,9 @@ class WritingStudioService:
             reference_id,
             validate_rules(rules),
             datetime.now(UTC).isoformat(),
+            template_source_id,
+            template_source_rule_version_id,
+            template_source_rule_index,
         )
         return self._repository.save_rules(version, expected_version)
 

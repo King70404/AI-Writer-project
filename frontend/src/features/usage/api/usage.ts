@@ -8,7 +8,11 @@ import { securitySession } from "../../../api/security-session";
  * 未知不按 0 计；金额使用发送时冻结的作者价格，不是服务商账单。
  */
 export type UsageOperation =
-  "generation" | "reference_analysis" | "story_review" | "connection_check";
+  | "generation"
+  | "reference_analysis"
+  | "story_review"
+  | "connection_check"
+  | "method_trial";
 export type AttemptStatus =
   "running" | "completed" | "failed" | "timeout" | "interrupted";
 export type UsageSource = "provider_reported" | "unknown";
@@ -18,6 +22,7 @@ export const OPERATION_LABELS: Record<UsageOperation, string> = {
   reference_analysis: "范文分析",
   story_review: "一致性评审",
   connection_check: "连接测试消息",
+  method_trial: "写作方法对照试写",
 };
 export const STATUS_LABELS: Record<AttemptStatus, string> = {
   running: "进行中",

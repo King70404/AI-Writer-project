@@ -13,6 +13,8 @@ from aiwebnovel.character.application.services import CharacterQueryService
 from aiwebnovel.novel_structure.application.services import NovelStructureQueryService
 from aiwebnovel.project.application.services import ProjectQueryService
 from aiwebnovel.story_bible.application.services import StoryBibleQueryService
+from aiwebnovel.usage.budget_service import UsageBudgetService
+from aiwebnovel.writing_studio.application.method_service import MethodService
 from aiwebnovel.writing_studio.application.service import WritingStudioService
 
 
@@ -24,10 +26,12 @@ def compose_writing_studio(
     story_bibles: StoryBibleQueryService,
     provider: WorkflowProvider,
     model_reader: Callable[[str | None], ModelSnapshot],
+    budgets: UsageBudgetService,
 ) -> tuple[WritingStudioService, ChapterPlanningService]:
     # Persistence models are registered only during explicit runtime composition,
     # never as a side effect of importing the application or its routers.
     from aiwebnovel.chapter_planning.persistence import ChapterPlanningRepository
+    from aiwebnovel.writing_studio.persistence.method_repository import MethodRepository
     from aiwebnovel.writing_studio.persistence.repository import SqlAlchemyWritingRepository
 
     studio = WritingStudioService(
@@ -67,5 +71,10 @@ def compose_writing_studio(
         story_bibles,
         studio.get_rules,
         rule_sources,
+    )
+    method_store = MethodRepository(session_factory, projects)
+    method_store.recover_interrupted()
+    studio.method_service = MethodService(
+        method_store, structure, planning, studio, provider, model_reader, budgets
     )
     return studio, planning
