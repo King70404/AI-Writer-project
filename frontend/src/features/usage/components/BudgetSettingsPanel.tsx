@@ -94,6 +94,8 @@ function PriceForm({
   const [currency, setCurrency] = useState("");
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
+  const [cached, setCached] = useState<string | null>(null);
+  const [written, setWritten] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const current = state.value?.current ?? null;
@@ -102,7 +104,15 @@ function PriceForm({
     const code = (currency || current?.currency || "").trim().toUpperCase();
     const inputPrice = input || current?.input_per_million || "";
     const outputPrice = output || current?.output_per_million || "";
-    if (!isCurrency(code) || !isAmount(inputPrice) || !isAmount(outputPrice)) {
+    const cachedPrice = cached ?? current?.cached_input_per_million ?? "";
+    const writtenPrice = written ?? current?.cache_write_per_million ?? "";
+    if (
+      !isCurrency(code) ||
+      !isAmount(inputPrice) ||
+      !isAmount(outputPrice) ||
+      (cachedPrice !== "" && !isAmount(cachedPrice)) ||
+      (writtenPrice !== "" && !isAmount(writtenPrice))
+    ) {
       state.setError(
         "请填写 3 位大写币种（如 CNY）和不超过 6 位小数的非负价格。",
       );
@@ -117,11 +127,19 @@ function PriceForm({
         currency: code,
         input_per_million: inputPrice,
         output_per_million: outputPrice,
+        ...(cached !== null || current?.cached_input_per_million !== undefined
+          ? { cached_input_per_million: cachedPrice || null }
+          : {}),
+        ...(written !== null || current?.cache_write_per_million !== undefined
+          ? { cache_write_per_million: writtenPrice || null }
+          : {}),
       });
       state.setValue(saved);
       setCurrency("");
       setInput("");
       setOutput("");
+      setCached(null);
+      setWritten(null);
       setNotice("价格已保存为新版本；之前的请求仍按当时的价格计算。");
     } catch (failure) {
       state.setError(message(failure));
@@ -164,6 +182,23 @@ function PriceForm({
         value={output}
         placeholder={current?.output_per_million ?? ""}
         onChange={(event) => setOutput(event.target.value)}
+      />
+      <p>
+        缓存价格可选；留空按普通输入单价计算。只使用服务商报告的缓存数量；发送前不假定命中缓存，按输入相关最高单价预留。
+      </p>
+      <label htmlFor="price-cached">缓存读取价格（每百万 token，可选）</label>
+      <input
+        id="price-cached"
+        inputMode="decimal"
+        value={cached ?? current?.cached_input_per_million ?? ""}
+        onChange={(event) => setCached(event.target.value)}
+      />
+      <label htmlFor="price-written">缓存写入价格（每百万 token，可选）</label>
+      <input
+        id="price-written"
+        inputMode="decimal"
+        value={written ?? current?.cache_write_per_million ?? ""}
+        onChange={(event) => setWritten(event.target.value)}
       />
       <button type="submit" disabled={saving || !state.value}>
         {saving ? "正在保存价格…" : "保存价格"}
@@ -239,7 +274,7 @@ function BudgetForm({
           本月（自 {new Date(budget.month_start).toLocaleDateString("zh-CN")}
           起）已发出 {month.attempts} 次请求
           {month.currency
-            ? `：按服务商报告计 ${month.settled} ${month.currency}，用量未知按保守预留计 ${month.pending} ${month.currency}，合计上限 ${month.upper} ${month.currency}`
+            ? `：按服务商报告计 ${month.settled} ${month.currency}，用量或缓存明细未知按保守上限计 ${month.pending} ${month.currency}，合计上限 ${month.upper} ${month.currency}`
             : ""}
           {month.unpriced_attempts
             ? `；${month.unpriced_attempts} 次发生在填写价格前，金额未知，未按 0 计`

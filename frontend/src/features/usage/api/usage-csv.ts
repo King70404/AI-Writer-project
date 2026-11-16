@@ -26,6 +26,17 @@ const HEADER = [
   "本机输入字符",
   "本机输出字符",
   "耗时毫秒",
+  "报告缓存读取 token",
+  "报告缓存写入 token",
+  "缓存报告状态",
+  "冻结价格版本",
+  "输入单价每百万 token",
+  "输出单价每百万 token",
+  "缓存读取单价每百万 token",
+  "缓存写入单价每百万 token",
+  "币种",
+  "逐条金额",
+  "金额依据",
 ] as const;
 
 export class UsageExportTooLarge extends Error {
@@ -61,6 +72,33 @@ function row(item: UsageAttempt): string {
     item.input_characters,
     item.output_characters,
     item.duration_ms,
+    item.cached_input_tokens ?? null,
+    item.cache_write_tokens ?? null,
+    item.cache_details_status === "reported"
+      ? "服务商报告"
+      : item.cache_details_status === "invalid"
+        ? "报告异常"
+        : "未报告",
+    item.price_version ?? null,
+    item.input_per_million ?? "未计价",
+    item.output_per_million ?? "未计价",
+    item.cached_input_per_million ??
+      (item.input_per_million ? "按普通输入单价" : "未计价"),
+    item.cache_write_per_million ??
+      (item.input_per_million ? "按普通输入单价" : "未计价"),
+    item.currency ?? "未计价",
+    item.amount ?? (item.amount_basis === "unknown" ? "未知" : "未计价"),
+    item.amount_basis === "reported_tokens"
+      ? "报告 token 按冻结单价计算"
+      : item.amount_basis === "cache_upper"
+        ? "缓存明细未报告，金额保守上限"
+        : item.amount_basis === "total_tokens_upper"
+          ? "仅合计 token 的保守上限"
+          : item.amount_basis === "reserved_upper"
+            ? "用量待确认，按发送前预留上限"
+            : item.amount_basis === "unknown"
+              ? "未知"
+              : "未计价",
   ]
     .map((value) => (value === "" ? '""' : cell(value)))
     .join(",");

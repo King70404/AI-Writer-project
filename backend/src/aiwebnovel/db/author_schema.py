@@ -33,7 +33,9 @@ STORY_CONTROL_REVISION = "0013_add_story_control"
 IMPORT_REVISION = "0014_add_manuscript_imports"
 HANDOFF_REVISION = "0015_add_external_handoffs"
 WRITING_JOB_REVISION = "0016_add_writing_jobs"
-CURRENT_REVISION = "0018_add_connection_check_usage"
+WRITING_JOB_BUDGET_REVISION = "0017_add_writing_job_budgets"
+CONNECTION_CHECK_REVISION = "0018_add_connection_check_usage"
+CURRENT_REVISION = "0019_add_cache_token_prices"
 
 SUPPORTED_SCHEMA_TABLES: Mapping[str, frozenset[str]] = MappingProxyType(
     {
@@ -113,8 +115,9 @@ SUPPORTED_SCHEMA_TABLES: Mapping[str, frozenset[str]] = MappingProxyType(
         - WRITING_JOB_TABLE_NAMES
         - WRITING_JOB_BUDGET_TABLE_NAMES,
         WRITING_JOB_REVISION: BUSINESS_TABLE_NAMES - WRITING_JOB_BUDGET_TABLE_NAMES,
+        WRITING_JOB_BUDGET_REVISION: BUSINESS_TABLE_NAMES,
         CURRENT_REVISION: BUSINESS_TABLE_NAMES,
-        "0017_add_writing_job_budgets": BUSINESS_TABLE_NAMES,
+        CONNECTION_CHECK_REVISION: BUSINESS_TABLE_NAMES,
     }
 )
 TABLE_QUERY = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
@@ -122,6 +125,17 @@ TABLE_QUERY = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LI
 
 class AuthorSchemaUnsupported(ValueError):
     """The database is not one recognized, complete author schema revision."""
+
+
+def expected_columns(revision: str, table: str) -> set[str]:
+    """Return the exact columns for a supported revision, including legacy schemas."""
+    columns = set(load_model_metadata().tables[table].columns.keys())
+    if revision != CURRENT_REVISION:
+        if table == "model_usage_attempts":
+            columns -= {"cached_input_tokens", "cache_write_tokens", "cache_details_status"}
+        elif table == "model_price_revisions":
+            columns -= {"cached_input_micros_per_million", "cache_write_micros_per_million"}
+    return columns
 
 
 def inspect_author_schema(connection: sqlite3.Connection) -> str:
@@ -140,9 +154,8 @@ def inspect_author_schema(connection: sqlite3.Connection) -> str:
     expected_tables = SUPPORTED_SCHEMA_TABLES[revision]
     if tables != expected_tables | {"alembic_version"}:
         raise AuthorSchemaUnsupported("The database tables do not match its version")
-    metadata = load_model_metadata()
     for table in sorted(expected_tables):
         columns = {str(row[1]) for row in connection.execute(f'PRAGMA table_info("{table}")')}
-        if columns != set(metadata.tables[table].columns.keys()):
+        if columns != expected_columns(revision, table):
             raise AuthorSchemaUnsupported("The database columns do not match its version")
     return revision

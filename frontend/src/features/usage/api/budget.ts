@@ -30,6 +30,8 @@ export const MODE_LABELS: Record<BudgetMode, string> = {
 };
 
 export interface PriceView {
+  readonly cached_input_per_million?: string | null;
+  readonly cache_write_per_million?: string | null;
   readonly profile_id: string;
   readonly version: number;
   readonly currency: string;
@@ -89,6 +91,8 @@ export interface BudgetInput {
   readonly monthly_limit: string | null;
 }
 export interface PriceInput {
+  readonly cached_input_per_million?: string | null;
+  readonly cache_write_per_million?: string | null;
   readonly expected_version: number;
   readonly currency: string;
   readonly input_per_million: string;
@@ -166,6 +170,22 @@ export function parsePrice(value: unknown): PriceView {
     currency: currency(item.currency),
     input_per_million: amount(item.input_per_million),
     output_per_million: amount(item.output_per_million),
+    ...(item.cached_input_per_million === undefined
+      ? {}
+      : {
+          cached_input_per_million: nullable(
+            item.cached_input_per_million,
+            amount,
+          ),
+        }),
+    ...(item.cache_write_per_million === undefined
+      ? {}
+      : {
+          cache_write_per_million: nullable(
+            item.cache_write_per_million,
+            amount,
+          ),
+        }),
     created_at: str(item.created_at),
   };
 }

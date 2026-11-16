@@ -662,6 +662,58 @@ describe("BudgetSettingsPanel", () => {
     });
   }
 
+  it("保存可选缓存单价并允许清空，空值回退普通输入价", async () => {
+    const client = fakeBudget();
+    render(
+      <BudgetSettingsPanel
+        projectId={projectId}
+        profileId="default-local"
+        profileName="测试模型"
+        client={client}
+      />,
+    );
+    openPanel();
+    await screen.findByText(/价格未填写。本应用不预置价格/u);
+    fireEvent.change(screen.getByLabelText("币种（如 CNY、USD）"), {
+      target: { value: "CNY" },
+    });
+    fireEvent.change(screen.getByLabelText("输入价格（每百万 token）"), {
+      target: { value: "2" },
+    });
+    fireEvent.change(screen.getByLabelText("输出价格（每百万 token）"), {
+      target: { value: "8" },
+    });
+    fireEvent.change(
+      screen.getByLabelText("缓存读取价格（每百万 token，可选）"),
+      { target: { value: "0.5" } },
+    );
+    fireEvent.change(
+      screen.getByLabelText("缓存写入价格（每百万 token，可选）"),
+      { target: { value: "3" } },
+    );
+    fireEvent.change(
+      screen.getByLabelText("缓存写入价格（每百万 token，可选）"),
+      { target: { value: "" } },
+    );
+    fireEvent.click(
+      within(screen.getByRole("form", { name: "模型价格" })).getByRole(
+        "button",
+        { name: "保存价格" },
+      ),
+    );
+    await waitFor(() =>
+      expect(client.savePrice).toHaveBeenCalledWith("default-local", {
+        expected_version: 0,
+        currency: "CNY",
+        input_per_million: "2",
+        output_per_million: "8",
+        cached_input_per_million: "0.5",
+        cache_write_per_million: null,
+      }),
+    );
+    expect(screen.getByText(/留空按普通输入单价计算/u)).toBeVisible();
+  });
+
   it("loads lazily, validates and saves an author-entered price and budget", async () => {
     const client = fakeBudget();
     render(
@@ -780,7 +832,7 @@ describe("BudgetSettingsPanel", () => {
     );
     openPanel();
     expect(screen.getByText("添加并选择模型后可填写价格。")).toBeVisible();
-    expect(await screen.findByText(/按保守预留计 0.20 CNY/u)).toBeVisible();
+    expect(await screen.findByText(/按保守上限计 0.20 CNY/u)).toBeVisible();
     expect(screen.getByText(/1 次使用其他币种价格/u)).toBeVisible();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "保存预算" }));
