@@ -4,6 +4,21 @@
 
 本清单只列 A/B 的已登记缺口，供后续按项领取；C 的已知缺口、D（跨章与交接）、E（方法验证）另列，不混入 A/B。每项完成定义均为：实现 → 前后端接线 → 测试与证据 → 文档同步；不新增模型调用，也不得以假数据、空按钮或未跑测试宣布完成。测试只用自有隔离根，不接触正式作者数据或真实 Key。
 
+## 2026-11-17 当前候选状态
+
+下表补充本次收尾状态；各节“现状”保留最初缺口描述。main 为 `dea6eaf`，尚未合并的候选不能视为 main 已交付。
+
+| 项目 | PR | 当前状态 |
+| --- | --- | --- |
+| A1-2 保存规划并准备 | [#43](https://github.com/King70404/AI-Writer-project/pull/43) | 已实现，验证范围见 PR 与 PLAN；等待合并授权 |
+| A1-1 检查连接 | [#44](https://github.com/King70404/AI-Writer-project/pull/44) | 完整 Windows 门禁通过；等待合并授权 |
+| A2-1 全书架汇总 | [#47](https://github.com/King70404/AI-Writer-project/pull/47) | 完整 Windows 门禁通过；等待合并授权 |
+| A2-2 到期伏笔与预算提醒 | [#48](https://github.com/King70404/AI-Writer-project/pull/48) | 完整 Windows 门禁通过；依赖 A2-1，等待合并授权 |
+| B-2 分析与评审发送前预估 | [#45](https://github.com/King70404/AI-Writer-project/pull/45) | 完整 Windows 门禁通过；等待合并授权 |
+| B-3 缓存计价及 B-4 费用 CSV | [#46](https://github.com/King70404/AI-Writer-project/pull/46) | 含迁移、缓存列、单价、币种和逐条金额；组合完整门禁通过，等待依赖与授权 |
+
+B-1 和 B-4 用量导出已分别经 PR #40、#41 合并；B-4 的费用扩展仍在 PR #46。后续 F08 在独立 PR #49 验证，详情见 PLAN。
+
 ## 建议顺序与规模
 
 | 顺序 | ID | 任务 | 规模 | 依赖 |

@@ -1,6 +1,6 @@
 # 当前交付
 
-更新：2026-11-16。D2、D3、B-1、B-4 及 D2 后续 PR #42 已合入 `main`，当前 `main` 为 `dea6eafc53f92eab6a1d19b8be6017af902d97c4`。
+更新：2026-11-17。D2、D3、B-1、B-4 及 D2 后续 PR #42 已合入 `main`，当前 `main` 为 `dea6eafc53f92eab6a1d19b8be6017af902d97c4`。
 
 ## 已合并能力
 
@@ -12,14 +12,12 @@
 
 ## 活动交付
 
-- A1-2 [PR #43](https://github.com/King70404/AI-Writer-project/pull/43)、A1-1 [PR #44](https://github.com/King70404/AI-Writer-project/pull/44)、B-2 [PR #45](https://github.com/King70404/AI-Writer-project/pull/45) 均未合并，等待用户分别授权。
-- B-3 分支 `codex/b3-cache-pricing` 的独立代码候选 `14f255d` 包含缓存 token 计价、迁移和 CSV 价格/金额列。独立完整 Windows 门禁已通过，证据见 [B-3 验证记录](docs/B3_PRICING_WINDOWS_GATE_20261116.md)；现已在 `57b6ac1` 接入 A2-2，缓存折扣与提醒专项检查通过，组合完整门禁尚未完成。
-- A2-1 [PR #47](https://github.com/King70404/AI-Writer-project/pull/47)、A2-2 [PR #48](https://github.com/King70404/AI-Writer-project/pull/48) 均为草稿，完整门禁进行中。
-- E 方法验证 F08 代码候选 `1c2fc64` 已接入 A1-2、A1-1、A2、B-2、B-3 的代码依赖；实际分支上的迁移、架构、台账和 D2 回归共 254 项通过，前端定向 55 项通过。全量门禁尚未完成，不视为交付。
+- 第四步各项均已实现并推送，尚未合并：A1-2 [PR #43](https://github.com/King70404/AI-Writer-project/pull/43)、A1-1 [#44](https://github.com/King70404/AI-Writer-project/pull/44)、A2-1 [#47](https://github.com/King70404/AI-Writer-project/pull/47)、A2-2 [#48](https://github.com/King70404/AI-Writer-project/pull/48)、B-2 [#45](https://github.com/King70404/AI-Writer-project/pull/45)、B-3 及费用 CSV [#46](https://github.com/King70404/AI-Writer-project/pull/46)。各项验证范围见 PR 与报告；A2、B-3 最终组合完整门禁已通过。
+- E 方法验证 [PR #49](https://github.com/King70404/AI-Writer-project/pull/49) 包含上述代码依赖、手工标注、两份显式 A/B 候选、作者评分及跨书模板。当前修复同试验重叠发送冲突，并补 E2E-INT-024 的初始读取完成等待；专项测试通过，完整门禁待重验，PR 保持草稿。操作与边界见 [方法验证](docs/METHOD_VALIDATION.md)。
 
 ## 下一步
 
-完成 A2-1、A2-2、B-3 的组合与全量门禁，按项提交推送并记录；完成依赖 B 台账与候选隔离的 F08。所有 PR 合并之前分别取得用户授权。
+完成 F08 最终完整门禁并记录精确版本；按依赖顺序在用户分别授权后合并。不会把未合并候选称为 main 已交付，不发布或打 tag。
 
 ## 边界
 

@@ -181,7 +181,15 @@ def messages(baseline: Baseline, arm: Arm) -> tuple[GenerationMessage, ...]:
 
 def claim(trial: Trial, arm: Arm) -> Trial:
     current = trial.with_rule if arm == "with" else trial.without
-    if arm not in ("with", "without") or current.status != "ready" or trial.a_score is not None:
+    # Both arms share one optimistic trial version. Serialize their sends so a
+    # second claim cannot invalidate the in-flight arm's completion write.
+    if (
+        arm not in ("with", "without")
+        or current.status != "ready"
+        or trial.without.status == "running"
+        or trial.with_rule.status == "running"
+        or trial.a_score is not None
+    ):
         raise WritingConflict
     updated = replace(current, status="running")
     return replace(trial, with_rule=updated) if arm == "with" else replace(trial, without=updated)

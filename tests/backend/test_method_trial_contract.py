@@ -1,6 +1,8 @@
 """F08 frozen comparisons and author-only assessment, without provider calls."""
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from threading import Event
 from typing import Any, cast
 
 import pytest
@@ -410,3 +412,77 @@ def test_failed_arm_cannot_retry_or_be_scored(baseline):
         replace(trial.baseline.rule, instruction="新版本").instruction
         != trial.baseline.rule.instruction
     )
+
+
+def test_overlapping_arm_send_is_refused_before_transport_and_preserves_first_result(
+    workflow, monkeypatch
+):
+    w = workflow
+    revision = rules(w)
+    plan = save(w)
+    content = w.app.state.novel_structure_query_service.get_chapter_content(
+        GetChapterContentQuery(w.chapter)
+    )
+    root = f"/api/v1/projects/{w.project}/writing/method-trials"
+    prepared = w.client.post(
+        root,
+        headers=w.headers,
+        json={
+            "chapter_id": w.chapter,
+            "manuscript_revision_id": content.current_revision_id,
+            "plan_revision_id": plan["revision_id"],
+            "rule_version_id": revision["id"],
+            "rule_index": 0,
+            "scene_id": "quay",
+            "profile_id": "default-local",
+        },
+    )
+    assert prepared.status_code == 201, prepared.text
+    trial = prepared.json()
+    url = root + f"/{trial['id']}"
+    entered, release = Event(), Event()
+    calls = []
+
+    def fake(profile, sent_messages, *, api_key, max_output_tokens):
+        calls.append(sent_messages)
+        if len(calls) == 1:
+            entered.set()
+            assert release.wait(5), "test must release the controlled first response"
+        return GeneratedText("独立的假候选", "fake")
+
+    monkeypatch.setattr("aiwebnovel.model_gateway.service.generate_text", fake)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first = executor.submit(
+            w.client.post,
+            url + "/send",
+            headers=w.headers,
+            json={"slot": "A", "expected_version": trial["version"], "cloud_consent": False},
+        )
+        try:
+            assert entered.wait(5), "first explicit send must reach the fake transport"
+            running = w.client.get(url).json()
+            assert running["a"]["status"] == "running"
+            overlap = w.client.post(
+                url + "/send",
+                headers=w.headers,
+                json={"slot": "B", "expected_version": running["version"], "cloud_consent": False},
+            )
+            assert overlap.status_code == 409, overlap.text
+            assert overlap.json()["error"]["code"] == "WRITING_CONFLICT"
+            assert len(calls) == 1
+            assert len(usage(w)["items"]) == 1
+        finally:
+            release.set()
+        completed = first.result(timeout=5)
+    assert completed.status_code == 200, completed.text
+    current = w.client.get(url).json()
+    assert current["a"]["status"] == "completed" and current["b"]["status"] == "ready"
+    assert usage(w)["items"][0]["status"] == "completed"
+    second = w.client.post(
+        url + "/send",
+        headers=w.headers,
+        json={"slot": "B", "expected_version": current["version"], "cloud_consent": False},
+    )
+    assert second.status_code == 200 and second.json()["complete"] is True
+    assert len(calls) == 2 and len(usage(w)["items"]) == 2
+    assert w.client.get(w.base + "/content").json()["content"] == content.content
