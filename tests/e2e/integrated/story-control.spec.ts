@@ -255,6 +255,41 @@ test("E2E-INT-027 Whole-book plan, plot thread due to-do, story timeline and pin
     await page.goto(`/projects/${project}/structure`);
     await section.getByText(/长篇规划与伏笔（/u).click();
     await expect(panel.getByText(/证据待复核/u).first()).toBeVisible();
+    const savedBudget = await page.request.put(
+      `/api/v1/projects/${project}/budget`,
+      {
+        headers: await headers(),
+        data: {
+          expected_version: 0,
+          mode: "strict",
+          currency: "CNY",
+          task_limit: null,
+          monthly_limit: "0",
+        },
+      },
+    );
+    expect(savedBudget.status()).toBe(200);
+    const summary = page.getByRole("region", { name: "写作进度与待处理" });
+    await summary.getByRole("button", { name: "刷新汇总" }).click();
+    await expect(
+      summary.locator("span").getByText("到期伏笔或证据待复核"),
+    ).toBeVisible();
+    await expect(summary.locator("span").getByText("预算提醒")).toBeVisible();
+    await summary.getByLabel("筛选已加载事项").selectOption("due_thread");
+    await expect(summary.locator("span").getByText("预算提醒")).toHaveCount(0);
+    const dueLink = summary.getByRole("link", { name: "船夫的旧伤" });
+    const dueHref = await dueLink.getAttribute("href");
+    expect(dueHref).toContain("#thread-");
+    await dueLink.click();
+    await expect(page).toHaveURL(
+      new RegExp(`${project}/structure#thread-`, "u"),
+    );
+    await summary.getByLabel("筛选已加载事项").selectOption("budget_reminder");
+    await summary.getByRole("link", { name: /本月预算已达到/u }).click();
+    await expect(page).toHaveURL(
+      new RegExp(`${project}/structure#project-budget$`, "u"),
+    );
+    await expect(page.getByLabel("预算方式")).toHaveValue("strict");
     expect(requests).toHaveLength(0);
     expectCleanBrowserAudit(browserAudit);
   } finally {

@@ -48,13 +48,23 @@ function ActionList({
   return (
     <ul className="workspace-summary__actions">
       {items.map((item) => (
-        <li key={`${item.kind}:${item.chapter_id}`}>
+        <li key={`${item.kind}:${item.entity_id ?? item.chapter_id}`}>
           <span className="workspace-summary__action-label">
             {ACTION_LABELS[item.kind]}
             {item.count > 1 ? ` ×${item.count}` : ""}
           </span>{" "}
-          <Link to={chapterWritingPath(projectId, item.chapter_id)}>
-            第{item.chapter_position}章 · {item.chapter_title}
+          <Link
+            to={
+              item.target_kind === "thread"
+                ? `${projectStructurePath(projectId)}#thread-${item.entity_id}`
+                : item.target_kind === "budget"
+                  ? `${projectStructurePath(projectId)}#project-budget`
+                  : chapterWritingPath(projectId, item.chapter_id ?? "")
+            }
+          >
+            {item.target_kind === "thread" || item.target_kind === "budget"
+              ? item.chapter_title
+              : `第${item.chapter_position}章 · ${item.chapter_title}`}
           </Link>
         </li>
       ))}
@@ -78,6 +88,7 @@ export function WorkspaceSummaryPanel({
   readonly refreshKey?: number;
   readonly client?: WorkspaceClient;
 }) {
+  const [actionFilter, setActionFilter] = useState("all");
   const actionPage = compact ? 5 : 10;
   const [attempt, setAttempt] = useState(0);
   const [summary, setSummary] = useState<SummaryState>({ status: "loading" });
@@ -244,11 +255,32 @@ export function WorkspaceSummaryPanel({
       ) : null}
       <section className="workspace-summary__todo" aria-label="待处理事项">
         <h4>待处理事项</h4>
+        {!compact ? (
+          <label>
+            筛选已加载事项
+            <select
+              value={actionFilter}
+              onChange={(event) => setActionFilter(event.target.value)}
+            >
+              <option value="all">全部类型</option>
+              {Object.entries(ACTION_LABELS).map(([kind, label]) => (
+                <option key={kind} value={kind}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         {data.action_total === 0 ? (
           <p>目前没有需要处理的事项。</p>
         ) : (
           <>
-            <ActionList projectId={projectId} items={actions.items} />
+            <ActionList
+              projectId={projectId}
+              items={actions.items.filter(
+                (item) => actionFilter === "all" || item.kind === actionFilter,
+              )}
+            />
             {actions.error ? <p role="alert">{actions.error}</p> : null}
             {compact ? (
               actions.nextOffset === null ? null : (

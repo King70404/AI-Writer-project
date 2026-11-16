@@ -61,6 +61,18 @@ describe("Project detail routes and navigation", () => {
           : input instanceof URL
             ? input.href
             : input.url;
+      if (url.includes("/workspace/overview")) {
+        return Promise.resolve(
+          jsonResponse({
+            total: 0,
+            offset: 0,
+            limit: 20,
+            next_offset: null,
+            generated_at: "now",
+            items: [],
+          }),
+        );
+      }
       if (url.includes("?limit=20")) {
         return Promise.resolve(
           jsonResponse({
@@ -99,7 +111,17 @@ describe("Project detail routes and navigation", () => {
     expect(screen.getByTestId("detail-location")).toHaveTextContent(
       `/projects/${projectId}`,
     );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        (typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url
+        ).includes("/workspace/overview"),
+      ),
+    ).toBe(true);
   });
 
   it.each([
@@ -118,11 +140,25 @@ describe("Project detail routes and navigation", () => {
   it("keeps the root and projects routes alongside only one detail parameter route", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn<typeof fetch>()
-        .mockResolvedValue(
-          jsonResponse({ items: [], next_cursor: null, has_more: false }),
+      vi.fn<typeof fetch>().mockImplementation((input) =>
+        Promise.resolve(
+          (typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url
+          ).includes("/workspace/overview")
+            ? jsonResponse({
+                total: 0,
+                offset: 0,
+                limit: 20,
+                next_offset: null,
+                generated_at: "now",
+                items: [],
+              })
+            : jsonResponse({ items: [], next_cursor: null, has_more: false }),
         ),
+      ),
     );
     const { unmount } = renderAt("/projects");
     expect(await screen.findByText("还没有项目")).toBeVisible();

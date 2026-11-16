@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useParams, useLocation } from "react-router";
+import { BudgetSettingsPanel } from "../../usage/components/BudgetSettingsPanel";
 
 import { isCanonicalPrefixedUlid } from "../../../api/identifiers";
 import {
@@ -186,6 +187,8 @@ function NovelStructureWorkspace({
   readonly projectId: string;
   readonly client: NovelStructureApiClient;
 }) {
+  const { hash } = useLocation();
+  const focusedThread = /^#thread-([A-Za-z0-9_-]{1,60})$/u.exec(hash)?.[1];
   const [state, setState] = useState<WorkspaceState>({
     status: "loading",
     outline: null,
@@ -585,9 +588,18 @@ function NovelStructureWorkspace({
         refreshKey={structureRevision}
       />
       <StoryControlSection
+        focusThreadId={focusedThread}
         projectId={projectId}
         refreshKey={structureRevision}
       />
+      <section id="project-budget" aria-label="本书预算设置" tabIndex={-1}>
+        <BudgetSettingsPanel
+          projectId={projectId}
+          profileId={null}
+          profileName=""
+          initiallyOpen={hash === "#project-budget"}
+        />
+      </section>
       <LocalDraftManager
         projectId={projectId}
         chapterTitles={

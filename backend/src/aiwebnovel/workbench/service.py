@@ -17,6 +17,8 @@ from aiwebnovel.workbench.models import (
     ActionItem,
     ActionKind,
     ActionPage,
+    BookshelfPage,
+    BookshelfSummary,
     ChapterSummary,
     ChapterSummaryPage,
     EditorialCounts,
@@ -26,6 +28,7 @@ from aiwebnovel.workbench.models import (
     VolumeSummary,
     WorkspaceSummary,
 )
+from aiwebnovel.workbench.reminders import reminder_actions
 from aiwebnovel.workbench.snapshot import ChapterRow, MemoryRow, ProjectSnapshot
 
 
@@ -34,6 +37,9 @@ class WorkbenchVolumeNotFound(DomainError):
 
 
 class WorkbenchRepository(Protocol):
+    def bookshelf(
+        self, offset: int, limit: int
+    ) -> tuple[int, list[tuple[str, str, ProjectSnapshot]]]: ...
     def snapshot(self, project_id: str) -> ProjectSnapshot: ...
 
     def get_editorial(self, chapter_id: str) -> EditorialState: ...
@@ -124,7 +130,14 @@ def derive_actions(snapshot: ProjectSnapshot) -> list[ActionItem]:
         for (kind, chapter_id), count in counts.items()
         if chapter_id in chapters
     ]
-    items.sort(key=lambda item: (rank[item.kind], order[item.chapter_id]))
+    items.extend(reminder_actions(snapshot))
+    items.sort(
+        key=lambda item: (
+            rank[item.kind],
+            order.get(item.chapter_id or "", -1),
+            item.entity_id or "",
+        )
+    )
     return items
 
 
@@ -155,6 +168,35 @@ class WorkbenchService:
 
     def summary(self, project_id: str) -> WorkspaceSummary:
         snapshot = self._repository.snapshot(project_id)
+        return self._summary(project_id, snapshot)
+
+    def overview(self, offset: int, limit: int) -> BookshelfPage:
+        total, snapshots = self._repository.bookshelf(offset, limit)
+        items = []
+        for project_id, title, snapshot in snapshots:
+            actions = derive_actions(snapshot)
+            items.append(
+                BookshelfSummary(
+                    project_id=project_id,
+                    title=title,
+                    characters=sum(chapter.characters for chapter in snapshot.chapters),
+                    chapter_count=len(snapshot.chapters),
+                    volume_count=len(snapshot.volumes),
+                    editorial=_editorial_counts(snapshot.chapters, snapshot),
+                    action_total=sum(item.count for item in actions),
+                )
+            )
+        end = offset + len(items)
+        return BookshelfPage(
+            total=total,
+            offset=offset,
+            limit=limit,
+            next_offset=end if end < total else None,
+            items=items,
+            generated_at=self._clock(),
+        )
+
+    def _summary(self, project_id: str, snapshot: ProjectSnapshot) -> WorkspaceSummary:
         actions = derive_actions(snapshot)
         latest = max(
             snapshot.chapters,
@@ -194,7 +236,13 @@ class WorkbenchService:
                 ActionCount(
                     kind=kind,
                     items=sum(item.count for item in actions if item.kind == kind),
-                    chapters=sum(1 for item in actions if item.kind == kind),
+                    chapters=len(
+                        {
+                            item.chapter_id
+                            for item in actions
+                            if item.kind == kind and item.chapter_id is not None
+                        }
+                    ),
                 )
                 for kind in ACTION_ORDER
             ],
@@ -210,7 +258,8 @@ class WorkbenchService:
             raise WorkbenchVolumeNotFound
         open_actions: Counter[str] = Counter()
         for item in derive_actions(snapshot):
-            open_actions[item.chapter_id] += item.count
+            if item.chapter_id is not None:
+                open_actions[item.chapter_id] += item.count
         selected = [
             chapter
             for chapter in snapshot.chapters

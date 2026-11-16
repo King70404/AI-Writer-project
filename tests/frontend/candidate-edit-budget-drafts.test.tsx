@@ -1390,3 +1390,22 @@ describe("conflict resolution", () => {
     expect(screen.getByText(/差异较大，未逐字标记/u)).toBeVisible();
   });
 });
+
+it("opens the budget destination directly without reading model prices or sending", async () => {
+  const client = fakeBudget();
+  render(
+    <BudgetSettingsPanel
+      projectId={projectId}
+      profileId={null}
+      profileName=""
+      initiallyOpen
+      client={client}
+    />,
+  );
+  await waitFor(() => expect(client.budget).toHaveBeenCalledOnce());
+  expect(document.querySelector("details.budget-settings")).toHaveAttribute(
+    "open",
+  );
+  expect(client.price).not.toHaveBeenCalled();
+  expect(client.estimate).not.toHaveBeenCalled();
+});

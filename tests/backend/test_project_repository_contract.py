@@ -50,7 +50,7 @@ def test_public_contract_is_pure_python_and_exposes_only_required_operations() -
         for name, member in inspect.getmembers(ProjectRepository, inspect.isfunction)
         if not name.startswith("_")
     }
-    assert public_methods == {"append_revision", "create", "get"}
+    assert public_methods == {"append_revision", "create", "get", "overview_page"}
 
 
 def test_repository_returns_detached_domain_aggregates(tmp_path: Path) -> None:
