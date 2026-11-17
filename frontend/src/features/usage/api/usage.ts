@@ -5,7 +5,7 @@ import { securitySession } from "../../../api/security-session";
 /**
  * 模型用量台账（B1）。只读取已发出的模型请求记录，查看本身不调用模型。
  * 三种量严格分开：本机字符计数（估算依据，非 token）、服务商报告的 token、未知。
- * 未知不按 0 计；本版本不计算金额。
+ * 未知不按 0 计；金额使用发送时冻结的作者价格，不是服务商账单。
  */
 export type UsageOperation =
   "generation" | "reference_analysis" | "story_review" | "connection_check";
@@ -62,6 +62,23 @@ export interface UsageAttempt {
   readonly started_at: string;
   readonly finished_at: string | null;
   readonly duration_ms: number | null;
+  readonly cached_input_tokens?: number | null;
+  readonly cache_write_tokens?: number | null;
+  readonly cache_details_status?: "not_reported" | "reported" | "invalid";
+  readonly price_version?: number | null;
+  readonly input_per_million?: string | null;
+  readonly output_per_million?: string | null;
+  readonly cached_input_per_million?: string | null;
+  readonly cache_write_per_million?: string | null;
+  readonly currency?: string | null;
+  readonly amount?: string | null;
+  readonly amount_basis?:
+    | "reported_tokens"
+    | "cache_upper"
+    | "total_tokens_upper"
+    | "reserved_upper"
+    | "unknown"
+    | "unpriced";
 }
 export interface UsagePage {
   readonly project_id: string;
@@ -188,6 +205,35 @@ export function parseUsageAttempt(value: unknown): UsageAttempt {
     started_at: str(item.started_at),
     finished_at: nullable(item.finished_at, str),
     duration_ms: nullable(item.duration_ms, count),
+    ...(item.cache_details_status === undefined
+      ? {}
+      : {
+          cached_input_tokens: nullable(item.cached_input_tokens, count),
+          cache_write_tokens: nullable(item.cache_write_tokens, count),
+          cache_details_status: oneOf(item.cache_details_status, [
+            "not_reported",
+            "reported",
+            "invalid",
+          ] as const),
+          price_version: nullable(item.price_version, count),
+          input_per_million: nullable(item.input_per_million, str),
+          output_per_million: nullable(item.output_per_million, str),
+          cached_input_per_million: nullable(
+            item.cached_input_per_million,
+            str,
+          ),
+          cache_write_per_million: nullable(item.cache_write_per_million, str),
+          currency: nullable(item.currency, str),
+          amount: nullable(item.amount, str),
+          amount_basis: oneOf(item.amount_basis, [
+            "reported_tokens",
+            "cache_upper",
+            "total_tokens_upper",
+            "reserved_upper",
+            "unknown",
+            "unpriced",
+          ] as const),
+        }),
   };
   const reported =
     attempt.reported_input_tokens !== null ||

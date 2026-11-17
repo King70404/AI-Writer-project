@@ -68,6 +68,41 @@ function page(overrides: Partial<UsagePage> = {}): UsagePage {
 afterEach(() => vi.restoreAllMocks());
 
 describe("用量 CSV 导出", () => {
+  it("导出冻结单价、缓存报告、各自币种和金额依据，不携带额外敏感字段", () => {
+    const csv = usageCsv([
+      {
+        ...attempt,
+        cached_input_tokens: 7,
+        cache_write_tokens: 0,
+        cache_details_status: "reported",
+        price_version: 2,
+        input_per_million: "2.00",
+        output_per_million: "4.00",
+        cached_input_per_million: "1.00",
+        cache_write_per_million: null,
+        currency: "CNY",
+        amount: "0.01",
+        amount_basis: "reported_tokens",
+        ...({ secret: "DO_NOT_EXPORT", endpoint: "secret.example" } as object),
+      },
+      {
+        ...attempt,
+        id: "a2",
+        currency: "USD",
+        amount: "1.00",
+        amount_basis: "reserved_upper",
+      },
+      { ...attempt, id: "a3", amount: null, amount_basis: "unpriced" },
+    ]);
+    expect(csv).toContain('"报告缓存读取 token"');
+    expect(csv).toContain(
+      '"7","0","服务商报告","2","2.00","4.00","1.00","按普通输入单价","CNY","0.01","报告 token 按冻结单价计算"',
+    );
+    expect(csv).toContain('"USD","1.00","用量待确认，按发送前预留上限"');
+    expect(csv).toContain('"未计价","未计价"');
+    expect(csv).not.toContain("DO_NOT_EXPORT");
+    expect(csv).not.toContain("secret.example");
+  });
   it("带 BOM 和中文表头，未知值不写成 0，并中和公式", () => {
     const csv = usageCsv([
       attempt,

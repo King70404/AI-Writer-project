@@ -233,7 +233,7 @@ def test_confirmed_http_uses_real_ledger_and_strict_budget(connection_workflow, 
         ).fetchall()
         database.execute("UPDATE alembic_version SET version_num='0017_add_writing_job_budgets'")
         database.commit()
-    migrated = _run_alembic(w.db, "upgrade", "head")
+    migrated = _run_alembic(w.db, "upgrade", "0018_add_connection_check_usage")
     assert migrated.returncode == 0, migrated.stderr
     assert rows(w) == stored
     with closing(sqlite3.connect(w.db)) as database:

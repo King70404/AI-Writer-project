@@ -43,6 +43,8 @@ class BudgetStore(Protocol):
         currency: str,
         input_micros: int,
         output_micros: int,
+        cached_input_micros: int | None = None,
+        cache_write_micros: int | None = None,
     ) -> None: ...
 
     def budget_state(self, project_id: str) -> tuple[Budget | None, datetime, Spend]: ...
@@ -128,6 +130,8 @@ class UsageBudgetService:
         currency: str,
         input_per_million: str,
         output_per_million: str,
+        cached_input_per_million: str | None = None,
+        cache_write_per_million: str | None = None,
     ) -> PriceState:
         profile = self._profile(profile_id)
         self._store.put_price(
@@ -136,6 +140,12 @@ class UsageBudgetService:
             parse_currency(currency),
             parse_amount(input_per_million, maximum=MAX_PRICE_MICROS),
             parse_amount(output_per_million, maximum=MAX_PRICE_MICROS),
+            None
+            if cached_input_per_million is None
+            else parse_amount(cached_input_per_million, maximum=MAX_PRICE_MICROS),
+            None
+            if cache_write_per_million is None
+            else parse_amount(cache_write_per_million, maximum=MAX_PRICE_MICROS),
         )
         return self.price_state(profile.id)
 

@@ -154,3 +154,39 @@ def test_persisted_thread_and_budget_sources_enter_unified_actions(workflow, mon
     assert own["action_total"] >= 2
     put_budget(w, version=1, mode="off")
     assert all(item["kind"] != "budget_reminder" for item in actions(w)["items"])
+
+
+def test_cache_discount_drives_budget_reminder_from_same_frozen_price(workflow, monkeypatch):
+    from tests.backend.test_usage_ledger import real_provider, transport
+    from tests.backend.test_workbench import actions
+
+    from aiwebnovel.ai_writing.application.models import GeneratedText, ProviderUsage
+
+    w = workflow
+    real_provider(w)
+    price = {
+        "expected_version": 0,
+        "currency": "CNY",
+        "input_per_million": "2",
+        "output_per_million": "4",
+        "cached_input_per_million": "0.1",
+    }
+    assert (
+        w.client.put(
+            "/api/v1/ai/models/default-local/price", headers=w.headers, json=price
+        ).status_code
+        == 200
+    )
+    budget_url = f"/api/v1/projects/{w.project}/budget"
+    budget = {"expected_version": 0, "mode": "warn", "currency": "CNY", "monthly_limit": "1"}
+    assert w.client.put(budget_url, headers=w.headers, json=budget).status_code == 200
+    calls = transport(
+        monkeypatch,
+        GeneratedText(
+            "文" * 220, "fake", ProviderUsage(1000000, 0, 1000000, 1000000, 0, "reported")
+        ),
+    )
+    assert w.client.post(w.base + "/ai/continue", json={}, headers=w.headers).status_code == 200
+    assert len(calls) == 1
+    assert w.client.get(budget_url).json()["month"]["settled"] == "0.10"
+    assert all(item["kind"] != "budget_reminder" for item in actions(w)["items"])

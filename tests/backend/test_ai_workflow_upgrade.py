@@ -45,7 +45,7 @@ from .test_novel_structure_migration import _run_alembic
 
 pytestmark = pytest.mark.integration
 _OLD = "0006_add_chapter_manuscript_content"
-_NEW = "0018_add_connection_check_usage"
+_NEW = "0019_add_cache_token_prices"
 _AUTHOR_TABLES = (
     BUSINESS_TABLE_NAMES
     - AI_WORKFLOW_TABLE_NAMES
@@ -222,6 +222,41 @@ def upgrade_ai_workflow_database(engine: Engine, paths: StoragePaths) -> None:
 class LegacyDatabase:
     engine: Engine
     paths: StoragePaths
+
+
+def test_cache_migration_preserves_existing_usage_prices_and_immutable_triggers(legacy):
+    migrated = _run_alembic(legacy.paths.database_file, "upgrade", "0017_add_writing_job_budgets")
+    assert migrated.returncode == 0, migrated.stderr
+    with legacy.engine.begin() as connection:
+        connection.exec_driver_sql(
+            "INSERT INTO model_price_revisions VALUES ('price-old', 'profile', 1, 'CNY', 2000000, 4000000, '2026-01-01')"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO model_usage_attempts (id,project_id,operation,task_id,profile_id,model_kind,model_name,input_characters,output_characters,status,usage_source,reported_input_tokens,reported_output_tokens,reported_total_tokens,started_at,finished_at,duration_ms) VALUES ('attempt-old','project-fixture','generation','task','profile','local','fake',10,5,'completed','provider_reported',100,10,110,'2026-01-01','2026-01-01',1)"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO model_budget_reservations VALUES ('attempt-old','project-fixture','task','price-old','CNY',100,10,500,'2026-01-01')"
+        )
+    upgrade_ai_workflow_database(legacy.engine, legacy.paths)
+    assert _version(legacy.paths.database_file) == _NEW
+    with closing(sqlite3.connect(legacy.paths.database_file)) as connection:
+        assert connection.execute(
+            "SELECT cached_input_tokens,cache_write_tokens,cache_details_status FROM model_usage_attempts WHERE id='attempt-old'"
+        ).fetchone() == (None, None, "not_reported")
+        assert connection.execute(
+            "SELECT input_micros_per_million,output_micros_per_million,cached_input_micros_per_million,cache_write_micros_per_million FROM model_price_revisions WHERE id='price-old'"
+        ).fetchone() == (2000000, 4000000, None, None)
+        assert connection.execute(
+            "SELECT price_revision_id,reserved_micros FROM model_budget_reservations WHERE attempt_id='attempt-old'"
+        ).fetchone() == ("price-old", 500)
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "UPDATE model_usage_attempts SET cached_input_tokens=1 WHERE id='attempt-old'"
+            )
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "UPDATE model_price_revisions SET cached_input_micros_per_million=1 WHERE id='price-old'"
+            )
 
 
 @pytest.fixture

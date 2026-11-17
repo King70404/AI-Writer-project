@@ -102,9 +102,16 @@ class Price:
     input_micros_per_million: int
     output_micros_per_million: int
     created_at: str
+    cached_input_micros_per_million: int | None = None
+    cache_write_micros_per_million: int | None = None
 
     def cost(self, input_tokens: int, output_tokens: int) -> int:
-        return cost_micros(input_tokens, self.input_micros_per_million) + cost_micros(
+        rate = max(
+            self.input_micros_per_million,
+            self.cached_input_micros_per_million or 0,
+            self.cache_write_micros_per_million or 0,
+        )
+        return cost_micros(input_tokens, rate) + cost_micros(
             output_tokens, self.output_micros_per_million
         )
 
@@ -151,6 +158,11 @@ class AttemptCost:
     currency: str | None
     input_micros_per_million: int | None
     output_micros_per_million: int | None
+    cached_input_tokens: int | None = None
+    cache_write_tokens: int | None = None
+    cached_input_micros_per_million: int | None = None
+    cache_write_micros_per_million: int | None = None
+    cache_details_status: str = "not_reported"
 
 
 def settled_cost(row: AttemptCost) -> int | None:
@@ -159,19 +171,55 @@ def settled_cost(row: AttemptCost) -> int | None:
         row.status != "completed"
         or row.input_micros_per_million is None
         or row.output_micros_per_million is None
+        or row.cache_details_status == "invalid"
     ):
         return None
     if row.reported_input_tokens is not None and row.reported_output_tokens is not None:
-        return cost_micros(row.reported_input_tokens, row.input_micros_per_million) + cost_micros(
-            row.reported_output_tokens, row.output_micros_per_million
+        # Unknown cache portions use the highest possible applicable input rate.
+        cached = 0 if row.cached_input_tokens is None else row.cached_input_tokens
+        written = 0 if row.cache_write_tokens is None else row.cache_write_tokens
+        if cached + written > row.reported_input_tokens:
+            return None
+        cached_rate = (
+            row.input_micros_per_million
+            if row.cached_input_micros_per_million is None
+            else row.cached_input_micros_per_million
+        )
+        write_rate = (
+            row.input_micros_per_million
+            if row.cache_write_micros_per_million is None
+            else row.cache_write_micros_per_million
+        )
+        residual_rate = max(
+            row.input_micros_per_million,
+            cached_rate if row.cached_input_tokens is None else 0,
+            write_rate if row.cache_write_tokens is None else 0,
+        )
+        return (
+            cost_micros(row.reported_input_tokens - cached - written, residual_rate)
+            + cost_micros(cached, cached_rate)
+            + cost_micros(written, write_rate)
+            + cost_micros(row.reported_output_tokens, row.output_micros_per_million)
         )
     if row.reported_total_tokens is not None:
         # Only a total was reported: price every token at the higher rate.
         return cost_micros(
             row.reported_total_tokens,
-            max(row.input_micros_per_million, row.output_micros_per_million),
+            max(
+                row.input_micros_per_million,
+                row.output_micros_per_million,
+                row.cached_input_micros_per_million or 0,
+                row.cache_write_micros_per_million or 0,
+            ),
         )
     return None
+
+
+def cache_cost_is_upper(row: AttemptCost) -> bool:
+    """Whether a missing provider cache portion required a conservative input rate."""
+    return (
+        row.cached_input_tokens is None and row.cached_input_micros_per_million is not None
+    ) or (row.cache_write_tokens is None and row.cache_write_micros_per_million is not None)
 
 
 def summarize(rows: Iterable[AttemptCost], currency: str | None) -> Spend:
@@ -186,6 +234,8 @@ def summarize(rows: Iterable[AttemptCost], currency: str | None) -> Spend:
             actual = settled_cost(row)
             if actual is None:
                 pending += row.reserved_micros
+            elif cache_cost_is_upper(row):
+                pending += actual
             else:
                 settled += actual
     return Spend(attempts, settled, pending, unpriced, other)
@@ -260,6 +310,8 @@ class PriceView(BudgetModel):
     input_per_million: str
     output_per_million: str
     created_at: str
+    cached_input_per_million: str | None = None
+    cache_write_per_million: str | None = None
 
 
 class PriceState(BudgetModel):
@@ -318,6 +370,8 @@ def price_view(price: Price) -> PriceView:
         input_per_million=format_amount(price.input_micros_per_million),
         output_per_million=format_amount(price.output_micros_per_million),
         created_at=price.created_at,
+        cached_input_per_million=optional_amount(price.cached_input_micros_per_million),
+        cache_write_per_million=optional_amount(price.cache_write_micros_per_million),
     )
 
 

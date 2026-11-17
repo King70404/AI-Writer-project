@@ -103,6 +103,11 @@ def load_reminders(
                 Reservation.currency,
                 Price.input_micros_per_million,
                 Price.output_micros_per_million,
+                Attempt.cached_input_tokens,
+                Attempt.cache_write_tokens,
+                Price.cached_input_micros_per_million,
+                Price.cache_write_micros_per_million,
+                Attempt.cache_details_status,
             )
             .outerjoin(Reservation, Reservation.attempt_id == Attempt.id)
             .outerjoin(Price, Price.id == Reservation.price_revision_id)

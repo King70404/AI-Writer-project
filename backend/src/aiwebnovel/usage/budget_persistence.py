@@ -69,6 +69,8 @@ class ModelPriceRevisionRecord(Base):
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     input_micros_per_million: Mapped[int] = mapped_column(Integer, nullable=False)
     output_micros_per_million: Mapped[int] = mapped_column(Integer, nullable=False)
+    cached_input_micros_per_million: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cache_write_micros_per_million: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -142,6 +144,8 @@ def _price(record: ModelPriceRevisionRecord) -> Price:
         record.input_micros_per_million,
         record.output_micros_per_million,
         _iso(record.created_at),
+        record.cached_input_micros_per_million,
+        record.cache_write_micros_per_million,
     )
 
 
@@ -227,6 +231,11 @@ class SqlAlchemyBudgetStore:
                 _RES.currency,
                 _P.input_micros_per_million,
                 _P.output_micros_per_million,
+                _A.cached_input_tokens,
+                _A.cache_write_tokens,
+                _P.cached_input_micros_per_million,
+                _P.cache_write_micros_per_million,
+                _A.cache_details_status,
             )
             .select_from(_A)
             .outerjoin(_RES, _RES.attempt_id == _A.id)
@@ -324,6 +333,8 @@ class SqlAlchemyBudgetStore:
         currency: str,
         input_micros: int,
         output_micros: int,
+        cached_input_micros: int | None = None,
+        cache_write_micros: int | None = None,
     ) -> None:
         with self._sessions() as session:
             session.connection().exec_driver_sql("BEGIN IMMEDIATE")
@@ -339,6 +350,8 @@ class SqlAlchemyBudgetStore:
                     currency=currency,
                     input_micros_per_million=input_micros,
                     output_micros_per_million=output_micros,
+                    cached_input_micros_per_million=cached_input_micros,
+                    cache_write_micros_per_million=cache_write_micros,
                     created_at=self._clock(),
                 )
             )
