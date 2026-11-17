@@ -213,7 +213,7 @@
 
 ## 10. F08：写作方法验证与复用
 
-> 2026-11-17 实施状态：本分支已接入方法标注、A/B 试写、作者评分与个人模板，见 [操作与契约](../METHOD_VALIDATION.md)。[PR #49](https://github.com/King70404/AI-Writer-project/pull/49) 尚未合并；完整 Windows 门禁已通过，见 [F08 验证](../F08_WINDOWS_GATE_20261117.md) 与 [PLAN](../../PLAN.md)；下文保留原设计与验收要求。
+> 2026-11-18 实施状态：main 已接入方法标注、A/B 试写、作者评分与个人模板，见 [操作与契约](../METHOD_VALIDATION.md)。[PR #49](https://github.com/King70404/AI-Writer-project/pull/49) 已合并为 `16adc1e`；完整 Windows 门禁已通过，见 [F08 验证](../F08_WINDOWS_GATE_20261117.md) 与 [PLAN](../../PLAN.md)；下文保留原设计与验收要求。
 
 **作者要完成的事：** 从范文提炼一个可解释的方法，再判断它是否真的改善自己的章节，而不是积累越来越长的规则。
 

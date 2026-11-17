@@ -1,6 +1,6 @@
 # 当前交付
 
-更新：2026-11-18。用户已授权 PR #44 及本轮后续 PR 连续合并，无需逐项确认。第四步六项均已合并 main，最新为 `be311ca`；E/F08 已同步该基线，准备合并。
+更新：2026-11-18。用户已授权 PR #44 及本轮后续 PR 连续合并，无需逐项确认。第四步六项和第五步 E/F08 均已合并 main。功能合并基线为 `16adc1e39e66a69dfb1b20174c3c1dd51cb04978`；后续提交仅同步状态文档。
 
 ## 已合并能力
 
@@ -14,10 +14,11 @@
 | A2-2 到期伏笔与预算提醒 | [#48](https://github.com/King70404/AI-Writer-project/pull/48) | `9c56462` |
 | B-2 分析/评审发送前预估 | [#45](https://github.com/King70404/AI-Writer-project/pull/45) | `f15bdb8` |
 | B-3 缓存计价、迁移及费用 CSV | [#46](https://github.com/King70404/AI-Writer-project/pull/46) | `be311ca` |
+| E/F08 方法验证 | [#49](https://github.com/King70404/AI-Writer-project/pull/49) | `16adc1e` |
 
 各项独立完整 Windows 门禁与最新 main 同步补验证据见对应 `docs/*WINDOWS_GATE*.md` 和 PR。普通 merge、未绕过保护；GitHub hosted Windows 检查受账户付款/额度问题阻止，任务未执行，不声称云端测试通过。
 
-## 当前最终候选
+## 最终有效验证
 
 E/F08 [PR #49](https://github.com/King70404/AI-Writer-project/pull/49)：规则场景元数据、作者手工标注、冻结来源 A/B 试写、评分后揭示方法、作者验证后模板跨书复制。两臂串行，复用台账与预算，不自动重发或采用。
 
@@ -25,7 +26,7 @@ E/F08 [PR #49](https://github.com/King70404/AI-Writer-project/pull/49)：规则�
 
 ## 下一步
 
-完成 F08 同步核对并按已有授权合并，随后同步最终状态。未发布、未打 tag；不再要求本轮逐项合并确认。
+本轮任务已完成，无待合并的 A/B/E PR。合并顺序、补验与主线一致性见 [收尾记录](docs/AB_E_MERGE_COMPLETION_20261118.md)。不将工程测试视为真实付费模型或作者文学效果验收；未发布、未打 tag。
 
 ## 边界
 

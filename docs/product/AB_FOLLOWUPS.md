@@ -4,20 +4,20 @@
 
 本清单只列 A/B 的已登记缺口，供后续按项领取；C 的已知缺口、D（跨章与交接）、E（方法验证）另列，不混入 A/B。每项完成定义均为：实现 → 前后端接线 → 测试与证据 → 文档同步；不新增模型调用，也不得以假数据、空按钮或未跑测试宣布完成。测试只用自有隔离根，不接触正式作者数据或真实 Key。
 
-## 2026-11-17 当前候选状态
+## 2026-11-18 收尾状态
 
-下表补充本次收尾状态；各节“现状”保留最初缺口描述。main 为 `dea6eaf`，尚未合并的候选不能视为 main 已交付。
+本轮六项均已实现、验证并合入 main，各节“现状”保留最初缺口描述；当前有效状态以本表、PLAN 与验证报告为准。
 
-| 项目 | PR | 当前状态 |
+| 项目 | PR | merge SHA |
 | --- | --- | --- |
-| A1-2 保存规划并准备 | [#43](https://github.com/King70404/AI-Writer-project/pull/43) | 已实现，验证范围见 PR 与 PLAN；等待合并授权 |
-| A1-1 检查连接 | [#44](https://github.com/King70404/AI-Writer-project/pull/44) | 完整 Windows 门禁通过；等待合并授权 |
-| A2-1 全书架汇总 | [#47](https://github.com/King70404/AI-Writer-project/pull/47) | 完整 Windows 门禁通过；等待合并授权 |
-| A2-2 到期伏笔与预算提醒 | [#48](https://github.com/King70404/AI-Writer-project/pull/48) | 完整 Windows 门禁通过；依赖 A2-1，等待合并授权 |
-| B-2 分析与评审发送前预估 | [#45](https://github.com/King70404/AI-Writer-project/pull/45) | 完整 Windows 门禁通过；等待合并授权 |
-| B-3 缓存计价及 B-4 费用 CSV | [#46](https://github.com/King70404/AI-Writer-project/pull/46) | 含迁移、缓存列、单价、币种和逐条金额；组合完整门禁通过，等待依赖与授权 |
+| A1-2 保存规划并准备 | [#43](https://github.com/King70404/AI-Writer-project/pull/43) | `530a8ce` |
+| A1-1 检查连接 | [#44](https://github.com/King70404/AI-Writer-project/pull/44) | `eca5975` |
+| A2-1 全书架汇总 | [#47](https://github.com/King70404/AI-Writer-project/pull/47) | `8543a06` |
+| A2-2 到期伏笔与预算提醒 | [#48](https://github.com/King70404/AI-Writer-project/pull/48) | `9c56462` |
+| B-2 分析与评审发送前预估 | [#45](https://github.com/King70404/AI-Writer-project/pull/45) | `f15bdb8` |
+| B-3 缓存计价及 B-4 费用 CSV | [#46](https://github.com/King70404/AI-Writer-project/pull/46) | `be311ca` |
 
-B-1 和 B-4 用量导出已分别经 PR #40、#41 合并；B-4 的费用扩展仍在 PR #46。F08 的独立 PR #49 也已通过最终完整 Windows 门禁，详情见 PLAN；仍须授权后合并。
+B-1、B-4 用量导出分别经 PR #40、#41 合并；费用扩展也已随 PR #46 合入。F08 已经独立 PR #49 合入 `16adc1e`。完整验证与合并补验见 [收尾记录](../AB_E_MERGE_COMPLETION_20261118.md)，不将本地结果冒充 GitHub hosted CI 通过。
 
 ## 建议顺序与规模
 
@@ -79,7 +79,7 @@ B-1 和 B-4 用量导出已分别经 PR #40、#41 合并；B-4 的费用扩展�
 
 ## B-1 旧 `/ai/continue`、`/ai/rewrite` 计量与预算
 
-> 状态（2026-11-05，分支 `codex/b1-legacy-metering`）：已实现。两个旧接口改走工作流的网关 provider，按 `generation` 归属写入用量台账，并受 B2 预算约束（strict 拒绝不发送、不写台账）。台账不可用时拒绝发送（503 `AI_USAGE_LEDGER_UNAVAILABLE`），不再出现未计量的请求。响应字段保持不变；未配置默认模型仍返回 503 `AI_PROVIDER_NOT_CONFIGURED`。测试：`tests/backend/test_legacy_ai_metering.py`。Windows 门禁待运行。
+> 状态（2026-11-05，分支 `codex/b1-legacy-metering`）：已实现。两个旧接口改走工作流的网关 provider，按 `generation` 归属写入用量台账，并受 B2 预算约束（strict 拒绝不发送、不写台账）。台账不可用时拒绝发送（503 `AI_USAGE_LEDGER_UNAVAILABLE`），不再出现未计量的请求。响应字段保持不变；未配置默认模型仍返回 503 `AI_PROVIDER_NOT_CONFIGURED`。测试：`tests/backend/test_legacy_ai_metering.py`。已通过 Windows 门禁并经 PR #40 合并，详见 `docs/B1_WINDOWS_GATE_20261106.md`。
 
 - 现状：`backend/src/aiwebnovel/ai_writing/web.py` 的两个旧接口仍不写 B1 台账、不受 B2 预算约束。
 - 目标：旧接口与新流程同一套用量/预算规则，同时保持响应兼容。
@@ -105,7 +105,7 @@ B-1 和 B-4 用量导出已分别经 PR #40、#41 合并；B-4 的费用扩展�
 
 ## B-4 用量与费用 CSV 导出
 
-> 状态（2026-11-05，分支 `codex/b4-usage-csv`）：用量部分已实现。采用前端方案：用量面板「导出 CSV」按现有 `/projects/{id}/usage` 分页（每页 100）收集，上限 5000 条，超过则拒绝并提示按章节筛选，不截断。UTF-8 BOM、中文表头、未知值写“未知”而非 0、单元格公式中和，不含正文、Key 或地址。**未做**：单价、币种、逐条金额列，原因是逐条结算金额目前没有接口，需要与 B-3 一起由后端提供。测试：`tests/frontend/usage-csv.test.tsx`。
+> 状态（2026-11-05，分支 `codex/b4-usage-csv`）：用量部分已实现。采用前端方案：用量面板「导出 CSV」按现有 `/projects/{id}/usage` 分页（每页 100）收集，上限 5000 条，超过则拒绝并提示按章节筛选，不截断。UTF-8 BOM、中文表头、未知值写“未知”而非 0、单元格公式中和，不含正文、Key 或地址。单价、币种、逐条金额及缓存列已随 B-3 / PR #46 合入；原用量导出证据与新费用扩展证据分别记录。测试：`tests/frontend/usage-csv.test.tsx`。
 
 - 现状：用量面板只能查看，不能导出。
 - 目标：作者可导出无正文、无密钥的用量/费用 CSV，便于自己核对。
@@ -115,9 +115,9 @@ B-1 和 B-4 用量导出已分别经 PR #40、#41 合并；B-4 的费用扩展�
 
 ## 不在本清单
 
-- C 的已知缺口：AI 拆分规划、批量伏笔抽取、语义索引、评审使用召回策略、到期伏笔进入 A2 待办（A2-2 只做待办接线，不做抽取）、人物状态与事实关联、拖拽排序。
+- C 的已知缺口：AI 拆分规划、批量伏笔抽取、语义索引、评审使用召回策略、人物状态与事实关联、拖拽排序。
 - D：有界跨章任务、旧稿导入、外部 AI 交接。
-- E：写作方法效果验证。
+- E：写作方法效果验证已在独立 PR #49 实现并合并；真实文学效果仍由作者评价。
 - RF-16/17：真实付费模型质量、实际费用与作者文学评价。
 
 详细能力边界见[功能索引](../FEATURE_REALITY_MATRIX.md)，设计依据见[功能规格](FUNCTION_DESIGN.md)与[流程优化](WORKFLOW_DESIGN.md)。

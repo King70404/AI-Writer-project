@@ -1,6 +1,6 @@
 # 写作方法验证与复用（F08）
 
-当前代码位于 [PR #49](https://github.com/King70404/AI-Writer-project/pull/49)，合并和完整门禁状态见 [PLAN](../PLAN.md)。本页说明本分支行为，不表示 main 已交付。
+[PR #49](https://github.com/King70404/AI-Writer-project/pull/49) 已于 2026-11-18 合入 main（`16adc1e`），完整门禁和证据见 [PLAN](../PLAN.md)。本页说明当前 main 已实现的行为及边界。
 
 ## 作者操作
 
