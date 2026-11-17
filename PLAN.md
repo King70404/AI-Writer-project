@@ -12,7 +12,7 @@ PR #43 的 GitHub Windows 检查因账户付款/额度问题未启动，未执�
 
 ## 已实现验证、尚未合并的候选
 
-- A1-1 检查连接：[PR #44](https://github.com/King70404/AI-Writer-project/pull/44)。
+- A1-1 检查连接：[PR #44](https://github.com/King70404/AI-Writer-project/pull/44)。已同步 main `67d1ca3`，冲突仅 PLAN 文档；独立完整 Windows 门禁见 [A1-1 验证](docs/A1_1_WINDOWS_GATE_20261109.md)。同步后补验通过：后端 22、前端 60、类型/格式/lint、E2E-INT-019/023 及清理；不声称对同步后的 head 重跑整套门禁，仍待用户授权合并。
 - A2-1 全书架汇总：[PR #47](https://github.com/King70404/AI-Writer-project/pull/47)；A2-2 到期伏笔与预算提醒：[PR #48](https://github.com/King70404/AI-Writer-project/pull/48)。
 - B-2 分析/评审发送前预估：[PR #45](https://github.com/King70404/AI-Writer-project/pull/45)；B-3 缓存计价、迁移及 B-4 费用 CSV：[PR #46](https://github.com/King70404/AI-Writer-project/pull/46)。main 的 CSV 当前仍只有用量列。
 - E/F08 方法验证：[PR #49](https://github.com/King70404/AI-Writer-project/pull/49)，代码 `8dcf46cfa9b91806acb5225268e37ccdb3301a15` 完整 Windows 门禁通过：后端 3,334、前端 1,098、E2E 34 场景及清理通过。包含上述代码依赖；报告与操作契约在该 PR 分支。未合并，不称为 main 已交付。
