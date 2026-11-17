@@ -16,6 +16,7 @@ import { ProjectApiError } from "../../projects/api/errors";
 import { formatProjectTimestamp } from "../../projects/formatting";
 import { projectStructurePath } from "../../projects/routing";
 import { WorkspaceSummaryPanel } from "../components/WorkspaceSummaryPanel";
+import { BookshelfOverview } from "../components/BookshelfOverview";
 import {
   forgetRecentChapter,
   lastRecentChapter,
@@ -206,6 +207,7 @@ export function AuthorHomePage({
       <section className="author-home__system" aria-label="运行状态">
         <SystemStatus />
       </section>
+      <BookshelfOverview />
     </section>
   );
 }

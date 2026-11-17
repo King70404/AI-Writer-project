@@ -101,6 +101,25 @@ class WorkspaceSummary(WorkbenchModel):
     generated_at: str
 
 
+class BookshelfSummary(WorkbenchModel):
+    project_id: str
+    title: str
+    characters: int = Field(ge=0)
+    chapter_count: int = Field(ge=0)
+    volume_count: int = Field(ge=0)
+    editorial: EditorialCounts
+    action_total: int = Field(ge=0)
+
+
+class BookshelfPage(WorkbenchModel):
+    total: int = Field(ge=0)
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1, le=MAX_PAGE_SIZE)
+    next_offset: int | None
+    items: list[BookshelfSummary]
+    generated_at: str
+
+
 class ChapterSummary(WorkbenchModel):
     chapter_id: str
     volume_id: str

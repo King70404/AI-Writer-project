@@ -1,6 +1,7 @@
 import { getJson, putJson } from "../../../api/client";
 import { ApiError } from "../../../api/errors";
 import { securitySession } from "../../../api/security-session";
+import { isCanonicalProjectId } from "../../projects/api/parsers";
 
 /**
  * 工作台汇总读模型（A2）。所有数字由服务端从已保存数据派生：
@@ -388,3 +389,68 @@ export const workspaceClient = {
     }),
 };
 export type WorkspaceClient = typeof workspaceClient;
+
+export interface BookshelfSummary extends Pick<
+  WorkspaceSummary,
+  | "project_id"
+  | "characters"
+  | "chapter_count"
+  | "volume_count"
+  | "editorial"
+  | "action_total"
+> {
+  readonly title: string;
+}
+export interface BookshelfOverviewPage {
+  readonly total: number;
+  readonly offset: number;
+  readonly limit: number;
+  readonly next_offset: number | null;
+  readonly items: readonly BookshelfSummary[];
+  readonly generated_at: string;
+}
+export function parseBookshelfOverview(
+  value: unknown,
+): BookshelfOverviewPage | null {
+  if (value === null) return null;
+  const item = obj(value);
+  const result = {
+    total: count(item.total),
+    offset: count(item.offset),
+    limit: count(item.limit),
+    next_offset: nullable(item.next_offset, count),
+    generated_at: str(item.generated_at),
+    items: array(item.items, (raw) => {
+      const book = obj(raw);
+      if (!isCanonicalProjectId(book.project_id)) invalid();
+      return {
+        project_id: id(book.project_id),
+        title: str(book.title),
+        characters: count(book.characters),
+        chapter_count: count(book.chapter_count),
+        volume_count: count(book.volume_count),
+        editorial: editorialCounts(book.editorial),
+        action_total: count(book.action_total),
+      };
+    }),
+  };
+  if (
+    result.limit < 1 ||
+    result.limit > 100 ||
+    result.items.length > result.limit ||
+    (result.next_offset !== null &&
+      result.next_offset !== result.offset + result.items.length)
+  )
+    invalid();
+  return result;
+}
+export const bookshelfClient = {
+  page: (offset: number, limit: number, signal?: AbortSignal) =>
+    request(() =>
+      getJson(
+        `workspace/overview?${pageQuery(offset, limit)}`,
+        parseBookshelfOverview,
+        { signal },
+      ),
+    ),
+};
