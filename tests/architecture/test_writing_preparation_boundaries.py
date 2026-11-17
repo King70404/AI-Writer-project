@@ -22,11 +22,13 @@ def violations(source: str, layer: str) -> tuple[str, ...]:
         "composition": {
             "aiwebnovel.chapter_planning.persistence",
             "aiwebnovel.writing_studio.persistence.repository",
+            "aiwebnovel.writing_studio.persistence.method_repository",
             "aiwebnovel.story_memory.persistence",
         },
         "persistence": {
             "aiwebnovel.novel_structure.persistence.workflow_transaction",
             "aiwebnovel.writing_studio.persistence.models",
+            "aiwebnovel.writing_studio.persistence.method_models",
         },
     }.get(layer, set())
     imports = []
@@ -55,7 +57,7 @@ def test_production_preparation_layers() -> None:
         for path in (ROOT / module).rglob("*.py"):
             if path.stem == "composition":
                 layer = "composition"
-            elif path.stem == "web":
+            elif path.stem == "web" or path.stem.endswith("_web"):
                 layer = "web"
             elif path.stem == "persistence" or path.parent.name == "persistence":
                 layer = "persistence"

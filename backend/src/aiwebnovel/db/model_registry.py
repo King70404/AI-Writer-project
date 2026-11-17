@@ -53,6 +53,9 @@ WRITING_JOB_BUDGET_TABLE_NAMES = frozenset({"writing_job_budgets", "writing_job_
 HANDOFF_TABLE_NAMES = frozenset({"handoff_snapshots", "external_candidates"})
 IMPORT_TABLE_NAMES = frozenset({"import_previews", "import_receipts"})
 STORY_CONTROL_TABLE_NAMES = frozenset({"story_control_revisions"})
+METHOD_VALIDATION_TABLE_NAMES = frozenset(
+    {"method_trials", "method_annotations", "method_templates"}
+)
 BUSINESS_TABLE_NAMES = (
     PROJECT_TABLE_NAMES
     | STORY_BIBLE_TABLE_NAMES
@@ -69,6 +72,7 @@ BUSINESS_TABLE_NAMES = (
     | HANDOFF_TABLE_NAMES
     | WRITING_JOB_TABLE_NAMES
     | WRITING_JOB_BUDGET_TABLE_NAMES
+    | METHOD_VALIDATION_TABLE_NAMES
 )
 
 
@@ -123,12 +127,20 @@ def load_model_metadata() -> MetaData:
         WritingJobRecord,
         WritingJobRunRecord,
     )
+    from aiwebnovel.writing_studio.persistence.method_models import (
+        MethodAnnotationRecord,
+        MethodTemplateRecord,
+        MethodTrialRecord,
+    )
     from aiwebnovel.writing_studio.persistence.models import (
         WritingReferenceRecord,
         WritingRuleVersionRecord,
     )
 
     registered_records = (
+        MethodTrialRecord,
+        MethodAnnotationRecord,
+        MethodTemplateRecord,
         WritingJobRecord,
         WritingJobBudgetRecord,
         WritingJobRunRecord,

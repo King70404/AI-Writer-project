@@ -41,6 +41,9 @@ class WritingRule:
     name: str
     instruction: str
     applies_to: str
+    scene_tags: tuple[str, ...] = ()
+    excludes: str = ""
+    priority: int = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +91,9 @@ class WritingRuleVersion:
     reference_id: str | None
     rules: tuple[WritingRule, ...]
     created_at: str
+    template_source_id: str | None = None
+    template_source_rule_version_id: str | None = None
+    template_source_rule_index: int | None = None
 
 
 class WritingRepository(Protocol):

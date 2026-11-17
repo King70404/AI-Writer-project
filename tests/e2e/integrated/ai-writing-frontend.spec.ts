@@ -486,6 +486,39 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     await page.getByRole("button", { name: "追加到正文", exact: true }).click();
     await expect(editor).toHaveValue(`${final}\n\n${rewritten}`);
     await expect(status).toHaveText("已保存");
+    analysisReply = null;
+    await page.getByRole("tab", { name: "准备", exact: true }).click();
+    await workbench.getByText("写作方法验证与复用", { exact: true }).click();
+    const methods = workbench.getByRole("region", { name: "写作方法验证" });
+    await methods
+      .getByLabel("规则版本")
+      .selectOption({ label: "迟疑与行动方法 · 第 1 版" });
+    await methods.getByLabel("已保存场景").selectOption({ label: "渡口试探" });
+    await methods.getByRole("button", { name: "准备对照（不发送）" }).click();
+    await expect(methods.getByText(/对照已准备/u)).toBeVisible();
+    expect(requests).toHaveLength(6);
+    await methods.getByRole("button", { name: "确认发送候选 A" }).click();
+    await expect(
+      methods.getByRole("region", { name: "候选 A" }).locator("pre"),
+    ).toBeVisible();
+    await methods.getByRole("button", { name: "确认发送候选 B" }).click();
+    await expect(
+      methods.getByRole("region", { name: "候选 B" }).locator("pre"),
+    ).toBeVisible();
+    await expect(methods.getByText(/本次方法用于候选/u)).toHaveCount(0);
+    for (const slot of ["A", "B"])
+      for (const label of [
+        "焦点清晰度",
+        "行动连续性",
+        "对话潜台词",
+        "场景停留",
+        "原创表达",
+      ])
+        await methods.getByLabel(`${slot} ${label}`).selectOption("3");
+    await methods.getByRole("button", { name: "保存评分并揭示方法" }).click();
+    await expect(methods.getByText(/本次方法用于候选/u)).toBeVisible();
+    expect(requests).toHaveLength(8);
+    await expect(editor).toHaveValue(`${final}\n\n${rewritten}`);
     expectCleanBrowserAudit(browserAudit);
   } finally {
     server.closeAllConnections();

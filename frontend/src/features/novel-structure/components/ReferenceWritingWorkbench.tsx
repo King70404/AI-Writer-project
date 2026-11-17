@@ -16,6 +16,7 @@ import {
   ChapterPlanningEditor,
   type ChapterPlanningHandle,
 } from "./ChapterPlanningEditor";
+import { MethodValidation } from "./MethodValidation";
 
 const STATUS = {
   ready: "待确认分析",
@@ -29,6 +30,8 @@ export function ReferenceWritingWorkbench({
   chapterId,
   profile,
   content,
+  savedContent,
+  manuscriptRevision,
   onDirty,
   onOpenGenerate,
   client = writingPreparationClient,
@@ -37,6 +40,8 @@ export function ReferenceWritingWorkbench({
   readonly chapterId: string;
   readonly profile: ModelProfile | undefined;
   readonly content: string;
+  readonly savedContent?: string;
+  readonly manuscriptRevision?: string;
   readonly onDirty: (dirty: boolean) => void;
   /** 规划保存后返回“生成”分区准备续写（不发送模型）。 */
   readonly onOpenGenerate?: () => void;
@@ -217,7 +222,16 @@ export function ReferenceWritingWorkbench({
         {
           title: ruleTitle.trim(),
           reference_id: ruleReference,
-          rules: draftRules,
+          rules: draftRules.map((rule) => ({
+            ...rule,
+            ...(rule.scene_tags === undefined
+              ? {}
+              : {
+                  scene_tags: rule.scene_tags
+                    .map((tag) => tag.trim())
+                    .filter(Boolean),
+                }),
+          })),
         },
         previous,
       );
@@ -560,6 +574,67 @@ export function ReferenceWritingWorkbench({
                       }
                     />
                   </label>
+                  <label>
+                    规则 {index + 1} 场景标签（逗号分隔）
+                    <input
+                      maxLength={320}
+                      value={(item.scene_tags ?? []).join(",")}
+                      onChange={(event) =>
+                        setDraftRules(
+                          draftRules.map((rule, position) =>
+                            position === index
+                              ? {
+                                  ...rule,
+                                  scene_tags: event.target.value
+                                    .split(/[,，]/u)
+                                    .slice(0, 8),
+                                }
+                              : rule,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    规则 {index + 1} 不适用条件
+                    <input
+                      maxLength={200}
+                      value={item.excludes ?? ""}
+                      onChange={(event) =>
+                        setDraftRules(
+                          draftRules.map((rule, position) =>
+                            position === index
+                              ? { ...rule, excludes: event.target.value }
+                              : rule,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    规则 {index + 1} 优先级
+                    <select
+                      value={item.priority ?? 3}
+                      onChange={(event) =>
+                        setDraftRules(
+                          draftRules.map((rule, position) =>
+                            position === index
+                              ? {
+                                  ...rule,
+                                  priority: Number(event.target.value),
+                                }
+                              : rule,
+                          ),
+                        )
+                      }
+                    >
+                      {[1, 2, 3, 4, 5].map((priority) => (
+                        <option key={priority} value={priority}>
+                          {priority}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <button
                     type="button"
                     onClick={() =>
@@ -627,6 +702,20 @@ export function ReferenceWritingWorkbench({
             disabled={busy}
             onBusy={setPlanningBusy}
           />
+          {manuscriptRevision !== undefined && savedContent !== undefined ? (
+            <MethodValidation
+              projectId={projectId}
+              chapterId={chapterId}
+              manuscriptRevision={manuscriptRevision}
+              savedContent={savedContent}
+              plan={plan}
+              rules={rules}
+              profile={profile}
+              onRulesChanged={(created) =>
+                setRules((current) => [created, ...current])
+              }
+            />
+          ) : null}
           {planSavedNotice && onOpenGenerate ? (
             <div
               className="reference-shortcut"

@@ -68,7 +68,23 @@ test("E2E-INT-024 Workbench summary: server-side totals, editorial state and der
     .getByRole("link", { name: "写正文" })
     .getAttribute("href");
   const chapterId = firstPath!.split("/")[4];
-  await firstItem.getByRole("link", { name: "写正文" }).click();
+  // Finish the chapter's initial task read before this scenario navigates away.
+  // Otherwise a fast save/mark flow can unload a valid in-flight GET.
+  const enterWriting = async (navigate: () => Promise<unknown>) => {
+    const tasks = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        new URL(response.url()).pathname ===
+          `/api/v1/chapters/${chapterId}/ai/runs`,
+    );
+    await navigate();
+    const response = await tasks;
+    expect(response.status()).toBe(200);
+    expect(await response.finished()).toBeNull();
+  };
+  await enterWriting(() =>
+    firstItem.getByRole("link", { name: "写正文" }).click(),
+  );
   const desk = page.getByRole("region", { name: "第1章 / 晨雾" });
   const status = desk.getByRole("region", { name: "写作状态" });
   const editor = desk.getByLabel("章节正文");
@@ -111,7 +127,9 @@ test("E2E-INT-024 Workbench summary: server-side totals, editorial state and der
   await expect(secondRow.getByRole("cell").nth(1)).toHaveText("0");
 
   // 定稿后再修改正文：派生“定稿后正文已修改”，首页显示同一项待处理。
-  await firstRow.getByRole("link", { name: "第1章 · 晨雾" }).click();
+  await enterWriting(() =>
+    firstRow.getByRole("link", { name: "第1章 · 晨雾" }).click(),
+  );
   await expect(editorial).toHaveValue("review");
   await editorial.selectOption("final");
   await expect(status.getByText("已标记为“定稿”。")).toBeVisible();
@@ -134,7 +152,9 @@ test("E2E-INT-024 Workbench summary: server-side totals, editorial state and der
     `${expected + 3} 字`,
   );
   await expect(home.getByText("定稿后正文已修改")).toBeVisible();
-  await home.getByRole("link", { name: "第1章 · 晨雾" }).click();
+  await enterWriting(() =>
+    home.getByRole("link", { name: "第1章 · 晨雾" }).click(),
+  );
   await expect(page).toHaveURL(
     `${browserAudit.allowedOrigin}/projects/${projectId}/chapters/${chapterId}/write`,
   );

@@ -28,9 +28,9 @@ def test_production_api_has_exactly_thirty_eight_operations_and_six_character_ro
         for method in path_operations
         if method in {"get", "post", "put", "patch", "delete"}
     }
-    assert len(operations) == 121
+    assert len(operations) == 133
     assert len(AI_WORKFLOW_OPERATIONS) == 14
-    assert len(WRITING_PREPARATION_OPERATIONS) == 10
+    assert len(WRITING_PREPARATION_OPERATIONS) == 22
     assert len(BACKUP_OPERATIONS) == 5
     assert len(WORKBENCH_OPERATIONS) == 6
     assert len(USAGE_OPERATIONS) == 1

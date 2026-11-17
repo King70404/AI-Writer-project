@@ -3,7 +3,7 @@
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -27,6 +27,12 @@ from aiwebnovel.writing_studio.persistence.models import (
     WritingReferenceRecord,
     WritingRuleVersionRecord,
 )
+
+
+def _rule_from_payload(payload: dict[str, Any]) -> WritingRule:
+    values = dict(payload)
+    values["scene_tags"] = tuple(values.get("scene_tags", ()))
+    return WritingRule(**values)
 
 
 class SqlAlchemyWritingRepository:
@@ -80,7 +86,7 @@ class SqlAlchemyWritingRepository:
             payload["analysis"] = ReferenceAnalysis(
                 tuple(UnitAnalysis(**unit) for unit in analysis["units"]),
                 analysis["long_form_notes"],
-                tuple(WritingRule(**r) for r in analysis["rules"]),
+                tuple(_rule_from_payload(r) for r in analysis["rules"]),
             )
         return WritingReference(
             **payload,
@@ -92,7 +98,7 @@ class SqlAlchemyWritingRepository:
     @staticmethod
     def _rules(record: WritingRuleVersionRecord) -> WritingRuleVersion:
         payload = dict(record.payload)
-        payload["rules"] = tuple(WritingRule(**rule) for rule in payload["rules"])
+        payload["rules"] = tuple(_rule_from_payload(rule) for rule in payload["rules"])
         return WritingRuleVersion(**payload)
 
     def create_reference(self, reference: WritingReference) -> WritingReference:
