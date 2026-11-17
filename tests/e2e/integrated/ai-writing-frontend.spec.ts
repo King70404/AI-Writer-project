@@ -283,6 +283,31 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     await expect(page.getByLabel("AI候选文本")).toHaveValue(rewritten);
     await expect(editor).toHaveValue(final);
     expect(requests).toHaveLength(4);
+    const updateAnalysisBudget = async (mode: "strict" | "warn" | "off") => {
+      await page.getByRole("tab", { name: "生成", exact: true }).click();
+      const panel = page.locator("details.budget-settings");
+      if ((await panel.getAttribute("open")) === null)
+        await panel.locator("summary").click();
+      await expect(
+        panel.getByRole("button", { name: "保存预算", exact: true }),
+      ).toBeEnabled();
+      await panel.getByLabel("预算方式", { exact: true }).selectOption(mode);
+      if (mode !== "off") {
+        await panel.getByLabel("预算币种", { exact: true }).fill("CNY");
+        await panel.getByLabel("单任务上限（可空）", { exact: true }).fill("1");
+      }
+      const response = page.waitForResponse(
+        (item) =>
+          new URL(item.url()).pathname.endsWith("/budget") &&
+          item.request().method() === "PUT",
+      );
+      await panel
+        .getByRole("button", { name: "保存预算", exact: true })
+        .click();
+      const saved = await response;
+      expect(saved.status()).toBe(200);
+      await page.getByRole("tab", { name: "准备", exact: true }).click();
+    };
 
     await page.getByRole("button", { name: "丢弃", exact: true }).click();
     await page
@@ -304,6 +329,27 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     await expect(
       workbench.getByRole("button", { name: "确认发送并分析范文" }),
     ).toBeEnabled();
+    await expect(
+      workbench.getByRole("region", { name: "发送前预估" }),
+    ).toContainText("未计价");
+    await updateAnalysisBudget("strict");
+    await workbench.getByRole("button", { name: "重新预估" }).click();
+    await expect(workbench.getByText(/按严格预算不会发送/u)).toBeVisible();
+    await expect(
+      workbench.getByRole("button", { name: "确认发送并分析范文" }),
+    ).toBeDisabled();
+    expect(requests).toHaveLength(4);
+    await updateAnalysisBudget("warn");
+    await workbench.getByRole("button", { name: "重新预估" }).click();
+    const acknowledge = workbench.getByRole("checkbox", {
+      name: /仍要发送这一次/u,
+    });
+    await expect(acknowledge).toBeVisible();
+    await expect(
+      workbench.getByRole("button", { name: "确认发送并分析范文" }),
+    ).toBeDisabled();
+    expect(requests).toHaveLength(4);
+    await acknowledge.check();
     expect(requests).toHaveLength(4);
     analysisReply = JSON.stringify({
       units: ["旅人敲了两下门。", "屋内的人没有答话，只把烛火移到窗后。"].map(
@@ -329,6 +375,7 @@ test("E2E-INT-019 AI writing assistance flow", async ({
     await expect(
       workbench.getByText("写作原因（推测）", { exact: true }),
     ).toHaveCount(2);
+    await updateAnalysisBudget("off");
     expect(requests).toHaveLength(5);
     expect(JSON.stringify(JSON.parse(requests[4].body))).toContain(
       "旅人敲了两下门",

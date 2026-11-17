@@ -315,3 +315,20 @@ export const budgetClient = {
     ),
 };
 export type BudgetClient = typeof budgetClient;
+
+export const analysisEstimateClient = {
+  reference: (projectId: string, referenceId: string) =>
+    call(() =>
+      getJson(
+        `projects/${identifier(projectId)}/writing/references/${identifier(referenceId)}/estimate`,
+        parseEstimate,
+      ),
+    ),
+  review: (chapterId: string, reviewId: string) =>
+    call(() =>
+      getJson(
+        `chapters/${identifier(chapterId)}/memory/reviews/${identifier(reviewId)}/estimate`,
+        parseEstimate,
+      ),
+    ),
+};

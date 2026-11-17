@@ -10,6 +10,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthorHomePage } from "../../frontend/src/features/workbench/pages/AuthorHomePage";
+import { allowFakeAnalysisEstimates } from "./analysis-estimate-support";
 import { bookshelfClient } from "../../frontend/src/features/workbench/api/workspace";
 import { BookshelfPage } from "../../frontend/src/features/workbench/pages/BookshelfPage";
 import {
@@ -100,6 +101,7 @@ function LocationProbe() {
 }
 
 beforeEach(() => {
+  allowFakeAnalysisEstimates();
   vi.spyOn(bookshelfClient, "page").mockResolvedValue({
     total: 0,
     offset: 0,

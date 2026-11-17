@@ -6,7 +6,12 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  allowFakeAnalysisEstimates,
+  allowedAnalysisEstimate,
+} from "./analysis-estimate-support";
+import { analysisEstimateClient } from "../../frontend/src/features/usage/api/budget";
 import { StoryMemoryWorkbench } from "../../frontend/src/features/novel-structure/components/StoryMemoryWorkbench";
 import { AIWritingError } from "../../frontend/src/features/novel-structure/api/ai-writing";
 import type { StoryMemoryClient } from "../../frontend/src/features/novel-structure/api/story-memory";
@@ -19,6 +24,9 @@ import {
   memoryReview,
   memoryWorkspace,
 } from "./story-memory-support";
+
+beforeEach(allowFakeAnalysisEstimates);
+afterEach(() => vi.restoreAllMocks());
 
 async function setup(
   client: StoryMemoryClient = memoryClient(),
@@ -247,4 +255,19 @@ it("reports initial load failures and can refresh without losing typed draft", a
   fireEvent.click(screen.getByRole("button", { name: "刷新记忆与评审" }));
   await screen.findByText("渡口正在下雨");
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("shows a strict refusal for review and makes no send request", async () => {
+  vi.mocked(analysisEstimateClient.review).mockResolvedValueOnce(
+    allowedAnalysisEstimate({
+      budget_mode: "strict",
+      decision: "refused",
+      reasons: ["MONTHLY_LIMIT_EXCEEDED"],
+    }),
+  );
+  const client = memoryClient();
+  await setup(client);
+  expect(await screen.findByText(/按严格预算不会发送/u)).toBeVisible();
+  expect(screen.getByRole("button", { name: "确认发送并评审" })).toBeDisabled();
+  expect(client.send).not.toHaveBeenCalled();
 });
