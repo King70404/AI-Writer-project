@@ -335,7 +335,9 @@ export function AIWorkflowAssistant({
         <p role="alert">{formError || ai.error}</p>
       ) : null}
       {planningDirty ? (
-        <p role="status">章节规划有未保存修改；保存后再准备新任务。</p>
+        <p role="status">
+          章节规划有未保存修改；可保存并进入生成准备。此操作不会发送模型请求。
+        </p>
       ) : null}
       <div
         className="ai-assistant-tabs"

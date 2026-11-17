@@ -5,7 +5,8 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { allowFakeAnalysisEstimates } from "./analysis-estimate-support";
 
 import { ReferenceWritingWorkbench } from "../../frontend/src/features/novel-structure/components/ReferenceWritingWorkbench";
 import type { WritingPreparationClient } from "../../frontend/src/features/novel-structure/api/writing-preparation";
@@ -18,6 +19,7 @@ import {
   studyModel,
 } from "./writing-preparation-support";
 
+beforeEach(allowFakeAnalysisEstimates);
 afterEach(() => {
   vi.restoreAllMocks();
 });

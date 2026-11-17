@@ -29,6 +29,7 @@ export function ChapterPlanningEditor({
   content,
   client,
   onSaved,
+  onSaveAndPrepare,
   onDirty,
   disabled = false,
   onBusy,
@@ -42,6 +43,7 @@ export function ChapterPlanningEditor({
   readonly content: string;
   readonly client: WritingPreparationClient;
   readonly onSaved: (plan: ChapterPlan) => void;
+  readonly onSaveAndPrepare?: () => void;
   readonly onDirty: (dirty: boolean) => void;
   readonly disabled?: boolean;
   readonly onBusy?: (busy: boolean) => void;
@@ -119,7 +121,7 @@ export function ChapterPlanningEditor({
       setCharactersBusy(false);
     }
   };
-  const save = async () => {
+  const save = async (prepareAfterSave = false) => {
     if (saving.current || disabled) return;
     const focuses = draft.memory_focuses
       .map((item) => item.trim())
@@ -160,6 +162,7 @@ export function ChapterPlanningEditor({
       setDirty(false);
       onDirty(false);
       onSaved(saved);
+      if (prepareAfterSave) onSaveAndPrepare?.();
     } catch (failure) {
       setError(preparationError(failure).message);
     } finally {
@@ -513,6 +516,15 @@ export function ChapterPlanningEditor({
       >
         {busy ? "正在保存规划…" : "保存章节规划"}
       </button>
+      {dirty && onSaveAndPrepare ? (
+        <button
+          type="button"
+          disabled={busy || disabled}
+          onClick={() => void save(true)}
+        >
+          {busy ? "正在保存规划…" : "保存规划并进入生成准备"}
+        </button>
+      ) : null}
       <p>
         生成仍按每段 200–300
         字提交候选；逐段确认并保存正文后，可继续下一轮，直到完成本章目标。

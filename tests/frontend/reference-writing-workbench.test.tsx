@@ -6,7 +6,12 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  allowFakeAnalysisEstimates,
+  allowedAnalysisEstimate,
+} from "./analysis-estimate-support";
+import { analysisEstimateClient } from "../../frontend/src/features/usage/api/budget";
 import { ReferenceWritingWorkbench } from "../../frontend/src/features/novel-structure/components/ReferenceWritingWorkbench";
 import { AIWritingError } from "../../frontend/src/features/novel-structure/api/ai-writing";
 import type {
@@ -24,6 +29,7 @@ import {
   writingReference,
 } from "./writing-preparation-support";
 
+beforeEach(allowFakeAnalysisEstimates);
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -43,10 +49,23 @@ async function setup(client: WritingPreparationClient = preparationClient()) {
   await screen.findByRole("textbox", { name: "范文名称" });
   return { ...result, client, onDirty };
 }
-function selectReference(value = "reference-one") {
+async function selectReference(value = "reference-one") {
   fireEvent.change(screen.getByRole("combobox", { name: "已保存范文" }), {
     target: { value },
   });
+  if (screen.queryByRole("button", { name: "确认发送并分析范文" }))
+    await screen.findByRole("region", { name: "发送前预估" });
+  if (
+    screen.queryByRole("button", { name: "确认发送并分析范文" }) &&
+    !screen.queryByRole("checkbox", {
+      name: "我同意向该云端模型发送此范文与分析要求",
+    })
+  )
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "确认发送并分析范文" }),
+      ).toBeEnabled(),
+    );
 }
 
 it("prepares a frozen reference before model calls and binds cloud consent to the chosen reference", async () => {
@@ -92,7 +111,7 @@ it("prepares a frozen reference before model calls and binds cloud consent to th
     }),
   );
   expect(send).toBeEnabled();
-  selectReference(second.id);
+  await selectReference(second.id);
   expect(
     screen.getByRole("checkbox", {
       name: "我同意向该云端模型发送此范文与分析要求",
@@ -101,7 +120,7 @@ it("prepares a frozen reference before model calls and binds cloud consent to th
   expect(
     screen.getByRole("button", { name: "确认发送并分析范文" }),
   ).toBeDisabled();
-  selectReference();
+  await selectReference();
   expect(
     screen.getByRole("button", { name: "确认发送并分析范文" }),
   ).toBeDisabled();
@@ -122,7 +141,7 @@ it("shows analysis progress and failure beside the send action, reconciles once 
     reference: vi.fn().mockResolvedValue(failed),
   });
   await setup(api);
-  selectReference();
+  await selectReference();
   fireEvent.click(
     screen.getByRole("checkbox", {
       name: "我同意向该云端模型发送此范文与分析要求",
@@ -188,7 +207,7 @@ it("keeps the saved reference and safe error when reconciliation also fails", as
     reference: vi.fn().mockRejectedValue(new Error("offline")),
   });
   await setup(api);
-  selectReference();
+  await selectReference();
   expect(
     screen.queryByRole("checkbox", {
       name: "我同意向该云端模型发送此范文与分析要求",
@@ -215,7 +234,7 @@ it("requires rule confirmation, supports revisions, and reloads the chapter's ex
       .mockResolvedValueOnce(revisionTwo),
   });
   await setup(api);
-  selectReference();
+  await selectReference();
   expect(screen.getByText("门响")).toBeInTheDocument();
   expect(screen.getAllByText(/写作原因（推测）/)).toHaveLength(2);
   expect(api.confirmRules).not.toHaveBeenCalled();
@@ -301,7 +320,7 @@ it("shows successful analysis without automatically confirming its suggested rul
     references: vi.fn().mockResolvedValue([local]),
   });
   await setup(api);
-  selectReference();
+  await selectReference();
   fireEvent.click(screen.getByRole("button", { name: "确认发送并分析范文" }));
   await screen.findByText("分析已保存。查看对照说明后，可编辑并确认写作规则。");
   expect(api.analyze).toHaveBeenCalledExactlyOnceWith(
@@ -432,7 +451,7 @@ it("recovers an initial loading failure on explicit reload and prevents exhauste
   expect(
     screen.getByRole("button", { name: "保存范文并准备分析" }),
   ).toBeDisabled();
-  selectReference();
+  await selectReference();
   fireEvent.click(
     screen.getByRole("checkbox", {
       name: "我同意向该云端模型发送此范文与分析要求",
@@ -447,4 +466,54 @@ it("recovers an initial loading failure on explicit reload and prevents exhauste
     ),
   ).toHaveTextContent("引文与原文不符");
   expect(api.analyze).not.toHaveBeenCalled();
+});
+
+it("blocks analysis while estimating or strict-refused and requires explicit warn confirmation", async () => {
+  const pending = deferred<ReturnType<typeof allowedAnalysisEstimate>>();
+  vi.mocked(analysisEstimateClient.reference)
+    .mockReturnValueOnce(pending.promise)
+    .mockResolvedValueOnce(
+      allowedAnalysisEstimate({
+        budget_mode: "warn",
+        decision: "warning",
+        reasons: ["PRICE_MISSING"],
+      }),
+    );
+  const api = preparationClient({
+    references: vi
+      .fn()
+      .mockResolvedValue([
+        writingReference({ model_snapshot: { ...studyModel, kind: "local" } }),
+      ]),
+  });
+  await setup(api);
+  fireEvent.change(screen.getByRole("combobox", { name: "已保存范文" }), {
+    target: { value: "reference-one" },
+  });
+  const send = screen.getByRole("button", { name: "确认发送并分析范文" });
+  expect(send).toBeDisabled();
+  expect(api.analyze).not.toHaveBeenCalled();
+  await act(async () => {
+    pending.resolve(
+      allowedAnalysisEstimate({
+        budget_mode: "strict",
+        decision: "refused",
+        reasons: ["PRICE_MISSING"],
+      }),
+    );
+    await pending.promise;
+  });
+  expect(await screen.findByText(/按严格预算不会发送/u)).toBeVisible();
+  expect(send).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "重新预估" }));
+  expect(
+    await screen.findByRole("checkbox", { name: /仍要发送这一次/u }),
+  ).toBeVisible();
+  expect(send).toBeDisabled();
+  expect(api.analyze).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("checkbox", { name: /仍要发送这一次/u }));
+  expect(send).toBeEnabled();
+  fireEvent.click(send);
+  await waitFor(() => expect(api.analyze).toHaveBeenCalledOnce());
+  expect(api.confirmRules).not.toHaveBeenCalled();
 });

@@ -217,17 +217,15 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
   await expect(ruleBox).toBeChecked();
   await expect(ruleBox).toBeFocused();
   await expect(
-    assistant.getByText("章节规划有未保存修改；保存后再准备新任务。"),
+    assistant.getByText(
+      "章节规划有未保存修改；可保存并进入生成准备。此操作不会发送模型请求。",
+    ),
   ).toBeVisible();
   await workbench
     .getByLabel("章节重点 1", { exact: true })
     .fill("旅人决定留下");
   await workbench
-    .getByRole("button", { name: "保存章节规划", exact: true })
-    .click();
-  await expect(workbench.getByText(/规划已保存 · 版本 1/u)).toBeVisible();
-  await workbench
-    .getByRole("button", { name: "去“生成”准备续写", exact: true })
+    .getByRole("button", { name: "保存规划并进入生成准备", exact: true })
     .click();
   await expect(tabs.getByRole("tab", { name: "生成" })).toHaveAttribute(
     "aria-selected",

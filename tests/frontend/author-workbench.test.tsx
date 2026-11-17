@@ -10,6 +10,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthorHomePage } from "../../frontend/src/features/workbench/pages/AuthorHomePage";
+import { allowFakeAnalysisEstimates } from "./analysis-estimate-support";
 import { bookshelfClient } from "../../frontend/src/features/workbench/api/workspace";
 import { BookshelfPage } from "../../frontend/src/features/workbench/pages/BookshelfPage";
 import {
@@ -20,7 +21,10 @@ import {
   RECENT_WRITING_KEY,
 } from "../../frontend/src/features/workbench/recentWriting";
 import { ChapterWritingPage } from "../../frontend/src/features/novel-structure/pages/ChapterWritingPage";
-import { aiWorkflowClient } from "../../frontend/src/features/novel-structure/api/ai-workflow";
+import {
+  aiWorkflowClient,
+  type WorkflowRun,
+} from "../../frontend/src/features/novel-structure/api/ai-workflow";
 import { storyMemoryClient } from "../../frontend/src/features/novel-structure/api/story-memory";
 import { writingPreparationClient } from "../../frontend/src/features/novel-structure/api/writing-preparation";
 import type { NovelStructureApiClient } from "../../frontend/src/features/novel-structure/api/client";
@@ -57,12 +61,47 @@ const localModel = {
   has_key: false,
 };
 
+function readyRun(): WorkflowRun {
+  return {
+    run_id: "planning-run",
+    chapter_id: chapterId,
+    operation: "continue",
+    status: "ready",
+    base_revision_id: "revision-one",
+    base_version: 1,
+    current_revision_id: "revision-one",
+    current_version: 1,
+    instruction: "",
+    selected_text: "",
+    profile_id: localModel.id,
+    model_snapshot: localModel,
+    max_steps: 5,
+    max_output_characters: 1500,
+    generated_steps: 0,
+    generated_characters: 0,
+    context: {
+      text: "甲乙丙丁",
+      sha256: "a".repeat(64),
+      manifest: {
+        included_sources: ["current_chapter"],
+        omitted_sources: [],
+        truncated: false,
+        character_count: 4,
+        sources: [],
+      },
+    },
+    candidates: [],
+    last_error: null,
+  };
+}
+
 function LocationProbe() {
   const location = useLocation();
   return <output data-testid="location">{location.pathname}</output>;
 }
 
 beforeEach(() => {
+  allowFakeAnalysisEstimates();
   vi.spyOn(bookshelfClient, "page").mockResolvedValue({
     total: 0,
     offset: 0,
@@ -659,6 +698,22 @@ describe("three-column writing desk", () => {
 });
 
 describe("assistant panels and in-place model settings", () => {
+  it("keeps normal preparation available when there are no plan edits", async () => {
+    const create = vi
+      .spyOn(aiWorkflowClient, "create")
+      .mockRejectedValue(new Error("准备失败"));
+    const action = vi.spyOn(aiWorkflowClient, "action");
+    await showDesk();
+
+    const prepare = screen.getByRole("button", { name: "准备续写" });
+    await waitFor(() => expect(prepare).toBeEnabled());
+    fireEvent.click(prepare);
+
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(create).toHaveBeenCalledOnce();
+    expect(action).not.toHaveBeenCalled();
+  });
+
   it("switches 准备/生成/评审 tabs by click and keyboard, mounting panels on demand", async () => {
     const references = vi
       .spyOn(writingPreparationClient, "references")
@@ -707,34 +762,136 @@ describe("assistant panels and in-place model settings", () => {
     expect(references).toHaveBeenCalledOnce();
   });
 
-  it("returns from a saved plan to 生成 and focuses 准备续写", async () => {
+  it("saves a changed plan and opens generation preparation without sending", async () => {
     vi.spyOn(writingPreparationClient, "references").mockResolvedValue([]);
     vi.spyOn(writingPreparationClient, "rules").mockResolvedValue([]);
     vi.spyOn(writingPreparationClient, "plan").mockResolvedValue(chapterPlan());
-    vi.spyOn(writingPreparationClient, "savePlan").mockResolvedValue(
-      chapterPlan({ version: 2 }),
-    );
+    const savePlan = vi
+      .spyOn(writingPreparationClient, "savePlan")
+      .mockResolvedValue(chapterPlan({ version: 2 }));
+    const create = vi.spyOn(aiWorkflowClient, "create");
+    const action = vi.spyOn(aiWorkflowClient, "action");
     await showDesk();
     const tabs = screen.getByRole("tablist", { name: "AI 助手分区" });
     fireEvent.click(within(tabs).getByRole("tab", { name: "准备" }));
+    expect(
+      screen.queryByRole("button", { name: "保存规划并进入生成准备" }),
+    ).not.toBeInTheDocument();
     fireEvent.change(
       await screen.findByRole("textbox", { name: "章节重点 1" }),
       { target: { value: "新的章节重点" } },
     );
     expect(
-      screen.getByText("章节规划有未保存修改；保存后再准备新任务。"),
+      screen.getByText(
+        "章节规划有未保存修改；可保存并进入生成准备。此操作不会发送模型请求。",
+      ),
     ).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "保存章节规划" }));
-    const notice = await screen.findByRole("group", { name: "规划已保存" });
     fireEvent.click(
-      within(notice).getByRole("button", { name: "去“生成”准备续写" }),
+      screen.getByRole("button", { name: "保存规划并进入生成准备" }),
     );
-    expect(within(tabs).getByRole("tab", { name: "生成" })).toHaveAttribute(
-      "aria-selected",
-      "true",
+    expect(savePlan).toHaveBeenCalledOnce();
+    await waitFor(() =>
+      expect(within(tabs).getByRole("tab", { name: "生成" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
     );
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "准备续写" })).toHaveFocus(),
+    );
+    expect(create).not.toHaveBeenCalled();
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  it("keeps a failed plan save editable and lets the author retry the combined action", async () => {
+    vi.spyOn(writingPreparationClient, "references").mockResolvedValue([]);
+    vi.spyOn(writingPreparationClient, "rules").mockResolvedValue([]);
+    vi.spyOn(writingPreparationClient, "plan").mockResolvedValue(chapterPlan());
+    const savePlan = vi
+      .spyOn(writingPreparationClient, "savePlan")
+      .mockRejectedValueOnce(new Error("保存规划失败"))
+      .mockResolvedValueOnce(chapterPlan({ version: 2 }));
+    const create = vi.spyOn(aiWorkflowClient, "create");
+    const action = vi.spyOn(aiWorkflowClient, "action");
+    await showDesk();
+    const tabs = screen.getByRole("tablist", { name: "AI 助手分区" });
+    fireEvent.click(within(tabs).getByRole("tab", { name: "准备" }));
+    const focus = await screen.findByRole("textbox", { name: "章节重点 1" });
+    fireEvent.change(focus, { target: { value: "保留并重试" } });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "保存规划并进入生成准备" }),
+    );
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(focus).toHaveValue("保留并重试");
+    expect(within(tabs).getByRole("tab", { name: "生成" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    expect(
+      screen.getByRole("button", { name: "保存规划并进入生成准备" }),
+    ).toBeEnabled();
+    expect(create).not.toHaveBeenCalled();
+    expect(action).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "保存规划并进入生成准备" }),
+    );
+    await waitFor(() =>
+      expect(within(tabs).getByRole("tab", { name: "生成" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+    );
+    expect(savePlan).toHaveBeenCalledTimes(2);
+    expect(create).not.toHaveBeenCalled();
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  it("keeps the saved plan after a preparation failure and allows retry", async () => {
+    vi.spyOn(writingPreparationClient, "references").mockResolvedValue([]);
+    vi.spyOn(writingPreparationClient, "rules").mockResolvedValue([]);
+    vi.spyOn(writingPreparationClient, "plan").mockResolvedValue(chapterPlan());
+    vi.spyOn(writingPreparationClient, "savePlan").mockResolvedValue(
+      chapterPlan({ version: 2, memory_focuses: ["已保存规划"] }),
+    );
+    const create = vi
+      .spyOn(aiWorkflowClient, "create")
+      .mockRejectedValueOnce(new Error("任务准备失败"))
+      .mockResolvedValueOnce(readyRun());
+    const action = vi.spyOn(aiWorkflowClient, "action");
+    await showDesk();
+    const tabs = screen.getByRole("tablist", { name: "AI 助手分区" });
+    fireEvent.click(within(tabs).getByRole("tab", { name: "准备" }));
+    fireEvent.change(
+      await screen.findByRole("textbox", { name: "章节重点 1" }),
+      { target: { value: "已保存规划" } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "保存规划并进入生成准备" }),
+    );
+    const prepare = await screen.findByRole("button", { name: "准备续写" });
+    await waitFor(() => expect(prepare).toHaveFocus());
+    expect(create).not.toHaveBeenCalled();
+
+    fireEvent.click(prepare);
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(prepare).toBeEnabled();
+    fireEvent.click(prepare);
+    await waitFor(() => {
+      expect(create).toHaveBeenCalledTimes(2);
+      expect(
+        within(screen.getByRole("region", { name: "写作状态" })).getByLabelText(
+          "AI 任务状态",
+        ),
+      ).toHaveTextContent("AI 任务：可以生成下一段");
+    });
+    expect(action).not.toHaveBeenCalled();
+
+    fireEvent.click(within(tabs).getByRole("tab", { name: "准备" }));
+    expect(await screen.findByText(/规划已保存 · 版本 2/u)).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "章节重点 1" })).toHaveValue(
+      "已保存规划",
     );
   });
 

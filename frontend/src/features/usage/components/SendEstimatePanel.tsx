@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   budgetClient as defaultBudgetClient,
   MODE_LABELS,
@@ -27,13 +27,42 @@ export function SendEstimatePanel({
   readonly onGate: (allowed: boolean, reason: string) => void;
   readonly client?: BudgetClient;
 }) {
+  const loadEstimate = useCallback(
+    () => client.estimate(chapterId, runId),
+    [chapterId, client, runId],
+  );
+  return (
+    <OperationEstimatePanel
+      key={`${chapterId}:${runId}:${refreshKey}`}
+      loadEstimate={loadEstimate}
+      refreshKey={refreshKey}
+      onGate={onGate}
+    />
+  );
+}
+
+export function OperationEstimatePanel({
+  loadEstimate,
+  refreshKey,
+  onGate,
+}: {
+  readonly loadEstimate: () => Promise<SendEstimate>;
+  readonly refreshKey: string;
+  readonly onGate: (allowed: boolean, reason: string) => void;
+}) {
   const [estimate, setEstimate] = useState<SendEstimate | null>(null);
   const [failed, setFailed] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const refresh = () => {
+    setFailed(false);
+    setEstimate(null);
+    setAcknowledged(false);
+    setAttempt((value) => value + 1);
+  };
   useEffect(() => {
     let alive = true;
-    client
-      .estimate(chapterId, runId)
+    loadEstimate()
       .then((value) => {
         if (alive) setEstimate(value);
       })
@@ -43,10 +72,11 @@ export function SendEstimatePanel({
     return () => {
       alive = false;
     };
-  }, [chapterId, client, refreshKey, runId]);
+  }, [loadEstimate, refreshKey, attempt]);
   const decision = estimate?.decision;
   useEffect(() => {
-    if (decision === "refused")
+    if (!estimate || failed) onGate(false, "请先完成发送前预估，再确认发送。");
+    else if (decision === "refused")
       onGate(
         false,
         "按你设定的严格预算，本次不会发送。可调整预算或价格后重新预估。",
@@ -54,13 +84,16 @@ export function SendEstimatePanel({
     else if (decision === "warning" && !acknowledged)
       onGate(false, "预估可能超出预算，请先勾选确认后再发送。");
     else onGate(true, "");
-  }, [acknowledged, decision, onGate]);
+  }, [acknowledged, decision, estimate, failed, onGate]);
   useEffect(() => () => onGate(true, ""), [onGate]);
   if (failed)
     return (
-      <p className="send-estimate">
-        暂时无法读取发送前预估；严格预算仍会在发送时由本机服务检查。
-      </p>
+      <div className="send-estimate">
+        <p>暂时无法读取发送前预估；请重新预估后再确认发送。</p>
+        <button type="button" onClick={refresh}>
+          重新预估
+        </button>
+      </div>
     );
   if (!estimate)
     return (
@@ -71,6 +104,9 @@ export function SendEstimatePanel({
   const reasons = estimate.reasons.map((reason) => REASON_LABELS[reason]);
   return (
     <section aria-label="发送前预估" className="send-estimate">
+      <button type="button" onClick={refresh}>
+        重新预估
+      </button>
       <p>
         发送前预估（保守上限，不是账单）：输入不超过{" "}
         {estimate.input_tokens_upper} token（按 UTF-8 字节数估算，本机字符{" "}
@@ -80,7 +116,7 @@ export function SendEstimatePanel({
       <p>
         {estimate.price && estimate.estimated_cost_upper
           ? `按你填写的价格（每百万 token 输入 ${estimate.price.input_per_million} / 输出 ${estimate.price.output_per_million} ${estimate.price.currency}），本次最多约 ${estimate.estimated_cost_upper} ${estimate.price.currency}。服务商实际账单以其计费为准。`
-          : "当前模型未填写价格，不估算金额。"}
+          : "未计价：当前模型未填写价格，不估算金额。"}
       </p>
       {estimate.budget_mode === "off" ? (
         <p>本书未设预算。</p>
@@ -115,5 +151,28 @@ export function SendEstimatePanel({
         </div>
       ) : null}
     </section>
+  );
+}
+
+export function OperationSendGuard({
+  loadEstimate,
+  refreshKey,
+  children,
+}: {
+  readonly loadEstimate: () => Promise<SendEstimate>;
+  readonly refreshKey: string;
+  readonly children: (allowed: boolean) => ReactNode;
+}) {
+  const [allowed, setAllowed] = useState(false);
+  const onGate = useCallback((value: boolean) => setAllowed(value), []);
+  return (
+    <>
+      <OperationEstimatePanel
+        loadEstimate={loadEstimate}
+        refreshKey={refreshKey}
+        onGate={onGate}
+      />
+      {children(allowed)}
+    </>
   );
 }

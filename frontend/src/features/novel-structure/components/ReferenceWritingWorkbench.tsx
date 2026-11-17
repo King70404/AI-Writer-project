@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { analysisEstimateClient } from "../../usage/api/budget";
+import { OperationSendGuard } from "../../usage/components/SendEstimatePanel";
 import type { ModelProfile } from "../api/ai-workflow";
 import {
   analysisFailureMessage,
@@ -90,6 +92,10 @@ export function ReferenceWritingWorkbench({
     }
   };
   const selected = references.find((item) => item.id === selectedId);
+  const loadEstimate = useCallback(
+    () => analysisEstimateClient.reference(projectId, selected?.id ?? ""),
+    [projectId, selected?.id],
+  );
   const unavailable = busy || planningBusy;
 
   useEffect(() => {
@@ -368,20 +374,29 @@ export function ReferenceWritingWorkbench({
                       我同意向该云端模型发送此范文与分析要求
                     </label>
                   ) : null}
-                  <button
-                    type="button"
-                    disabled={
-                      unavailable ||
-                      selected.attempts >= 3 ||
-                      (selected.model_snapshot.kind === "cloud" &&
-                        consentId !== selected.id)
-                    }
-                    onClick={() => void analyze()}
+                  <OperationSendGuard
+                    key={`${selected.id}:${selected.version}`}
+                    loadEstimate={loadEstimate}
+                    refreshKey={`${selected.id}:${selected.version}`}
                   >
-                    {busy && actionTarget === "analysis"
-                      ? "正在发送并分析范文…"
-                      : "确认发送并分析范文"}
-                  </button>
+                    {(allowed) => (
+                      <button
+                        type="button"
+                        disabled={
+                          !allowed ||
+                          unavailable ||
+                          selected.attempts >= 3 ||
+                          (selected.model_snapshot.kind === "cloud" &&
+                            consentId !== selected.id)
+                        }
+                        onClick={() => void analyze()}
+                      >
+                        {busy && actionTarget === "analysis"
+                          ? "正在发送并分析范文…"
+                          : "确认发送并分析范文"}
+                      </button>
+                    )}
+                  </OperationSendGuard>
                 </>
               ) : null}
               {actionTarget === "analysis" && error ? (
@@ -607,6 +622,7 @@ export function ReferenceWritingWorkbench({
               setShortcutMessage("");
               setPlanSavedNotice(true);
             }}
+            onSaveAndPrepare={onOpenGenerate}
             onDirty={onDirty}
             disabled={busy}
             onBusy={setPlanningBusy}

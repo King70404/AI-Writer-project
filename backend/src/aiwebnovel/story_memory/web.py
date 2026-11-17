@@ -22,6 +22,9 @@ from aiwebnovel.story_memory.models import (
     Workspace,
 )
 from aiwebnovel.story_memory.service import StoryMemoryService
+from aiwebnovel.usage.budget import SendEstimate
+from aiwebnovel.usage.budget_service import UsageBudgetService
+from aiwebnovel.usage.budget_web import get_budget_service
 
 
 def get_memory_service(request: Request) -> StoryMemoryService:
@@ -65,6 +68,26 @@ Json = Annotated[None, Depends(require_json)]
 
 def create_story_memory_router(*, api_prefix: str) -> APIRouter:
     router = APIRouter(prefix=api_prefix + "/chapters/{chapter_id}/memory", tags=["Story Memory"])
+
+    @router.get("/reviews/{review_id}/estimate", response_model=SendEstimate)
+    def review_estimate(
+        chapter_id: str,
+        review_id: str,
+        response: Response,
+        service: Service,
+        budgets: Annotated[UsageBudgetService, Depends(get_budget_service)],
+    ) -> SendEstimate:
+        def estimate() -> SendEstimate:
+            review = service.review_for_estimate(chapter_id, review_id)
+            return budgets.estimate(
+                project_id=review.project_id,
+                chapter_id=review.chapter_id,
+                task_id=review.id,
+                profile_id=str(review.model["id"]),
+                messages=service.messages(review),
+            )
+
+        return _invoke(response, estimate)
 
     @router.get("", response_model=Workspace)
     def workspace(chapter_id: str, response: Response, service: Service) -> Workspace:
