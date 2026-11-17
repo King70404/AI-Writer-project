@@ -50,9 +50,9 @@ describe("AIWebNovel frontend foundation", () => {
       "#main-content",
     );
     expect(screen.getByText("本地系统状态")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "正在检查本地后端状态。",
-    );
+    expect(
+      screen.getByText("正在检查本地后端状态。").closest('[role="status"]'),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重新检查" })).toBeDisabled();
     expect(
       document.querySelector('[data-feature-id="FND-002"]'),

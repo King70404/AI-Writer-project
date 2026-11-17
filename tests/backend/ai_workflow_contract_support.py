@@ -1,6 +1,7 @@
 """Exact new public operations; legacy inventory assertions remain explicit."""
 
 AI_WORKFLOW_OPERATIONS = {
+    ("POST", "/api/v1/ai/models/{profile_id}/connection-check"),
     ("POST", "/api/v1/ai/workflow-setup/upgrade"),
     ("GET", "/api/v1/ai/models"),
     ("POST", "/api/v1/ai/models"),
@@ -47,6 +48,7 @@ BACKUP_OPERATIONS = {
 }
 
 WORKBENCH_OPERATIONS = {
+    ("GET", "/api/v1/workspace/overview"),
     ("GET", "/api/v1/projects/{project_id}/workspace"),
     ("GET", "/api/v1/projects/{project_id}/workspace/chapters"),
     ("GET", "/api/v1/projects/{project_id}/workspace/actions"),

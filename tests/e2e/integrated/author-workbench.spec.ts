@@ -2,7 +2,7 @@ import { expectCleanBrowserAudit } from "../support/assertions";
 import { expect, test } from "../support/fixture";
 
 const MODEL_CALL_PATH =
-  /\/(?:generate|analyze|analysis|review|reviews|chat\/completions)(?:\/|$)/u;
+  /\/(?:generate|analyze|analysis|review|reviews|connection-check|chat\/completions)(?:\/|$)/u;
 
 test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-place model and rule shortcut", async ({
   page,
@@ -19,6 +19,11 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
     page.getByText(/项目总数|章节总数|今日字数|总字数|待办/u),
   ).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  await expect(
+    page
+      .getByRole("region", { name: "全书架汇总" })
+      .getByText("书架暂无小说。"),
+  ).toBeVisible();
 
   await expect(
     page.getByText("本地后端已连接，数据库基础检查通过。"),
@@ -212,17 +217,15 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
   await expect(ruleBox).toBeChecked();
   await expect(ruleBox).toBeFocused();
   await expect(
-    assistant.getByText("章节规划有未保存修改；保存后再准备新任务。"),
+    assistant.getByText(
+      "章节规划有未保存修改；可保存并进入生成准备。此操作不会发送模型请求。",
+    ),
   ).toBeVisible();
   await workbench
     .getByLabel("章节重点 1", { exact: true })
     .fill("旅人决定留下");
   await workbench
-    .getByRole("button", { name: "保存章节规划", exact: true })
-    .click();
-  await expect(workbench.getByText(/规划已保存 · 版本 1/u)).toBeVisible();
-  await workbench
-    .getByRole("button", { name: "去“生成”准备续写", exact: true })
+    .getByRole("button", { name: "保存规划并进入生成准备", exact: true })
     .click();
   await expect(tabs.getByRole("tab", { name: "生成" })).toHaveAttribute(
     "aria-selected",
@@ -246,6 +249,11 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
     name: "继续上次创作",
   });
   await expect(continueSection).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "全书架汇总" })
+      .getByRole("link", { name: title, exact: true }),
+  ).toBeVisible();
   await expect(continueSection.getByText(title, { exact: true })).toBeVisible();
   await expect(continueSection.getByText("第1章 · 雨夜")).toBeVisible();
   await expect(
@@ -296,6 +304,17 @@ test("E2E-INT-023 Author workbench: home, chapter navigation, focus mode, in-pla
   );
 
   // 零额外模型调用：工作台只读写已有资源。
+  const overview = page.getByRole("region", { name: "全书架汇总" });
+  const row = overview
+    .getByRole("row")
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  await expect(row.getByRole("cell").nth(0)).toHaveText(
+    Array.from(firstText)
+      .filter((value) => !/\s/u.test(value))
+      .length.toString(),
+  );
+  await expect(row.getByRole("cell").nth(1)).toHaveText("1");
+  await expect(row.getByRole("cell").nth(2)).toHaveText("2");
   expect(
     browserAudit.events.filter(
       (event) => event.type === "request" && MODEL_CALL_PATH.test(event.path),

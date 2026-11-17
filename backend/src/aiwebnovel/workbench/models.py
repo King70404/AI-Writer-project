@@ -19,6 +19,8 @@ ActionKind = Literal[
     "stale_review",
     "unfinished_review",
     "final_changed",
+    "due_thread",
+    "budget_reminder",
 ]
 # Fixed presentation order: problems that make AI context unreliable come first.
 ACTION_ORDER: tuple[ActionKind, ...] = (
@@ -28,6 +30,8 @@ ACTION_ORDER: tuple[ActionKind, ...] = (
     "pending_candidate",
     "pending_fact",
     "unfinished_review",
+    "due_thread",
+    "budget_reminder",
 )
 MAX_PAGE_SIZE = 100
 DEFAULT_PAGE_SIZE = 50
@@ -101,6 +105,25 @@ class WorkspaceSummary(WorkbenchModel):
     generated_at: str
 
 
+class BookshelfSummary(WorkbenchModel):
+    project_id: str
+    title: str
+    characters: int = Field(ge=0)
+    chapter_count: int = Field(ge=0)
+    volume_count: int = Field(ge=0)
+    editorial: EditorialCounts
+    action_total: int = Field(ge=0)
+
+
+class BookshelfPage(WorkbenchModel):
+    total: int = Field(ge=0)
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1, le=MAX_PAGE_SIZE)
+    next_offset: int | None
+    items: list[BookshelfSummary]
+    generated_at: str
+
+
 class ChapterSummary(WorkbenchModel):
     chapter_id: str
     volume_id: str
@@ -126,12 +149,14 @@ class ChapterSummaryPage(WorkbenchModel):
 
 class ActionItem(WorkbenchModel):
     kind: ActionKind
-    chapter_id: str
-    volume_id: str
+    chapter_id: str | None
+    volume_id: str | None
     chapter_title: str
     chapter_position: int
     volume_position: int
     count: int = Field(ge=1)
+    entity_id: str | None = None
+    target_kind: Literal["chapter", "thread", "budget"] = "chapter"
 
 
 class ActionPage(WorkbenchModel):

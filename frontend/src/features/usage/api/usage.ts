@@ -8,7 +8,7 @@ import { securitySession } from "../../../api/security-session";
  * 未知不按 0 计；本版本不计算金额。
  */
 export type UsageOperation =
-  "generation" | "reference_analysis" | "story_review";
+  "generation" | "reference_analysis" | "story_review" | "connection_check";
 export type AttemptStatus =
   "running" | "completed" | "failed" | "timeout" | "interrupted";
 export type UsageSource = "provider_reported" | "unknown";
@@ -17,6 +17,7 @@ export const OPERATION_LABELS: Record<UsageOperation, string> = {
   generation: "正文生成",
   reference_analysis: "范文分析",
   story_review: "一致性评审",
+  connection_check: "连接测试消息",
 };
 export const STATUS_LABELS: Record<AttemptStatus, string> = {
   running: "进行中",

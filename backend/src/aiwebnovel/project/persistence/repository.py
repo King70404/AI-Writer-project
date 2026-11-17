@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, Literal, Never, cast
 
+from sqlalchemy import func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -32,6 +33,11 @@ from aiwebnovel.project.persistence.mappers import (
     project_aggregate_to_records,
     project_revision_to_record,
 )
+from aiwebnovel.project.persistence.models import (
+    ProjectHeadRecord,
+    ProjectRecord,
+    ProjectRevisionRecord,
+)
 from aiwebnovel.project.persistence.queries import (
     current_project_query,
     head_compare_and_swap,
@@ -54,6 +60,23 @@ class _HeadCasMiss(Exception):
 
 class SqlAlchemyProjectRepository(ProjectRepository):
     """Persist one Project aggregate per independent synchronous Session."""
+
+    def overview_page(self, offset: int, limit: int) -> tuple[int, list[tuple[str, str]]]:
+        with self._session_factory() as session:
+            active = ProjectRecord.active_ids()
+            total = int(session.scalar(select(func.count()).select_from(active.subquery())) or 0)
+            rows = session.execute(
+                select(ProjectRecord.id, ProjectRevisionRecord.title)
+                .join(ProjectHeadRecord, ProjectHeadRecord.project_id == ProjectRecord.id)
+                .join(
+                    ProjectRevisionRecord, ProjectRevisionRecord.id == ProjectHeadRecord.revision_id
+                )
+                .where(ProjectRecord.id.in_(active))
+                .order_by(ProjectRecord.updated_at.desc(), ProjectRecord.id)
+                .offset(offset)
+                .limit(limit)
+            )
+            return total, [(str(row[0]), row[1]) for row in rows]
 
     def __init__(self, session_factory: SessionFactory) -> None:
         if not callable(session_factory):
