@@ -607,6 +607,7 @@ export function ReferenceWritingWorkbench({
               setShortcutMessage("");
               setPlanSavedNotice(true);
             }}
+            onSaveAndPrepare={onOpenGenerate}
             onDirty={onDirty}
             disabled={busy}
             onBusy={setPlanningBusy}
