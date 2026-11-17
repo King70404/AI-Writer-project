@@ -1,5 +1,6 @@
 """Atomic profile settings and separate user-protected credentials per data root."""
 
+import hashlib
 import json
 import os
 import re
@@ -14,6 +15,7 @@ from uuid import uuid4
 from aiwebnovel.ai_writing.application.models import GeneratedText, GenerationMessage
 from aiwebnovel.ai_writing.errors import AIContextChanged, AIProviderNotConfigured, InvalidAIInput
 from aiwebnovel.core.config import normalize_data_root
+from aiwebnovel.model_gateway.connection import ConnectionResult, check_metadata
 from aiwebnovel.model_gateway.credentials import (
     CredentialProtector,
     WindowsDPAPIProtector,
@@ -27,6 +29,8 @@ from aiwebnovel.model_gateway.errors import (
 )
 from aiwebnovel.model_gateway.models import ModelProfile, validate_key, validate_profile
 from aiwebnovel.model_gateway.provider import endpoint_for, generate_text
+from aiwebnovel.usage.attribution import usage_attribution
+from aiwebnovel.usage.service import UsageLedgerService
 
 MAX_PROFILES = 32
 MAX_CONFIG_BYTES = 131_072
@@ -215,6 +219,35 @@ class ModelGatewayService:
     def get_profile(self, profile_id: str) -> ModelProfile:
         with self._lock:
             return self._find(self._read(), profile_id).profile
+
+    def check_connection(self, profile_id: str) -> ConnectionResult:
+        with self._lock:
+            record = self._find(self._read(), profile_id)
+            version = hashlib.sha256(
+                json.dumps([asdict(record.profile), record.key_ref], sort_keys=True).encode()
+            ).hexdigest()
+            key = self._load_key(record)
+            return check_metadata(record.profile, key, version)
+
+    def test_connection(
+        self, profile_id: str, expected_version: str, project_id: str, ledger: UsageLedgerService
+    ) -> ConnectionResult:
+        """Recheck the exact configuration before an explicitly confirmed, metered test."""
+        with self._lock:
+            probe = self.check_connection(profile_id)
+            if probe.configuration_version != expected_version:
+                raise AIContextChanged
+            if probe.status != "unsupported":
+                return probe
+            messages = (GenerationMessage("user", "Reply OK."),)
+            with usage_attribution("connection_check", uuid4().hex, project_id=project_id):
+                ledger.metered(
+                    messages,
+                    lambda before_send: self.generate(
+                        profile_id, messages, max_output_tokens=1, before_send=before_send
+                    ),
+                )
+            return ConnectionResult("verified", probe.configuration_version, True)
 
     @staticmethod
     def _find(records: tuple[_Record, ...], profile_id: str) -> _Record:

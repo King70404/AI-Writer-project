@@ -173,8 +173,8 @@ def test_openapi_preserves_all_m5_operations_adds_exactly_two(tmp_path: Path) ->
         if m in {"get", "post", "put", "patch", "delete"}
     }
     old = {(i["method"], i["path"]) for i in baseline["production_api_operations"]}
-    assert len(operations) == 118
-    assert len(AI_WORKFLOW_OPERATIONS) == 13
+    assert len(operations) == 119
+    assert len(AI_WORKFLOW_OPERATIONS) == 14
     assert len(WRITING_PREPARATION_OPERATIONS) == 9
     assert len(BACKUP_OPERATIONS) == 5
     assert len(WORKBENCH_OPERATIONS) == 6

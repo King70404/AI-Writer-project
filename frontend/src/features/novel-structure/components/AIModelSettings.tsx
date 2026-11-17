@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { AIWritingError } from "../api/ai-writing";
 import {
+  modelConnectionClient,
+  type ConnectionResult,
+} from "../api/model-connection";
+import {
   aiWorkflowClient,
   type AIWorkflowClient,
   type ModelProfile,
@@ -8,6 +12,7 @@ import {
 
 export function AIModelSettings({
   models,
+  projectId,
   onSaved,
   onUpgradeRequired,
   disabled = false,
@@ -17,6 +22,7 @@ export function AIModelSettings({
   client = aiWorkflowClient,
 }: {
   readonly models: readonly ModelProfile[];
+  readonly projectId?: string;
   readonly onSaved: (saved: ModelProfile) => void;
   readonly onUpgradeRequired?: (failure: AIWritingError) => void;
   readonly disabled?: boolean;
@@ -38,6 +44,48 @@ export function AIModelSettings({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [connection, setConnection] = useState<
+    Record<string, ConnectionResult>
+  >({});
+  const [confirmedId, setConfirmedId] = useState<string | null>(null);
+  const check = async (profile: ModelProfile, testMessage = false) => {
+    if (saving.current || disabled) return;
+    const previous = connection[profile.id];
+    if (
+      testMessage &&
+      (!projectId ||
+        confirmedId !== profile.id ||
+        previous?.status !== "unsupported")
+    )
+      return;
+    saving.current = true;
+    setBusy(true);
+    setError("");
+    setConnection((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(
+          ([profileId]) => profileId !== profile.id,
+        ),
+      ),
+    );
+    try {
+      const result =
+        testMessage && projectId
+          ? await modelConnectionClient.check(profile.id, {
+              confirm_test_message: true,
+              configuration_version: previous.configuration_version,
+              project_id: projectId,
+            })
+          : await modelConnectionClient.check(profile.id);
+      setConnection((current) => ({ ...current, [profile.id]: result }));
+    } catch {
+      setError("连接检查未完成，配置仍保留，请重试。");
+    } finally {
+      saving.current = false;
+      setConfirmedId(null);
+      setBusy(false);
+    }
+  };
   const saving = useRef(false);
   const nameField = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -90,6 +138,7 @@ export function AIModelSettings({
       setKey("");
       setClearKey(false);
       onSaved(saved);
+      setConnection({});
       setMessage(
         saved.kind === "cloud" && !saved.has_key
           ? `配置已保存，已选中“${saved.name}”。还需填写 API Key 才能向云端发送。`
@@ -132,6 +181,66 @@ export function AIModelSettings({
                 ? "已保存密钥"
                 : "未保存密钥"
               : "本地"}
+            <button
+              type="button"
+              disabled={busy || disabled}
+              onClick={() => void check(profile)}
+            >
+              检查连接 {profile.name}
+            </button>
+            {connection[profile.id] ? (
+              <p role="status">
+                {connection[profile.id].status === "verified"
+                  ? "连接已验证"
+                  : ({
+                      missing_key: "未保存密钥",
+                      unauthorized: "认证失败（401）",
+                      forbidden: "访问被拒绝（403）",
+                      timeout: "连接超时",
+                      dns_error: "域名解析失败",
+                      certificate_error: "证书验证失败",
+                      model_not_found: "服务可达，但未找到配置的模型",
+                      unsupported: "服务不支持元数据检查，连接尚未验证",
+                      invalid_response: "服务响应格式无效",
+                      unavailable: "服务暂不可用",
+                    }[connection[profile.id].status] ?? "连接尚未验证")}
+                {" · 配置版本 "}
+                {connection[profile.id].configuration_version.slice(0, 12)}
+              </p>
+            ) : null}
+            {connection[profile.id]?.status === "unsupported" ? (
+              <div>
+                <p>
+                  将发送一条测试消息，可能计费。费用计入当前小说用量并受预算约束；测试结果不会进入正文。
+                </p>
+                {projectId ? (
+                  <>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={confirmedId === profile.id}
+                        disabled={busy || disabled}
+                        onChange={(event) =>
+                          setConfirmedId(
+                            event.target.checked ? profile.id : null,
+                          )
+                        }
+                      />
+                      我同意发送可能计费的测试消息
+                    </label>
+                    <button
+                      type="button"
+                      disabled={busy || disabled || confirmedId !== profile.id}
+                      onClick={() => void check(profile, true)}
+                    >
+                      确认发送测试消息 {profile.name}
+                    </button>
+                  </>
+                ) : (
+                  <p>请从小说写作页打开模型设置，以便归属用量与预算。</p>
+                )}
+              </div>
+            ) : null}
             <button
               type="button"
               disabled={busy || disabled}
