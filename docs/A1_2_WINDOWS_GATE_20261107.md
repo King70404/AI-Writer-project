@@ -10,3 +10,9 @@
 
 警告：Starlette/httpx 弃用、SQLite datetime adapter 弃用、Vite 大 chunk、Node 颜色环境变量提示。仅假传输及自有隔离数据，未用真实模型或 Key。未发布、未打 tag。尚未合并，等待用户授权。PR #42 已合并 main dea6eaf；本候选未包含该后续合并，合并本 PR 前需同步并检查受影响部分。
 2026-11-07：PR #43 已合入 main dea6eaf；冲突仅为 PLAN 文档，解决时未修改运行时代码或测试。复用上述 A1-2 完整门禁及 D2 独立完整门禁证据；不声称重新运行过合并后的整套门禁。
+
+## 2026-11-18 合并记录
+
+用户明确授权后，以普通 merge（无 admin/force）合并 PR #43，merge SHA `530a8ce934f223fbdcfd4fa48b6c15405def8022`。合并 head 为 `420e5b79704de05e661e847bf5e908e7acb92d19`，本记录仅更新文档。
+
+head 的 GitHub Actions Windows Default/Full 标记失败，但三个检查的注释一致说明付款/额度问题导致任务未启动，jobs.steps 均为空；这不是已执行测试的 FAIL 或 PASS。保留原状态，不修改账户额度，不把本地结果冒充云端结果。
