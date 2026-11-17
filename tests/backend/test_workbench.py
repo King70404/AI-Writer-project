@@ -121,6 +121,8 @@ def test_totals_are_server_side_non_whitespace_counts_per_novel_volume_and_chapt
     assert result["latest_chapter"]["chapter_id"] == later
     assert result["action_total"] == 0
     assert {item["kind"] for item in result["actions"]} == {
+        "due_thread",
+        "budget_reminder",
         "stale_fact",
         "stale_review",
         "final_changed",

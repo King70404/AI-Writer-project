@@ -149,7 +149,11 @@ def create_workbench_router(*, api_prefix: str) -> APIRouter:
     ) -> ChapterSummaryPage:
         return _project_call(response, lambda: service.chapters(project_id, *page))
 
-    @router.get("/projects/{project_id}/workspace/actions", response_model=ActionPage)
+    @router.get(
+        "/projects/{project_id}/workspace/actions",
+        response_model=ActionPage,
+        response_model_exclude_defaults=True,
+    )
     def actions(
         project_id: str,
         response: Response,

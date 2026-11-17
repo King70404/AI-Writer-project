@@ -41,7 +41,7 @@ def test_multi_book_totals_match_single_workspace_with_constant_queries(workflow
         first_count = len(queries)
         queries.clear()
         all_books = overview(w, limit=100)
-        assert len(queries) == first_count == 9
+        assert len(queries) == first_count == 11
     finally:
         event.remove(engine, "before_cursor_execute", record)
     assert all_books["total"] == 5 and len(all_books["items"]) == 5

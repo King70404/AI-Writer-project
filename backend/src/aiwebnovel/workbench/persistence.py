@@ -50,6 +50,7 @@ from aiwebnovel.workbench.models import (
     EditorialState,
     EditorialStatus,
 )
+from aiwebnovel.workbench.reminder_persistence import load_reminders
 from aiwebnovel.workbench.snapshot import (
     ChapterRow,
     EditorialRow,
@@ -162,6 +163,7 @@ class SqlAlchemyWorkbenchRepository:
             editorial = self._editorial(session, identifiers)
             pending = self._pending_candidates(session, identifiers)
             memory = self._memory(session, identifiers)
+            threads, budgets = load_reminders(session, identifiers)
             result = []
             for identifier, title in projects:
                 project = str(identifier)
@@ -193,6 +195,8 @@ class SqlAlchemyWorkbenchRepository:
                                 for item in memory
                                 if chapter_owners.get(item.chapter_id) == project
                             ),
+                            threads=threads.get(project, ()),
+                            budget=budgets.get(project),
                         ),
                     )
                 )
@@ -204,12 +208,15 @@ class SqlAlchemyWorkbenchRepository:
         if self._projects.get_project(GetProjectQuery(project_id)) is None:
             raise ProjectNotFound(identifier)
         with self._sessions() as session:
+            threads, budgets = load_reminders(session, (identifier,))
             return ProjectSnapshot(
                 volumes=self._volumes(session, identifier),
                 chapters=self._chapters(session, identifier),
                 editorial=self._editorial(session, identifier),
                 pending_candidates=self._pending_candidates(session, identifier),
                 memory=self._memory(session, identifier),
+                threads=threads.get(project_id, ()),
+                budget=budgets.get(project_id),
             )
 
     @staticmethod

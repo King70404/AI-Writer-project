@@ -25,23 +25,26 @@ export function BudgetSettingsPanel({
   projectId,
   profileId,
   profileName,
+  initiallyOpen = false,
   client = defaultBudgetClient,
 }: {
   readonly projectId: string;
   readonly profileId: string | null;
   readonly profileName: string;
+  readonly initiallyOpen?: boolean;
   readonly client?: BudgetClient;
 }) {
   const [opened, setOpened] = useState(false);
   return (
     <details
+      open={initiallyOpen || undefined}
       className="budget-settings"
       onToggle={(event) => {
         if (event.currentTarget.open) setOpened(true);
       }}
     >
       <summary>费用与预算</summary>
-      {opened ? (
+      {opened || initiallyOpen ? (
         <>
           {profileId ? (
             <PriceForm

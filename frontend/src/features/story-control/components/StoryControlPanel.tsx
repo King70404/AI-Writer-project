@@ -781,10 +781,12 @@ function StateForm({
 
 export function StoryControlPanel({
   projectId,
+  focusThreadId,
   refreshKey = 0,
   client = storyControlClient,
 }: {
   readonly projectId: string;
+  readonly focusThreadId?: string;
   readonly refreshKey?: number;
   readonly client?: StoryControlClient;
 }) {
@@ -796,6 +798,12 @@ export function StoryControlPanel({
   const [status, setStatus] = useState<ThreadStatus | "">("");
   const [character, setCharacter] = useState("");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!focusThreadId || !timeline) return;
+    const target = document.getElementById(`thread-${focusThreadId}`);
+    target?.scrollIntoView({ block: "center" });
+    target?.focus({ preventScroll: true });
+  }, [focusThreadId, timeline]);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -986,7 +994,11 @@ export function StoryControlPanel({
       {timeline.threads.length ? (
         <ul className="story-control__list">
           {timeline.threads.map((view) => (
-            <li key={view.thread.id}>
+            <li
+              key={view.thread.id}
+              id={`thread-${view.thread.id}`}
+              tabIndex={-1}
+            >
               <strong>{view.thread.title}</strong>（
               {THREAD_LABELS[view.thread.status]} · 优先级
               {PRIORITY_LABELS[view.thread.priority]}）
@@ -1160,16 +1172,19 @@ export function StoryControlPanel({
 /** Collapsed until the author opens it, so the structure page makes no extra reads. */
 export function StoryControlSection({
   projectId,
+  focusThreadId,
   refreshKey,
   client,
 }: {
   readonly projectId: string;
+  readonly focusThreadId?: string;
   readonly refreshKey?: number;
   readonly client?: StoryControlClient;
 }) {
   const [opened, setOpened] = useState(false);
   return (
     <details
+      open={Boolean(focusThreadId) || undefined}
       className="story-control-section"
       onToggle={(event) => {
         if (event.currentTarget.open) setOpened(true);
@@ -1178,8 +1193,9 @@ export function StoryControlSection({
       <summary>
         长篇规划与伏笔（全书/分卷目标、伏笔、故事时间线、人物状态）
       </summary>
-      {opened ? (
+      {opened || focusThreadId ? (
         <StoryControlPanel
+          focusThreadId={focusThreadId}
           projectId={projectId}
           refreshKey={refreshKey}
           client={client}
