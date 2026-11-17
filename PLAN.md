@@ -1,24 +1,32 @@
 # 当前交付
 
-更新：2026-11-17。D2、D3、B-1、B-4 及 D2 后续 PR #42 已合入 `main`，当前 `main` 为 `dea6eafc53f92eab6a1d19b8be6017af902d97c4`。
+更新：2026-11-18。用户已授权 PR #44 及本轮后续 PR 连续合并，无需逐项确认。第四步六项均已合并 main，最新为 `be311ca`；E/F08 已同步该基线，准备合并。
 
 ## 已合并能力
 
-- D2 外部 AI 交接基础流程：PR #38，merge `35480b8`。支持作者选择来源、冻结交接快照、导出 ZIP、导入外部候选并显式采用。
-- D3 跨章写作任务：PR #39，merge `ef7160b`。
-- B-1 旧 `/ai/continue`、`/ai/rewrite` 经网关计量并受预算约束：PR #40，merge `324cab5`。
-- B-4 用量 CSV：PR #41，merge `015c82c`。费用单价、币种、逐条金额和缓存 token 列未完成，留待 B-3。
-- D1 旧稿导入与窄屏写作助手：PR #37，merge `f1caf4e`。
+前序 PR #38–#42 已完成 D2、D3、旧接口计量与预算、用量 CSV 和 D2 三项后续修复。
 
-## 活动交付
+| 第四步项目 | PR | merge SHA |
+| --- | --- | --- |
+| A1-2 保存规划后准备 | [#43](https://github.com/King70404/AI-Writer-project/pull/43) | `530a8ce` |
+| A1-1 检查连接 | [#44](https://github.com/King70404/AI-Writer-project/pull/44) | `eca5975` |
+| A2-1 全书架汇总 | [#47](https://github.com/King70404/AI-Writer-project/pull/47) | `8543a06` |
+| A2-2 到期伏笔与预算提醒 | [#48](https://github.com/King70404/AI-Writer-project/pull/48) | `9c56462` |
+| B-2 分析/评审发送前预估 | [#45](https://github.com/King70404/AI-Writer-project/pull/45) | `f15bdb8` |
+| B-3 缓存计价、迁移及费用 CSV | [#46](https://github.com/King70404/AI-Writer-project/pull/46) | `be311ca` |
 
-- 第四步各项均已实现并推送，尚未合并：A1-2 [PR #43](https://github.com/King70404/AI-Writer-project/pull/43)、A1-1 [#44](https://github.com/King70404/AI-Writer-project/pull/44)、A2-1 [#47](https://github.com/King70404/AI-Writer-project/pull/47)、A2-2 [#48](https://github.com/King70404/AI-Writer-project/pull/48)、B-2 [#45](https://github.com/King70404/AI-Writer-project/pull/45)、B-3 及费用 CSV [#46](https://github.com/King70404/AI-Writer-project/pull/46)。各项验证范围见 PR 与报告；A2、B-3 最终组合完整门禁已通过。
-- E 方法验证 [PR #49](https://github.com/King70404/AI-Writer-project/pull/49) 代码候选 `8dcf46cfa9b91806acb5225268e37ccdb3301a15` 完整 Windows 门禁通过：后端 3,334 项、前端 1,098 项、E2E 34 场景及清理通过。精确覆盖率、日志散列和修复记录见 [F08 验证](docs/F08_WINDOWS_GATE_20261117.md)，操作与边界见 [方法验证](docs/METHOD_VALIDATION.md)。候选均未合并，不视为 main 已交付。
+各项独立完整 Windows 门禁与最新 main 同步补验证据见对应 `docs/*WINDOWS_GATE*.md` 和 PR。普通 merge、未绕过保护；GitHub hosted Windows 检查受账户付款/额度问题阻止，任务未执行，不声称云端测试通过。
+
+## 当前最终候选
+
+E/F08 [PR #49](https://github.com/King70404/AI-Writer-project/pull/49)：规则场景元数据、作者手工标注、冻结来源 A/B 试写、评分后揭示方法、作者验证后模板跨书复制。两臂串行，复用台账与预算，不自动重发或采用。
+
+代码 `8dcf46cfa9b91806acb5225268e37ccdb3301a15` 完整 Windows IncludeE2E 通过：后端 3,334，前端 1,098，E2E 34 场景及清理；覆盖率、日志散列和修复记录见 [F08 验证](docs/F08_WINDOWS_GATE_20261117.md)，操作与边界见 [方法验证](docs/METHOD_VALIDATION.md)。同步 main 后已逐文件核对：除 PLAN 和 docs 外整个仓库与该已验证候选无差异，复用有效完整门禁证据，不冒充新 head 重跑过完整门禁。
 
 ## 下一步
 
-实施与验证已完成；按 A1-2 → A1-1 → A2-1 → A2-2 → B-2 → B-3 → F08 的依赖顺序，在用户分别授权后处理合并。不会把未合并候选称为 main 已交付，不发布或打 tag。
+完成 F08 同步核对并按已有授权合并，随后同步最终状态。未发布、未打 tag；不再要求本轮逐项合并确认。
 
 ## 边界
 
-不调用真实或付费模型；不接触正式创作数据或真实 Key；不打 tag、不发布。任何 PR 合并前先取得用户明确授权。不把未合并或未实现功能记为已交付；不改冻结验收文件。
+只用假传输与自有隔离数据；不接触正式创作数据或真实 Key，不调用真实/付费模型；不发布、不打 tag、不 force push。运行时正文、事实和规则仍由作者确认后采用，不改冻结验收文件。工程测试不等同真实模型文学效果评价。
