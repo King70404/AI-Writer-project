@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
-from aiwebnovel.ai_writing.web import require_json
+from aiwebnovel.ai_writing.web import map_error, require_json
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.domain.errors import DomainError
 from aiwebnovel.model_gateway.errors import (
@@ -17,6 +17,7 @@ from aiwebnovel.model_gateway.errors import (
 )
 from aiwebnovel.model_gateway.models import MAX_OUTPUT_TOKENS, ModelProfile
 from aiwebnovel.model_gateway.service import ModelGatewayService
+from aiwebnovel.usage.web import get_usage_service
 
 
 class ProfileInput(BaseModel):
@@ -46,6 +47,13 @@ class ProfileResponse(BaseModel):
 
 class ProfilesResponse(BaseModel):
     items: tuple[ProfileResponse, ...]
+
+
+class ConnectionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+    confirm_test_message: bool = False
+    configuration_version: str = Field(default="", max_length=64)
+    project_id: str = Field(default="", max_length=60)
 
 
 def get_model_gateway_service(request: Request) -> ModelGatewayService:
@@ -155,5 +163,39 @@ def create_model_gateway_router(*, api_prefix: str) -> APIRouter:
         except DomainError as error:
             raise map_model_error(error) from None
         return Response(status_code=204, headers={"Cache-Control": "no-store"})
+
+    @router.post("/ai/models/{profile_id}/connection-check")
+    def check_connection(
+        profile_id: str,
+        payload: ConnectionInput,
+        request: Request,
+        response: Response,
+        service: Annotated[ModelGatewayService, Depends(get_model_gateway_service)],
+        _json: Annotated[None, Depends(require_json)],
+    ) -> dict[str, str | bool]:
+        response.headers["Cache-Control"] = "no-store"
+        try:
+            if payload.confirm_test_message:
+                if not payload.configuration_version or not payload.project_id:
+                    raise AppError(
+                        code="INVALID_CONNECTION_CONFIRMATION",
+                        message="Confirm a configuration and project first.",
+                        status_code=422,
+                    )
+                try:
+                    return asdict(
+                        service.test_connection(
+                            profile_id,
+                            payload.configuration_version,
+                            payload.project_id,
+                            get_usage_service(request),
+                        )
+                    )
+                except DomainError as error:
+                    raise map_error(error) from None
+            result = service.check_connection(profile_id)
+            return asdict(result)
+        except DomainError as error:
+            raise map_model_error(error) from None
 
     return router

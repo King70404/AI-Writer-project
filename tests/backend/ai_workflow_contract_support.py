@@ -1,6 +1,7 @@
 """Exact new public operations; legacy inventory assertions remain explicit."""
 
 AI_WORKFLOW_OPERATIONS = {
+    ("POST", "/api/v1/ai/models/{profile_id}/connection-check"),
     ("POST", "/api/v1/ai/workflow-setup/upgrade"),
     ("GET", "/api/v1/ai/models"),
     ("POST", "/api/v1/ai/models"),
