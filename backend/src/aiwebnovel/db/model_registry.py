@@ -53,6 +53,7 @@ WRITING_JOB_BUDGET_TABLE_NAMES = frozenset({"writing_job_budgets", "writing_job_
 WRITING_JOB_SCENE_TABLE_NAMES = frozenset({"writing_job_scene_marks"})
 PLAN_PROPOSAL_TABLE_NAMES = frozenset({"plan_proposals"})
 FORESHADOW_PROPOSAL_TABLE_NAMES = frozenset({"foreshadow_proposals"})
+CHAPTER_DRAFT_TABLE_NAMES = frozenset({"chapter_drafts"})
 HANDOFF_TABLE_NAMES = frozenset({"handoff_snapshots", "external_candidates"})
 IMPORT_TABLE_NAMES = frozenset({"import_previews", "import_receipts"})
 STORY_CONTROL_TABLE_NAMES = frozenset({"story_control_revisions"})
@@ -79,11 +80,13 @@ BUSINESS_TABLE_NAMES = (
     | WRITING_JOB_SCENE_TABLE_NAMES
     | PLAN_PROPOSAL_TABLE_NAMES
     | FORESHADOW_PROPOSAL_TABLE_NAMES
+    | CHAPTER_DRAFT_TABLE_NAMES
 )
 
 
 def load_model_metadata() -> MetaData:
     """Load the explicit model set without connecting to or migrating a database."""
+    from aiwebnovel.ai_writing.chapter_draft_persistence import ChapterDraftRecord
     from aiwebnovel.ai_writing.persistence.models import (
         AICandidateEditAdoptionRecord,
         AICandidateEditRecord,
@@ -156,6 +159,7 @@ def load_model_metadata() -> MetaData:
         WritingJobSceneMarkRecord,
         PlanProposalRecord,
         ForeshadowProposalRecord,
+        ChapterDraftRecord,
         HandoffRecord,
         ExternalCandidateRecord,
         ImportPreviewRecord,

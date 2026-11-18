@@ -53,6 +53,8 @@ export interface WritingJob {
   readonly claimed_requests: number;
   readonly used_characters: number;
   readonly active_run_id: string | null;
+  /** 当前步骤绑定的是章节候选稿时为其 id（同时也是 active_run_id）。 */
+  readonly active_draft_id?: string | null;
   readonly scene_progress: readonly StepSceneProgress[];
 }
 export type JobAction = "pause" | "resume" | "cancel" | "finish-step";
@@ -180,6 +182,10 @@ function parse(value: unknown): WritingJob {
     claimed_requests: count(job.claimed_requests),
     used_characters: count(job.used_characters),
     active_run_id: job.active_run_id === null ? null : str(job.active_run_id),
+    active_draft_id:
+      job.active_draft_id === null || job.active_draft_id === undefined
+        ? null
+        : str(job.active_draft_id),
     scene_progress: sceneProgress,
   };
 }

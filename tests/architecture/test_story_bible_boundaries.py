@@ -462,7 +462,7 @@ def test_application_package_import_has_no_runtime_or_schema_side_effects(
     evidence = completed.stdout.strip()
     expected_tables = (
         '["ai_candidate_edit_adoptions", "ai_candidate_edits", "ai_workflow_candidates", "ai_workflow_runs", '
-        '"chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
+        '"chapter_drafts", "chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
         '"character_heads", "character_revisions", "characters", "external_candidates", "foreshadow_proposals", "handoff_snapshots", "import_previews", "import_receipts", "method_annotations", "method_templates", "method_trials", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
         '"outline_heads", "outline_revisions", "outlines", "plan_proposals", '
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '
@@ -506,7 +506,7 @@ def test_web_package_import_has_no_runtime_or_schema_side_effects(
     evidence = completed.stdout.strip()
     expected_tables = (
         '["ai_candidate_edit_adoptions", "ai_candidate_edits", "ai_workflow_candidates", "ai_workflow_runs", '
-        '"chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
+        '"chapter_drafts", "chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
         '"character_heads", "character_revisions", "characters", "external_candidates", "foreshadow_proposals", "handoff_snapshots", "import_previews", "import_receipts", "method_annotations", "method_templates", "method_trials", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
         '"outline_heads", "outline_revisions", "outlines", "plan_proposals", '
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '

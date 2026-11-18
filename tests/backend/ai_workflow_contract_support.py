@@ -15,6 +15,12 @@ AI_WORKFLOW_OPERATIONS = {
     ("POST", "/api/v1/chapters/{chapter_id}/ai/runs/{run_id}/resume"),
     ("POST", "/api/v1/chapters/{chapter_id}/ai/candidates/{candidate_id}/adopt"),
     ("POST", "/api/v1/chapters/{chapter_id}/ai/candidates/{candidate_id}/discard"),
+    ("GET", "/api/v1/chapters/{chapter_id}/ai/drafts"),
+    ("POST", "/api/v1/chapters/{chapter_id}/ai/drafts"),
+    ("GET", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}"),
+    ("GET", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}/estimate"),
+    ("POST", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}/send"),
+    ("POST", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}/adopt"),
 }
 
 WRITING_PREPARATION_OPERATIONS = {

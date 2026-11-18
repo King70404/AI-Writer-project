@@ -13,6 +13,10 @@ import {
   type AIWorkflowClient,
   type WorkflowRun,
 } from "../api/ai-workflow";
+import {
+  chapterDraftClient as defaultChapterDraftClient,
+  type ChapterDraftClient,
+} from "../api/chapter-draft";
 import { useAIWorkflow } from "../hooks/useAIWorkflow";
 import type { SelectionSnapshot } from "../hooks/useAIWriting";
 import type { useChapterWriting } from "../hooks/useChapterWriting";
@@ -28,6 +32,7 @@ import { BudgetSettingsPanel } from "../../usage/components/BudgetSettingsPanel"
 import { ModelUsagePanel } from "../../usage/components/ModelUsagePanel";
 import { SendEstimatePanel } from "../../usage/components/SendEstimatePanel";
 import { AIModelSettings } from "./AIModelSettings";
+import { ChapterDraftPanel } from "./ChapterDraftPanel";
 import { CandidateComparison } from "./CandidateComparison";
 import { editIsCurrent } from "../candidate-edit";
 import { CandidateEditor } from "./CandidateEditor";
@@ -78,8 +83,10 @@ export function AIWorkflowAssistant({
   usageClient = defaultUsageClient,
   budgetClient = defaultBudgetClient,
   storyControlClient,
+  chapterDraftClient = defaultChapterDraftClient,
 }: {
   readonly chapterId: string;
+  readonly chapterDraftClient?: ChapterDraftClient;
   readonly jobId?: string;
   /** 用于读取本章模型用量；缺省时不显示用量面板。 */
   readonly projectId?: string;
@@ -102,6 +109,7 @@ export function AIWorkflowAssistant({
   const [planningDirty, setPlanningDirty] = useState(false);
   const [memoryMounted, setMemoryMounted] = useState(false);
   const [storyControlOpen, setStoryControlOpen] = useState(false);
+  const [draftOpen, setDraftOpen] = useState(false);
   const [tab, setTab] = useState<AssistantTab>("generate");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState(0);
@@ -968,6 +976,29 @@ export function AIWorkflowAssistant({
               </details>
             ) : null}
           </section>
+        ) : null}
+        {!ai.upgradeRequired && profile ? (
+          <details
+            className="ai-chapter-draft"
+            onToggle={(event) => setDraftOpen(event.currentTarget.open)}
+          >
+            <summary>章节候选稿（整章多段，可选）</summary>
+            {/* 展开后才读取候选稿记录；读取本身也不调用模型。 */}
+            {draftOpen ? (
+              <ChapterDraftPanel
+                chapterId={chapterId}
+                profileId={profile.id}
+                jobId={jobId}
+                savedContent={writing.state.snapshot.resource.content}
+                savedRevisionId={
+                  writing.state.snapshot.resource.current_revision_id
+                }
+                saved={writing.state.status === "saved"}
+                acceptExternal={writing.acceptExternal}
+                client={chapterDraftClient}
+              />
+            ) : null}
+          </details>
         ) : null}
         {projectId ? (
           <ModelUsagePanel

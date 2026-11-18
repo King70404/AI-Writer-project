@@ -118,6 +118,7 @@ def compose_ai_workflow(
         "method_templates",
         "plan_proposals",
         "foreshadow_proposals",
+        "chapter_drafts",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
@@ -233,6 +234,23 @@ def compose_ai_workflow(
             budgets.estimate,
         )
         service.recover_interrupted()
+        from aiwebnovel.ai_writing.chapter_draft import ChapterDraftService
+        from aiwebnovel.ai_writing.chapter_draft_persistence import SqlAlchemyChapterDraftStore
+
+        drafts = SqlAlchemyChapterDraftStore(session_factory)
+        drafts.recover_interrupted()
+        # Chapter drafts share the frozen writing context but always send through the
+        # metered gateway under their own ``chapter_draft`` usage operation.
+        service.chapter_drafts = ChapterDraftService(
+            drafts,
+            ChapterWritingContextBuilder(
+                structure, projects, story_bibles, characters, extra_sources
+            ),
+            structure,
+            generate,
+            read_model,
+            budgets.estimate,
+        )
         return (
             service,
             gateway,
