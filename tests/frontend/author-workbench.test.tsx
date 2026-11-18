@@ -429,7 +429,7 @@ async function showDesk(client: NovelStructureApiClient = structureForDesk()) {
 describe("three-column writing desk", () => {
   it("records the chapter locally and renders volume/chapter navigation in order", async () => {
     await showDesk();
-    expect(lastRecentChapter()?.chapterId).toBe(chapterId);
+    await waitFor(() => expect(lastRecentChapter()?.chapterId).toBe(chapterId));
     const nav = screen.getByRole("navigation", { name: "卷章导航" });
     await within(nav).findByRole("link", { name: "第1章 第一章" });
     expect(within(nav).getByText("项目版本1")).toBeVisible();
