@@ -18,6 +18,7 @@ UsageOperation = Literal[
     "connection_check",
     "method_trial",
     "plan_proposal",
+    "foreshadow_extraction",
 ]
 
 

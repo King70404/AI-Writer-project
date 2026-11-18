@@ -9,6 +9,23 @@ from aiwebnovel.ai_writing.web import map_error, require_json
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.domain.errors import DomainError, InvalidDomainIdentifier
 from aiwebnovel.project.errors import ProjectNotFound
+from aiwebnovel.story_control.foreshadow import ForeshadowExtractionService
+from aiwebnovel.story_control.foreshadow_models import (
+    AdoptForeshadowCards,
+    ForeshadowCardInvalid,
+    ForeshadowConflict,
+    ForeshadowConsentRequired,
+    ForeshadowInvalid,
+    ForeshadowNotFound,
+    ForeshadowOutputInvalid,
+    ForeshadowProposalList,
+    ForeshadowProposalView,
+    ForeshadowStale,
+    PrepareExtraction,
+    PreviewRange,
+    RangePreview,
+    SendExtraction,
+)
 from aiwebnovel.story_control.models import (
     ArcPlan,
     ChapterGuide,
@@ -63,6 +80,13 @@ _ERRORS: dict[type[DomainError], tuple[int, str]] = {
     PlanProposalNotFound: (404, "PLAN_PROPOSAL_NOT_FOUND"),
     PlanProposalConsentRequired: (403, "PLAN_PROPOSAL_CONSENT_REQUIRED"),
     PlanProposalOutputInvalid: (422, "PLAN_PROPOSAL_OUTPUT_INVALID"),
+    ForeshadowConflict: (409, "FORESHADOW_EXTRACTION_CONFLICT"),
+    ForeshadowStale: (409, "FORESHADOW_EXTRACTION_STALE"),
+    ForeshadowInvalid: (422, "FORESHADOW_EXTRACTION_INVALID"),
+    ForeshadowCardInvalid: (422, "FORESHADOW_CARD_INVALID"),
+    ForeshadowNotFound: (404, "FORESHADOW_EXTRACTION_NOT_FOUND"),
+    ForeshadowConsentRequired: (403, "FORESHADOW_EXTRACTION_CONSENT_REQUIRED"),
+    ForeshadowOutputInvalid: (422, "FORESHADOW_EXTRACTION_OUTPUT_INVALID"),
 }
 
 
@@ -92,6 +116,17 @@ def get_plan_proposal_service(request: Request) -> PlanProposalService:
             status_code=503,
         )
     return proposals
+
+
+def get_foreshadow_service(request: Request) -> ForeshadowExtractionService:
+    extractions = get_story_control_service(request).foreshadow_service
+    if not isinstance(extractions, ForeshadowExtractionService):
+        raise AppError(
+            code="STORY_CONTROL_UNAVAILABLE",
+            message="Story planning is unavailable.",
+            status_code=503,
+        )
+    return extractions
 
 
 def _invoke[T](response: Response, action: Callable[[], T], *, project: bool = False) -> T:
@@ -188,6 +223,7 @@ def get_fact_query(request: Request) -> dict[str, object]:
 Service = Annotated[StoryControlService, Depends(get_story_control_service)]
 Json = Annotated[None, Depends(require_json)]
 Proposals = Annotated[PlanProposalService, Depends(get_plan_proposal_service)]
+Extractions = Annotated[ForeshadowExtractionService, Depends(get_foreshadow_service)]
 
 
 def create_story_control_router(*, api_prefix: str) -> APIRouter:
@@ -284,6 +320,94 @@ def create_story_control_router(*, api_prefix: str) -> APIRouter:
         service: Proposals,
         _json: Json,
     ) -> PlanProposalView:
+        return _invoke(
+            response,
+            lambda: service.adopt(project_id, proposal_id, payload.card_indexes),
+            project=True,
+        )
+
+    extractions = project + "/foreshadow-proposals"
+
+    @router.get(extractions, response_model=ForeshadowProposalList)
+    def list_extractions(
+        project_id: str, response: Response, service: Extractions
+    ) -> ForeshadowProposalList:
+        return _invoke(
+            response,
+            lambda: ForeshadowProposalList(
+                project_id=project_id, items=service.list_proposals(project_id)
+            ),
+            project=True,
+        )
+
+    @router.post(extractions + "/preview", response_model=RangePreview)
+    def preview_extraction(
+        project_id: str,
+        payload: PreviewRange,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> RangePreview:
+        # Lists the chosen chapters and their saved sizes; no model request, nothing stored.
+        return _invoke(
+            response, lambda: service.preview(project_id, payload.chapter_ids), project=True
+        )
+
+    @router.post(extractions, response_model=ForeshadowProposalView, status_code=201)
+    def prepare_extraction(
+        project_id: str,
+        payload: PrepareExtraction,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> ForeshadowProposalView:
+        # Freezes the chosen chapters' saved text and the open threads; no model request.
+        return _invoke(
+            response,
+            lambda: service.prepare(
+                project_id, payload.chapter_ids, payload.profile_id, payload.author_request
+            ),
+            project=True,
+        )
+
+    @router.get(extractions + "/{proposal_id}", response_model=ForeshadowProposalView)
+    def get_extraction(
+        project_id: str, proposal_id: str, response: Response, service: Extractions
+    ) -> ForeshadowProposalView:
+        return _invoke(response, lambda: service.get(project_id, proposal_id), project=True)
+
+    @router.get(extractions + "/{proposal_id}/estimate", response_model=SendEstimate)
+    def estimate_extraction(
+        project_id: str, proposal_id: str, response: Response, service: Extractions
+    ) -> SendEstimate:
+        return _invoke(response, lambda: service.estimate(project_id, proposal_id), project=True)
+
+    @router.post(extractions + "/{proposal_id}/send", response_model=ForeshadowProposalView)
+    def send_extraction(
+        project_id: str,
+        proposal_id: str,
+        payload: SendExtraction,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> ForeshadowProposalView:
+        return _invoke(
+            response,
+            lambda: service.send(
+                project_id, proposal_id, payload.expected_version, payload.cloud_consent
+            ),
+            project=True,
+        )
+
+    @router.post(extractions + "/{proposal_id}/adopt", response_model=ForeshadowProposalView)
+    def adopt_extraction(
+        project_id: str,
+        proposal_id: str,
+        payload: AdoptForeshadowCards,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> ForeshadowProposalView:
         return _invoke(
             response,
             lambda: service.adopt(project_id, proposal_id, payload.card_indexes),

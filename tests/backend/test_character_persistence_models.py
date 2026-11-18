@@ -67,6 +67,7 @@ def test_registry_contains_exactly_authorized_business_tables() -> None:
         "method_templates",
         "writing_job_scene_marks",
         "plan_proposals",
+        "foreshadow_proposals",
     }
     assert "alembic_version" not in metadata.tables
 
