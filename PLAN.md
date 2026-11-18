@@ -16,7 +16,7 @@
 | B-3 缓存计价、迁移及费用 CSV | [#46](https://github.com/King70404/AI-Writer-project/pull/46) | `be311ca` |
 | E/F08 方法验证 | [#49](https://github.com/King70404/AI-Writer-project/pull/49) | `16adc1e` |
 
-各项独立完整 Windows 门禁与最新 main 同步补验证据见对应 `docs/*WINDOWS_GATE*.md` 和 PR。普通 merge、未绕过保护；GitHub hosted Windows 检查受账户付款/额度问题阻止，任务未执行，不声称云端测试通过。
+各项独立完整 Windows 门禁与最新 main 同步补验证据见对应 `docs/*WINDOWS_GATE*.md` 和 PR。普通 merge、未绕过保护；此前 GitHub hosted 检查曾因账户付款/额度未启动，后续实际恢复执行并通过，最新云端证据见下节。
 
 ## 最终有效验证
 
@@ -24,9 +24,11 @@ E/F08 [PR #49](https://github.com/King70404/AI-Writer-project/pull/49)：规则�
 
 代码 `8dcf46cfa9b91806acb5225268e37ccdb3301a15` 完整 Windows IncludeE2E 通过：后端 3,334，前端 1,098，E2E 34 场景及清理；覆盖率、日志散列和修复记录见 [F08 验证](docs/F08_WINDOWS_GATE_20261117.md)，操作与边界见 [方法验证](docs/METHOD_VALIDATION.md)。同步 main 后已逐文件核对：除 PLAN 和 docs 外整个仓库与该已验证候选无差异，复用有效完整门禁证据，不冒充新 head 重跑过完整门禁。
 
-## 云端 CI 重试跟进
+## 最新云端 CI 证据
 
-2026-11-18 Windows Full run `44314297025` 已实际执行，账户问题未再阻止启动；后端 3,334 项通过，前端 1,097 项通过、1 项因未等待最近章节写入副作用而失败。本分支仅修复该测试的等待前提，定向 30 项通过，待完成全量和云端复核。详见 [CI 重试记录](docs/CI_RETRY_20261118.md)。原本地完整门禁记录保留，不将本次失败冒充通过。
+2026-11-18 已成功恢复云端执行。初次 Full run `44314297025` 后端 3,334 项通过，前端一项测试未等待最近章节存储 effect 完成而失败；原证据保留。
+
+测试修复候选 `78761f6dfe07a2e203dfcbb130bd703bfc7b1b3b` 的 [GitHub run 44318315626](https://github.com/King70404/AI-Writer-project/actions/runs/44318315626) Windows Default/Full 均通过：后端 3,334、前端 1,098、E2E 34 场景和清理。artifact status=passed、blocker=null。已通过 PR #50 合并为 `1cc426d`，后续仅同步状态文档。详细结果、覆盖率、日志散列和失败/修复过程见 [CI 重试记录](docs/CI_RETRY_20261118.md)。不将文档更新 SHA 冒称为另一次 Full 通过。
 
 ## 下一步
 

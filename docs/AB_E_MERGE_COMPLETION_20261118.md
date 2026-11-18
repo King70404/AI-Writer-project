@@ -28,6 +28,10 @@ git diff --exit-code 8dcf46c 16adc1e -- . ':(exclude)docs/**' ':(exclude)PLAN.md
 
 ## 云端限制与边界
 
-GitHub hosted Windows 检查因账户付款/额度问题未启动。最终功能 merge `16adc1e` 的 Windows Default check `134201184852` 注释仍明确说明 job 未启动；这不是执行测试的失败，也不能称云端通过。未修改账户设置或绕过分支保护。
+该次合并时的 GitHub hosted Windows 检查因账户付款/额度问题未启动。最终功能 merge `16adc1e` 的 Windows Default check `134201184852` 注释仍明确说明 job 未启动；这不是执行测试的失败，也不能称云端通过。未修改账户设置或绕过分支保护。
 
 未接触正式创作数据或真实 Key，未调用真实/付费模型，未打 tag、未发布。方法评分不自动采用候选；工程门禁不证明真实模型的文学质量。既有正式作者数据库不会因本次仓库合并被读取或迁移；普通启动仍要求作者自行备份并显式升级旧库。
+
+## 后续云端 CI 已恢复通过
+
+之后对 main 实际启动 Full，暴露一项最近章节 effect 的测试同步遗漏。PR #50 仅修复断言等待，候选 `78761f6` 的 Windows Default/Full 实际通过（后端 3,334、前端 1,098、E2E 34 场景及清理），合并为 `1cc426d`。旧阻塞和失败证据保留，最新事实见 [CI 重试记录](CI_RETRY_20261118.md)。
