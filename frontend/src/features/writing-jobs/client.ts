@@ -7,6 +7,39 @@ export interface WritingStep {
   readonly chapter_id: string;
   readonly status: StepStatus;
 }
+export type SceneStatus = "pending" | "done" | "skipped";
+export interface PlannedSceneProgress {
+  readonly scene_id: string;
+  readonly title: string;
+  readonly status: SceneStatus;
+}
+/** Author-recorded progress; marks always refer to the plan revision they were made on. */
+export interface StepSceneProgress {
+  readonly step_index: number;
+  readonly chapter_id: string;
+  readonly plan_revision_id: string | null;
+  readonly plan_version: number | null;
+  readonly current_plan_revision_id: string | null;
+  readonly current_plan_version: number | null;
+  readonly needs_recheck: boolean;
+  readonly has_adopted: boolean;
+  readonly scenes: readonly PlannedSceneProgress[];
+  readonly target_scene_id: string | null;
+  readonly next_scene_id: string | null;
+  readonly done_count: number;
+  readonly skipped_count: number;
+  readonly total: number;
+}
+export function sceneSummary(progress: StepSceneProgress): string {
+  return `场景 ${progress.done_count + progress.skipped_count}/${progress.total}`;
+}
+export type SceneAction = "target" | "done" | "skipped" | "pending" | "recheck";
+export interface SceneMark {
+  readonly step_index: number;
+  readonly plan_revision_id: string;
+  readonly action: SceneAction;
+  readonly scene_id?: string;
+}
 export interface WritingJob {
   readonly job_id: string;
   readonly project_id: string;
@@ -20,6 +53,7 @@ export interface WritingJob {
   readonly claimed_requests: number;
   readonly used_characters: number;
   readonly active_run_id: string | null;
+  readonly scene_progress: readonly StepSceneProgress[];
 }
 export type JobAction = "pause" | "resume" | "cancel" | "finish-step";
 export interface WritingJobsClient {
@@ -42,6 +76,11 @@ export interface WritingJobsClient {
     action: JobAction,
     expectedVersion: number,
   ) => Promise<WritingJob>;
+  readonly markScene: (
+    job: string,
+    mark: SceneMark,
+    expectedVersion: number,
+  ) => Promise<WritingJob>;
 }
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -56,6 +95,52 @@ function count(value: unknown): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
     throw new Error("写作任务数据无法读取。");
   return value;
+}
+function optionalStr(value: unknown): string | null {
+  return value === null ? null : str(value);
+}
+function optionalCount(value: unknown): number | null {
+  return value === null ? null : count(value);
+}
+function flag(value: unknown): boolean {
+  if (typeof value !== "boolean") throw new Error("场景进度无法读取。");
+  return value;
+}
+function parseProgress(value: unknown, index: number): StepSceneProgress {
+  const progress = object(value);
+  if (!Array.isArray(progress.scenes)) throw new Error("场景进度无法读取。");
+  const scenes = progress.scenes.map((item): PlannedSceneProgress => {
+    const scene = object(item);
+    if (
+      scene.status !== "pending" &&
+      scene.status !== "done" &&
+      scene.status !== "skipped"
+    )
+      throw new Error("场景进度无法读取。");
+    return {
+      scene_id: str(scene.scene_id),
+      title: str(scene.title),
+      status: scene.status,
+    };
+  });
+  const stepIndex = count(progress.step_index);
+  if (stepIndex !== index) throw new Error("场景进度无法读取。");
+  return {
+    step_index: stepIndex,
+    chapter_id: str(progress.chapter_id),
+    plan_revision_id: optionalStr(progress.plan_revision_id),
+    plan_version: optionalCount(progress.plan_version),
+    current_plan_revision_id: optionalStr(progress.current_plan_revision_id),
+    current_plan_version: optionalCount(progress.current_plan_version),
+    needs_recheck: flag(progress.needs_recheck),
+    has_adopted: flag(progress.has_adopted),
+    scenes,
+    target_scene_id: optionalStr(progress.target_scene_id),
+    next_scene_id: optionalStr(progress.next_scene_id),
+    done_count: count(progress.done_count),
+    skipped_count: count(progress.skipped_count),
+    total: count(progress.total),
+  };
 }
 function parse(value: unknown): WritingJob {
   const job = object(value);
@@ -76,6 +161,12 @@ function parse(value: unknown): WritingJob {
   const currentIndex = count(job.current_index);
   if (steps.length === 0 || currentIndex > steps.length)
     throw new Error("写作任务步骤无法读取。");
+  if (
+    !Array.isArray(job.scene_progress) ||
+    job.scene_progress.length !== steps.length
+  )
+    throw new Error("场景进度无法读取。");
+  const sceneProgress = job.scene_progress.map(parseProgress);
   return {
     job_id: str(job.job_id),
     project_id: str(job.project_id),
@@ -89,6 +180,7 @@ function parse(value: unknown): WritingJob {
     claimed_requests: count(job.claimed_requests),
     used_characters: count(job.used_characters),
     active_run_id: job.active_run_id === null ? null : str(job.active_run_id),
+    scene_progress: sceneProgress,
   };
 }
 async function write(path: string, body: unknown): Promise<WritingJob> {
@@ -123,6 +215,11 @@ export const writingJobsClient: WritingJobsClient = {
       chapter_ids: chapterIds,
       max_requests: maxRequests,
       max_output_characters: maxOutputCharacters,
+    }),
+  markScene: (job, mark, expectedVersion) =>
+    write(`writing-jobs/${encodeURIComponent(job)}/scene-progress`, {
+      ...mark,
+      expected_version: expectedVersion,
     }),
   act: (job, action, expectedVersion) =>
     write(`writing-jobs/${encodeURIComponent(job)}/${action}`, {

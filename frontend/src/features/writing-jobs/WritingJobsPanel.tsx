@@ -9,11 +9,14 @@ import {
   type WorkspaceClient,
 } from "../workbench/api/workspace";
 import {
+  sceneSummary,
   writingJobsClient,
   type JobAction,
+  type SceneAction,
   type WritingJob,
   type WritingJobsClient,
 } from "./client";
+import { SceneProgress } from "./SceneProgress";
 import "./writing-jobs.css";
 
 const STATUS: Record<WritingJob["status"], string> = {
@@ -24,6 +27,10 @@ const STATUS: Record<WritingJob["status"], string> = {
 };
 function message(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.code === "WRITING_JOB_SCENE_PLAN_CHANGED")
+      return "章节规划已变化，请刷新任务后重新核对场景。";
+    if (error.code === "WRITING_JOB_SCENE_RECHECK_REQUIRED")
+      return "章节规划已更新，请先按新规划重新核对场景。";
     if (error.status === 409 || error.status === 412)
       return "任务状态已变化，请刷新后再操作。";
     if (error.status === 503)
@@ -129,6 +136,37 @@ export function WritingJobsPanel({
           ? "已结束本章任务；章节定稿状态没有改变。"
           : "任务状态已更新。",
       );
+    } catch (failure) {
+      setError(message(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function markScene(
+    job: WritingJob,
+    action: SceneAction,
+    sceneId?: string,
+  ) {
+    const progress = job.scene_progress[job.current_index];
+    if (busy || !progress?.current_plan_revision_id) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const updated = await client.markScene(
+        job.job_id,
+        {
+          step_index: job.current_index,
+          plan_revision_id: progress.current_plan_revision_id,
+          action,
+          ...(sceneId === undefined ? {} : { scene_id: sceneId }),
+        },
+        job.version,
+      );
+      setJobs((old) =>
+        old.map((item) => (item.job_id === updated.job_id ? updated : item)),
+      );
+      setNotice("场景进度已更新；正文和章节状态没有改变。");
     } catch (failure) {
       setError(message(failure));
     } finally {
@@ -284,9 +322,23 @@ export function WritingJobsPanel({
                             job.status === "planned"
                           ? "当前章节"
                           : "待处理"}
+                      {job.scene_progress[index]?.total
+                        ? ` · ${sceneSummary(job.scene_progress[index])}`
+                        : ""}
                     </li>
                   ))}
                 </ol>
+                {(job.status === "planned" || job.status === "paused") &&
+                job.scene_progress[job.current_index] ? (
+                  <SceneProgress
+                    progress={job.scene_progress[job.current_index]}
+                    editable
+                    busy={busy}
+                    onMark={(action, sceneId) =>
+                      void markScene(job, action, sceneId)
+                    }
+                  />
+                ) : null}
                 {job.status === "planned" && job.steps[job.current_index] ? (
                   <>
                     <Link
