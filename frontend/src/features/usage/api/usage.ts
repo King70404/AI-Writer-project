@@ -12,7 +12,8 @@ export type UsageOperation =
   | "reference_analysis"
   | "story_review"
   | "connection_check"
-  | "method_trial";
+  | "method_trial"
+  | "plan_proposal";
 export type AttemptStatus =
   "running" | "completed" | "failed" | "timeout" | "interrupted";
 export type UsageSource = "provider_reported" | "unknown";
@@ -23,6 +24,7 @@ export const OPERATION_LABELS: Record<UsageOperation, string> = {
   story_review: "一致性评审",
   connection_check: "连接测试消息",
   method_trial: "写作方法对照试写",
+  plan_proposal: "规划拆分建议",
 };
 export const STATUS_LABELS: Record<AttemptStatus, string> = {
   running: "进行中",

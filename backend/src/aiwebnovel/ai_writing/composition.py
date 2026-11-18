@@ -116,6 +116,7 @@ def compose_ai_workflow(
         "method_trials",
         "method_annotations",
         "method_templates",
+        "plan_proposals",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
@@ -201,7 +202,16 @@ def compose_ai_workflow(
             generation_sources,
             lambda chapter_id: control.selection_policy(chapter_id),
         )
-        control = compose_story_control(session_factory, projects, structure, characters, memory)
+        control = compose_story_control(
+            session_factory,
+            projects,
+            structure,
+            characters,
+            memory,
+            provider=generate,
+            model_reader=read_model,
+            budgets=budgets,
+        )
 
         def extra_sources(chapter_id: str) -> tuple[ContextSource, ...]:
             # Author plans are labelled guidance; confirmed facts follow the recall policy.

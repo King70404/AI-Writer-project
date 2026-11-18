@@ -99,6 +99,12 @@ STORY_CONTROL_OPERATIONS = {
     ("GET", "/api/v1/chapters/{chapter_id}/recall-policy"),
     ("PUT", "/api/v1/chapters/{chapter_id}/recall-policy"),
     ("POST", "/api/v1/chapters/{chapter_id}/recall-preview"),
+    ("GET", "/api/v1/projects/{project_id}/plan-proposals"),
+    ("POST", "/api/v1/projects/{project_id}/plan-proposals"),
+    ("GET", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}"),
+    ("GET", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}/estimate"),
+    ("POST", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}/send"),
+    ("POST", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}/adopt"),
 }
 
 IMPORT_OPERATIONS = {

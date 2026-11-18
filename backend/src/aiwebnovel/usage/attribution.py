@@ -12,7 +12,12 @@ from dataclasses import dataclass
 from typing import Literal
 
 UsageOperation = Literal[
-    "generation", "reference_analysis", "story_review", "connection_check", "method_trial"
+    "generation",
+    "reference_analysis",
+    "story_review",
+    "connection_check",
+    "method_trial",
+    "plan_proposal",
 ]
 
 
