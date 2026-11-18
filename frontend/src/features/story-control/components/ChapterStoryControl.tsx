@@ -131,6 +131,78 @@ function toggle(values: readonly string[], value: string): string[] {
     : [...values, value];
 }
 
+/** The recall facts a task or review uses, shown the same way everywhere. */
+export type RecallExplanationData = Pick<
+  RecallPreview,
+  | "selected"
+  | "omitted"
+  | "omitted_total"
+  | "excluded_total"
+  | "used_characters"
+  | "character_limit"
+  | "item_limit"
+  | "blocked"
+>;
+
+export function RecallExplanation({
+  recall,
+  showOmitted = false,
+}: {
+  readonly recall: RecallExplanationData;
+  /** Also list every omitted fact with its reason (frozen snapshots). */
+  readonly showOmitted?: boolean;
+}) {
+  return (
+    <>
+      <p>
+        已选 {n(recall.selected.length)} / {recall.item_limit} 项（作者固定{" "}
+        {n(recall.selected.filter((item) => item.reason === "pinned").length)}{" "}
+        项），占用 {n(recall.used_characters)} / {n(recall.character_limit)}{" "}
+        字符；因预算省略 {n(recall.omitted_total)} 项，作者排除{" "}
+        {n(recall.excluded_total)} 项。
+      </p>
+      <meter
+        aria-label="事实召回字符预算"
+        min={0}
+        max={recall.character_limit}
+        value={recall.used_characters}
+      />
+      {recall.blocked ? (
+        <div role="alert">
+          <p>固定的事实有问题，准备任务会被拒绝（不会悄悄丢掉固定项）：</p>
+          <ul>
+            {recall.omitted
+              .filter((item) => item.reason.startsWith("pin_"))
+              .map((item) => (
+                <li key={item.id}>
+                  {item.title ?? "已删除的事实"}：{OMIT_LABELS[item.reason]}
+                </li>
+              ))}
+          </ul>
+        </div>
+      ) : null}
+      <ol className="recall-control__selected">
+        {recall.selected.map((item) => (
+          <li key={item.id}>
+            {item.title}（{item.reason === "pinned" ? "作者固定" : "文字关联"} ·{" "}
+            {n(item.characters)} 字符）
+          </li>
+        ))}
+      </ol>
+      {showOmitted && recall.omitted.length ? (
+        <ul aria-label="未纳入的事实及原因">
+          {recall.omitted.map((item) => (
+            <li key={item.id}>
+              未纳入：{item.title ?? "已删除的事实"}（{OMIT_LABELS[item.reason]}
+              ）
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
+  );
+}
+
 export function RecallControl({
   projectId,
   chapterId,
@@ -259,47 +331,7 @@ export function RecallControl({
       {error ? <p role="alert">{error}</p> : null}
       {preview ? (
         <>
-          <p>
-            已选 {n(preview.selected.length)} / {preview.item_limit}{" "}
-            项（作者固定{" "}
-            {n(
-              preview.selected.filter((item) => item.reason === "pinned")
-                .length,
-            )}{" "}
-            项），占用 {n(preview.used_characters)} /{" "}
-            {n(preview.character_limit)} 字符；因预算省略{" "}
-            {n(preview.omitted_total)} 项，作者排除 {n(preview.excluded_total)}{" "}
-            项。
-          </p>
-          <meter
-            aria-label="事实召回字符预算"
-            min={0}
-            max={preview.character_limit}
-            value={preview.used_characters}
-          />
-          {preview.blocked ? (
-            <div role="alert">
-              <p>固定的事实有问题，准备任务会被拒绝（不会悄悄丢掉固定项）：</p>
-              <ul>
-                {preview.omitted
-                  .filter((item) => item.reason.startsWith("pin_"))
-                  .map((item) => (
-                    <li key={item.id}>
-                      {item.title ?? "已删除的事实"}：{OMIT_LABELS[item.reason]}
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          ) : null}
-          <ol className="recall-control__selected">
-            {preview.selected.map((item) => (
-              <li key={item.id}>
-                {item.title}（
-                {item.reason === "pinned" ? "作者固定" : "文字关联"} ·{" "}
-                {n(item.characters)} 字符）
-              </li>
-            ))}
-          </ol>
+          <RecallExplanation recall={preview} />
           {difference ? (
             <p>
               与上次准备的任务相比：新增 {n(difference.added.length)} 项

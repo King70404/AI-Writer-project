@@ -21,6 +21,9 @@ from aiwebnovel.novel_structure.application.queries import (
 )
 from aiwebnovel.novel_structure.application.services import NovelStructureQueryService
 from aiwebnovel.story_memory.models import (
+    RECALL_CHARACTER_LIMIT,
+    RECALL_EXPLANATION_LIMIT,
+    RECALL_ITEM_LIMIT,
     Fact,
     FactInput,
     FrozenFact,
@@ -35,6 +38,9 @@ from aiwebnovel.story_memory.models import (
     RecallPinsInvalid,
     RecallSelectionPolicy,
     Review,
+    ReviewRecall,
+    ReviewRecallChoice,
+    ReviewRecallOmission,
     ReviewResult,
     Workspace,
     snapshot_model,
@@ -147,14 +153,6 @@ class StoryMemoryService:
             for chapter in self._structure.list_chapters(ListChaptersQuery(volume.volume_id))
         )
 
-    def _facts(
-        self,
-        chapter: ChapterContentSnapshot,
-        items: tuple[MemoryItem, ...],
-    ) -> tuple[list[Fact], list[FrozenFact], int]:
-        outcome = self.recall(chapter, items, None)
-        return list(outcome.facts), list(outcome.selected), outcome.omitted_total
-
     def recall(
         self,
         chapter: ChapterContentSnapshot,
@@ -228,7 +226,7 @@ class StoryMemoryService:
                 )
             )
             cost = len(json.dumps(snapshot.model_dump(), ensure_ascii=False)) + 2
-            if len(selected) >= 24 or used + cost > 10_000:
+            if len(selected) >= RECALL_ITEM_LIMIT or used + cost > RECALL_CHARACTER_LIMIT:
                 return False
             selected.append(snapshot)
             reasons[item.id] = reason
@@ -312,7 +310,7 @@ class StoryMemoryService:
 
     def workspace(self, chapter_id: str) -> Workspace:
         chapter, items = self._list(chapter_id)
-        policy = None if self._policy_reader is None else self._policy_reader(chapter_id)
+        policy = self._read_policy(chapter_id)
         outcome = self.recall(chapter, items, policy)
         facts, recalled, omitted = (
             list(outcome.facts),
@@ -381,7 +379,7 @@ class StoryMemoryService:
 
     def context_sources(self, chapter_id: str) -> tuple[ContextSource, ...]:
         chapter, items = self._list(chapter_id)
-        policy = None if self._policy_reader is None else self._policy_reader(chapter_id)
+        policy = self._read_policy(chapter_id)
         outcome = self.recall(chapter, items, policy)
         if outcome.blocked:
             raise RecallPinsInvalid
@@ -416,7 +414,13 @@ class StoryMemoryService:
             raise MemoryConflict
         if sum(isinstance(item, Review) and item.chapter_id == chapter_id for item in items) >= 100:
             raise MemoryInvalid
-        _, facts, omitted = self._facts(chapter, items)
+        # The review follows the same per-chapter recall policy as generation: excluded
+        # facts are never sent, pinned facts come first, and an invalid or over-budget
+        # pin refuses preparation instead of being dropped. No model is called here.
+        policy = self._read_policy(chapter_id)
+        outcome = self.recall(chapter, items, policy)
+        if outcome.blocked:
+            raise RecallPinsInvalid
         review = Review(
             id=str(uuid4()),
             revision_id=str(uuid4()),
@@ -427,21 +431,59 @@ class StoryMemoryService:
             content=chapter.content[-24_000:],
             content_truncated=len(chapter.content) > 24_000,
             model=snapshot_model(self._model_reader(profile_id)),
-            facts=facts,
-            omitted_facts=omitted,
+            facts=list(outcome.selected),
+            omitted_facts=outcome.omitted_total,
+            recall=self._review_recall(policy, outcome),
             status="ready",
             attempts=0,
             result=None,
             last_error=None,
             updated_at=_now(),
         )
-        return cast(
-            Review,
-            self._repository.save(
-                review,
-                0,
-                lambda: self._require_source(chapter_id, chapter.project_id, revision),
-            ),
+
+        def validate() -> None:
+            self._require_source(chapter_id, chapter.project_id, revision)
+            current = self._read_policy(chapter_id)
+            if (0 if current is None else current.version) != (
+                0 if policy is None else policy.version
+            ):
+                raise MemoryConflict
+
+        return cast(Review, self._repository.save(review, 0, validate))
+
+    def _read_policy(self, chapter_id: str) -> RecallSelectionPolicy | None:
+        return None if self._policy_reader is None else self._policy_reader(chapter_id)
+
+    @staticmethod
+    def _review_recall(
+        policy: RecallSelectionPolicy | None, outcome: RecallOutcome
+    ) -> ReviewRecall:
+        return ReviewRecall(
+            policy_version=0 if policy is None else policy.version,
+            pinned_fact_ids=[] if policy is None else list(policy.pinned),
+            excluded_fact_ids=[] if policy is None else list(policy.excluded),
+            selected=[
+                ReviewRecallChoice(
+                    id=item.id,
+                    revision_id=item.revision_id,
+                    chapter_id=item.chapter_id,
+                    title=item.title,
+                    reason="pinned" if outcome.reasons[item.id] == "pinned" else "related",
+                    characters=outcome.costs[item.id],
+                )
+                for item in outcome.selected
+            ],
+            omitted=[
+                ReviewRecallOmission(
+                    id=fact_id,
+                    title=title,
+                    reason="excluded" if reason == "excluded" else "budget",
+                )
+                for fact_id, title, reason in outcome.omitted[:RECALL_EXPLANATION_LIMIT]
+            ],
+            omitted_total=outcome.omitted_total,
+            excluded_total=outcome.excluded_total,
+            used_characters=outcome.used,
         )
 
     @staticmethod
