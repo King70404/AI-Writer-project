@@ -704,9 +704,7 @@ class ForeshadowExtractionService:
     # ------------------------------------------------------------------ undo
 
     @staticmethod
-    def _status_after_undo(
-        proposal: ForeshadowProposal, index: int, frozen: FrozenThread
-    ) -> str:
+    def _status_after_undo(proposal: ForeshadowProposal, index: int, frozen: FrozenThread) -> str:
         """The thread status once this card's payoff or advance evidence is removed.
 
         Other payoff or advance cards of this extraction that stay adopted on the same thread
