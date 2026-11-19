@@ -16,7 +16,7 @@ export type UsageOperation =
   | "plan_proposal"
   | "foreshadow_extraction"
   | "chapter_draft"
-  | "semantic_index";
+  | "semantic_index"
   | "timeline_extraction";
 export type AttemptStatus =
   "running" | "completed" | "failed" | "timeout" | "interrupted";

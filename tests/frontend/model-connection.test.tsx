@@ -90,9 +90,7 @@ it("never offers a chat test message for an embedding model", async () => {
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "检查连接 测试" }));
-  expect(
-    await screen.findByText(/嵌入模型不提供测试消息/u),
-  ).toBeVisible();
+  expect(await screen.findByText(/嵌入模型不提供测试消息/u)).toBeVisible();
   expect(
     screen.queryByText(/将发送一条测试消息，可能计费/u),
   ).not.toBeInTheDocument();
