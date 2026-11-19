@@ -119,6 +119,7 @@ def compose_ai_workflow(
         "plan_proposals",
         "foreshadow_proposals",
         "chapter_drafts",
+        "timeline_proposals",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository

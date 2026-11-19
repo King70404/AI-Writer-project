@@ -69,6 +69,7 @@ def test_registry_contains_exactly_authorized_business_tables() -> None:
         "plan_proposals",
         "foreshadow_proposals",
         "chapter_drafts",
+        "timeline_proposals",
     }
     assert "alembic_version" not in metadata.tables
 
