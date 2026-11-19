@@ -79,6 +79,17 @@ const plan: ArcPlan = {
 };
 
 function raw(overrides: Record<string, unknown> = {}) {
+  const merged = rawBase(overrides);
+  return {
+    ...merged,
+    adoptions: (merged.adoptions as Record<string, unknown>[]).map((item) => ({
+      edited: false,
+      ...item,
+    })),
+  };
+}
+
+function rawBase(overrides: Record<string, unknown>): Record<string, unknown> {
   return {
     id: "proposal-1",
     project_id: projectId,
@@ -129,6 +140,8 @@ function raw(overrides: Record<string, unknown> = {}) {
     evidence: null,
     evidence_truncated: false,
     adoptions: [],
+    edits: [],
+    undos: [],
     known_goal_version: 1,
     created_goal_ids: [],
     created_at: "t",
@@ -169,8 +182,12 @@ function fakeClient(overrides: Partial<PlanProposalClient> = {}) {
     estimate: vi.fn().mockResolvedValue(allowedAnalysisEstimate()),
     send: vi.fn().mockResolvedValue(completed),
     adopt: vi.fn(),
+    editCard: vi.fn(),
+    undo: vi.fn(),
     ...overrides,
   } as unknown as PlanProposalClient & {
+    editCard: ReturnType<typeof vi.fn>;
+    undo: ReturnType<typeof vi.fn>;
     prepare: ReturnType<typeof vi.fn>;
     send: ReturnType<typeof vi.fn>;
     adopt: ReturnType<typeof vi.fn>;
@@ -402,6 +419,189 @@ describe("plan proposal panel", () => {
     expect(onAdopted).not.toHaveBeenCalled();
     expect(
       screen.getByRole("button", { name: "重新准备建议" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("plan proposal card edits and undo", () => {
+  const editedCard = { ...cards[0], title: "卷一立足·作者改" };
+  const withEdit = parseProposal(
+    raw({
+      version: 4,
+      status: "completed",
+      summary: "按卷拆分",
+      cards,
+      edits: [{ index: 0, card: editedCard, edited_at: "t" }],
+    }),
+    projectId,
+  );
+  const adoptedLink = parseProposal(
+    raw({
+      version: 5,
+      status: "completed",
+      cards,
+      adoptions: [
+        {
+          index: 1,
+          action: "linked",
+          goal_id: goal.id,
+          goal_version: 2,
+          adopted_at: "t",
+          edited: false,
+        },
+      ],
+    }),
+    projectId,
+  );
+
+  it("sends edits and undo with the proposal version and CSRF", async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetcher);
+    fetcher.mockImplementation(() =>
+      Promise.resolve(
+        json(
+          raw({
+            version: 4,
+            status: "completed",
+            cards,
+            edits: [{ index: 0, card: editedCard, edited_at: "t" }],
+            undos: [
+              { index: 1, action: "linked", goal_id: goal.id, undone_at: "t" },
+            ],
+          }),
+        ),
+      ),
+    );
+    const edited = await planProposalClient.editCard(
+      projectId,
+      completed,
+      0,
+      completed.cards[0],
+    );
+    expect(edited.edits).toEqual([{ index: 0, card: editedCard }]);
+    expect(edited.undos).toEqual([{ index: 1, action: "linked" }]);
+    await planProposalClient.editCard(projectId, completed, 0, null);
+    await planProposalClient.undo(projectId, completed, 1);
+    const root = `/api/v1/projects/${projectId}/plan-proposals/proposal-1`;
+    expect(
+      fetcher.mock.calls.map(([url, options]) => [
+        options?.method,
+        url,
+        options?.body,
+      ]),
+    ).toEqual([
+      [
+        "PUT",
+        `${root}/cards/0`,
+        JSON.stringify({ expected_version: 3, card: completed.cards[0] }),
+      ],
+      [
+        "PUT",
+        `${root}/cards/0`,
+        JSON.stringify({ expected_version: 3, card: null }),
+      ],
+      [
+        "POST",
+        `${root}/undo`,
+        JSON.stringify({ expected_version: 3, card_index: 1 }),
+      ],
+    ]);
+    for (const call of fetcher.mock.calls)
+      expect(new Headers(call[1]?.headers).get("X-CSRF-Token")).toBe(
+        "fake-csrf-proof".repeat(3),
+      );
+  });
+
+  it("edits a card, keeps the original for comparison and can restore it", async () => {
+    const client = fakeClient({ list: vi.fn().mockResolvedValue([completed]) });
+    client.editCard
+      .mockResolvedValueOnce(withEdit)
+      .mockResolvedValueOnce(completed);
+    render(
+      <PlanProposalPanel
+        projectId={projectId}
+        goal={goal}
+        plan={plan}
+        client={client}
+        onAdopted={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "修改建议卡 1" }),
+    );
+    fireEvent.change(screen.getByLabelText("子目标名（最多 120 字）"), {
+      target: { value: "卷一立足·作者改" },
+    });
+    expect(screen.getByText(/模型理由（不可修改）：开局/u)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "保存修改" }));
+    await screen.findByText("对照模型原始建议");
+    expect(client.editCard).toHaveBeenCalledWith(projectId, completed, 0, {
+      ...completed.cards[0],
+      title: "卷一立足·作者改",
+    });
+    expect(client.adopt).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(/新子目标「卷一立足·作者改」/u),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/新子目标「卷一立足」/u)).toBeInTheDocument();
+    expect(screen.getByText(/已修改/u)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "恢复建议卡 1 的原始建议" }),
+    );
+    await waitFor(() =>
+      expect(client.editCard).toHaveBeenLastCalledWith(
+        projectId,
+        withEdit,
+        0,
+        null,
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("对照模型原始建议")).toBeNull(),
+    );
+  });
+
+  it("undoes an adopted card and reports a refused undo without changes", async () => {
+    const { PlanProposalError } =
+      await import("../../frontend/src/features/story-control/api/planProposal");
+    const client = fakeClient({
+      list: vi.fn().mockResolvedValue([adoptedLink]),
+    });
+    client.undo
+      .mockRejectedValueOnce(
+        new PlanProposalError(
+          "这张卡写入的规划之后已被修改，没有撤销。",
+          "PLAN_PROPOSAL_UNDO_CONFLICT",
+        ),
+      )
+      .mockResolvedValueOnce(completed);
+    const onAdopted = vi.fn();
+    const onUndone = vi.fn();
+    render(
+      <PlanProposalPanel
+        projectId={projectId}
+        goal={goal}
+        plan={plan}
+        client={client}
+        onAdopted={onAdopted}
+        onUndone={onUndone}
+        onClose={vi.fn()}
+      />,
+    );
+    const undo = await screen.findByRole("button", {
+      name: "撤销采用建议卡 2",
+    });
+    expect(screen.queryByRole("button", { name: "修改建议卡 2" })).toBeNull();
+    fireEvent.click(undo);
+    expect(await screen.findByRole("alert")).toHaveTextContent("没有撤销");
+    expect(onUndone).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "撤销采用建议卡 2" }));
+    await waitFor(() => expect(onUndone).toHaveBeenCalledTimes(1));
+    expect(client.undo).toHaveBeenLastCalledWith(projectId, adoptedLink, 1);
+    expect(onAdopted).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole("button", { name: "修改建议卡 2" }),
     ).toBeInTheDocument();
   });
 });

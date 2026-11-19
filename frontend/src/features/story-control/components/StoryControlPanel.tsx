@@ -957,6 +957,10 @@ export function StoryControlPanel({
                     setNotice("已采用所选建议卡，规划已更新。");
                     void load();
                   }}
+                  onUndone={() => {
+                    setNotice("已撤销该建议卡的采用，规划已回滚。");
+                    void load();
+                  }}
                   onClose={() => setSplitting(null)}
                 />
               ) : null}
@@ -1083,6 +1087,10 @@ export function StoryControlPanel({
           client={foreshadowClient}
           onAdopted={() => {
             setNotice("已采用所选伏笔建议卡，伏笔已更新。");
+            void load();
+          }}
+          onUndone={() => {
+            setNotice("已撤销该伏笔建议卡的采用，伏笔已回滚。");
             void load();
           }}
           onClose={() => setExtracting(false)}

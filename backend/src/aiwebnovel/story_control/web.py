@@ -12,6 +12,7 @@ from aiwebnovel.project.errors import ProjectNotFound
 from aiwebnovel.story_control.foreshadow import ForeshadowExtractionService
 from aiwebnovel.story_control.foreshadow_models import (
     AdoptForeshadowCards,
+    EditForeshadowCard,
     ForeshadowCardInvalid,
     ForeshadowConflict,
     ForeshadowConsentRequired,
@@ -21,10 +22,12 @@ from aiwebnovel.story_control.foreshadow_models import (
     ForeshadowProposalList,
     ForeshadowProposalView,
     ForeshadowStale,
+    ForeshadowUndoConflict,
     PrepareExtraction,
     PreviewRange,
     RangePreview,
     SendExtraction,
+    UndoForeshadowAdoption,
 )
 from aiwebnovel.story_control.models import (
     ArcPlan,
@@ -52,6 +55,8 @@ from aiwebnovel.story_control.models import (
 )
 from aiwebnovel.story_control.proposal_models import (
     AdoptCards,
+    EditCard,
+    PlanProposalCardInvalid,
     PlanProposalConflict,
     PlanProposalConsentRequired,
     PlanProposalInvalid,
@@ -59,9 +64,11 @@ from aiwebnovel.story_control.proposal_models import (
     PlanProposalNotFound,
     PlanProposalOutputInvalid,
     PlanProposalStale,
+    PlanProposalUndoConflict,
     PlanProposalView,
     PrepareProposal,
     SendProposal,
+    UndoAdoption,
 )
 from aiwebnovel.story_control.proposals import PlanProposalService
 from aiwebnovel.story_control.service import StoryControlService
@@ -80,6 +87,8 @@ _ERRORS: dict[type[DomainError], tuple[int, str]] = {
     PlanProposalNotFound: (404, "PLAN_PROPOSAL_NOT_FOUND"),
     PlanProposalConsentRequired: (403, "PLAN_PROPOSAL_CONSENT_REQUIRED"),
     PlanProposalOutputInvalid: (422, "PLAN_PROPOSAL_OUTPUT_INVALID"),
+    PlanProposalCardInvalid: (422, "PLAN_PROPOSAL_CARD_INVALID"),
+    PlanProposalUndoConflict: (409, "PLAN_PROPOSAL_UNDO_CONFLICT"),
     ForeshadowConflict: (409, "FORESHADOW_EXTRACTION_CONFLICT"),
     ForeshadowStale: (409, "FORESHADOW_EXTRACTION_STALE"),
     ForeshadowInvalid: (422, "FORESHADOW_EXTRACTION_INVALID"),
@@ -87,6 +96,7 @@ _ERRORS: dict[type[DomainError], tuple[int, str]] = {
     ForeshadowNotFound: (404, "FORESHADOW_EXTRACTION_NOT_FOUND"),
     ForeshadowConsentRequired: (403, "FORESHADOW_EXTRACTION_CONSENT_REQUIRED"),
     ForeshadowOutputInvalid: (422, "FORESHADOW_EXTRACTION_OUTPUT_INVALID"),
+    ForeshadowUndoConflict: (409, "FORESHADOW_UNDO_CONFLICT"),
 }
 
 
@@ -326,6 +336,42 @@ def create_story_control_router(*, api_prefix: str) -> APIRouter:
             project=True,
         )
 
+    @router.put(proposals + "/{proposal_id}/cards/{card_index}", response_model=PlanProposalView)
+    def edit_proposal_card(
+        project_id: str,
+        proposal_id: str,
+        card_index: int,
+        payload: EditCard,
+        response: Response,
+        service: Proposals,
+        _json: Json,
+    ) -> PlanProposalView:
+        # Stores the author's edit beside the untouched original card; writes no plan.
+        return _invoke(
+            response,
+            lambda: service.edit_card(
+                project_id, proposal_id, card_index, payload.expected_version, payload.card
+            ),
+            project=True,
+        )
+
+    @router.post(proposals + "/{proposal_id}/undo", response_model=PlanProposalView)
+    def undo_proposal_card(
+        project_id: str,
+        proposal_id: str,
+        payload: UndoAdoption,
+        response: Response,
+        service: Proposals,
+        _json: Json,
+    ) -> PlanProposalView:
+        return _invoke(
+            response,
+            lambda: service.undo(
+                project_id, proposal_id, payload.card_index, payload.expected_version
+            ),
+            project=True,
+        )
+
     extractions = project + "/foreshadow-proposals"
 
     @router.get(extractions, response_model=ForeshadowProposalList)
@@ -411,6 +457,44 @@ def create_story_control_router(*, api_prefix: str) -> APIRouter:
         return _invoke(
             response,
             lambda: service.adopt(project_id, proposal_id, payload.card_indexes),
+            project=True,
+        )
+
+    @router.put(
+        extractions + "/{proposal_id}/cards/{card_index}", response_model=ForeshadowProposalView
+    )
+    def edit_extraction_card(
+        project_id: str,
+        proposal_id: str,
+        card_index: int,
+        payload: EditForeshadowCard,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> ForeshadowProposalView:
+        # Stores the author's edit beside the untouched original card; writes no thread.
+        return _invoke(
+            response,
+            lambda: service.edit_card(
+                project_id, proposal_id, card_index, payload.expected_version, payload.card
+            ),
+            project=True,
+        )
+
+    @router.post(extractions + "/{proposal_id}/undo", response_model=ForeshadowProposalView)
+    def undo_extraction_card(
+        project_id: str,
+        proposal_id: str,
+        payload: UndoForeshadowAdoption,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> ForeshadowProposalView:
+        return _invoke(
+            response,
+            lambda: service.undo(
+                project_id, proposal_id, payload.card_index, payload.expected_version
+            ),
             project=True,
         )
 

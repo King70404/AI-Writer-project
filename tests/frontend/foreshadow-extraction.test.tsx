@@ -73,6 +73,21 @@ function frozenChapter(chapterId: string, position: number, characters = 20) {
 }
 
 function raw(overrides: Record<string, unknown> = {}) {
+  const merged = rawBase(overrides);
+  return {
+    ...merged,
+    effective_checks:
+      "effective_checks" in overrides
+        ? overrides.effective_checks
+        : merged.checks,
+    adoptions: (merged.adoptions as Record<string, unknown>[]).map((item) => ({
+      edited: false,
+      ...item,
+    })),
+  };
+}
+
+function rawBase(overrides: Record<string, unknown>): Record<string, unknown> {
   return {
     id: "extraction-1",
     project_id: projectId,
@@ -108,6 +123,8 @@ function raw(overrides: Record<string, unknown> = {}) {
     evidence: null,
     evidence_truncated: false,
     adoptions: [],
+    edits: [],
+    undos: [],
     created_at: "t",
     updated_at: "t",
     request_preview: "[system]\n只输出 JSON\n\n[user]\n{}",
@@ -173,8 +190,12 @@ function fakeClient(overrides: Partial<ForeshadowExtractionClient> = {}) {
     estimate: vi.fn().mockResolvedValue(allowedAnalysisEstimate()),
     send: vi.fn().mockResolvedValue(completed),
     adopt: vi.fn(),
+    editCard: vi.fn(),
+    undo: vi.fn(),
     ...overrides,
   } as unknown as ForeshadowExtractionClient & {
+    editCard: ReturnType<typeof vi.fn>;
+    undo: ReturnType<typeof vi.fn>;
     get: ReturnType<typeof vi.fn>;
     preview: ReturnType<typeof vi.fn>;
     prepare: ReturnType<typeof vi.fn>;
@@ -507,5 +528,148 @@ describe("structure page thread area", () => {
     await waitFor(() => expect(arcPlan).toHaveBeenCalledTimes(2));
     expect(extractions.prepare).not.toHaveBeenCalled();
     expect(extractions.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("foreshadow card edits and undo", () => {
+  const repairedCard = { ...cards[2], quote: "替少主挡下" };
+  const repaired = parseExtraction(
+    raw({
+      version: 4,
+      status: "completed",
+      cards,
+      checks,
+      effective_checks: [
+        { valid: true, problem: null },
+        { valid: true, problem: null },
+        { valid: true, problem: null },
+      ],
+      edits: [{ index: 2, card: repairedCard, edited_at: "t" }],
+    }),
+    projectId,
+  );
+
+  it("parses effective checks and sends edit/undo with the version", async () => {
+    expect(repaired.checks[2].valid).toBe(false);
+    expect(repaired.effective_checks[2].valid).toBe(true);
+    expect(() =>
+      parseExtraction(raw({ cards, checks, effective_checks: [] }), projectId),
+    ).toThrow(/无法安全读取/u);
+    const fetcher = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetcher);
+    fetcher.mockImplementation(() =>
+      Promise.resolve(
+        json(raw({ version: 4, status: "completed", cards, checks })),
+      ),
+    );
+    await foreshadowExtractionClient.editCard(
+      projectId,
+      completed,
+      2,
+      completed.cards[2],
+    );
+    await foreshadowExtractionClient.undo(projectId, completed, 0);
+    const root = `/api/v1/projects/${projectId}/foreshadow-proposals/extraction-1`;
+    expect(
+      fetcher.mock.calls.map(([url, options]) => [
+        options?.method,
+        url,
+        options?.body,
+      ]),
+    ).toEqual([
+      [
+        "PUT",
+        `${root}/cards/2`,
+        JSON.stringify({ expected_version: 3, card: completed.cards[2] }),
+      ],
+      [
+        "POST",
+        `${root}/undo`,
+        JSON.stringify({ expected_version: 3, card_index: 0 }),
+      ],
+    ]);
+  });
+
+  it("repairs an invalid card by editing its quote, then it can be selected", async () => {
+    const client = fakeClient({
+      list: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "extraction-1", status: "completed", chapter_ids: [] },
+        ]),
+    });
+    client.editCard.mockResolvedValue(repaired);
+    render(
+      <ForeshadowExtractionPanel
+        projectId={projectId}
+        plan={plan}
+        client={client}
+        onAdopted={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(await screen.findByLabelText("选择伏笔建议卡 3")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "修改伏笔建议卡 3" }));
+    fireEvent.change(
+      screen.getByLabelText("引文（必须逐字出自该章冻结原文，最多 300 字）"),
+      { target: { value: "替少主挡下" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "核对并保存修改" }));
+    await screen.findByText("对照模型原始建议");
+    expect(client.editCard).toHaveBeenCalledWith(projectId, completed, 2, {
+      ...completed.cards[2],
+      quote: "替少主挡下",
+    });
+    expect(screen.getByLabelText("选择伏笔建议卡 3")).not.toBeDisabled();
+    expect(screen.getByText(/引文在冻结的原文中找不到/u)).toBeInTheDocument();
+    expect(client.adopt).not.toHaveBeenCalled();
+  });
+
+  it("undoes an adopted card and refreshes threads", async () => {
+    const adoptedOne = parseExtraction(
+      raw({
+        version: 5,
+        status: "completed",
+        cards,
+        checks,
+        adoptions: [
+          {
+            index: 0,
+            action: "created",
+            thread_id: "extraction-1-0",
+            thread_version: 1,
+            adopted_at: "t",
+            edited: false,
+          },
+        ],
+      }),
+      projectId,
+    );
+    const client = fakeClient({
+      list: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "extraction-1", status: "completed", chapter_ids: [] },
+        ]),
+      get: vi.fn().mockResolvedValue(adoptedOne),
+    });
+    client.undo.mockResolvedValue(completed);
+    const onUndone = vi.fn();
+    render(
+      <ForeshadowExtractionPanel
+        projectId={projectId}
+        plan={plan}
+        client={client}
+        onAdopted={vi.fn()}
+        onUndone={onUndone}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "撤销采用伏笔建议卡 1" }),
+    );
+    await waitFor(() => expect(onUndone).toHaveBeenCalledTimes(1));
+    expect(client.undo).toHaveBeenCalledWith(projectId, adoptedOne, 0);
+    expect(screen.getByLabelText("选择伏笔建议卡 1")).not.toBeDisabled();
   });
 });

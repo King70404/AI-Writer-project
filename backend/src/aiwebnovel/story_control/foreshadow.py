@@ -11,6 +11,9 @@ extraction and is kept as evidence, with no automatic retry. Each card's quote i
 verbatim against the frozen chapter text; unverifiable cards are kept, marked invalid and
 can never be adopted. Only adoption writes plot threads, through the normal story control
 validation, and only while the quoted chapter revision and the thread are as frozen.
+The author may edit a card before adopting it (the original and its check stay for
+comparison; the edit is verified the same way) and may undo an adopted card while the
+thread it wrote is unchanged since.
 """
 
 import json
@@ -34,9 +37,12 @@ from aiwebnovel.story_control.foreshadow_models import (
     MAX_OUTPUT_CHARACTERS,
     MAX_PROPOSALS_PER_PROJECT,
     MAX_TOTAL_CHARACTERS,
+    MAX_UNDOS,
     AdoptAction,
     Adoption,
+    Card,
     CardCheck,
+    CardEdit,
     ChapterRef,
     ExtractionOutput,
     ForeshadowCardInvalid,
@@ -48,6 +54,7 @@ from aiwebnovel.story_control.foreshadow_models import (
     ForeshadowProposalSummary,
     ForeshadowProposalView,
     ForeshadowStale,
+    ForeshadowUndoConflict,
     FrozenChapterText,
     FrozenThread,
     NewThreadCard,
@@ -55,6 +62,7 @@ from aiwebnovel.story_control.foreshadow_models import (
     RangePreview,
     RangePreviewChapter,
     RangeProblem,
+    Undo,
 )
 from aiwebnovel.story_control.models import (
     ChapterOption,
@@ -121,6 +129,8 @@ class ThreadControl(Protocol):
         self, project_id: str, thread_id: str, data: SaveThread
     ) -> Thread: ...
 
+    def retract_thread(self, project_id: str, thread_id: str, expected_version: int) -> None: ...
+
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
@@ -182,6 +192,7 @@ def _view(proposal: ForeshadowProposal, version: int) -> ForeshadowProposalView:
                 for item in proposal.chapters
             ],
             "version": version,
+            "effective_checks": [item.model_dump() for item in effective_checks(proposal)],
             "request_preview": preview,
         }
     )
@@ -206,14 +217,33 @@ def _changed(proposal: ForeshadowProposal, **changes: object) -> ForeshadowPropo
     )
 
 
-def check_cards(proposal: ForeshadowProposal, output: ExtractionOutput) -> list[CardCheck]:
+def effective_cards(proposal: ForeshadowProposal) -> list[Card]:
+    """Cards as adoption uses them: the author's edit where one exists, else the original."""
+    edits = {item.index: item.card for item in proposal.edits}
+    return [edits.get(index, card) for index, card in enumerate(proposal.cards)]
+
+
+def effective_checks(proposal: ForeshadowProposal) -> list[CardCheck]:
+    """Without edits these are exactly the checks stored when the reply was parsed."""
+    if not proposal.edits:
+        return list(proposal.checks)
+    return check_cards(proposal, effective_cards(proposal))
+
+
+def _card_thread_id(proposal: ForeshadowProposal, index: int) -> str:
+    # A retracted thread id is never reused, so each re-adoption after an undo gets a new id.
+    undone = sum(item.index == index for item in proposal.undos)
+    return f"{proposal.id}-{index}" if undone == 0 else f"{proposal.id}-{index}-{undone}"
+
+
+def check_cards(proposal: ForeshadowProposal, cards: list[Card]) -> list[CardCheck]:
     """Verify every card against the frozen snapshot; quotes must exist verbatim."""
     chapters = {item.chapter_id: item.content for item in proposal.chapters}
     threads = {item.id: item for item in proposal.threads}
     titles = {item.title.casefold() for item in proposal.threads}
     paid: set[str] = set()
     checks: list[CardCheck] = []
-    for card in output.cards:
+    for card in cards:
         text = chapters.get(card.chapter_id)
         if text is None:
             checks.append(CardCheck(valid=False, problem="unknown_chapter"))
@@ -243,7 +273,7 @@ def parse_output(
         output = ExtractionOutput.model_validate_json(text.strip())
     except (ValidationError, ValueError):
         raise ForeshadowOutputInvalid from None
-    return output, check_cards(proposal, output)
+    return output, check_cards(proposal, list(output.cards))
 
 
 class ForeshadowExtractionService:
@@ -478,7 +508,7 @@ class ForeshadowExtractionService:
         threads: dict[str, Thread],
     ) -> None:
         """Refuse a card whose chapter text or thread changed since preparation."""
-        card = proposal.cards[index]
+        card = effective_cards(proposal)[index]
         if revisions.get(card.chapter_id) != self._chapter(proposal, card.chapter_id).revision_id:
             raise ForeshadowStale
         if isinstance(card, PayoffCard):
@@ -496,12 +526,13 @@ class ForeshadowExtractionService:
             return  # Already adopted: adopting again changes nothing.
         threads = {item.id: item for item in self._control.list_threads(project_id)}
         self._ensure_fresh(proposal, index, self._control.chapter_revisions(project_id), threads)
-        card = proposal.cards[index]
+        card = effective_cards(proposal)[index]
+        edited = any(item.index == index for item in proposal.edits)
         chapter = self._chapter(proposal, card.chapter_id)
         action: AdoptAction = "created"
         try:
             if isinstance(card, NewThreadCard):
-                thread_id = f"{proposal.id}-{index}"
+                thread_id = _card_thread_id(proposal, index)
                 document = SaveThread(
                     title=card.title,
                     content=card.content,
@@ -571,6 +602,7 @@ class ForeshadowExtractionService:
                 thread_id=thread.id,
                 thread_version=thread.version,
                 adopted_at=_now(),
+                edited=edited,
             )
             created = (
                 [*current.created_thread_ids, thread.id]
@@ -597,7 +629,8 @@ class ForeshadowExtractionService:
             raise ForeshadowConflict
         if any(index >= len(proposal.cards) for index in card_indexes):
             raise ForeshadowInvalid
-        if any(not proposal.checks[index].valid for index in card_indexes):
+        checks = effective_checks(proposal)
+        if any(not checks[index].valid for index in card_indexes):
             raise ForeshadowCardInvalid
         # Check every selected card first, so a stale selection writes nothing.
         revisions = self._control.chapter_revisions(project_id)
@@ -609,3 +642,126 @@ class ForeshadowExtractionService:
         for index in card_indexes:
             self._adopt_card(project_id, proposal_id, index)
         return self.get(project_id, proposal_id)
+
+    # ------------------------------------------------------------------ author edits
+
+    def edit_card(
+        self,
+        project_id: str,
+        proposal_id: str,
+        index: int,
+        expected_version: int,
+        card: Card | None,
+    ) -> ForeshadowProposalView:
+        """Save the author's edit of one unadopted card, or restore the original (None).
+
+        An edit must pass the same verbatim-quote check as a model card; it may therefore
+        repair a card whose original quote was not found.
+        """
+
+        def change(current: ForeshadowProposal) -> ForeshadowProposal:
+            if current.status != "completed":
+                raise ForeshadowConflict
+            if not 0 <= index < len(current.cards):
+                raise ForeshadowInvalid
+            if any(item.index == index for item in current.adoptions):
+                raise ForeshadowConflict  # Undo the adoption before editing the card.
+            edits = [item for item in current.edits if item.index != index]
+            original = current.cards[index]
+            if card is not None:
+                if card.kind != original.kind:
+                    raise ForeshadowCardInvalid
+                # The reason is the model's justification and stays as suggested.
+                edited = card.model_copy(update={"reason": original.reason})
+                if edited != original:
+                    edits.append(CardEdit(index=index, card=edited, edited_at=_now()))
+            candidate = _changed(current, edits=sorted(edits, key=lambda item: item.index))
+            if card is not None and not effective_checks(candidate)[index].valid:
+                raise ForeshadowCardInvalid
+            return candidate
+
+        return _view(*self._store.mutate(project_id, proposal_id, expected_version, change))
+
+    # ------------------------------------------------------------------ undo
+
+    def undo(
+        self, project_id: str, proposal_id: str, index: int, expected_version: int
+    ) -> ForeshadowProposalView:
+        """Roll back one adopted card while the thread it wrote is unchanged since."""
+        proposal, version = self._store.get(project_id, proposal_id)
+        if version != expected_version:
+            raise ForeshadowConflict
+        receipt = next((item for item in proposal.adoptions if item.index == index), None)
+        if receipt is None:
+            raise ForeshadowConflict
+        if len(proposal.undos) >= MAX_UNDOS:
+            raise ForeshadowInvalid
+        threads = {item.id: item for item in self._control.list_threads(project_id)}
+        thread = threads.get(receipt.thread_id)
+        new_version: int | None = None
+        try:
+            if receipt.action == "created":
+                # A missing thread was already retracted by an interrupted earlier undo.
+                if thread is not None:
+                    if thread.version != receipt.thread_version:
+                        raise ForeshadowUndoConflict
+                    self._control.retract_thread(project_id, thread.id, thread.version)
+            elif receipt.action == "paid_off":
+                card = effective_cards(proposal)[index]
+                assert isinstance(card, PayoffCard)
+                anchor = self._payoff_anchor(proposal, card)
+                frozen = next(
+                    (item for item in proposal.threads if item.id == card.thread_id), None
+                )
+                # Only this extraction's own payoff may have changed the thread since.
+                if (
+                    thread is None
+                    or frozen is None
+                    or thread.version != proposal.thread_versions.get(thread.id)
+                    or anchor not in thread.anchors
+                ):
+                    raise ForeshadowUndoConflict
+                document = SaveThread.model_validate(
+                    {
+                        **thread.model_dump(
+                            include=set(SaveThread.model_fields) - {"expected_version"}
+                        ),
+                        "status": frozen.status,
+                        "anchors": [item.model_dump() for item in thread.anchors if item != anchor],
+                        "expected_version": thread.version,
+                    }
+                )
+                new_version = self._control.save_thread(project_id, thread.id, document).version
+            # "already_recorded" wrote nothing, so only the receipt is withdrawn.
+        except ValidationError:
+            raise ForeshadowUndoConflict from None
+        except StoryControlConflict:
+            raise ForeshadowUndoConflict from None
+
+        def record(current: ForeshadowProposal) -> ForeshadowProposal:
+            if not any(item.index == index for item in current.adoptions):
+                return current  # A concurrent request already undid this card.
+            versions = dict(current.thread_versions)
+            if new_version is not None:
+                versions[receipt.thread_id] = new_version
+            return _changed(
+                current,
+                adoptions=[item for item in current.adoptions if item.index != index],
+                created_thread_ids=[
+                    item for item in current.created_thread_ids if item != receipt.thread_id
+                ]
+                if receipt.action == "created"
+                else current.created_thread_ids,
+                thread_versions=versions,
+                undos=[
+                    *current.undos,
+                    Undo(
+                        index=index,
+                        action=receipt.action,
+                        thread_id=receipt.thread_id,
+                        undone_at=_now(),
+                    ),
+                ],
+            )
+
+        return _view(*self._store.mutate(project_id, proposal_id, None, record))

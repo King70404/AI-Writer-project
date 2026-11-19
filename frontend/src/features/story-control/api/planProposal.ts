@@ -1,4 +1,4 @@
-import { getJson, postJson } from "../../../api/client";
+import { getJson, postJson, putJson } from "../../../api/client";
 import { ApiError } from "../../../api/errors";
 import { securitySession } from "../../../api/security-session";
 import { parseEstimate, type SendEstimate } from "../../usage/api/budget";
@@ -6,7 +6,8 @@ import { parseEstimate, type SendEstimate } from "../../usage/api/budget";
 /**
  * 规划“建议拆分”（F02 / C-1）。准备只冻结所选目标、既有规划和章节标题，不调用模型；
  * 作者确认预估后才发送一次。模型回复是建议卡，作者勾选采用的卡才写入真实规划，
- * 不会创建或改写章节正文。
+ * 不会创建或改写章节正文。作者可以先修改建议卡再采用（模型的原始建议保留以便对照），
+ * 也可以撤销已采用的卡；撤销时若该规划之后被改过，服务端会拒绝，避免覆盖作者的改动。
  */
 export type ProposalStatus = "ready" | "running" | "completed" | "failed";
 
@@ -33,6 +34,15 @@ export interface ProposalAdoption {
   readonly index: number;
   readonly action: "created" | "linked" | "already_linked";
   readonly goal_id: string;
+  readonly edited: boolean;
+}
+export interface ProposalCardEdit {
+  readonly index: number;
+  readonly card: ProposalCard;
+}
+export interface ProposalUndo {
+  readonly index: number;
+  readonly action: ProposalAdoption["action"];
 }
 export interface FrozenGoal {
   readonly id: string;
@@ -68,7 +78,20 @@ export interface PlanProposal {
   readonly evidence: string | null;
   readonly evidence_truncated: boolean;
   readonly adoptions: readonly ProposalAdoption[];
+  readonly edits: readonly ProposalCardEdit[];
+  readonly undos: readonly ProposalUndo[];
   readonly request_preview: string;
+}
+
+/** 采用时实际使用的卡：有作者修改时用修改版，否则用模型原始建议。 */
+export function effectiveCard(
+  proposal: PlanProposal,
+  index: number,
+): ProposalCard {
+  return (
+    proposal.edits.find((item) => item.index === index)?.card ??
+    proposal.cards[index]
+  );
 }
 export interface ProposalModel {
   readonly id: string;
@@ -214,7 +237,16 @@ export function parseProposal(value: unknown, projectId: string): PlanProposal {
         index: int(adoption.index),
         action: action(adoption.action),
         goal_id: id(adoption.goal_id),
+        edited: bool(adoption.edited),
       };
+    }),
+    edits: list(item.edits, (raw) => {
+      const edit = obj(raw);
+      return { index: int(edit.index), card: card(edit.card) };
+    }),
+    undos: list(item.undos, (raw) => {
+      const undo = obj(raw);
+      return { index: int(undo.index), action: action(undo.action) };
     }),
     request_preview: str(item.request_preview),
   };
@@ -229,6 +261,10 @@ const MESSAGES: Record<string, string> = {
   PLAN_PROPOSAL_CONFLICT:
     "建议状态已变化（可能已在其他窗口发送或失败），请刷新后再操作。",
   PLAN_PROPOSAL_INVALID: "所选建议卡无效，或本书的建议记录已达上限。",
+  PLAN_PROPOSAL_CARD_INVALID:
+    "修改后的建议卡无效：只能引用冻结快照里的分卷和章节，且同一章节不能重复挂接。修改未保存。",
+  PLAN_PROPOSAL_UNDO_CONFLICT:
+    "这张卡写入的规划之后已被修改（或有其他目标挂在它下面），为避免覆盖你的改动，没有撤销。请在规划里手动调整。",
   PLAN_PROPOSAL_NOT_FOUND: "该目标或建议已不存在，请刷新。",
   PLAN_PROPOSAL_CONSENT_REQUIRED:
     "这是云端模型：请先勾选同意发送冻结的规划摘要。",
@@ -330,6 +366,29 @@ export const planProposalClient = {
       postJson(
         `${base(projectId)}/${id(proposalId)}/adopt`,
         { card_indexes: indexes },
+        (value) => parseProposal(value, projectId),
+        await csrf(),
+      ),
+    ),
+  editCard: (
+    projectId: string,
+    proposal: PlanProposal,
+    index: number,
+    card: ProposalCard | null,
+  ) =>
+    request(async () =>
+      putJson(
+        `${base(projectId)}/${id(proposal.id)}/cards/${int(index)}`,
+        { expected_version: proposal.version, card },
+        (value) => parseProposal(value, projectId),
+        await csrf(),
+      ),
+    ),
+  undo: (projectId: string, proposal: PlanProposal, index: number) =>
+    request(async () =>
+      postJson(
+        `${base(projectId)}/${id(proposal.id)}/undo`,
+        { expected_version: proposal.version, card_index: int(index) },
         (value) => parseProposal(value, projectId),
         await csrf(),
       ),
