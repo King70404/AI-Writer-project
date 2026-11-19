@@ -874,7 +874,7 @@ def test_integrated_database_initialization_preserves_existing_database(tmp_path
         ).fetchall() == [("ai_workflow_candidates",), ("ai_workflow_runs",)]
         assert connection.execute(
             "select count(*) from sqlite_master where type='trigger'"
-        ).fetchone() == (41,)
+        ).fetchone() == (43,)
     before = database.read_bytes()
     second = subprocess.run(
         arguments, cwd=_REPOSITORY_ROOT, env=environment, capture_output=True, check=False
