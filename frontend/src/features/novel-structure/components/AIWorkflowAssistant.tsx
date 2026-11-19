@@ -989,6 +989,11 @@ export function AIWorkflowAssistant({
                 chapterId={chapterId}
                 profileId={profile.id}
                 jobId={jobId}
+                draftId={
+                  job?.drafts
+                    ?.filter((item) => item.chapter_id === chapterId)
+                    .at(-1)?.draft_id ?? null
+                }
                 savedContent={writing.state.snapshot.resource.content}
                 savedRevisionId={
                   writing.state.snapshot.resource.current_revision_id

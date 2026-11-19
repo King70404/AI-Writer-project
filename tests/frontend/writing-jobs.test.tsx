@@ -496,3 +496,137 @@ describe("跨章写作任务", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("写作任务抽屉中的章节候选稿", () => {
+  it("列出本任务产出的候选稿计数并链接到该章，不显示段落正文", async () => {
+    setup([
+      job([chapterId, secondChapterId], {
+        active_run_id: "draft-2",
+        active_draft_id: "draft-2",
+        current_index: 1,
+        steps: [
+          { chapter_id: chapterId, status: "completed" },
+          { chapter_id: secondChapterId, status: "pending" },
+        ],
+        drafts: [
+          {
+            draft_id: "draft-1",
+            chapter_id: chapterId,
+            step_index: 0,
+            status: "exhausted",
+            segments: 3,
+            pending: 0,
+            adopted: 2,
+            discarded: 1,
+            edited: 1,
+            generated_characters: 660,
+            adopted_characters: 430,
+          },
+          {
+            draft_id: "draft-2",
+            chapter_id: secondChapterId,
+            step_index: 1,
+            status: "ready",
+            segments: 1,
+            pending: 1,
+            adopted: 0,
+            discarded: 0,
+            edited: 0,
+            generated_characters: 220,
+            adopted_characters: 0,
+          },
+        ],
+      }),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "安排写作任务" }));
+    const region = await screen.findByRole("region", {
+      name: "「首卷写作」产出的章节候选稿",
+    });
+    const items = within(region).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent(
+      "第 1 章 · 晨光 · 额度已用完 · 共 3 段：已采用 2 · 待采用 0 · 已丢弃 1 · 作者编辑 1 · 生成 660 字 / 采用 430 字",
+    );
+    expect(items[1]).toHaveTextContent(
+      "第 2 章 · 夜行 · 可继续生成（当前步骤）",
+    );
+    expect(items[1]).not.toHaveTextContent("已丢弃");
+    expect(
+      within(items[0]).getByRole("link", { name: "打开该章查看候选稿" }),
+    ).toHaveAttribute(
+      "href",
+      `/projects/${structureProjectId}/chapters/${chapterId}/write?job=job-1`,
+    );
+  });
+
+  it("没有候选稿时不显示该区域", async () => {
+    setup([job([chapterId])]);
+    fireEvent.click(screen.getByRole("button", { name: "安排写作任务" }));
+    await screen.findByRole("heading", { name: "首卷写作" });
+    expect(
+      screen.queryByRole("region", { name: "「首卷写作」产出的章节候选稿" }),
+    ).toBeNull();
+  });
+
+  it("客户端严格解析任务候选稿", async () => {
+    const { writingJobsClient } =
+      await import("../../frontend/src/features/writing-jobs/client");
+    const base = {
+      job_id: "job-1",
+      project_id: structureProjectId,
+      title: "t",
+      status: "planned",
+      version: 1,
+      current_index: 0,
+      steps: [{ chapter_id: chapterId, status: "pending" }],
+      max_requests: 10,
+      max_output_characters: 3000,
+      claimed_requests: 0,
+      used_characters: 0,
+      active_run_id: null,
+      active_draft_id: null,
+      scene_progress: [progress(0, chapterId)],
+    };
+    const draft = {
+      draft_id: "draft-1",
+      chapter_id: chapterId,
+      step_index: 0,
+      status: "ready",
+      segments: 1,
+      pending: 1,
+      adopted: 0,
+      discarded: 0,
+      edited: 0,
+      generated_characters: 220,
+      adopted_characters: 0,
+      created_at: "t",
+    };
+    const fetcher = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetcher);
+    fetcher.mockResolvedValueOnce(Response.json({ ...base, drafts: [draft] }));
+    expect((await writingJobsClient.get("job-1")).drafts).toEqual([
+      {
+        draft_id: "draft-1",
+        chapter_id: chapterId,
+        step_index: 0,
+        status: "ready",
+        segments: 1,
+        pending: 1,
+        adopted: 0,
+        discarded: 0,
+        edited: 0,
+        generated_characters: 220,
+        adopted_characters: 0,
+      },
+    ]);
+    fetcher.mockResolvedValueOnce(Response.json(base));
+    expect((await writingJobsClient.get("job-1")).drafts).toEqual([]);
+    fetcher.mockResolvedValueOnce(
+      Response.json({ ...base, drafts: [{ ...draft, status: "done" }] }),
+    );
+    await expect(writingJobsClient.get("job-1")).rejects.toThrow();
+    fetcher.mockResolvedValueOnce(Response.json({ ...base, drafts: {} }));
+    await expect(writingJobsClient.get("job-1")).rejects.toThrow();
+    vi.unstubAllGlobals();
+  });
+});

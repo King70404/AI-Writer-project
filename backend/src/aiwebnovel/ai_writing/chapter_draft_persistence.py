@@ -22,6 +22,8 @@ from aiwebnovel.ai_writing.chapter_draft_models import (
     DraftReceipt,
     DraftSegment,
     DraftStatus,
+    SegmentAction,
+    segment_text,
 )
 from aiwebnovel.db.base import Base
 from aiwebnovel.db.types import PrefixedUlidType
@@ -339,7 +341,8 @@ class SqlAlchemyChapterDraftStore:
             chapter = load_workflow_chapter(session, chapter_id)
             # A hand edit since the draft's revision refuses adoption; the draft is kept.
             _check_head(chapter, draft)
-            texts = [draft.segments[index].text for index in chosen]
+            # The author's edit is adopted instead of the model's original text.
+            texts = [segment_text(draft.segments[index]) for index in chosen]
             content = str(chapter.current_revision.content)
             content += ("\n\n" if content else "") + "\n\n".join(texts)
             result = adopt_workflow_content(session, chapter, content, draft.current_version)
@@ -368,3 +371,51 @@ class SqlAlchemyChapterDraftStore:
                 current_version=version,
             )
             return self._write(record, updated)
+
+    # ------------------------------------------------------------------ author changes
+
+    def change_segment(
+        self,
+        chapter_id: str,
+        draft_id: str,
+        index: int,
+        expected_version: int,
+        action: SegmentAction,
+        text: str | None,
+    ) -> tuple[ChapterDraft, int]:
+        """Edit, discard or restore one segment; quota already used is never returned."""
+        with self._transaction(write=True) as session:
+            record = self._record(session, chapter_id, draft_id)
+            if record.version != expected_version:
+                raise ChapterDraftConflict
+            draft = ChapterDraft.model_validate(record.payload)
+            if draft.status == "running":
+                raise ChapterDraftConflict
+            if not 0 <= index < len(draft.segments):
+                raise ChapterDraftInvalid
+            segment = draft.segments[index]
+            required = "discarded" if action == "restore" else "pending"
+            if segment.status != required:
+                raise ChapterDraftInvalid
+            now = _now()
+            if action == "discard":
+                changed = segment.model_copy(update={"status": "discarded", "discarded_at": now})
+            elif action == "restore":
+                changed = segment.model_copy(update={"status": "pending", "discarded_at": None})
+            elif text is None or text == segment.text:
+                # Editing back to the model's original text removes the edit.
+                changed = segment.model_copy(
+                    update={"edited_text": None, "edited_characters": None, "edited_at": None}
+                )
+            else:
+                changed = segment.model_copy(
+                    update={
+                        "edited_text": text,
+                        "edited_characters": sum(not c.isspace() for c in text),
+                        "edited_at": now,
+                    }
+                )
+            segments = [changed if item.index == index else item for item in draft.segments]
+            return self._write(
+                record, _changed(draft, segments=[item.model_dump() for item in segments])
+            )

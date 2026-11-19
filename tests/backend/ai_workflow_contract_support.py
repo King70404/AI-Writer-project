@@ -21,6 +21,7 @@ AI_WORKFLOW_OPERATIONS = {
     ("GET", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}/estimate"),
     ("POST", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}/send"),
     ("POST", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}/adopt"),
+    ("POST", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}/segments/{index}"),
 }
 
 WRITING_PREPARATION_OPERATIONS = {

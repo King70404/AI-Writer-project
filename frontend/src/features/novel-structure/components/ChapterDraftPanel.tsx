@@ -4,9 +4,13 @@ import { OperationSendGuard } from "../../usage/components/SendEstimatePanel";
 import {
   chapterDraftClient,
   chapterDraftError,
+  MAX_SEGMENT_EDIT_CHARACTERS,
+  segmentText,
   type ChapterDraft,
   type ChapterDraftClient,
+  type DraftSegment,
   type DraftStatus,
+  type SegmentAction,
 } from "../api/chapter-draft";
 
 const STATUS: Record<DraftStatus, string> = {
@@ -32,6 +36,7 @@ export function ChapterDraftPanel({
   chapterId,
   profileId,
   jobId,
+  draftId,
   savedContent,
   savedRevisionId,
   saved,
@@ -42,6 +47,8 @@ export function ChapterDraftPanel({
   /** 作者在助手里选定的模型；为空时不能准备。 */
   readonly profileId: string;
   readonly jobId?: string;
+  /** 从写作任务进入时优先显示该任务为本章产出的候选稿；否则显示本章最新的候选稿。 */
+  readonly draftId?: string | null;
   readonly savedContent: string;
   readonly savedRevisionId: string;
   readonly saved: boolean;
@@ -60,6 +67,10 @@ export function ChapterDraftPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [editing, setEditing] = useState<{
+    readonly index: number;
+    readonly text: string;
+  } | null>(null);
   const keys = useRef(new Map<string, string>());
 
   useEffect(() => {
@@ -67,9 +78,10 @@ export function ChapterDraftPanel({
     void client
       .list(chapterId)
       .then(async (items) => {
-        const latest = items[0];
-        if (!latest || cancelled) return;
-        const loaded = await client.get(chapterId, latest.id);
+        const chosen =
+          items.find((item) => draftId && item.id === draftId) ?? items[0];
+        if (!chosen || cancelled) return;
+        const loaded = await client.get(chapterId, chosen.id);
         if (!cancelled) setDraft(loaded);
       })
       .catch(() => {
@@ -78,7 +90,7 @@ export function ChapterDraftPanel({
     return () => {
       cancelled = true;
     };
-  }, [chapterId, client]);
+  }, [chapterId, client, draftId]);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -169,6 +181,52 @@ export function ChapterDraftPanel({
       setNotice("已采用，正文已更新。");
     });
 
+  const change = (
+    current: ChapterDraft,
+    segment: DraftSegment,
+    action: SegmentAction,
+    text?: string,
+  ) =>
+    run(async () => {
+      if (action === "edit") {
+        if (!text?.trim()) {
+          setError("编辑后的段落不能为空；不想要这段可以丢弃。");
+          return;
+        }
+        if (text.length > MAX_SEGMENT_EDIT_CHARACTERS) {
+          setError(`编辑后的段落最多 ${MAX_SEGMENT_EDIT_CHARACTERS} 字。`);
+          return;
+        }
+      }
+      try {
+        setDraft(
+          await client.changeSegment(
+            chapterId,
+            current,
+            segment.index,
+            action,
+            text,
+          ),
+        );
+      } catch (failure) {
+        // 以服务端记录为准（可能已在其他窗口变化）。
+        setDraft(await client.get(chapterId, current.id).catch(() => current));
+        throw failure;
+      }
+      setEditing(null);
+      if (action === "discard")
+        setSelected((indexes) => indexes.filter((i) => i !== segment.index));
+      setNotice(
+        action === "edit"
+          ? text === segment.text
+            ? `第 ${segment.index + 1} 段已恢复为模型原文。`
+            : `第 ${segment.index + 1} 段的修改已保存（正文未改变，采用时使用修改后的文本）。`
+          : action === "discard"
+            ? `第 ${segment.index + 1} 段已丢弃：不会再发送给模型，也不能采用；已用额度不退还。`
+            : `第 ${segment.index + 1} 段已恢复为待采用。`,
+      );
+    });
+
   const loadEstimate = useCallback(
     () =>
       draft
@@ -178,6 +236,9 @@ export function ChapterDraftPanel({
   );
 
   const pending = draft?.segments.filter((item) => item.status === "pending");
+  const discarded = draft?.segments.filter(
+    (item) => item.status === "discarded",
+  );
   const stale = !!draft && draft.current_revision_id !== savedRevisionId;
   return (
     <section aria-label="章节候选稿" data-feature-id="ai.chapter-draft">
@@ -327,30 +388,134 @@ export function ChapterDraftPanel({
               </p>
             )}
             {pending?.map((item) => (
-              <p key={item.index}>
-                <label>
-                  <input
-                    type="checkbox"
-                    aria-label={`选择第 ${item.index + 1} 段`}
-                    disabled={stale || busy}
-                    checked={selected.includes(item.index)}
-                    onChange={(event) =>
-                      setSelected((current) =>
-                        event.target.checked
-                          ? [...current, item.index].sort((a, b) => a - b)
-                          : current.filter((index) => index !== item.index),
-                      )
-                    }
-                  />
-                  第 {item.index + 1} 段（{item.characters} 字）
-                </label>
-                <ins>{item.text}</ins>
-              </p>
+              <div key={item.index} className="chapter-draft__segment">
+                <p>
+                  <label>
+                    <input
+                      type="checkbox"
+                      aria-label={`选择第 ${item.index + 1} 段`}
+                      disabled={stale || busy}
+                      checked={selected.includes(item.index)}
+                      onChange={(event) =>
+                        setSelected((current) =>
+                          event.target.checked
+                            ? [...current, item.index].sort((a, b) => a - b)
+                            : current.filter((index) => index !== item.index),
+                        )
+                      }
+                    />
+                    第 {item.index + 1} 段（
+                    {item.edited_characters ?? item.characters} 字
+                    {item.edited_text !== null
+                      ? `，已编辑；模型原文 ${item.characters} 字`
+                      : ""}
+                    ）
+                  </label>
+                </p>
+                {editing?.index === item.index ? (
+                  <div>
+                    <label>
+                      编辑第 {item.index + 1} 段
+                      <textarea
+                        value={editing.text}
+                        maxLength={MAX_SEGMENT_EDIT_CHARACTERS}
+                        onChange={(event) =>
+                          setEditing({
+                            index: item.index,
+                            text: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void change(draft, item, "edit", editing.text)
+                      }
+                    >
+                      保存第 {item.index + 1} 段修改
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setEditing(null)}
+                    >
+                      取消编辑
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <ins>{segmentText(item)}</ins>
+                    {item.edited_text !== null ? (
+                      <details>
+                        <summary>查看第 {item.index + 1} 段模型原文</summary>
+                        <del>{item.text}</del>
+                      </details>
+                    ) : null}
+                    <p>
+                      <button
+                        type="button"
+                        disabled={busy || draft.status === "running"}
+                        onClick={() =>
+                          setEditing({
+                            index: item.index,
+                            text: segmentText(item),
+                          })
+                        }
+                      >
+                        编辑第 {item.index + 1} 段
+                      </button>
+                      {item.edited_text !== null ? (
+                        <button
+                          type="button"
+                          disabled={busy || draft.status === "running"}
+                          onClick={() =>
+                            void change(draft, item, "edit", item.text)
+                          }
+                        >
+                          恢复第 {item.index + 1} 段模型原文
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={busy || draft.status === "running"}
+                        onClick={() => void change(draft, item, "discard")}
+                      >
+                        丢弃第 {item.index + 1} 段
+                      </button>
+                    </p>
+                  </>
+                )}
+              </div>
             ))}
+            {discarded?.length ? (
+              <ul aria-label="已丢弃的段落">
+                {discarded.map((item) => (
+                  <li key={item.index}>
+                    第 {item.index + 1} 段已丢弃（不会再发送，也不能采用）
+                    <details>
+                      <summary>查看第 {item.index + 1} 段</summary>
+                      <del>{segmentText(item)}</del>
+                    </details>
+                    <button
+                      type="button"
+                      disabled={busy || draft.status === "running"}
+                      onClick={() => void change(draft, item, "restore")}
+                    >
+                      恢复第 {item.index + 1} 段
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
           <p>
-            已采用 {draft.segments.length - (pending?.length ?? 0)} 段，未采用{" "}
-            {pending?.length ?? 0} 段。
+            已采用{" "}
+            {draft.segments.filter((item) => item.status === "adopted").length}{" "}
+            段，未采用 {pending?.length ?? 0} 段
+            {discarded?.length ? `，已丢弃 ${discarded.length} 段` : ""}。
+            采用前可逐段编辑或丢弃；编辑与丢弃不调用模型、不改正文，已用额度不退还。
           </p>
           <button
             type="button"

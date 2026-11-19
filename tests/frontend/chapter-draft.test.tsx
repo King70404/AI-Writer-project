@@ -38,6 +38,8 @@ function segment(index: number, text: string, status = "pending") {
     model: "fake",
     status,
     adopted_revision_id: status === "adopted" ? "chv_after" : null,
+    edited_text: null as string | null,
+    edited_characters: null as number | null,
   };
 }
 
@@ -106,8 +108,10 @@ function fakeClient(overrides: Partial<ChapterDraftClient> = {}) {
     estimate: vi.fn().mockResolvedValue(allowedAnalysisEstimate()),
     send: vi.fn().mockResolvedValue(generated),
     adopt: vi.fn(),
+    changeSegment: vi.fn(),
     ...overrides,
   } as unknown as ChapterDraftClient & {
+    changeSegment: ReturnType<typeof vi.fn>;
     list: ReturnType<typeof vi.fn>;
     get: ReturnType<typeof vi.fn>;
     prepare: ReturnType<typeof vi.fn>;
@@ -380,5 +384,205 @@ describe("chapter draft panel", () => {
       await screen.findByRole("button", { name: "确认重试（新的计费请求）" }),
     ).toBeInTheDocument();
     expect(client.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("chapter draft segment edits", () => {
+  const EDITED = "作者把第一段改短了。";
+  function renderPanel(client: ChapterDraftClient, draftId?: string) {
+    render(
+      <ChapterDraftPanel
+        chapterId={chapterId}
+        profileId="default-local"
+        draftId={draftId}
+        savedContent="雨😀雨。"
+        savedRevisionId={baseRevision}
+        saved
+        acceptExternal={vi.fn(async (commit: () => Promise<void>) => {
+          await commit();
+          return true;
+        })}
+        client={client}
+      />,
+    );
+  }
+  function withSegments(...segments: ReturnType<typeof segment>[]) {
+    return parseDraft(
+      raw({ version: 5, attempts: 2, generated_characters: 440, segments }),
+      chapterId,
+    );
+  }
+
+  it("posts edit, discard and restore to the single segment endpoint", async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetcher);
+    fetcher.mockImplementation(() =>
+      Promise.resolve(
+        json(
+          raw({
+            segments: [
+              {
+                ...segment(0, SEG_A),
+                edited_text: EDITED,
+                edited_characters: 10,
+              },
+              segment(1, SEG_B, "discarded"),
+            ],
+          }),
+        ),
+      ),
+    );
+    const parsed = await chapterDraftClient.changeSegment(
+      chapterId,
+      generated,
+      0,
+      "edit",
+      EDITED,
+    );
+    expect(parsed.segments[0]).toMatchObject({
+      text: SEG_A,
+      edited_text: EDITED,
+      edited_characters: 10,
+    });
+    expect(parsed.segments[1].status).toBe("discarded");
+    await chapterDraftClient.changeSegment(chapterId, generated, 1, "discard");
+    await chapterDraftClient.changeSegment(chapterId, generated, 1, "restore");
+    const root = `/api/v1/chapters/${chapterId}/ai/drafts/draft-1/segments`;
+    expect(
+      fetcher.mock.calls.map(([url, options]) => [url, options?.body]),
+    ).toEqual([
+      [
+        `${root}/0`,
+        JSON.stringify({ expected_version: 4, action: "edit", text: EDITED }),
+      ],
+      [`${root}/1`, JSON.stringify({ expected_version: 4, action: "discard" })],
+      [`${root}/1`, JSON.stringify({ expected_version: 4, action: "restore" })],
+    ]);
+    const headers = new Headers(fetcher.mock.calls[0][1]?.headers);
+    expect(headers.get("X-CSRF-Token")).toBe("fake-csrf-proof".repeat(3));
+    expect(() =>
+      parseDraft(raw({ segments: [segment(0, SEG_A, "gone")] }), chapterId),
+    ).toThrow();
+  });
+
+  it("edits a segment without touching the chapter and adopts the edited text", async () => {
+    const edited = withSegments(
+      { ...segment(0, SEG_A), edited_text: EDITED, edited_characters: 10 },
+      segment(1, SEG_B),
+    );
+    const client = fakeClient({
+      list: vi.fn().mockResolvedValue([{ id: "draft-1" }]),
+      changeSegment: vi.fn().mockResolvedValue(edited),
+      adopt: vi.fn().mockResolvedValue(edited),
+    });
+    renderPanel(client);
+    await screen.findByText(SEG_A);
+    fireEvent.click(screen.getByRole("button", { name: "编辑第 1 段" }));
+    const box = screen.getByLabelText("编辑第 1 段");
+    expect(box).toHaveValue(SEG_A);
+    // A blank edit is refused locally; nothing is sent.
+    fireEvent.change(box, { target: { value: "   " } });
+    fireEvent.click(screen.getByRole("button", { name: "保存第 1 段修改" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/不能为空/u);
+    expect(client.changeSegment).not.toHaveBeenCalled();
+    fireEvent.change(box, { target: { value: EDITED } });
+    fireEvent.click(screen.getByRole("button", { name: "保存第 1 段修改" }));
+    expect(
+      await screen.findByText(/第 1 段的修改已保存（正文未改变/u),
+    ).toBeInTheDocument();
+    expect(client.changeSegment).toHaveBeenCalledWith(
+      chapterId,
+      generated,
+      0,
+      "edit",
+      EDITED,
+    );
+    expect(screen.getByText(EDITED)).toBeInTheDocument();
+    expect(screen.getByText(/10 字，已编辑；模型原文 220 字/u)).toBeVisible();
+    expect(screen.getByText("查看第 1 段模型原文")).toBeInTheDocument();
+    expect(client.adopt).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "恢复第 1 段模型原文" }),
+    );
+    await waitFor(() =>
+      expect(client.changeSegment).toHaveBeenLastCalledWith(
+        chapterId,
+        edited,
+        0,
+        "edit",
+        SEG_A,
+      ),
+    );
+  });
+
+  it("discards one segment, drops it from the selection and can restore it", async () => {
+    const discarded = withSegments(
+      segment(0, SEG_A),
+      segment(1, SEG_B, "discarded"),
+    );
+    const restored = withSegments(segment(0, SEG_A), segment(1, SEG_B));
+    const client = fakeClient({
+      list: vi.fn().mockResolvedValue([{ id: "draft-1" }]),
+      changeSegment: vi
+        .fn()
+        .mockResolvedValueOnce(discarded)
+        .mockResolvedValueOnce(restored),
+      adopt: vi.fn().mockResolvedValue(discarded),
+    });
+    renderPanel(client);
+    await screen.findByText(SEG_B);
+    fireEvent.click(screen.getByLabelText("选择第 2 段"));
+    fireEvent.click(screen.getByRole("button", { name: "丢弃第 2 段" }));
+    expect(
+      await screen.findByText(/第 2 段已丢弃：不会再发送给模型，也不能采用/u),
+    ).toBeInTheDocument();
+    expect(client.changeSegment).toHaveBeenCalledWith(
+      chapterId,
+      generated,
+      1,
+      "discard",
+      undefined,
+    );
+    expect(screen.queryByLabelText("选择第 2 段")).toBeNull();
+    expect(screen.getByRole("button", { name: "采用所选段落" })).toBeDisabled();
+    const list = screen.getByRole("list", { name: "已丢弃的段落" });
+    expect(list).toHaveTextContent("第 2 段已丢弃（不会再发送，也不能采用）");
+    expect(screen.getByText(/已丢弃 1 段/u)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "恢复第 2 段" }));
+    expect(
+      await screen.findByText("第 2 段已恢复为待采用。"),
+    ).toBeInTheDocument();
+    expect(client.changeSegment).toHaveBeenLastCalledWith(
+      chapterId,
+      discarded,
+      1,
+      "restore",
+      undefined,
+    );
+    expect(screen.getByLabelText("选择第 2 段")).toBeInTheDocument();
+  });
+
+  it("reloads the draft when a segment change is refused", async () => {
+    const client = fakeClient({
+      list: vi.fn().mockResolvedValue([{ id: "draft-1" }]),
+      changeSegment: vi.fn().mockRejectedValue(new Error("conflict")),
+    });
+    renderPanel(client);
+    await screen.findByText(SEG_A);
+    fireEvent.click(screen.getByRole("button", { name: "丢弃第 1 段" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(client.get).toHaveBeenCalledTimes(2);
+    expect(screen.getByText(SEG_A)).toBeInTheDocument();
+  });
+
+  it("opens the writing job's own draft instead of the newest one", async () => {
+    const client = fakeClient({
+      list: vi
+        .fn()
+        .mockResolvedValue([{ id: "draft-newer" }, { id: "draft-1" }]),
+    });
+    renderPanel(client, "draft-1");
+    await screen.findByText(SEG_A);
+    expect(client.get).toHaveBeenCalledWith(chapterId, "draft-1");
   });
 });
