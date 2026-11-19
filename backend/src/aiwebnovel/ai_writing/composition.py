@@ -121,6 +121,7 @@ def compose_ai_workflow(
         "chapter_drafts",
         "semantic_index_entries",
         "semantic_index_settings",
+        "timeline_proposals",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository

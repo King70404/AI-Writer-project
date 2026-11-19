@@ -435,3 +435,63 @@ def test_migration_adds_ledger_operation_and_downgrade_keeps_records(tmp_path):
         connection.commit()
     refused = _run_alembic(path, "downgrade", "0022_add_plan_proposals")
     assert refused.returncode != 0 and "must be retained" in refused.stderr
+
+
+def test_advance_cards_are_checked_and_adopt_as_advancing_evidence(ranged, monkeypatch):
+    from tests.backend.test_story_control import revision
+
+    w, chapters, existing = ranged
+    planted = _api(
+        w,
+        "post",
+        "/plot-threads",
+        {
+            "expected_version": 0,
+            "title": "旧布之谜",
+            "status": "planted",
+            "anchors": [
+                {
+                    "role": "setup",
+                    "chapter_id": chapters[0],
+                    "chapter_revision_id": revision(w, chapters[0]),
+                    "quote": "船夫左臂缠着旧布",
+                }
+            ],
+        },
+        201,
+    )
+    proposal = _prepare(w, chapters)
+    advance = {
+        "kind": "advance",
+        "thread_id": planted["id"],
+        "chapter_id": chapters[1],
+        "quote": "船夫解开旧布，露出一道刀疤",
+    }
+    reply = json.dumps(
+        {
+            "cards": [
+                advance,
+                {**advance, "thread_id": existing["id"]},  # Planned, never planted.
+                advance,  # Same thread and quote again.
+            ]
+        },
+        ensure_ascii=False,
+    )
+    transport(monkeypatch, GeneratedText(reply, "fake"))
+    sent = _send(w, proposal)
+    assert [(c["valid"], c["problem"]) for c in sent["checks"]] == [
+        (True, None),
+        (False, "thread_not_planted"),
+        (False, "duplicate_advance"),
+    ]
+    assert _adopt(w, sent, [1], expect=422)["error"]["code"] == "FORESHADOW_CARD_INVALID"
+    adopted = _adopt(w, sent, [0])
+    assert [(a["index"], a["action"]) for a in adopted["adoptions"]] == [(0, "advanced")]
+    thread = _threads(w)[planted["id"]]
+    assert thread["status"] == "advancing" and thread["version"] == 2
+    assert [(a["role"], a["chapter_id"]) for a in thread["anchors"]] == [
+        ("setup", chapters[0]),
+        ("advance", chapters[1]),
+    ]
+    assert _adopt(w, adopted, [0])["adoptions"] == adopted["adoptions"]
+    assert _threads(w)[planted["id"]]["version"] == 2

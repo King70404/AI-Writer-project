@@ -72,6 +72,21 @@ from aiwebnovel.story_control.proposal_models import (
 )
 from aiwebnovel.story_control.proposals import PlanProposalService
 from aiwebnovel.story_control.service import StoryControlService
+from aiwebnovel.story_control.timeline_extraction import TimelineExtractionService
+from aiwebnovel.story_control.timeline_extraction_models import (
+    AdoptTimelineCards,
+    TimelineCardInvalid,
+    TimelineCardNeedsEvent,
+    TimelineConflict,
+    TimelineConsentRequired,
+    TimelineInvalid,
+    TimelineNotFound,
+    TimelineOutputInvalid,
+    TimelineProposalList,
+    TimelineProposalView,
+    TimelineRangePreview,
+    TimelineStale,
+)
 from aiwebnovel.usage.budget import SendEstimate
 
 _MAX_OFFSET = 1_000_000
@@ -97,6 +112,14 @@ _ERRORS: dict[type[DomainError], tuple[int, str]] = {
     ForeshadowConsentRequired: (403, "FORESHADOW_EXTRACTION_CONSENT_REQUIRED"),
     ForeshadowOutputInvalid: (422, "FORESHADOW_EXTRACTION_OUTPUT_INVALID"),
     ForeshadowUndoConflict: (409, "FORESHADOW_UNDO_CONFLICT"),
+    TimelineConflict: (409, "TIMELINE_EXTRACTION_CONFLICT"),
+    TimelineStale: (409, "TIMELINE_EXTRACTION_STALE"),
+    TimelineInvalid: (422, "TIMELINE_EXTRACTION_INVALID"),
+    TimelineCardInvalid: (422, "TIMELINE_CARD_INVALID"),
+    TimelineCardNeedsEvent: (422, "TIMELINE_CARD_NEEDS_EVENT"),
+    TimelineNotFound: (404, "TIMELINE_EXTRACTION_NOT_FOUND"),
+    TimelineConsentRequired: (403, "TIMELINE_EXTRACTION_CONSENT_REQUIRED"),
+    TimelineOutputInvalid: (422, "TIMELINE_EXTRACTION_OUTPUT_INVALID"),
 }
 
 
@@ -137,6 +160,17 @@ def get_foreshadow_service(request: Request) -> ForeshadowExtractionService:
             status_code=503,
         )
     return extractions
+
+
+def get_timeline_extraction_service(request: Request) -> TimelineExtractionService:
+    timelines = get_story_control_service(request).timeline_service
+    if not isinstance(timelines, TimelineExtractionService):
+        raise AppError(
+            code="STORY_CONTROL_UNAVAILABLE",
+            message="Story planning is unavailable.",
+            status_code=503,
+        )
+    return timelines
 
 
 def _invoke[T](response: Response, action: Callable[[], T], *, project: bool = False) -> T:
@@ -234,6 +268,7 @@ Service = Annotated[StoryControlService, Depends(get_story_control_service)]
 Json = Annotated[None, Depends(require_json)]
 Proposals = Annotated[PlanProposalService, Depends(get_plan_proposal_service)]
 Extractions = Annotated[ForeshadowExtractionService, Depends(get_foreshadow_service)]
+Timelines = Annotated[TimelineExtractionService, Depends(get_timeline_extraction_service)]
 
 
 def create_story_control_router(*, api_prefix: str) -> APIRouter:
@@ -495,6 +530,94 @@ def create_story_control_router(*, api_prefix: str) -> APIRouter:
             lambda: service.undo(
                 project_id, proposal_id, payload.card_index, payload.expected_version
             ),
+            project=True,
+        )
+
+    timelines = project + "/timeline-proposals"
+
+    @router.get(timelines, response_model=TimelineProposalList)
+    def list_timeline_extractions(
+        project_id: str, response: Response, service: Timelines
+    ) -> TimelineProposalList:
+        return _invoke(
+            response,
+            lambda: TimelineProposalList(
+                project_id=project_id, items=service.list_proposals(project_id)
+            ),
+            project=True,
+        )
+
+    @router.post(timelines + "/preview", response_model=TimelineRangePreview)
+    def preview_timeline_extraction(
+        project_id: str,
+        payload: PreviewRange,
+        response: Response,
+        service: Timelines,
+        _json: Json,
+    ) -> TimelineRangePreview:
+        # Lists the chosen chapters, their saved sizes and what else is sent; no model request.
+        return _invoke(
+            response, lambda: service.preview(project_id, payload.chapter_ids), project=True
+        )
+
+    @router.post(timelines, response_model=TimelineProposalView, status_code=201)
+    def prepare_timeline_extraction(
+        project_id: str,
+        payload: PrepareExtraction,
+        response: Response,
+        service: Timelines,
+        _json: Json,
+    ) -> TimelineProposalView:
+        # Freezes the chosen chapters' saved text, characters, events and states; no request.
+        return _invoke(
+            response,
+            lambda: service.prepare(
+                project_id, payload.chapter_ids, payload.profile_id, payload.author_request
+            ),
+            project=True,
+        )
+
+    @router.get(timelines + "/{proposal_id}", response_model=TimelineProposalView)
+    def get_timeline_extraction(
+        project_id: str, proposal_id: str, response: Response, service: Timelines
+    ) -> TimelineProposalView:
+        return _invoke(response, lambda: service.get(project_id, proposal_id), project=True)
+
+    @router.get(timelines + "/{proposal_id}/estimate", response_model=SendEstimate)
+    def estimate_timeline_extraction(
+        project_id: str, proposal_id: str, response: Response, service: Timelines
+    ) -> SendEstimate:
+        return _invoke(response, lambda: service.estimate(project_id, proposal_id), project=True)
+
+    @router.post(timelines + "/{proposal_id}/send", response_model=TimelineProposalView)
+    def send_timeline_extraction(
+        project_id: str,
+        proposal_id: str,
+        payload: SendExtraction,
+        response: Response,
+        service: Timelines,
+        _json: Json,
+    ) -> TimelineProposalView:
+        return _invoke(
+            response,
+            lambda: service.send(
+                project_id, proposal_id, payload.expected_version, payload.cloud_consent
+            ),
+            project=True,
+        )
+
+    @router.post(timelines + "/{proposal_id}/adopt", response_model=TimelineProposalView)
+    def adopt_timeline_extraction(
+        project_id: str,
+        proposal_id: str,
+        payload: AdoptTimelineCards,
+        response: Response,
+        service: Timelines,
+        _json: Json,
+    ) -> TimelineProposalView:
+        return _invoke(
+            response,
+            lambda: service.adopt(project_id, proposal_id, payload.card_indexes),
             project=True,
         )
 

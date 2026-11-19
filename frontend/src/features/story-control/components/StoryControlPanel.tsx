@@ -27,8 +27,10 @@ import {
 } from "../api/storyControl";
 import type { ForeshadowExtractionClient } from "../api/foreshadowExtraction";
 import type { PlanProposalClient } from "../api/planProposal";
+import type { TimelineExtractionClient } from "../api/timelineExtraction";
 import { ForeshadowExtractionPanel } from "./ForeshadowExtractionPanel";
 import { PlanProposalPanel } from "./PlanProposalPanel";
+import { TimelineExtractionPanel } from "./TimelineExtractionPanel";
 
 type Editing =
   | { readonly kind: "goal"; readonly item: Goal | null }
@@ -790,6 +792,7 @@ export function StoryControlPanel({
   client = storyControlClient,
   proposalClient,
   foreshadowClient,
+  timelineClient,
 }: {
   readonly projectId: string;
   readonly focusThreadId?: string;
@@ -797,10 +800,12 @@ export function StoryControlPanel({
   readonly client?: StoryControlClient;
   readonly proposalClient?: PlanProposalClient;
   readonly foreshadowClient?: ForeshadowExtractionClient;
+  readonly timelineClient?: TimelineExtractionClient;
 }) {
   const [plan, setPlan] = useState<ArcPlan | null>(null);
   const [splitting, setSplitting] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const [extractingTimeline, setExtractingTimeline] = useState(false);
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -1223,6 +1228,24 @@ export function StoryControlPanel({
           }
         />
       ) : null}
+      <button
+        type="button"
+        onClick={() => setExtractingTimeline((current) => !current)}
+      >
+        批量提取事件与人物状态
+      </button>
+      {extractingTimeline ? (
+        <TimelineExtractionPanel
+          projectId={projectId}
+          plan={plan}
+          client={timelineClient}
+          onAdopted={() => {
+            setNotice("已采用所选事件与人物状态卡，时间线已更新。");
+            void load();
+          }}
+          onClose={() => setExtractingTimeline(false)}
+        />
+      ) : null}
       {busy ? <p role="status">正在保存…</p> : null}
     </section>
   );
@@ -1236,6 +1259,7 @@ export function StoryControlSection({
   client,
   proposalClient,
   foreshadowClient,
+  timelineClient,
 }: {
   readonly projectId: string;
   readonly focusThreadId?: string;
@@ -1243,6 +1267,7 @@ export function StoryControlSection({
   readonly client?: StoryControlClient;
   readonly proposalClient?: PlanProposalClient;
   readonly foreshadowClient?: ForeshadowExtractionClient;
+  readonly timelineClient?: TimelineExtractionClient;
 }) {
   const [opened, setOpened] = useState(false);
   return (
@@ -1264,6 +1289,7 @@ export function StoryControlSection({
           client={client}
           proposalClient={proposalClient}
           foreshadowClient={foreshadowClient}
+          timelineClient={timelineClient}
         />
       ) : null}
     </details>

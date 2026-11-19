@@ -46,4 +46,14 @@ def compose_story_control(
         service.foreshadow_service = ForeshadowExtractionService(
             extractions, service, provider, model_reader, budgets
         )
+        from aiwebnovel.story_control.timeline_extraction import TimelineExtractionService
+        from aiwebnovel.story_control.timeline_extraction_persistence import (
+            SqlAlchemyTimelineStore,
+        )
+
+        timelines = SqlAlchemyTimelineStore(sessions, projects)
+        timelines.recover_interrupted()
+        service.timeline_service = TimelineExtractionService(
+            timelines, service, provider, model_reader, budgets
+        )
     return service

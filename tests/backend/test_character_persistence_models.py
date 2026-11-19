@@ -71,6 +71,7 @@ def test_registry_contains_exactly_authorized_business_tables() -> None:
         "chapter_drafts",
         "semantic_index_entries",
         "semantic_index_settings",
+        "timeline_proposals",
     }
     assert "alembic_version" not in metadata.tables
 

@@ -130,6 +130,13 @@ STORY_CONTROL_OPERATIONS = {
         "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}/cards/{card_index}",
     ),
     ("POST", "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}/undo"),
+    ("GET", "/api/v1/projects/{project_id}/timeline-proposals"),
+    ("POST", "/api/v1/projects/{project_id}/timeline-proposals"),
+    ("POST", "/api/v1/projects/{project_id}/timeline-proposals/preview"),
+    ("GET", "/api/v1/projects/{project_id}/timeline-proposals/{proposal_id}"),
+    ("GET", "/api/v1/projects/{project_id}/timeline-proposals/{proposal_id}/estimate"),
+    ("POST", "/api/v1/projects/{project_id}/timeline-proposals/{proposal_id}/send"),
+    ("POST", "/api/v1/projects/{project_id}/timeline-proposals/{proposal_id}/adopt"),
 }
 
 IMPORT_OPERATIONS = {

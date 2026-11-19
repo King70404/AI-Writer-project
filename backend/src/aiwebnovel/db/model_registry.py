@@ -55,6 +55,7 @@ PLAN_PROPOSAL_TABLE_NAMES = frozenset({"plan_proposals"})
 FORESHADOW_PROPOSAL_TABLE_NAMES = frozenset({"foreshadow_proposals"})
 CHAPTER_DRAFT_TABLE_NAMES = frozenset({"chapter_drafts"})
 SEMANTIC_INDEX_TABLE_NAMES = frozenset({"semantic_index_entries", "semantic_index_settings"})
+TIMELINE_PROPOSAL_TABLE_NAMES = frozenset({"timeline_proposals"})
 HANDOFF_TABLE_NAMES = frozenset({"handoff_snapshots", "external_candidates"})
 IMPORT_TABLE_NAMES = frozenset({"import_previews", "import_receipts"})
 STORY_CONTROL_TABLE_NAMES = frozenset({"story_control_revisions"})
@@ -83,6 +84,7 @@ BUSINESS_TABLE_NAMES = (
     | FORESHADOW_PROPOSAL_TABLE_NAMES
     | CHAPTER_DRAFT_TABLE_NAMES
     | SEMANTIC_INDEX_TABLE_NAMES
+    | TIMELINE_PROPOSAL_TABLE_NAMES
 )
 
 
@@ -131,6 +133,7 @@ def load_model_metadata() -> MetaData:
     from aiwebnovel.story_control.foreshadow_persistence import ForeshadowProposalRecord
     from aiwebnovel.story_control.persistence import StoryControlRevisionRecord
     from aiwebnovel.story_control.proposal_persistence import PlanProposalRecord
+    from aiwebnovel.story_control.timeline_extraction_persistence import TimelineProposalRecord
     from aiwebnovel.story_memory.persistence import StoryMemoryRevisionRecord
     from aiwebnovel.usage.budget_persistence import (
         ModelBudgetReservationRecord,
@@ -168,6 +171,7 @@ def load_model_metadata() -> MetaData:
         ChapterDraftRecord,
         SemanticIndexEntryRecord,
         SemanticIndexSettingsRecord,
+        TimelineProposalRecord,
         HandoffRecord,
         ExternalCandidateRecord,
         ImportPreviewRecord,

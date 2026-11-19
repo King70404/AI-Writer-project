@@ -313,6 +313,65 @@ describe("foreshadow extraction API", () => {
   });
 });
 
+describe("foreshadow advance cards", () => {
+  it("parses and shows an advance card and its problem", () => {
+    const advance = {
+      kind: "advance",
+      thread_id: "thread-1",
+      chapter_id: chapterB,
+      quote: "露出一道刀疤",
+      reason: "",
+    };
+    const parsed = parseExtraction(
+      raw({
+        status: "completed",
+        cards: [advance, advance],
+        checks: [
+          { valid: true, problem: null },
+          { valid: false, problem: "duplicate_advance" },
+        ],
+        adoptions: [
+          {
+            index: 0,
+            action: "advanced",
+            thread_id: "thread-1",
+            thread_version: 2,
+            adopted_at: "t",
+          },
+        ],
+      }),
+      projectId,
+    );
+    expect(parsed.cards[0]).toEqual(advance);
+    expect(parsed.adoptions[0].action).toBe("advanced");
+    render(
+      <ForeshadowExtractionPanel
+        projectId={projectId}
+        plan={plan}
+        client={fakeClient({
+          list: vi
+            .fn()
+            .mockResolvedValue([
+              { id: parsed.id, status: "completed", chapter_ids: [chapterB] },
+            ]),
+          get: vi.fn().mockResolvedValue(parsed),
+        })}
+        onAdopted={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    return screen
+      .findAllByText(/推进伏笔「少主身世」于第1卷第2章/u)
+      .then((items) => {
+        expect(items).toHaveLength(2);
+        expect(
+          screen.getByText(/重复推进同一伏笔的同一段原文/u),
+        ).toBeInTheDocument();
+        expect(screen.getByLabelText("选择伏笔建议卡 2")).toBeDisabled();
+      });
+  });
+});
+
 describe("foreshadow extraction panel", () => {
   function renderPanel(
     client: ForeshadowExtractionClient,

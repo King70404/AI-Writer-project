@@ -16,7 +16,9 @@ export type CardProblem =
   | "unknown_chapter"
   | "unknown_thread"
   | "duplicate_payoff"
-  | "duplicate_title";
+  | "duplicate_title"
+  | "thread_not_planted"
+  | "duplicate_advance";
 export type RangeProblem =
   "too_many_chapters" | "too_many_characters" | "empty_chapter";
 
@@ -35,14 +37,21 @@ export interface PayoffCard {
   readonly quote: string;
   readonly reason: string;
 }
-export type ForeshadowCard = NewThreadCard | PayoffCard;
+export interface AdvanceCard {
+  readonly kind: "advance";
+  readonly thread_id: string;
+  readonly chapter_id: string;
+  readonly quote: string;
+  readonly reason: string;
+}
+export type ForeshadowCard = NewThreadCard | PayoffCard | AdvanceCard;
 export interface CardCheck {
   readonly valid: boolean;
   readonly problem: CardProblem | null;
 }
 export interface ForeshadowAdoption {
   readonly index: number;
-  readonly action: "created" | "paid_off" | "already_recorded";
+  readonly action: "created" | "paid_off" | "advanced" | "already_recorded";
   readonly thread_id: string;
   readonly edited: boolean;
 }
@@ -181,6 +190,7 @@ const kind = oneOf<"local" | "cloud">(["local", "cloud"]);
 const action = oneOf<ForeshadowAdoption["action"]>([
   "created",
   "paid_off",
+  "advanced",
   "already_recorded",
 ]);
 const cardProblem = oneOf<CardProblem>([
@@ -189,6 +199,8 @@ const cardProblem = oneOf<CardProblem>([
   "unknown_thread",
   "duplicate_payoff",
   "duplicate_title",
+  "thread_not_planted",
+  "duplicate_advance",
 ]);
 const rangeProblem = oneOf<RangeProblem>([
   "too_many_chapters",
@@ -224,9 +236,9 @@ function card(value: unknown): ForeshadowCard {
       quote: str(item.quote),
       reason: str(item.reason),
     };
-  if (item.kind === "payoff")
+  if (item.kind === "payoff" || item.kind === "advance")
     return {
-      kind: "payoff",
+      kind: item.kind,
       thread_id: id(item.thread_id),
       chapter_id: id(item.chapter_id),
       quote: str(item.quote),

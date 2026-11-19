@@ -467,7 +467,7 @@ def test_application_package_import_has_no_runtime_or_schema_side_effects(
         '"outline_heads", "outline_revisions", "outlines", "plan_proposals", '
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '
         '"semantic_index_entries", "semantic_index_settings", '
-        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", '
+        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", "timeline_proposals", '
         '"volume_heads", "volume_revisions", "volumes", '
         '"writing_job_budgets", "writing_job_runs", "writing_job_scene_marks", "writing_jobs", "writing_references", "writing_rule_versions"]'
     )
@@ -512,7 +512,7 @@ def test_web_package_import_has_no_runtime_or_schema_side_effects(
         '"outline_heads", "outline_revisions", "outlines", "plan_proposals", '
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '
         '"semantic_index_entries", "semantic_index_settings", '
-        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", '
+        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", "timeline_proposals", '
         '"volume_heads", "volume_revisions", "volumes", '
         '"writing_job_budgets", "writing_job_runs", "writing_job_scene_marks", "writing_jobs", "writing_references", "writing_rule_versions"]'
     )
