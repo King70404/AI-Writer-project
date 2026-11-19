@@ -5,8 +5,8 @@ The author picks a bounded range of chapters (at most ``MAX_CHAPTERS`` with at m
 text plus the open plot threads and their versions; preparing never calls a model. The
 frozen snapshot is sent once, on an explicit author action, as a single metered request.
 The reply is parsed as strict JSON into suggestion cards: a new plot thread planted in a
-frozen chapter, or the payoff of a frozen open thread. Every card's quote is checked
-verbatim against the frozen chapter text; a card whose quote is not found (or that names a
+frozen chapter, the payoff of a frozen open thread, or the advance of a frozen planted
+thread. Every card's quote is checked verbatim against the frozen chapter text; a card whose quote is not found (or that names a
 chapter or thread outside the snapshot) is kept but marked invalid and cannot be adopted.
 Only the author's adoption of selected valid cards writes plot threads, through the normal
 story control validation, and only while the quoted chapter revision and the thread are
@@ -39,9 +39,15 @@ CardQuote = Annotated[
 Reason = Annotated[str, StringConstraints(max_length=500)]
 ExtractionStatus = Literal["ready", "running", "completed", "failed"]
 RangeProblem = Literal["too_many_chapters", "too_many_characters", "empty_chapter"]
-AdoptAction = Literal["created", "paid_off", "already_recorded"]
+AdoptAction = Literal["created", "paid_off", "advanced", "already_recorded"]
 CardProblem = Literal[
-    "quote_not_found", "unknown_chapter", "unknown_thread", "duplicate_payoff", "duplicate_title"
+    "quote_not_found",
+    "unknown_chapter",
+    "unknown_thread",
+    "duplicate_payoff",
+    "duplicate_title",
+    "thread_not_planted",
+    "duplicate_advance",
 ]
 
 
@@ -113,7 +119,22 @@ class PayoffCard(Strict):
         return self
 
 
-Card = Annotated[NewThreadCard | PayoffCard, Field(discriminator="kind")]
+class AdvanceCard(Strict):
+    """A frozen planted thread is advanced (developed further) in a frozen chapter."""
+
+    kind: Literal["advance"]
+    thread_id: Identifier
+    chapter_id: Identifier
+    quote: CardQuote
+    reason: Reason = ""
+
+    @model_validator(mode="after")
+    def checked(self) -> Self:
+        _safe([self.quote, self.reason])
+        return self
+
+
+Card = Annotated[NewThreadCard | PayoffCard | AdvanceCard, Field(discriminator="kind")]
 
 
 class ExtractionOutput(Strict):

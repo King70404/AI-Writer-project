@@ -29,6 +29,8 @@ const CARD_PROBLEMS: Record<CardProblem, string> = {
   unknown_thread: "引用了不存在或未冻结的伏笔，不能采用",
   duplicate_payoff: "与前一张卡重复兑现同一伏笔，不能采用",
   duplicate_title: "与已有伏笔或前一张卡同名，不能采用",
+  thread_not_planted: "该伏笔尚未埋下，不能记为推进",
+  duplicate_advance: "与前一张卡重复推进同一伏笔的同一段原文，不能采用",
 };
 
 function chapterLabel(plan: ArcPlan, chapterId: string): string {
@@ -53,7 +55,7 @@ function CardBody({
   const head =
     card.kind === "new_thread"
       ? `新伏笔「${card.title}」埋于${where}${card.content ? `：${card.content}` : ""}`
-      : `兑现伏笔「${
+      : `${card.kind === "payoff" ? "兑现" : "推进"}伏笔「${
           extraction.threads.find((item) => item.id === card.thread_id)
             ?.title ?? "未知伏笔"
         }」于${where}`;
@@ -206,7 +208,7 @@ export function ForeshadowExtractionPanel({
         <div>
           <p>
             选择最多 {MAX_CHAPTERS}{" "}
-            章已保存正文，由你确认预估后整段发送一次给模型，生成伏笔建议卡（新伏笔或已有伏笔的兑现）。
+            章已保存正文，由你确认预估后整段发送一次给模型，生成伏笔建议卡（新伏笔、已有伏笔的推进或兑现）。
             每张卡的引文都会在原文中逐字核对；只有你勾选采用的有效卡才会写入伏笔，正文不会被修改。
           </p>
           <fieldset>

@@ -36,6 +36,7 @@ from aiwebnovel.story_control.foreshadow_models import (
     MAX_TOTAL_CHARACTERS,
     AdoptAction,
     Adoption,
+    AdvanceCard,
     CardCheck,
     ChapterRef,
     ExtractionOutput,
@@ -77,11 +78,14 @@ new_thread 卡:正文中埋下、但 open_threads 里还没有的伏笔。chapte
 quote 必须是该章 text 中逐字存在的一句或一段原文(不改字、不省略、不加引号)。
 payoff 卡:open_threads 中某条伏笔在这些章节里被兑现。thread_id 必须是 open_threads 中的 id，
 chapter_id 是兑现所在章，quote 必须是该章 text 中逐字存在的原文。
+advance 卡:open_threads 中已埋下(status 为 planted 或 advancing)的伏笔在这些章节里被推进(有新线索或发展、但尚未兑现)。
+thread_id 必须是 open_threads 中的 id，chapter_id 是推进所在章，quote 必须是该章 text 中逐字存在的原文。
 只能引用 chapters 和 open_threads 中给出的 id;没有把握时不要出卡;不替作者编造正文没有写的内容。
 author_request 是作者的额外要求。
 输出 {"summary":"整体判断","cards":[{"kind":"new_thread","title":"伏笔名","content":"伏笔说明",
 "chapter_id":"章节id","quote":"原文","reason":"理由"},
-{"kind":"payoff","thread_id":"已有伏笔id","chapter_id":"章节id","quote":"原文","reason":"理由"}]}。
+{"kind":"payoff","thread_id":"已有伏笔id","chapter_id":"章节id","quote":"原文","reason":"理由"},
+{"kind":"advance","thread_id":"已有伏笔id","chapter_id":"章节id","quote":"原文","reason":"理由"}]}。
 cards 最多30张。title 最多120字，content 最多1000字，quote 最多300字，reason 最多500字。
 不输出代码围栏或 JSON 以外的文字。"""
 
@@ -212,15 +216,20 @@ def check_cards(proposal: ForeshadowProposal, output: ExtractionOutput) -> list[
     threads = {item.id: item for item in proposal.threads}
     titles = {item.title.casefold() for item in proposal.threads}
     paid: set[str] = set()
+    advanced: set[tuple[str, str]] = set()
     checks: list[CardCheck] = []
     for card in output.cards:
         text = chapters.get(card.chapter_id)
         if text is None:
             checks.append(CardCheck(valid=False, problem="unknown_chapter"))
-        elif isinstance(card, PayoffCard) and card.thread_id not in threads:
+        elif isinstance(card, PayoffCard | AdvanceCard) and card.thread_id not in threads:
             checks.append(CardCheck(valid=False, problem="unknown_thread"))
+        elif isinstance(card, AdvanceCard) and threads[card.thread_id].status == "planned":
+            checks.append(CardCheck(valid=False, problem="thread_not_planted"))
         elif card.quote not in text:
             checks.append(CardCheck(valid=False, problem="quote_not_found"))
+        elif isinstance(card, AdvanceCard) and (card.thread_id, card.quote) in advanced:
+            checks.append(CardCheck(valid=False, problem="duplicate_advance"))
         elif isinstance(card, PayoffCard) and card.thread_id in paid:
             checks.append(CardCheck(valid=False, problem="duplicate_payoff"))
         elif isinstance(card, NewThreadCard) and card.title.casefold() in titles:
@@ -228,6 +237,8 @@ def check_cards(proposal: ForeshadowProposal, output: ExtractionOutput) -> list[
         else:
             if isinstance(card, PayoffCard):
                 paid.add(card.thread_id)
+            elif isinstance(card, AdvanceCard):
+                advanced.add((card.thread_id, card.quote))
             else:
                 titles.add(card.title.casefold())
             checks.append(CardCheck(valid=True))
@@ -460,9 +471,11 @@ class ForeshadowExtractionService:
         return next(item for item in proposal.chapters if item.chapter_id == chapter_id)
 
     @staticmethod
-    def _payoff_anchor(proposal: ForeshadowProposal, card: PayoffCard) -> EvidenceAnchor:
+    def _payoff_anchor(
+        proposal: ForeshadowProposal, card: PayoffCard | AdvanceCard
+    ) -> EvidenceAnchor:
         return EvidenceAnchor(
-            role="payoff",
+            role="payoff" if isinstance(card, PayoffCard) else "advance",
             chapter_id=card.chapter_id,
             chapter_revision_id=ForeshadowExtractionService._chapter(
                 proposal, card.chapter_id
@@ -481,7 +494,7 @@ class ForeshadowExtractionService:
         card = proposal.cards[index]
         if revisions.get(card.chapter_id) != self._chapter(proposal, card.chapter_id).revision_id:
             raise ForeshadowStale
-        if isinstance(card, PayoffCard):
+        if isinstance(card, PayoffCard | AdvanceCard):
             thread = threads.get(card.thread_id)
             if thread is None:
                 raise ForeshadowStale
@@ -533,19 +546,25 @@ class ForeshadowExtractionService:
                         raise
                     thread = existing
             else:
-                assert isinstance(card, PayoffCard)
+                assert isinstance(card, PayoffCard | AdvanceCard)
                 current = threads[card.thread_id]
                 anchor = self._payoff_anchor(proposal, card)
                 if anchor in current.anchors:
                     action, thread = "already_recorded", current
                 else:
-                    action = "paid_off"
+                    # An advance never reopens a thread this proposal already paid off.
+                    action = "paid_off" if isinstance(card, PayoffCard) else "advanced"
+                    status = (
+                        "paid_off"
+                        if isinstance(card, PayoffCard) or current.status == "paid_off"
+                        else "advancing"
+                    )
                     document = SaveThread.model_validate(
                         {
                             **current.model_dump(
                                 include=set(SaveThread.model_fields) - {"expected_version"}
                             ),
-                            "status": "paid_off",
+                            "status": status,
                             "anchors": [
                                 *(item.model_dump() for item in current.anchors),
                                 anchor.model_dump(),
@@ -578,7 +597,7 @@ class ForeshadowExtractionService:
                 else current.created_thread_ids
             )
             versions = dict(current.thread_versions)
-            if isinstance(card, PayoffCard):
+            if isinstance(card, PayoffCard | AdvanceCard):
                 versions[thread.id] = thread.version
             return _changed(
                 current,
