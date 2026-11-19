@@ -932,6 +932,9 @@ class StoryControlService:
                     title=titles.get(item.id, item.title),
                     reason="pinned" if outcome.reasons[item.id] == "pinned" else "related",
                     characters=outcome.costs[item.id],
+                    similarity=None
+                    if outcome.similarity is None
+                    else outcome.similarity.get(item.id),
                 )
                 for item in outcome.selected
             ],
@@ -945,6 +948,8 @@ class StoryControlService:
             character_limit=RECALL_CHARACTER_LIMIT,
             item_limit=RECALL_ITEM_LIMIT,
             blocked=outcome.blocked,
+            mode=outcome.mode,
+            semantic_note=outcome.semantic_note,
         )
 
     def search_facts(

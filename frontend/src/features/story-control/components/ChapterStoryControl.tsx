@@ -11,6 +11,7 @@ import {
   type ChapterGuide,
   type FactHit,
   type RecallPolicyState,
+  type RecallMode,
   type RecallPreview,
   type StoryControlClient,
   type ThreadView,
@@ -142,7 +143,17 @@ export type RecallExplanationData = Pick<
   | "character_limit"
   | "item_limit"
   | "blocked"
+  | "mode"
+  | "semantic_note"
 >;
+
+const MODE_TEXT: Record<RecallMode, string> = {
+  deterministic: "排序方式：文字关联及前文顺序。",
+  semantic:
+    "排序方式：语义召回——按你建立的嵌入索引计算相似度，并与文字关联混合排序；作者固定/排除仍优先。",
+  fallback:
+    "排序方式：已启用语义召回，但索引不可用，已回退为文字关联及前文顺序。",
+};
 
 export function RecallExplanation({
   recall,
@@ -154,6 +165,12 @@ export function RecallExplanation({
 }) {
   return (
     <>
+      {recall.mode ? (
+        <p role="note">
+          {MODE_TEXT[recall.mode]}
+          {recall.semantic_note ? `原因：${recall.semantic_note}。` : ""}
+        </p>
+      ) : null}
       <p>
         已选 {n(recall.selected.length)} / {recall.item_limit} 项（作者固定{" "}
         {n(recall.selected.filter((item) => item.reason === "pinned").length)}{" "}
@@ -184,8 +201,13 @@ export function RecallExplanation({
       <ol className="recall-control__selected">
         {recall.selected.map((item) => (
           <li key={item.id}>
-            {item.title}（{item.reason === "pinned" ? "作者固定" : "文字关联"} ·{" "}
-            {n(item.characters)} 字符）
+            {item.title}（
+            {item.reason === "pinned"
+              ? "作者固定"
+              : item.similarity !== undefined
+                ? `语义相似度 ${item.similarity.toFixed(2)} + 文字关联`
+                : "文字关联"}{" "}
+            · {n(item.characters)} 字符）
           </li>
         ))}
       </ol>

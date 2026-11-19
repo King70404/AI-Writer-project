@@ -278,7 +278,18 @@ export const planProposalClient = {
     request(() =>
       getJson("ai/models", (value) => {
         const item = obj(value);
-        return list(item.items, (raw) => {
+        // 嵌入模型只用于语义索引，不能用于生成建议。
+        const items = Array.isArray(item.items)
+          ? item.items.filter(
+              (raw: unknown) =>
+                !(
+                  typeof raw === "object" &&
+                  raw !== null &&
+                  (raw as { purpose?: unknown }).purpose === "embedding"
+                ),
+            )
+          : item.items;
+        return list(items, (raw) => {
           const profile = obj(raw);
           return {
             id: id(profile.id),

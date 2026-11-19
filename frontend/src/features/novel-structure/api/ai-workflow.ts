@@ -12,6 +12,8 @@ export interface ModelProfile {
   readonly model: string;
   readonly max_output_tokens: number;
   readonly has_key: boolean;
+  /** C-4：嵌入模型只用于作者确认的语义索引；省略即对话/生成模型。 */
+  readonly purpose?: "embedding";
 }
 export interface ModelInput {
   readonly name: string;
@@ -21,6 +23,7 @@ export interface ModelInput {
   readonly max_output_tokens: number;
   readonly api_key?: string;
   readonly clear_key?: boolean;
+  readonly purpose?: "chat" | "embedding";
 }
 /** 作者对候选的不可变修改版本；原始模型候选保持不变。 */
 export interface CandidateEdit {
@@ -130,10 +133,14 @@ export function parseModelProfile(value: unknown): ModelProfile {
     typeof value.model !== "string" ||
     !integer(value.max_output_tokens, 1) ||
     typeof value.has_key !== "boolean" ||
-    Object.hasOwn(value, "api_key")
+    Object.hasOwn(value, "api_key") ||
+    (value.purpose !== undefined &&
+      value.purpose !== "chat" &&
+      value.purpose !== "embedding")
   )
     invalid();
   return {
+    ...(value.purpose === "embedding" ? { purpose: "embedding" as const } : {}),
     id: value.id,
     name: value.name,
     kind: value.kind as ModelProfile["kind"],
