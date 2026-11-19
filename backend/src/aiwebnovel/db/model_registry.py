@@ -54,6 +54,7 @@ WRITING_JOB_SCENE_TABLE_NAMES = frozenset({"writing_job_scene_marks"})
 PLAN_PROPOSAL_TABLE_NAMES = frozenset({"plan_proposals"})
 FORESHADOW_PROPOSAL_TABLE_NAMES = frozenset({"foreshadow_proposals"})
 CHAPTER_DRAFT_TABLE_NAMES = frozenset({"chapter_drafts"})
+SEMANTIC_INDEX_TABLE_NAMES = frozenset({"semantic_index_entries", "semantic_index_settings"})
 HANDOFF_TABLE_NAMES = frozenset({"handoff_snapshots", "external_candidates"})
 IMPORT_TABLE_NAMES = frozenset({"import_previews", "import_receipts"})
 STORY_CONTROL_TABLE_NAMES = frozenset({"story_control_revisions"})
@@ -81,6 +82,7 @@ BUSINESS_TABLE_NAMES = (
     | PLAN_PROPOSAL_TABLE_NAMES
     | FORESHADOW_PROPOSAL_TABLE_NAMES
     | CHAPTER_DRAFT_TABLE_NAMES
+    | SEMANTIC_INDEX_TABLE_NAMES
 )
 
 
@@ -116,6 +118,10 @@ def load_model_metadata() -> MetaData:
         ProjectHeadRecord,
         ProjectRecord,
         ProjectRevisionRecord,
+    )
+    from aiwebnovel.semantic_index.persistence import (
+        SemanticIndexEntryRecord,
+        SemanticIndexSettingsRecord,
     )
     from aiwebnovel.story_bible.persistence.models import (
         StoryBibleHeadRecord,
@@ -160,6 +166,8 @@ def load_model_metadata() -> MetaData:
         PlanProposalRecord,
         ForeshadowProposalRecord,
         ChapterDraftRecord,
+        SemanticIndexEntryRecord,
+        SemanticIndexSettingsRecord,
         HandoffRecord,
         ExternalCandidateRecord,
         ImportPreviewRecord,

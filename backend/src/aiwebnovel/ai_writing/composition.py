@@ -119,6 +119,8 @@ def compose_ai_workflow(
         "plan_proposals",
         "foreshadow_proposals",
         "chapter_drafts",
+        "semantic_index_entries",
+        "semantic_index_settings",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
@@ -203,6 +205,44 @@ def compose_ai_workflow(
             read_model,
             generation_sources,
             lambda chapter_id: control.selection_policy(chapter_id),
+        )
+        from aiwebnovel.semantic_index.composition import compose_semantic_index
+        from aiwebnovel.semantic_index.models import EmbeddingModel
+
+        def read_embedding_model(profile_id: str) -> EmbeddingModel | None:
+            try:
+                profile = gateway.get_profile(profile_id)
+            except ModelProfileNotFound:
+                return None
+            return EmbeddingModel(
+                profile.id,
+                profile.name,
+                profile.kind,
+                profile.base_url,
+                profile.model,
+                profile.purpose,
+            )
+
+        def embed(
+            profile_id: str, texts: tuple[str, ...], expected: tuple[str, str, str]
+        ) -> tuple[tuple[float, ...], ...]:
+            # Only an explicitly confirmed build reaches here; each request is metered
+            # under ``semantic_index`` and checked against the budget before it leaves.
+            return usage.metered_embedding(
+                texts,
+                lambda before_send: gateway.embed(
+                    profile_id, texts, expected_configuration=expected, before_send=before_send
+                ),
+            ).vectors
+
+        compose_semantic_index(
+            session_factory,
+            projects,
+            memory,
+            structure,
+            read_embedding_model,
+            embed,
+            budgets.estimate_embedding,
         )
         control = compose_story_control(
             session_factory,
