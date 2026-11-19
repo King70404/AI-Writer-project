@@ -6,6 +6,8 @@ and makes no model request. Sending transmits the frozen snapshot once under the
 ledger and refuses it locally under a strict budget. The reply must be strict JSON; any
 other reply fails the proposal and is kept as evidence, with no automatic retry. Only
 adoption writes plans, through the normal story control validation, and never chapters.
+The author may edit a card before adopting it (the original stays for comparison) and may
+undo an adopted card while the plan it wrote is unchanged since.
 """
 
 import json
@@ -35,23 +37,29 @@ from aiwebnovel.story_control.proposal_models import (
     MAX_FROZEN_CHILDREN,
     MAX_OUTPUT_CHARACTERS,
     MAX_PROPOSALS_PER_PROJECT,
+    MAX_UNDOS,
     PROPOSAL_OUTPUT_LIMIT,
     AdoptAction,
     Adoption,
+    Card,
+    CardEdit,
     ChapterLinkCard,
     ChildGoalCard,
     FrozenChapter,
     FrozenGoal,
     FrozenVolume,
     PlanProposal,
+    PlanProposalCardInvalid,
     PlanProposalConflict,
     PlanProposalConsentRequired,
     PlanProposalInvalid,
     PlanProposalNotFound,
     PlanProposalOutputInvalid,
     PlanProposalStale,
+    PlanProposalUndoConflict,
     PlanProposalView,
     ProposalOutput,
+    Undo,
 )
 from aiwebnovel.story_memory.models import snapshot_model
 from aiwebnovel.usage.attribution import usage_attribution
@@ -96,6 +104,8 @@ class PlanControl(Protocol):
     def save_goal(self, project_id: str, goal_id: str | None, data: SaveGoal) -> Goal: ...
 
     def create_goal_with_id(self, project_id: str, goal_id: str, data: SaveGoal) -> Goal: ...
+
+    def retract_goal(self, project_id: str, goal_id: str, expected_version: int) -> None: ...
 
 
 def _now() -> str:
@@ -148,6 +158,18 @@ def _view(proposal: PlanProposal, version: int) -> PlanProposalView:
 
 def _changed(proposal: PlanProposal, **changes: object) -> PlanProposal:
     return PlanProposal.model_validate({**proposal.model_dump(), **changes, "updated_at": _now()})
+
+
+def effective_cards(proposal: PlanProposal) -> list[Card]:
+    """Cards as adoption uses them: the author's edit where one exists, else the original."""
+    edits = {item.index: item.card for item in proposal.edits}
+    return [edits.get(index, card) for index, card in enumerate(proposal.cards)]
+
+
+def _card_goal_id(proposal: PlanProposal, index: int) -> str:
+    # A retracted goal id is never reused, so each re-adoption after an undo gets a new id.
+    undone = sum(item.index == index for item in proposal.undos)
+    return f"{proposal.id}-{index}" if undone == 0 else f"{proposal.id}-{index}-{undone}"
 
 
 def _check_references(proposal: PlanProposal, output: ProposalOutput) -> None:
@@ -369,7 +391,8 @@ class PlanProposalService:
         if any(item.index == index for item in proposal.adoptions):
             return  # Already adopted: adopting again changes nothing.
         source = self._ensure_fresh(proposal, self._control.arc_plan(project_id))
-        card = proposal.cards[index]
+        card = effective_cards(proposal)[index]
+        edited = any(item.index == index for item in proposal.edits)
         action: AdoptAction = "created"
         try:
             if isinstance(card, ChildGoalCard):
@@ -388,7 +411,7 @@ class PlanProposalService:
                     links=[GoalLink(chapter_id=item) for item in card.chapter_ids],
                     expected_version=0,
                 )
-                goal_id = f"{proposal.id}-{index}"
+                goal_id = _card_goal_id(proposal, index)
                 try:
                     goal = self._control.create_goal_with_id(project_id, goal_id, document)
                 except StoryControlConflict:
@@ -442,6 +465,7 @@ class PlanProposalService:
                 goal_id=goal.id,
                 goal_version=goal.version,
                 adopted_at=_now(),
+                edited=edited,
             )
             created = (
                 [*current.created_goal_ids, goal.id]
@@ -466,3 +490,121 @@ class PlanProposalService:
         for index in card_indexes:
             self._adopt_card(project_id, proposal_id, index)
         return self.get(project_id, proposal_id)
+
+    # ------------------------------------------------------------------ author edits
+
+    def edit_card(
+        self,
+        project_id: str,
+        proposal_id: str,
+        index: int,
+        expected_version: int,
+        card: Card | None,
+    ) -> PlanProposalView:
+        """Save the author's edit of one unadopted card, or restore the original (None)."""
+
+        def change(current: PlanProposal) -> PlanProposal:
+            if current.status != "completed":
+                raise PlanProposalConflict
+            if not 0 <= index < len(current.cards):
+                raise PlanProposalInvalid
+            if any(item.index == index for item in current.adoptions):
+                raise PlanProposalConflict  # Undo the adoption before editing the card.
+            edits = [item for item in current.edits if item.index != index]
+            original = current.cards[index]
+            if card is not None:
+                if card.kind != original.kind:
+                    raise PlanProposalCardInvalid
+                # The reason is the model's justification and stays as suggested.
+                edited = card.model_copy(update={"reason": original.reason})
+                if edited != original:
+                    edits.append(CardEdit(index=index, card=edited, edited_at=_now()))
+            candidate = _changed(current, edits=sorted(edits, key=lambda item: item.index))
+            try:
+                output = ProposalOutput.model_validate(
+                    {"cards": [item.model_dump() for item in effective_cards(candidate)]}
+                )
+                _check_references(candidate, output)
+            except (ValidationError, PlanProposalOutputInvalid):
+                raise PlanProposalCardInvalid from None
+            return candidate
+
+        return _view(*self._store.mutate(project_id, proposal_id, expected_version, change))
+
+    # ------------------------------------------------------------------ undo
+
+    def undo(
+        self, project_id: str, proposal_id: str, index: int, expected_version: int
+    ) -> PlanProposalView:
+        """Roll back one adopted card while the plan it wrote is unchanged since."""
+        proposal, version = self._store.get(project_id, proposal_id)
+        if version != expected_version:
+            raise PlanProposalConflict
+        receipt = next((item for item in proposal.adoptions if item.index == index), None)
+        if receipt is None:
+            raise PlanProposalConflict
+        if len(proposal.undos) >= MAX_UNDOS:
+            raise PlanProposalInvalid
+        goals = {view.goal.id: view.goal for view in self._control.arc_plan(project_id).goals}
+        known: int | None = None
+        try:
+            if receipt.action == "created":
+                goal = goals.get(receipt.goal_id)
+                # A missing goal was already retracted by an interrupted earlier undo.
+                if goal is not None:
+                    if goal.version != receipt.goal_version:
+                        raise PlanProposalUndoConflict
+                    self._control.retract_goal(project_id, goal.id, goal.version)
+            elif receipt.action == "linked":
+                card = effective_cards(proposal)[index]
+                assert isinstance(card, ChapterLinkCard)
+                source = goals.get(proposal.goal_id)
+                # Only this proposal's own adoptions may have changed the goal since.
+                if (
+                    source is None
+                    or source.version != proposal.known_goal_version
+                    or not any(link.chapter_id == card.chapter_id for link in source.links)
+                ):
+                    raise PlanProposalUndoConflict
+                document = SaveGoal.model_validate(
+                    {
+                        **source.model_dump(
+                            include=set(SaveGoal.model_fields) - {"expected_version"}
+                        ),
+                        "links": [
+                            link.model_dump()
+                            for link in source.links
+                            if link.chapter_id != card.chapter_id
+                        ],
+                        "expected_version": source.version,
+                    }
+                )
+                known = self._control.save_goal(project_id, source.id, document).version
+            # "already_linked" wrote nothing, so only the receipt is withdrawn.
+        except StoryControlConflict:
+            raise PlanProposalUndoConflict from None
+
+        def record(current: PlanProposal) -> PlanProposal:
+            if not any(item.index == index for item in current.adoptions):
+                return current  # A concurrent request already undid this card.
+            return _changed(
+                current,
+                adoptions=[item for item in current.adoptions if item.index != index],
+                created_goal_ids=[
+                    item for item in current.created_goal_ids if item != receipt.goal_id
+                ]
+                if receipt.action == "created"
+                else current.created_goal_ids,
+                undos=[
+                    *current.undos,
+                    Undo(
+                        index=index,
+                        action=receipt.action,
+                        goal_id=receipt.goal_id,
+                        undone_at=_now(),
+                    ),
+                ],
+                known_goal_version=current.known_goal_version if known is None else known,
+            )
+
+        return _view(*self._store.mutate(project_id, proposal_id, None, record))

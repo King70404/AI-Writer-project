@@ -94,6 +94,15 @@ class StoryControlRepository(Protocol):
         validate: Callable[[tuple[ControlItem, ...]], None],
     ) -> ControlItem: ...
 
+    def retract(
+        self,
+        project_id: str,
+        kind: str,
+        entity_id: str,
+        expected_version: int,
+        validate: Callable[[tuple[ControlItem, ...]], None],
+    ) -> None: ...
+
 
 @dataclass(frozen=True, slots=True)
 class Layout:
@@ -335,6 +344,19 @@ class StoryControlService:
             create_id=goal_id,
         )
 
+    def retract_goal(self, project_id: str, goal_id: str, expected_version: int) -> None:
+        """Remove a goal only at the expected version and while no goal names it as parent.
+
+        Used to undo a goal an author adopted from a plan proposal; the revision history
+        keeps every earlier revision and gains a tombstone.
+        """
+
+        def checked(items: tuple[ControlItem, ...]) -> None:
+            if any(goal_id in item.parent_goal_ids for item in self._of(items, Goal)):
+                raise StoryControlConflict
+
+        self._repository.retract(project_id, "goal", goal_id, expected_version, checked)
+
     @staticmethod
     def _link_view(layout: Layout, link: GoalLink) -> LinkView:
         chapter = layout.chapter(link.chapter_id)
@@ -470,6 +492,10 @@ class StoryControlService:
             MAX_THREADS,
             create_id=thread_id,
         )
+
+    def retract_thread(self, project_id: str, thread_id: str, expected_version: int) -> None:
+        """Remove a plot thread only at the expected version (undo of an adopted suggestion)."""
+        self._repository.retract(project_id, "thread", thread_id, expected_version, lambda _: None)
 
     def list_threads(self, project_id: str) -> list[Thread]:
         return self._of(self._items(project_id), Thread)

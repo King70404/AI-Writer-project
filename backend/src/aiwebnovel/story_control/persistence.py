@@ -1,8 +1,14 @@
-"""Immutable story control revisions; every write re-validates under the SQLite writer lock."""
+"""Immutable story control revisions; every write re-validates under the SQLite writer lock.
+
+A retraction appends one tombstone revision (``{"retracted": true}``) on top of an entity's
+history instead of deleting rows, so the revision history stays append-only while the
+entity disappears from every read. A retracted id is never reused.
+"""
 
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
+from uuid import uuid4
 
 from pydantic import TypeAdapter
 from sqlalchemy import (
@@ -105,6 +111,7 @@ class SqlAlchemyStoryControlRepository:
                     record.version == latest.c.version,
                 ),
             )
+            .where(func.json_extract(record.payload, "$.retracted").is_(None))
             .order_by(record.kind, latest.c.first)
         )
         return tuple(_KINDS[row.kind].model_validate(row.payload) for row in rows)
@@ -137,6 +144,8 @@ class SqlAlchemyStoryControlRepository:
             )
             if (0 if current is None else current.version) != expected_version:
                 raise StoryControlConflict
+            if current is None and self._has_history(session, item.kind, entity_id):
+                raise StoryControlConflict  # A retracted id is never reused.
             validate(current_items)
             session.add(
                 StoryControlRevisionRecord(
@@ -151,3 +160,54 @@ class SqlAlchemyStoryControlRepository:
             )
             session.commit()
         return item
+
+    @staticmethod
+    def _has_history(session: Session, kind: str, entity_id: str) -> bool:
+        record = StoryControlRevisionRecord
+        return (
+            session.scalar(
+                select(record.id).where(record.kind == kind, record.entity_id == entity_id).limit(1)
+            )
+            is not None
+        )
+
+    def retract(
+        self,
+        project_id: str,
+        kind: str,
+        entity_id: str,
+        expected_version: int,
+        validate: Callable[[tuple[ControlItem, ...]], None],
+    ) -> None:
+        """Append a tombstone over an entity's latest revision, only at the expected version."""
+        if kind not in ("goal", "thread"):
+            raise ValueError("Only goals and plot threads can be retracted.")
+        with self._sessions() as session:
+            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            identifier = self._require_project(project_id)
+            current_items = self._latest(session, identifier)
+            current = next(
+                (
+                    item
+                    for item in current_items
+                    if item.kind == kind
+                    and not isinstance(item, RecallPolicy)
+                    and item.id == entity_id
+                ),
+                None,
+            )
+            if current is None or current.version != expected_version:
+                raise StoryControlConflict
+            validate(current_items)
+            session.add(
+                StoryControlRevisionRecord(
+                    id=str(uuid4()),
+                    entity_id=entity_id,
+                    kind=kind,
+                    version=expected_version + 1,
+                    project_id=identifier,
+                    payload={"kind": kind, "id": entity_id, "retracted": True},
+                    created_at=datetime.now(UTC),
+                )
+            )
+            session.commit()
