@@ -231,3 +231,20 @@ class ChangeDraftSegment(Strict):
     action: SegmentAction
     # Required for ``edit`` only; the original text again removes the edit.
     text: str | None = Field(default=None, min_length=1, max_length=MAX_SEGMENT_EDIT_CHARACTERS)
+
+
+def remaining(draft: ChapterDraft) -> tuple[int, int]:
+    """Requests and generated characters still allowed by the draft's own quota."""
+    return (
+        draft.max_segments - draft.attempts,
+        draft.max_output_characters - draft.generated_characters,
+    )
+
+
+def step_upper(draft: ChapterDraft) -> int:
+    return min(SEGMENT_MAX_CHARACTERS, remaining(draft)[1])
+
+
+def has_quota(draft: ChapterDraft) -> bool:
+    requests, _ = remaining(draft)
+    return requests > 0 and step_upper(draft) >= SEGMENT_MIN_CHARACTERS

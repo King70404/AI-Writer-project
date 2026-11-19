@@ -117,7 +117,7 @@ def render(row: object, session: Session) -> dict[str, object]:
             adopted_text = edit.text if edit else candidate.text
             adopted_characters += sum(not character.isspace() for character in adopted_text)
     # A chapter draft bound as a step counts its own generated and adopted segments.
-    from aiwebnovel.ai_writing.chapter_draft_persistence import ChapterDraftRecord
+    from aiwebnovel.ai_writing.persistence.chapter_drafts import ChapterDraftRecord
 
     active_draft_id = None
     drafts: list[dict[str, object]] = []

@@ -276,7 +276,7 @@ def compose_ai_workflow(
         )
         service.recover_interrupted()
         from aiwebnovel.ai_writing.chapter_draft import ChapterDraftService
-        from aiwebnovel.ai_writing.chapter_draft_persistence import SqlAlchemyChapterDraftStore
+        from aiwebnovel.ai_writing.persistence.chapter_drafts import SqlAlchemyChapterDraftStore
 
         drafts = SqlAlchemyChapterDraftStore(session_factory)
         drafts.recover_interrupted()

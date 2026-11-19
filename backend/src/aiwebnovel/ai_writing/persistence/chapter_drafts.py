@@ -10,8 +10,6 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from aiwebnovel.ai_writing.chapter_draft_models import (
     MAX_DRAFTS_PER_CHAPTER,
-    SEGMENT_MAX_CHARACTERS,
-    SEGMENT_MIN_CHARACTERS,
     ChapterDraft,
     ChapterDraftConflict,
     ChapterDraftInvalid,
@@ -23,7 +21,9 @@ from aiwebnovel.ai_writing.chapter_draft_models import (
     DraftSegment,
     DraftStatus,
     SegmentAction,
+    has_quota,
     segment_text,
+    step_upper,
 )
 from aiwebnovel.db.base import Base
 from aiwebnovel.db.types import PrefixedUlidType
@@ -34,7 +34,6 @@ from aiwebnovel.novel_structure.persistence.workflow_transaction import (
     load_workflow_chapter,
 )
 from aiwebnovel.project.identifiers import ProjectId
-from aiwebnovel.project.persistence.models import ProjectRecord
 
 
 class ChapterDraftRecord(Base):
@@ -57,23 +56,6 @@ class ChapterDraftRecord(Base):
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
-
-
-def remaining(draft: ChapterDraft) -> tuple[int, int]:
-    """Requests and generated characters still allowed by the draft's own quota."""
-    return (
-        draft.max_segments - draft.attempts,
-        draft.max_output_characters - draft.generated_characters,
-    )
-
-
-def step_upper(draft: ChapterDraft) -> int:
-    return min(SEGMENT_MAX_CHARACTERS, remaining(draft)[1])
-
-
-def has_quota(draft: ChapterDraft) -> bool:
-    requests, _ = remaining(draft)
-    return requests > 0 and step_upper(draft) >= SEGMENT_MIN_CHARACTERS
 
 
 def _changed(draft: ChapterDraft, **changes: object) -> ChapterDraft:
@@ -107,12 +89,13 @@ class SqlAlchemyChapterDraftStore:
 
     @staticmethod
     def _record(session: Session, chapter_id: str, draft_id: str) -> ChapterDraftRecord:
-        load_workflow_chapter(session, chapter_id)
+        # The chapter loads only inside an active project, so its project scopes the draft.
+        chapter = load_workflow_chapter(session, chapter_id)
         record = session.scalar(
             select(ChapterDraftRecord).where(
                 ChapterDraftRecord.id == draft_id,
-                ChapterDraftRecord.chapter_id == ChapterId.parse(chapter_id),
-                ChapterDraftRecord.project_id.in_(ProjectRecord.active_ids()),
+                ChapterDraftRecord.chapter_id == chapter.chapter.id,
+                ChapterDraftRecord.project_id == chapter.chapter.project_id,
             )
         )
         if record is None:
@@ -134,12 +117,12 @@ class SqlAlchemyChapterDraftStore:
 
     def list_recent(self, chapter_id: str, limit: int) -> tuple[tuple[ChapterDraft, int], ...]:
         with self._transaction() as session:
-            load_workflow_chapter(session, chapter_id)
+            chapter = load_workflow_chapter(session, chapter_id)
             records = session.scalars(
                 select(ChapterDraftRecord)
                 .where(
-                    ChapterDraftRecord.chapter_id == ChapterId.parse(chapter_id),
-                    ChapterDraftRecord.project_id.in_(ProjectRecord.active_ids()),
+                    ChapterDraftRecord.chapter_id == chapter.chapter.id,
+                    ChapterDraftRecord.project_id == chapter.chapter.project_id,
                 )
                 .order_by(ChapterDraftRecord.created_at.desc(), ChapterDraftRecord.id.desc())
                 .limit(limit)
@@ -180,32 +163,13 @@ class SqlAlchemyChapterDraftStore:
     @staticmethod
     def _bind_job(session: Session, draft: ChapterDraft) -> None:
         """Bind the draft as the job's current step, exactly like a bound workflow run."""
-        from aiwebnovel.writing_jobs.persistence import WritingJobRecord, WritingJobRunRecord
+        from aiwebnovel.writing_jobs.transaction import bind_current_step
 
-        job = session.get(WritingJobRecord, draft.writing_job_id)
-        if (
-            job is None
-            or job.project_id != draft.project_id
-            or job.status != "planned"
-            or job.current_index >= len(job.chapter_ids)
-            or job.chapter_ids[job.current_index] != draft.chapter_id
-            or session.scalar(
-                select(WritingJobRunRecord.run_id)
-                .where(
-                    WritingJobRunRecord.job_id == job.id,
-                    WritingJobRunRecord.step_index == job.current_index,
-                )
-                .limit(1)
-            )
-            is not None
+        assert draft.writing_job_id is not None
+        if not bind_current_step(
+            session, draft.id, draft.writing_job_id, draft.project_id, draft.chapter_id
         ):
             raise ChapterDraftConflict
-        session.add(
-            WritingJobRunRecord(
-                run_id=draft.id, job_id=job.id, step_index=job.current_index, reserved_characters=0
-            )
-        )
-        job.version += 1
 
     # ------------------------------------------------------------------ sending
 

@@ -32,7 +32,7 @@ def current_plan(session: Session, chapter_id: str) -> "ChapterPlanRevisionRecor
 def step_adopted(session: Session, job_id: str, step_index: int) -> bool:
     from sqlalchemy import func, inspect
 
-    from aiwebnovel.ai_writing.chapter_draft_persistence import ChapterDraftRecord
+    from aiwebnovel.ai_writing.persistence.chapter_drafts import ChapterDraftRecord
     from aiwebnovel.ai_writing.persistence.models import AIWorkflowCandidateRecord
     from aiwebnovel.writing_jobs.persistence import WritingJobRunRecord
 

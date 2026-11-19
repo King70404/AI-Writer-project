@@ -90,7 +90,7 @@ BUSINESS_TABLE_NAMES = (
 
 def load_model_metadata() -> MetaData:
     """Load the explicit model set without connecting to or migrating a database."""
-    from aiwebnovel.ai_writing.chapter_draft_persistence import ChapterDraftRecord
+    from aiwebnovel.ai_writing.persistence.chapter_drafts import ChapterDraftRecord
     from aiwebnovel.ai_writing.persistence.models import (
         AICandidateEditAdoptionRecord,
         AICandidateEditRecord,

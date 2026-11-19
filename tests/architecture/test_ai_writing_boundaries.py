@@ -39,7 +39,10 @@ def violations(source: str, layer: str) -> tuple[str, ...]:
             "aiwebnovel.ai_writing.provider",
         ]
     allowed_persistence = {
-        "composition": {"aiwebnovel.ai_writing.persistence.repository"},
+        "composition": {
+            "aiwebnovel.ai_writing.persistence.repository",
+            "aiwebnovel.ai_writing.persistence.chapter_drafts",
+        },
         "persistence": {
             "aiwebnovel.ai_writing.persistence.models",
             "aiwebnovel.project.persistence.models",
