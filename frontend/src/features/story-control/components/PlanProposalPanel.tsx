@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { OperationSendGuard } from "../../usage/components/SendEstimatePanel";
 import {
+  effectiveCard,
   planProposalClient,
   planProposalError,
   type PlanProposal,
@@ -57,15 +58,154 @@ function CardBody({
   );
 }
 
+function ChildGoalEditor({
+  proposal,
+  plan,
+  draft,
+  onChange,
+}: {
+  readonly proposal: PlanProposal;
+  readonly plan: ArcPlan;
+  readonly draft: Extract<ProposalCard, { kind: "child_goal" }>;
+  readonly onChange: (card: ProposalCard) => void;
+}) {
+  const text = (field: "conflict" | "obstacle" | "turn" | "outcome") =>
+    ({
+      conflict: "核心冲突",
+      obstacle: "阻碍",
+      turn: "转折",
+      outcome: "预期变化",
+    })[field];
+  return (
+    <>
+      <label className="story-control__field">
+        <span>子目标名（最多 120 字）</span>
+        <input
+          maxLength={120}
+          value={draft.title}
+          onChange={(event) =>
+            onChange({ ...draft, title: event.target.value })
+          }
+        />
+      </label>
+      <label className="story-control__field">
+        <span>范围</span>
+        <select
+          value={draft.volume_id ?? ""}
+          onChange={(event) =>
+            onChange({ ...draft, volume_id: event.target.value || null })
+          }
+        >
+          <option value="">
+            {proposal.source.scope === "book" ? "全书" : "沿用目标所在分卷"}
+          </option>
+          {proposal.volumes.map((volume) => (
+            <option key={volume.volume_id} value={volume.volume_id}>
+              {volumeLabel(plan, volume.volume_id)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {(["conflict", "obstacle", "turn", "outcome"] as const).map((field) => (
+        <label key={field} className="story-control__field">
+          <span>{text(field)}（最多 1000 字）</span>
+          <textarea
+            maxLength={1000}
+            value={draft[field]}
+            onChange={(event) =>
+              onChange({ ...draft, [field]: event.target.value })
+            }
+          />
+        </label>
+      ))}
+      <fieldset>
+        <legend>落实章节（最多 20 个，只能选冻结快照里的章节）</legend>
+        {proposal.chapters.map((chapter) => (
+          <label key={chapter.chapter_id}>
+            <input
+              type="checkbox"
+              checked={draft.chapter_ids.includes(chapter.chapter_id)}
+              disabled={
+                !draft.chapter_ids.includes(chapter.chapter_id) &&
+                draft.chapter_ids.length >= 20
+              }
+              onChange={() =>
+                onChange({
+                  ...draft,
+                  chapter_ids: draft.chapter_ids.includes(chapter.chapter_id)
+                    ? draft.chapter_ids.filter(
+                        (item) => item !== chapter.chapter_id,
+                      )
+                    : [...draft.chapter_ids, chapter.chapter_id],
+                })
+              }
+            />
+            {chapterLabel(plan, chapter.chapter_id)}
+          </label>
+        ))}
+      </fieldset>
+    </>
+  );
+}
+
+function ChapterLinkEditor({
+  proposal,
+  plan,
+  draft,
+  onChange,
+}: {
+  readonly proposal: PlanProposal;
+  readonly plan: ArcPlan;
+  readonly draft: Extract<ProposalCard, { kind: "chapter_link" }>;
+  readonly onChange: (card: ProposalCard) => void;
+}) {
+  return (
+    <>
+      <label className="story-control__field">
+        <span>挂接章节</span>
+        <select
+          value={draft.chapter_id}
+          onChange={(event) =>
+            onChange({ ...draft, chapter_id: event.target.value })
+          }
+        >
+          {proposal.chapters
+            .filter(
+              (chapter) =>
+                !proposal.source.linked_chapter_ids.includes(
+                  chapter.chapter_id,
+                ),
+            )
+            .map((chapter) => (
+              <option key={chapter.chapter_id} value={chapter.chapter_id}>
+                {chapterLabel(plan, chapter.chapter_id)}
+              </option>
+            ))}
+        </select>
+      </label>
+      <label className="story-control__field">
+        <span>本章要发生的变化（最多 1000 字）</span>
+        <textarea
+          maxLength={1000}
+          value={draft.note}
+          onChange={(event) => onChange({ ...draft, note: event.target.value })}
+        />
+      </label>
+    </>
+  );
+}
+
 /**
  * 选定目标的“建议拆分”。准备与预估不调用模型；作者确认后只发送一次。
  * 建议卡只有被勾选并点击“采用所选”后才写入规划，且不会创建或修改章节。
+ * 采用前可修改卡片（保留模型原始建议以便对照）；已采用的卡可撤销，规划之后被改过时拒绝撤销。
  */
 export function PlanProposalPanel({
   projectId,
   goal,
   plan,
   onAdopted,
+  onUndone = onAdopted,
   onClose,
   client = planProposalClient,
 }: {
@@ -73,6 +213,7 @@ export function PlanProposalPanel({
   readonly goal: Goal;
   readonly plan: ArcPlan;
   readonly onAdopted: () => void;
+  readonly onUndone?: () => void;
   readonly onClose: () => void;
   readonly client?: PlanProposalClient;
 }) {
@@ -85,6 +226,8 @@ export function PlanProposalPanel({
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [stale, setStale] = useState(false);
+  const [editing, setEditing] = useState<number | null>(null);
+  const [draft, setDraft] = useState<ProposalCard | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -158,11 +301,43 @@ export function PlanProposalPanel({
       onAdopted();
     });
 
+  const startEdit = (index: number) => {
+    if (!proposal) return;
+    setEditing(index);
+    setDraft(effectiveCard(proposal, index));
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setDraft(null);
+  };
+
+  const saveEdit = (index: number, card: ProposalCard | null) =>
+    act(
+      card ? "正在保存修改（不写入规划）…" : "正在恢复原始建议…",
+      async () => {
+        if (!proposal) return;
+        const next = await client.editCard(projectId, proposal, index, card);
+        setProposal(next);
+        cancelEdit();
+      },
+    );
+
+  const undo = (index: number) =>
+    act("正在撤销该卡的采用…", async () => {
+      if (!proposal) return;
+      const next = await client.undo(projectId, proposal, index);
+      setProposal(next);
+      setSelected((current) => current.filter((item) => item !== index));
+      onUndone();
+    });
+
   const reset = () => {
     setProposal(null);
     setSelected([]);
     setStale(false);
     setError("");
+    cancelEdit();
   };
 
   const children = plan.goals.filter((view) =>
@@ -324,27 +499,121 @@ export function PlanProposalPanel({
             <p>模型没有给出建议卡；规划未改变。</p>
           ) : (
             <ul className="story-control__list">
-              {proposal.cards.map((card, index) => (
-                <li key={index}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      aria-label={`选择建议卡 ${index + 1}`}
-                      disabled={adopted.has(index) || Boolean(busy)}
-                      checked={adopted.has(index) || selected.includes(index)}
-                      onChange={() =>
-                        setSelected((current) =>
-                          current.includes(index)
-                            ? current.filter((item) => item !== index)
-                            : [...current, index],
-                        )
-                      }
-                    />
-                    <CardBody plan={plan} card={card} />
-                    {adopted.has(index) ? " · 已采用" : ""}
-                  </label>
-                </li>
-              ))}
+              {proposal.cards.map((original, index) => {
+                const card = effectiveCard(proposal, index);
+                const edited = proposal.edits.some(
+                  (item) => item.index === index,
+                );
+                const adoption = proposal.adoptions.find(
+                  (item) => item.index === index,
+                );
+                return (
+                  <li key={index}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        aria-label={`选择建议卡 ${index + 1}`}
+                        disabled={
+                          adopted.has(index) ||
+                          editing === index ||
+                          Boolean(busy)
+                        }
+                        checked={adopted.has(index) || selected.includes(index)}
+                        onChange={() =>
+                          setSelected((current) =>
+                            current.includes(index)
+                              ? current.filter((item) => item !== index)
+                              : [...current, index],
+                          )
+                        }
+                      />
+                      <CardBody plan={plan} card={card} />
+                      {edited && !adoption ? " · 已修改" : ""}
+                      {adoption
+                        ? adoption.edited
+                          ? " · 已按修改版采用"
+                          : " · 已采用"
+                        : ""}
+                    </label>
+                    {edited ? (
+                      <details>
+                        <summary>对照模型原始建议</summary>
+                        <CardBody plan={plan} card={original} />
+                      </details>
+                    ) : null}
+                    {adoption ? (
+                      <button
+                        type="button"
+                        aria-label={`撤销采用建议卡 ${index + 1}`}
+                        disabled={Boolean(busy) || stale}
+                        onClick={() => void undo(index)}
+                      >
+                        撤销采用
+                      </button>
+                    ) : editing === index && draft ? (
+                      <form
+                        aria-label={`修改建议卡 ${index + 1}`}
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void saveEdit(index, draft);
+                        }}
+                      >
+                        {draft.kind === "child_goal" ? (
+                          <ChildGoalEditor
+                            proposal={proposal}
+                            plan={plan}
+                            draft={draft}
+                            onChange={setDraft}
+                          />
+                        ) : (
+                          <ChapterLinkEditor
+                            proposal={proposal}
+                            plan={plan}
+                            draft={draft}
+                            onChange={setDraft}
+                          />
+                        )}
+                        {original.reason ? (
+                          <p>模型理由（不可修改）：{original.reason}</p>
+                        ) : null}
+                        <button
+                          type="submit"
+                          disabled={
+                            Boolean(busy) ||
+                            (draft.kind === "child_goal" && !draft.title.trim())
+                          }
+                        >
+                          保存修改
+                        </button>
+                        <button type="button" onClick={cancelEdit}>
+                          取消修改
+                        </button>
+                      </form>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          aria-label={`修改建议卡 ${index + 1}`}
+                          disabled={Boolean(busy) || stale || editing !== null}
+                          onClick={() => startEdit(index)}
+                        >
+                          修改
+                        </button>
+                        {edited ? (
+                          <button
+                            type="button"
+                            aria-label={`恢复建议卡 ${index + 1} 的原始建议`}
+                            disabled={Boolean(busy) || editing !== null}
+                            onClick={() => void saveEdit(index, null)}
+                          >
+                            恢复原始建议
+                          </button>
+                        ) : null}
+                      </>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
           {stale ? (
