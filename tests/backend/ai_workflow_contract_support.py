@@ -56,6 +56,10 @@ STORY_MEMORY_OPERATIONS = {
     ("PUT", "/api/v1/chapters/{chapter_id}/memory/facts/{fact_id}"),
     ("POST", "/api/v1/chapters/{chapter_id}/memory/reviews"),
     ("POST", "/api/v1/chapters/{chapter_id}/memory/reviews/{review_id}/send"),
+    # C-4 semantic index (Search): reads never call a model; build needs confirmation.
+    ("GET", "/api/v1/projects/{project_id}/semantic-index"),
+    ("PUT", "/api/v1/projects/{project_id}/semantic-index/settings"),
+    ("POST", "/api/v1/projects/{project_id}/semantic-index/build"),
 }
 
 BACKUP_OPERATIONS = {

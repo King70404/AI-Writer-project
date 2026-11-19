@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2] / "backend/src/aiwebnovel"
-MODULES = ("chapter_planning", "writing_studio", "story_memory")
+MODULES = ("chapter_planning", "writing_studio", "story_memory", "semantic_index")
 
 
 def violations(source: str, layer: str) -> tuple[str, ...]:
@@ -24,6 +24,7 @@ def violations(source: str, layer: str) -> tuple[str, ...]:
             "aiwebnovel.writing_studio.persistence.repository",
             "aiwebnovel.writing_studio.persistence.method_repository",
             "aiwebnovel.story_memory.persistence",
+            "aiwebnovel.semantic_index.persistence",
         },
         "persistence": {
             "aiwebnovel.novel_structure.persistence.workflow_transaction",
@@ -75,6 +76,8 @@ def test_production_preparation_layers() -> None:
         ("application", "aiwebnovel.writing_studio.persistence.repository"),
         ("application", "aiwebnovel.story_memory.persistence"),
         ("web", "aiwebnovel.story_memory.persistence"),
+        ("application", "aiwebnovel.semantic_index.persistence"),
+        ("web", "aiwebnovel.semantic_index.persistence"),
         ("application", "aiwebnovel.writing_studio.composition"),
         ("application", "aiwebnovel.writing_studio.web"),
         ("application", "aiwebnovel.model_gateway.service"),

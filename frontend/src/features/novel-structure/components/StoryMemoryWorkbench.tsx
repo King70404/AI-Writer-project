@@ -14,6 +14,7 @@ import {
   type StoryMemoryClient,
   type SuggestedFact,
 } from "../api/story-memory";
+import { SemanticIndexPanel } from "./SemanticIndexPanel";
 
 const FACT_STATUS = {
   pending: "待确认",
@@ -283,12 +284,13 @@ export function StoryMemoryWorkbench({
             </li>
           ))}
       </ul>
+      <SemanticIndexPanel projectId={projectId} />
       <details>
         <summary>
           查看本章可召回的前文事实（{workspace?.recalled_facts.length ?? 0}）
         </summary>
         <p>
-          最多24项、10000字符；遵循本章召回设置（固定优先、排除不发送），其余按文字关联和前文顺序选择；另省略{" "}
+          最多24项、10000字符；遵循本章召回设置（固定优先、排除不发送），其余按文字关联和前文顺序选择（启用且有有效语义索引时改为语义相似度与文字关联混合排序）；另省略{" "}
           {workspace?.omitted_facts ?? 0}{" "}
           项。准备评审使用同一设置，固定事实失效或超预算时会拒绝准备。
         </p>
@@ -366,7 +368,9 @@ export function StoryMemoryWorkbench({
                 <p>
                   {selected.recall.policy_version
                     ? `按准备时的本章召回设置第 ${selected.recall.policy_version} 版冻结：作者固定的事实优先，作者排除的事实不发送。`
-                    : "准备时本章没有召回设置，按文字关联及前文顺序选择。"}
+                    : selected.recall.mode
+                      ? "准备时本章没有召回设置。"
+                      : "准备时本章没有召回设置，按文字关联及前文顺序选择。"}
                   之后修改召回设置不会改变这份评审。
                 </p>
                 <RecallExplanation

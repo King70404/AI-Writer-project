@@ -104,7 +104,7 @@ def test_real_export_is_utf8_current_heads_and_changes_no_database_rows(
                     connection.execute(
                         "select count(*) from sqlite_master where type='trigger'"
                     ).fetchone()[0]
-                    == 41
+                    == 43
                 )
             files_before = {p.relative_to(tmp_path) for p in tmp_path.rglob("*") if p.is_file()}
             for _ in range(2):

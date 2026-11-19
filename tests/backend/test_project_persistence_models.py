@@ -115,6 +115,8 @@ def test_model_registry_is_exact_idempotent_and_uses_shared_metadata() -> None:
         "plan_proposals",
         "foreshadow_proposals",
         "chapter_drafts",
+        "semantic_index_entries",
+        "semantic_index_settings",
     }
     assert "alembic_version" not in first.tables
     assert all(table.metadata is first for table in first.tables.values())
@@ -153,6 +155,7 @@ def test_domain_import_does_not_register_models_or_create_database(tmp_path: Pat
             "method_annotations,method_templates,method_trials,model_budget_reservations,model_price_revisions,model_usage_attempts,"
             "outline_heads,outline_revisions,outlines,plan_proposals,"
             "project_budget_revisions,project_heads,project_revisions,projects,"
+            "semantic_index_entries,semantic_index_settings,"
             "story_bible_heads,story_bible_revisions,story_bibles,story_control_revisions,story_memory_revisions,"
             "volume_heads,volume_revisions,volumes,writing_job_budgets,writing_job_runs,writing_job_scene_marks,writing_jobs,writing_references,writing_rule_versions"
         ),

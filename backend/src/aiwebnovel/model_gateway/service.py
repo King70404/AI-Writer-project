@@ -28,7 +28,12 @@ from aiwebnovel.model_gateway.errors import (
     ModelProfileNotFound,
 )
 from aiwebnovel.model_gateway.models import ModelProfile, validate_key, validate_profile
-from aiwebnovel.model_gateway.provider import endpoint_for, generate_text
+from aiwebnovel.model_gateway.provider import (
+    EmbeddingResult,
+    embed_texts,
+    endpoint_for,
+    generate_text,
+)
 from aiwebnovel.usage.attribution import usage_attribution
 from aiwebnovel.usage.service import UsageLedgerService
 
@@ -82,8 +87,11 @@ class ModelGatewayService:
         model: str,
         max_output_tokens: int,
         has_key: bool,
+        purpose: Literal["chat", "embedding"] = "chat",
     ) -> ModelProfile:
-        profile = ModelProfile(profile_id, name, kind, base_url, model, max_output_tokens, has_key)
+        profile = ModelProfile(
+            profile_id, name, kind, base_url, model, max_output_tokens, has_key, purpose
+        )
         validate_profile(profile)
         endpoint_for(kind, base_url)
         return profile
@@ -116,16 +124,25 @@ class ModelGatewayService:
                 raise ModelConfigurationUnavailable
             records = []
             seen: set[str] = set()
+            base_keys = {
+                "id",
+                "name",
+                "kind",
+                "base_url",
+                "model",
+                "max_output_tokens",
+                "key_ref",
+            }
             for item in decoded["profiles"]:
-                if type(item) is not dict or set(item) != {
-                    "id",
-                    "name",
-                    "kind",
-                    "base_url",
-                    "model",
-                    "max_output_tokens",
-                    "key_ref",
-                }:
+                # ``purpose`` is written only for embedding profiles, so files saved
+                # before C-4 (and chat profiles) keep the exact original shape.
+                if type(item) is not dict or set(item) not in (
+                    base_keys,
+                    base_keys | {"purpose"},
+                ):
+                    raise ModelConfigurationUnavailable
+                purpose = item.get("purpose", "chat")
+                if "purpose" in item and purpose != "embedding":
                     raise ModelConfigurationUnavailable
                 key_ref = item["key_ref"]
                 if key_ref is not None and (
@@ -140,6 +157,7 @@ class ModelGatewayService:
                     item["model"],
                     item["max_output_tokens"],
                     key_ref is not None,
+                    purpose,
                 )
                 if profile.id in seen or (profile.kind == "local" and key_ref is not None):
                     raise ModelConfigurationUnavailable
@@ -171,6 +189,8 @@ class ModelGatewayService:
         for record in records:
             profile = asdict(record.profile)
             del profile["has_key"]
+            if profile["purpose"] == "chat":
+                del profile["purpose"]
             profile["key_ref"] = record.key_ref
             profiles.append(profile)
         self._atomic_write(
@@ -237,7 +257,8 @@ class ModelGatewayService:
             probe = self.check_connection(profile_id)
             if probe.configuration_version != expected_version:
                 raise AIContextChanged
-            if probe.status != "unsupported":
+            if probe.status != "unsupported" or self.get_profile(profile_id).purpose != "chat":
+                # An embedding profile is never probed with a chat message.
                 return probe
             messages = (GenerationMessage("user", "Reply OK."),)
             with usage_attribution("connection_check", uuid4().hex, project_id=project_id):
@@ -265,9 +286,17 @@ class ModelGatewayService:
         model: str,
         max_output_tokens: int = 2048,
         api_key: str | None = None,
+        purpose: Literal["chat", "embedding"] = "chat",
     ) -> ModelProfile:
         profile = self._make_profile(
-            uuid4().hex, name, kind, base_url, model, max_output_tokens, api_key is not None
+            uuid4().hex,
+            name,
+            kind,
+            base_url,
+            model,
+            max_output_tokens,
+            api_key is not None,
+            purpose,
         )
         if kind == "local" and api_key is not None:
             raise InvalidModelProfile
@@ -294,9 +323,10 @@ class ModelGatewayService:
         max_output_tokens: int = 2048,
         api_key: str | None = None,
         clear_key: bool = False,
+        purpose: Literal["chat", "embedding"] = "chat",
     ) -> ModelProfile:
         profile = self._make_profile(
-            profile_id, name, kind, base_url, model, max_output_tokens, False
+            profile_id, name, kind, base_url, model, max_output_tokens, False, purpose
         )
         if (api_key is not None and (clear_key or kind == "local")) or type(clear_key) is not bool:
             raise InvalidModelProfile
@@ -357,6 +387,9 @@ class ModelGatewayService:
             ):
                 raise AIContextChanged
             key = self._load_key(record)
+        if record.profile.purpose != "chat":
+            # Embedding profiles are only for confirmed semantic-index builds.
+            raise InvalidAIInput
         if record.profile.kind == "cloud" and key is None:
             raise AIProviderNotConfigured
         limit = record.profile.max_output_tokens if max_output_tokens is None else max_output_tokens
@@ -365,3 +398,32 @@ class ModelGatewayService:
         if before_send is not None:
             before_send(record.profile)
         return generate_text(record.profile, messages, api_key=key, max_output_tokens=limit)
+
+    def embed(
+        self,
+        profile_id: str,
+        texts: tuple[str, ...],
+        *,
+        expected_configuration: tuple[str, str, str] | None = None,
+        before_send: Callable[[ModelProfile], None] | None = None,
+    ) -> EmbeddingResult:
+        """Embed once with an embedding profile and its own protected key.
+
+        ``before_send`` runs after every local check, right before the request, so
+        the caller meters exactly the requests that go out (as with ``generate``)."""
+        with self._lock:
+            record = self._find(self._read(), profile_id)
+            if record.profile.purpose != "embedding":
+                raise InvalidAIInput
+            if expected_configuration is not None and expected_configuration != (
+                record.profile.kind,
+                record.profile.base_url,
+                record.profile.model,
+            ):
+                raise AIContextChanged
+            key = self._load_key(record)
+        if record.profile.kind == "cloud" and key is None:
+            raise AIProviderNotConfigured
+        if before_send is not None:
+            before_send(record.profile)
+        return embed_texts(record.profile, texts, api_key=key)

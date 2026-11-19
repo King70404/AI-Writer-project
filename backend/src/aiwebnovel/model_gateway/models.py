@@ -20,6 +20,9 @@ class ModelProfile:
     model: str
     max_output_tokens: int
     has_key: bool
+    # "embedding" profiles only serve explicitly confirmed semantic-index builds; they
+    # are never used for text generation. Profiles saved before C-4 are "chat".
+    purpose: Literal["chat", "embedding"] = "chat"
 
 
 def validate_profile(profile: ModelProfile) -> None:
@@ -36,6 +39,7 @@ def validate_profile(profile: ModelProfile) -> None:
         or type(profile.max_output_tokens) is not int
         or not 1 <= profile.max_output_tokens <= MAX_OUTPUT_TOKENS
         or type(profile.has_key) is not bool
+        or profile.purpose not in {"chat", "embedding"}
     ):
         raise InvalidModelProfile
 

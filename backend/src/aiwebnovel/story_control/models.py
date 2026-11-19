@@ -415,6 +415,8 @@ class RecallChoice(ControlModel):
     title: str
     reason: RecallReason
     characters: int
+    # C-4: cosine similarity when related facts were ranked semantically.
+    similarity: float | None = None
 
 
 class RecallOmission(ControlModel):
@@ -435,6 +437,10 @@ class RecallPreview(ControlModel):
     item_limit: int
     # True when a pinned fact is invalid or over budget: preparing a task is refused.
     blocked: bool
+    # C-4: deterministic, semantic (valid author-built index) or fallback (index missing
+    # or out of date; ``semantic_note`` says why). Pins and exclusions apply in every mode.
+    mode: Literal["deterministic", "semantic", "fallback"] = "deterministic"
+    semantic_note: str | None = None
 
 
 class RecallPreviewInput(RecallPolicyDocument):

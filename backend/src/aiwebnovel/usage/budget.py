@@ -88,6 +88,13 @@ def input_tokens_upper(messages: Iterable[GenerationMessage]) -> int:
     )
 
 
+def embedding_tokens_upper(texts: Iterable[str]) -> int:
+    """Upper bound for one embeddings request (same byte rule as chat messages)."""
+    return REQUEST_OVERHEAD_TOKENS + sum(
+        len(text.encode("utf-8")) + MESSAGE_OVERHEAD_TOKENS for text in texts
+    )
+
+
 def cost_micros(tokens: int, micros_per_million: int) -> int:
     # Round up: an estimate may overstate, never understate, the cost.
     return -(-tokens * micros_per_million // MICROS)

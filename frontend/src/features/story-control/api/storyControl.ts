@@ -237,6 +237,8 @@ export interface RecallPreview {
     readonly title: string;
     readonly reason: "pinned" | "related";
     readonly characters: number;
+    /** C-4：语义排序时的余弦相似度。 */
+    readonly similarity?: number;
   }[];
   readonly omitted: readonly {
     readonly id: string;
@@ -249,6 +251,38 @@ export interface RecallPreview {
   readonly character_limit: number;
   readonly item_limit: number;
   readonly blocked: boolean;
+  /** C-4：省略表示确定性文字关联；semantic 为语义混合排序；fallback 为索引缺失/过期已回退。 */
+  readonly mode?: RecallMode;
+  readonly semantic_note?: string;
+}
+export type RecallMode = "deterministic" | "semantic" | "fallback";
+/** C-4 召回模式的选读字段：确定性模式及空说明不写入结果。 */
+export function parseRecallMode(item: Record<string, unknown>): {
+  readonly mode?: RecallMode;
+  readonly semantic_note?: string;
+} {
+  const mode = item.mode;
+  if (
+    mode !== undefined &&
+    mode !== "deterministic" &&
+    mode !== "semantic" &&
+    mode !== "fallback"
+  )
+    invalid();
+  const note = item.semantic_note;
+  if (note !== undefined && note !== null && typeof note !== "string")
+    invalid();
+  return {
+    ...(mode === "semantic" || mode === "fallback" ? { mode } : {}),
+    ...(typeof note === "string" ? { semantic_note: note } : {}),
+  };
+}
+export function parseSimilarity(value: unknown): {
+  readonly similarity?: number;
+} {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== "number" || !(value >= -1 && value <= 1)) invalid();
+  return { similarity: value };
 }
 
 export class StoryControlError extends Error {
@@ -585,6 +619,7 @@ export function parsePreview(value: unknown, chapter: string): RecallPreview {
         title: str(choice.title),
         reason: recallReason(choice.reason),
         characters: int(choice.characters),
+        ...parseSimilarity(choice.similarity),
       };
     }),
     omitted: list(item.omitted, (raw) => {
@@ -601,6 +636,7 @@ export function parsePreview(value: unknown, chapter: string): RecallPreview {
     character_limit: int(item.character_limit),
     item_limit: int(item.item_limit),
     blocked: bool(item.blocked),
+    ...parseRecallMode(item),
   };
 }
 
