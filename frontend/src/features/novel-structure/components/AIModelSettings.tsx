@@ -215,7 +215,14 @@ export function AIModelSettings({
                 {connection[profile.id].configuration_version.slice(0, 12)}
               </p>
             ) : null}
-            {connection[profile.id]?.status === "unsupported" ? (
+            {connection[profile.id]?.status === "unsupported" &&
+            profile.purpose === "embedding" ? (
+              <p>
+                嵌入模型不提供测试消息；首次建立语义索引时会在你确认预估费用后实际调用。
+              </p>
+            ) : null}
+            {connection[profile.id]?.status === "unsupported" &&
+            profile.purpose !== "embedding" ? (
               <div>
                 <p>
                   将发送一条测试消息，可能计费。费用计入当前小说用量并受预算约束；测试结果不会进入正文。
