@@ -40,6 +40,20 @@ export interface SceneMark {
   readonly action: SceneAction;
   readonly scene_id?: string;
 }
+/** 本任务各步骤绑定的章节候选稿（只有计数，不含段落正文）。 */
+export interface JobDraftSummary {
+  readonly draft_id: string;
+  readonly chapter_id: string;
+  readonly step_index: number;
+  readonly status: "ready" | "running" | "failed" | "exhausted";
+  readonly segments: number;
+  readonly pending: number;
+  readonly adopted: number;
+  readonly discarded: number;
+  readonly edited: number;
+  readonly generated_characters: number;
+  readonly adopted_characters: number;
+}
 export interface WritingJob {
   readonly job_id: string;
   readonly project_id: string;
@@ -55,6 +69,8 @@ export interface WritingJob {
   readonly active_run_id: string | null;
   /** 当前步骤绑定的是章节候选稿时为其 id（同时也是 active_run_id）。 */
   readonly active_draft_id?: string | null;
+  /** 本任务产出的章节候选稿；旧版本服务端未返回时为空。 */
+  readonly drafts?: readonly JobDraftSummary[];
   readonly scene_progress: readonly StepSceneProgress[];
 }
 export type JobAction = "pause" | "resume" | "cancel" | "finish-step";
@@ -144,6 +160,29 @@ function parseProgress(value: unknown, index: number): StepSceneProgress {
     total: count(progress.total),
   };
 }
+function parseDraftSummary(value: unknown): JobDraftSummary {
+  const draft = object(value);
+  if (
+    draft.status !== "ready" &&
+    draft.status !== "running" &&
+    draft.status !== "failed" &&
+    draft.status !== "exhausted"
+  )
+    throw new Error("任务候选稿无法读取。");
+  return {
+    draft_id: str(draft.draft_id),
+    chapter_id: str(draft.chapter_id),
+    step_index: count(draft.step_index),
+    status: draft.status,
+    segments: count(draft.segments),
+    pending: count(draft.pending),
+    adopted: count(draft.adopted),
+    discarded: count(draft.discarded),
+    edited: count(draft.edited),
+    generated_characters: count(draft.generated_characters),
+    adopted_characters: count(draft.adopted_characters),
+  };
+}
 function parse(value: unknown): WritingJob {
   const job = object(value);
   if (
@@ -186,6 +225,14 @@ function parse(value: unknown): WritingJob {
       job.active_draft_id === null || job.active_draft_id === undefined
         ? null
         : str(job.active_draft_id),
+    drafts:
+      job.drafts === undefined
+        ? []
+        : Array.isArray(job.drafts)
+          ? job.drafts.map(parseDraftSummary)
+          : (() => {
+              throw new Error("任务候选稿无法读取。");
+            })(),
     scene_progress: sceneProgress,
   };
 }

@@ -37,9 +37,11 @@ function blocks(selector: string): string[] {
 
 function declarations(selector: string, property: string): string[] {
   return blocks(selector).flatMap((body) =>
-    [...body.matchAll(new RegExp(`(?:^|;|\\s)${property}\\s*:\\s*([^;]+)`, "gu"))].map(
-      (match) => match[1].trim(),
-    ),
+    [
+      ...body.matchAll(
+        new RegExp(`(?:^|;|\\s)${property}\\s*:\\s*([^;]+)`, "gu"),
+      ),
+    ].map((match) => match[1].trim()),
   );
 }
 
@@ -94,7 +96,10 @@ afterEach(() => {
 
 describe("本章模型用量 in a narrow writing-desk column", () => {
   it("never lays the totals out as a max-content label column beside a squeezed value column", () => {
-    const columns = declarations(".model-usage__totals", "grid-template-columns");
+    const columns = declarations(
+      ".model-usage__totals",
+      "grid-template-columns",
+    );
     expect(columns.length).toBeGreaterThan(0);
     // Every rule (including any media query) keeps a single, shrinkable column.
     expect(columns.every((value) => value === "minmax(0, 1fr)")).toBe(true);
@@ -132,9 +137,7 @@ describe("本章模型用量 in a narrow writing-desk column", () => {
       });
       await screen.findByText("已发出的模型请求");
       const list = details.querySelector("dl.model-usage__totals")!;
-      expect(getComputedStyle(list).gridTemplateColumns).toBe(
-        "minmax(0, 1fr)",
-      );
+      expect(getComputedStyle(list).gridTemplateColumns).toBe("minmax(0, 1fr)");
       const children = [...list.children];
       expect(children.map((item) => item.tagName)).toEqual([
         "DT",

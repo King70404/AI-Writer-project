@@ -8,9 +8,14 @@ import { parseEstimate, type SendEstimate } from "../../usage/api/budget";
  * 准备只冻结当前已保存版本与写作上下文，不调用模型；每段都是一次单独计量的请求（200–300 字），
  * 失败即停止、不自动重试。前面未采用的段落只作为“本次候选稿”传给下一段，
  * 不会成为事实，也不进入其他任务。采用时核对基线版本，正文手改过则拒绝并保留候选稿。
+ * 采用前作者可逐段编辑（保留模型原文，之后的“本次候选稿”与采用都用编辑后的文本）、
+ * 丢弃单段（不再发送、不能采用）或恢复已丢弃段；这些操作不调用模型、不写正文、不退还额度。
  */
 export type DraftStatus = "ready" | "running" | "failed" | "exhausted";
-export type SegmentStatus = "pending" | "adopted";
+export type SegmentStatus = "pending" | "adopted" | "discarded";
+export type SegmentAction = "edit" | "discard" | "restore";
+/** 作者编辑单段时的上限（与服务端一致）。 */
+export const MAX_SEGMENT_EDIT_CHARACTERS = 3000;
 
 export interface DraftSegment {
   readonly index: number;
@@ -20,6 +25,13 @@ export interface DraftSegment {
   readonly model: string;
   readonly status: SegmentStatus;
   readonly adopted_revision_id: string | null;
+  /** 作者编辑后的文本；`text` 始终是模型原文。 */
+  readonly edited_text: string | null;
+  readonly edited_characters: number | null;
+}
+/** 作者当前认可的文本：有编辑时用编辑后的文本。 */
+export function segmentText(segment: DraftSegment): string {
+  return segment.edited_text ?? segment.text;
 }
 export interface DraftFailure {
   readonly attempt: number;
@@ -63,6 +75,8 @@ export interface DraftSummary {
   readonly status: DraftStatus;
   readonly segments: number;
   readonly adopted: number;
+  readonly discarded: number;
+  readonly edited: number;
 }
 export interface DraftPreparation {
   readonly profileId: string;
@@ -124,7 +138,7 @@ function oneOf<T extends string>(options: readonly T[]) {
   };
 }
 const status = oneOf<DraftStatus>(["ready", "running", "failed", "exhausted"]);
-const segmentStatus = oneOf<SegmentStatus>(["pending", "adopted"]);
+const segmentStatus = oneOf<SegmentStatus>(["pending", "adopted", "discarded"]);
 const kind = oneOf<"local" | "cloud">(["local", "cloud"]);
 
 export function parseDraft(value: unknown, chapterId: string): ChapterDraft {
@@ -141,6 +155,8 @@ export function parseDraft(value: unknown, chapterId: string): ChapterDraft {
       model: str(segment.model),
       status: segmentStatus(segment.status),
       adopted_revision_id: nullable(segment.adopted_revision_id, id),
+      edited_text: nullable(segment.edited_text, str),
+      edited_characters: nullable(segment.edited_characters, int),
     };
   });
   // Segment indexes are positions; anything else could adopt the wrong text.
@@ -198,7 +214,7 @@ const MESSAGES: Record<string, string> = {
     "候选稿状态已变化（可能已在其他窗口发送或已用完额度），请刷新后再操作。",
   CHAPTER_DRAFT_QUOTA_EXHAUSTED: "本候选稿的请求次数或字数额度已用完。",
   CHAPTER_DRAFT_INVALID:
-    "请求无效（额度超出上限、所选段落不存在或已采用），或本章候选稿记录已达上限。",
+    "请求无效（额度超出上限、所选段落不存在、已采用或已丢弃、编辑内容为空），或本章候选稿记录已达上限。",
   CHAPTER_DRAFT_NOT_FOUND: "该候选稿已不存在，请刷新。",
   CHAPTER_DRAFT_CONSENT_REQUIRED:
     "这是云端模型：请先勾选同意发送本章上下文与候选稿。",
@@ -253,6 +269,8 @@ export const chapterDraftClient = {
             status: status(item.status),
             segments: int(item.segments),
             adopted: int(item.adopted),
+            discarded: int(item.discarded ?? 0),
+            edited: int(item.edited ?? 0),
           };
         }),
       ),
@@ -315,6 +333,24 @@ export const chapterDraftClient = {
               idempotency_key: idempotencyKey,
               segment_indexes: [...segmentIndexes],
             },
+        (value) => parseDraft(value, chapterId),
+        await csrf(),
+      ),
+    ),
+  /** 编辑、丢弃或恢复单段：不调用模型，不写正文。 */
+  changeSegment: (
+    chapterId: string,
+    draft: ChapterDraft,
+    index: number,
+    action: SegmentAction,
+    text?: string,
+  ) =>
+    request(async () =>
+      postJson(
+        `${base(chapterId)}/${id(draft.id)}/segments/${int(index)}`,
+        action === "edit"
+          ? { expected_version: draft.version, action, text }
+          : { expected_version: draft.version, action },
         (value) => parseDraft(value, chapterId),
         await csrf(),
       ),
