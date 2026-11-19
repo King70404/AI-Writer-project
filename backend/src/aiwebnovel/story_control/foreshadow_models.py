@@ -15,8 +15,9 @@ still exactly as frozen.
 Before adopting, the author may edit a card; the model's original card and its check stay
 unchanged for comparison, the edit is checked against the frozen text the same way (so an
 edit can also repair an unverifiable quote), and adoption uses the edited card. An adopted
-card can be undone: the thread it created is retracted, or the payoff it recorded is removed
-and the thread's earlier status restored, but only while the thread is still exactly as this
+card can be undone: the thread it created is retracted, or the payoff/advance evidence it
+recorded is removed and the thread's earlier status restored (other still-adopted payoff or
+advance cards of the same extraction keep their effect), but only while the thread is still exactly as this
 extraction left it; otherwise the undo is refused so later changes are never overwritten.
 """
 

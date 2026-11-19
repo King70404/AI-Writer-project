@@ -323,3 +323,90 @@ def test_retracted_thread_id_is_never_reused_and_chapter_edits_do_not_block_undo
     else:  # pragma: no cover - the assertion below explains the failure
         raise AssertionError("A retracted id must never be reused.")
     assert removed["adoptions"] == []
+
+
+def test_foreshadow_advance_card_edit_and_undo_keep_other_adopted_evidence(ranged, monkeypatch):
+    """Integration of card edit/undo (#57) with advance cards (#59)."""
+    import json
+
+    from tests.backend.test_story_control import revision
+
+    w, chapters, _ = ranged
+    setup = {
+        "role": "setup",
+        "chapter_id": chapters[0],
+        "chapter_revision_id": revision(w, chapters[0]),
+        "quote": "船夫左臂缠着旧布",
+    }
+    planted = pp._api(
+        w,
+        "post",
+        "/plot-threads",
+        {"expected_version": 0, "title": "旧布之谜", "status": "planted", "anchors": [setup]},
+        201,
+    )
+    proposal = fx._prepare(w, chapters)
+    reply = {
+        "cards": [
+            {
+                "kind": "advance",
+                "thread_id": planted["id"],
+                "chapter_id": chapters[1],
+                "quote": "船夫解开旧布，露出一道刀疤，那是当年替少主挡下的一刀。",
+                "reason": "旧布揭开",
+            },
+            {
+                "kind": "payoff",
+                "thread_id": planted["id"],
+                "chapter_id": chapters[1],
+                "quote": "那是当年替少主挡下的一刀。",
+            },
+        ]
+    }
+    calls = transport(monkeypatch, GeneratedText(json.dumps(reply, ensure_ascii=False), "fake"))
+    sent = fx._send(w, proposal)
+    assert [c["valid"] for c in sent["effective_checks"]] == [True, True]
+
+    # An advance card is edited like any other card and still verified verbatim.
+    advance = sent["cards"][0]
+    bad = _edit(w, "foreshadow-proposals", sent, 0, {**advance, "quote": "不存在"}, 422)
+    assert bad["error"]["code"] == "FORESHADOW_CARD_INVALID"
+    edited = _edit(
+        w, "foreshadow-proposals", sent, 0, {**advance, "quote": "船夫解开旧布，露出一道刀疤"}
+    )
+    assert edited["cards"][0] == advance and edited["edits"][0]["index"] == 0
+
+    adopted = fx._adopt(w, edited, [0, 1])
+    assert [(a["index"], a["action"], a["edited"]) for a in adopted["adoptions"]] == [
+        (0, "advanced", True),
+        (1, "paid_off", False),
+    ]
+    thread = fx._threads(w)[planted["id"]]
+    assert thread["status"] == "paid_off"
+    assert [(a["role"], a["quote"]) for a in thread["anchors"]] == [
+        ("setup", "船夫左臂缠着旧布"),
+        ("advance", "船夫解开旧布，露出一道刀疤"),
+        ("payoff", "那是当年替少主挡下的一刀。"),
+    ]
+
+    # Undoing the advance removes only its evidence; the adopted payoff keeps paid_off.
+    without_advance = _undo(w, "foreshadow-proposals", adopted, 0)
+    thread = fx._threads(w)[planted["id"]]
+    assert thread["status"] == "paid_off"
+    assert [a["role"] for a in thread["anchors"]] == ["setup", "payoff"]
+    assert [(u["index"], u["action"]) for a in [without_advance] for u in a["undos"]] == [
+        (0, "advanced")
+    ]
+
+    # Re-adopting the advance and then undoing the payoff leaves the thread advancing.
+    readvanced = fx._adopt(w, without_advance, [0])
+    without_payoff = _undo(w, "foreshadow-proposals", readvanced, 1)
+    thread = fx._threads(w)[planted["id"]]
+    assert thread["status"] == "advancing"
+    assert [a["role"] for a in thread["anchors"]] == ["setup", "advance"]
+
+    # Undoing the last card restores the status frozen at preparation.
+    _undo(w, "foreshadow-proposals", without_payoff, 0)
+    thread = fx._threads(w)[planted["id"]]
+    assert thread["status"] == "planted" and [a["role"] for a in thread["anchors"]] == ["setup"]
+    assert len(calls) == 1 and len(usage(w)["items"]) == 1
