@@ -32,6 +32,8 @@ from aiwebnovel.ai_writing.chapter_draft_models import (
     DraftSegment,
     DraftStatus,
     FrozenContext,
+    SegmentAction,
+    segment_text,
 )
 from aiwebnovel.ai_writing.chapter_draft_persistence import has_quota, remaining, step_upper
 from aiwebnovel.ai_writing.errors import AIContextChanged, AIProviderUnavailable
@@ -82,6 +84,16 @@ class ChapterDraftStore(Protocol):
         idempotency_key: str,
     ) -> tuple[ChapterDraft, int]: ...
 
+    def change_segment(
+        self,
+        chapter_id: str,
+        draft_id: str,
+        index: int,
+        expected_version: int,
+        action: SegmentAction,
+        text: str | None,
+    ) -> tuple[ChapterDraft, int]: ...
+
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
@@ -97,7 +109,8 @@ def messages(draft: ChapterDraft) -> tuple[GenerationMessage, ...]:
     prompt = CONTINUE_PROMPT + DRAFT_PROMPT
     if "chapter_plan" in draft.context.included_sources:
         prompt += "章节规划覆盖整章，目标字数指整章而非本次输出。"
-    pending = [item.text for item in draft.segments if item.status == "pending"]
+    # The author's edits replace the original text; discarded segments are never sent again.
+    pending = [segment_text(item) for item in draft.segments if item.status == "pending"]
     return (
         GenerationMessage(
             "system",
@@ -141,7 +154,10 @@ def _summary(draft: ChapterDraft, version: int) -> ChapterDraftSummary:
         status=draft.status,
         segments=len(draft.segments),
         adopted=sum(item.status == "adopted" for item in draft.segments),
+        discarded=sum(item.status == "discarded" for item in draft.segments),
+        edited=sum(item.edited_text is not None for item in draft.segments),
         generated_characters=draft.generated_characters,
+        writing_job_id=draft.writing_job_id,
         created_at=draft.created_at,
     )
 
@@ -343,6 +359,27 @@ class ChapterDraftService:
     ) -> ChapterDraftView:
         chapter_id = str(ChapterId.parse(chapter_id))
         return _view(*self._store.adopt(chapter_id, draft_id, segment_indexes, idempotency_key))
+
+    # ------------------------------------------------------------------ author changes
+
+    def change_segment(
+        self,
+        chapter_id: str,
+        draft_id: str,
+        index: int,
+        expected_version: int,
+        action: SegmentAction,
+        text: str | None = None,
+    ) -> ChapterDraftView:
+        """Edit, discard or restore one pending segment; no model request, no chapter write."""
+        chapter_id = str(ChapterId.parse(chapter_id))
+        if (action == "edit") != (text is not None) or (
+            text is not None and not any(not character.isspace() for character in text)
+        ):
+            raise ChapterDraftInvalid
+        return _view(
+            *self._store.change_segment(chapter_id, draft_id, index, expected_version, action, text)
+        )
 
     def recover_interrupted(self) -> None:
         """Call once during exclusive application startup, never per request."""

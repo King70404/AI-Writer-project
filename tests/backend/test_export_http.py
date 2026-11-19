@@ -143,8 +143,8 @@ def test_openapi_preserves_m6_with_exact_export_and_project_deletion_additions(
     }
     old = {(item["method"], item["path"]) for item in baseline["production_api_operations"]}
     assert len(old) == 36
-    assert len(operations) == 153
-    assert len(AI_WORKFLOW_OPERATIONS) == 20
+    assert len(operations) == 154
+    assert len(AI_WORKFLOW_OPERATIONS) == 21
     assert len(WRITING_PREPARATION_OPERATIONS) == 22
     assert len(BACKUP_OPERATIONS) == 5
     assert len(WORKBENCH_OPERATIONS) == 6

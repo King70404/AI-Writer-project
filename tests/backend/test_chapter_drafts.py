@@ -349,3 +349,111 @@ def test_migration_adds_ledger_operation_and_downgrade_keeps_records(tmp_path):
         connection.commit()
     refused = _run_alembic(path, "downgrade", "0023_add_foreshadow_proposals")
     assert refused.returncode != 0 and "must be retained" in refused.stderr
+
+
+def change(w, draft, index, action, text=None, expect=200, version=None):
+    body = {"expected_version": draft["version"] if version is None else version, "action": action}
+    if text is not None:
+        body["text"] = text
+    return _call(w, "post", f"/{draft['id']}/segments/{index}", body, expect)
+
+
+def test_edit_discard_and_restore_segments_without_model_or_chapter_write(workflow, monkeypatch):
+    w = workflow
+    draft = prepare(w, max_segments=5)
+    transport(monkeypatch, reply("甲"), reply("乙"), reply("丙"))
+    sent = send(w, draft, segments=3)
+    revisions = count(w, "SELECT COUNT(*) FROM chapter_revisions")
+    attempts = len(usage(w)["items"])
+    calls = transport(monkeypatch)
+    edited_text = "作者改写的第一段。"
+    edited = change(w, sent, 0, "edit", edited_text)
+    first = edited["segments"][0]
+    assert first["text"] == segment("甲") and first["edited_text"] == edited_text
+    assert first["edited_characters"] == 9 and first["status"] == "pending"
+    assert edited["version"] == sent["version"] + 1
+    # A stale version is refused; nothing changes.
+    assert change(w, sent, 1, "discard", expect=409)["error"]["code"] == "CHAPTER_DRAFT_CONFLICT"
+    discarded = change(w, edited, 1, "discard")
+    assert [item["status"] for item in discarded["segments"]] == ["pending", "discarded", "pending"]
+    # The next request sees the author's edit and never the discarded segment.
+    preview = discarded["next_request_preview"]
+    assert edited_text in preview and segment("甲") not in preview
+    assert segment("乙") not in preview and segment("丙") in preview
+    # Quota already used is never returned by editing or discarding.
+    assert discarded["attempts"] == 3 and discarded["generated_characters"] == 660
+    # Invalid changes: missing/extra text, blank text, wrong state or index.
+    assert change(w, discarded, 2, "edit", expect=422)
+    assert change(w, discarded, 2, "discard", "多余", expect=422)
+    assert change(w, discarded, 2, "edit", "  \n ", expect=422)
+    assert change(w, discarded, 1, "edit", "改已丢弃段", expect=422)
+    assert change(w, discarded, 0, "restore", expect=422)
+    assert change(w, discarded, 9, "discard", expect=422)
+    # A discarded segment cannot be adopted.
+    assert adopt(w, discarded, "key-discarded", [1], expect=422)
+    whole = adopt(w, discarded, "key-edited-whole")
+    assert whole["receipts"][-1]["segment_indexes"] == [0, 2]
+    assert content(w) == "\n\n".join([ORIGINAL, edited_text, segment("丙")])
+    assert [item["status"] for item in whole["segments"]] == ["adopted", "discarded", "adopted"]
+    # Adopted segments are final; a discarded one can still be restored and adopted later.
+    assert change(w, whole, 0, "edit", "再改", expect=422)
+    restored = change(w, whole, 1, "restore")
+    assert restored["segments"][1]["status"] == "pending"
+    assert restored["segments"][1]["discarded_at"] is None
+    assert count(w, "SELECT COUNT(*) FROM chapter_revisions") == revisions + 1
+    assert calls == [] and len(usage(w)["items"]) == attempts
+    listed = _call(w, "get", "")["items"][0]
+    assert (listed["adopted"], listed["discarded"], listed["edited"]) == (2, 0, 1)
+
+
+def test_editing_back_to_the_original_removes_the_edit(workflow, monkeypatch):
+    w = workflow
+    draft = prepare(w)
+    transport(monkeypatch, reply("甲"))
+    sent = send(w, draft)
+    edited = change(w, sent, 0, "edit", "改一下")
+    reverted = change(w, edited, 0, "edit", segment("甲"))
+    first = reverted["segments"][0]
+    assert first["edited_text"] is None and first["edited_characters"] is None
+    assert _call(w, "get", "")["items"][0]["edited"] == 0
+    # A whitespace-only replacement is refused before the store is touched.
+    assert change(w, reverted, 0, "edit", "\u3000", expect=422)
+
+
+def test_writing_job_lists_its_drafts_and_counts_edited_adoption(workflow, monkeypatch):
+    w = workflow
+    job = w.client.post(
+        f"/api/v1/projects/{w.project}/writing-jobs",
+        headers=w.headers,
+        json={"title": "候选稿抽屉", "chapter_ids": [w.chapter], "max_requests": 3},
+    ).json()
+    path = f"/api/v1/writing-jobs/{job['job_id']}"
+    assert w.client.get(path).json()["drafts"] == []
+    draft = prepare(w, writing_job_id=job["job_id"])
+    transport(monkeypatch, reply("甲"), reply("乙"))
+    sent = send(w, draft, segments=2)
+    edited = change(w, sent, 0, "edit", "作者改短。")
+    discarded = change(w, edited, 1, "discard")
+    adopt(w, discarded, "job-drawer-adopt")
+    listed = w.client.get(path).json()
+    assert listed["drafts"] == [
+        {
+            "draft_id": draft["id"],
+            "chapter_id": w.chapter,
+            "step_index": 0,
+            "status": "ready",
+            "segments": 2,
+            "pending": 0,
+            "adopted": 1,
+            "discarded": 1,
+            "edited": 1,
+            "generated_characters": 440,
+            "adopted_characters": 5,
+            "created_at": listed["drafts"][0]["created_at"],
+        }
+    ]
+    assert listed["adopted_characters"] == 5 and listed["generated_characters"] == 440
+    # The job summary carries counts only, never segment text.
+    assert segment("甲") not in str(listed) and "作者改短" not in str(listed)
+    projects = w.client.get(f"/api/v1/projects/{w.project}/writing-jobs").json()
+    assert projects[0]["drafts"][0]["draft_id"] == draft["id"]
