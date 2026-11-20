@@ -525,7 +525,7 @@ def test_migration_adds_tables_and_ledger_operation_and_keeps_records(tmp_path):
 
     assert _run_alembic(path, "upgrade", "0024_add_chapter_drafts").returncode == 0
     before = triggers()
-    upgraded = _run_alembic(path, "upgrade", "head")
+    upgraded = _run_alembic(path, "upgrade", "0025_add_semantic_index")
     assert upgraded.returncode == 0, upgraded.stderr
     ledger = objects("SELECT sql FROM sqlite_master WHERE name='model_usage_attempts'")[0][0]
     assert "'semantic_index'" in ledger and "'chapter_draft'" in ledger
@@ -535,7 +535,7 @@ def test_migration_adds_tables_and_ledger_operation_and_keeps_records(tmp_path):
     assert down.returncode == 0, down.stderr
     assert objects("SELECT name FROM sqlite_master WHERE name LIKE 'semantic_index%'") == []
     assert triggers() == before
-    assert _run_alembic(path, "upgrade", "head").returncode == 0
+    assert _run_alembic(path, "upgrade", "0025_add_semantic_index").returncode == 0
     with closing(sqlite3.connect(path)) as connection:
         connection.execute("PRAGMA foreign_keys=OFF")
         connection.execute(
