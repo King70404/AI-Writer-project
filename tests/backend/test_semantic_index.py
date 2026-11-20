@@ -31,6 +31,8 @@ from aiwebnovel.model_gateway.provider import (
 from aiwebnovel.model_gateway.service import ModelGatewayService
 from aiwebnovel.usage.attribution import current_usage_attribution
 
+KEY = "test-embedding-key-not-real"
+
 __all__ = ["workflow"]
 
 KEYWORDS = ("伤", "痛", "雨", "剑", "灯")
@@ -256,7 +258,7 @@ def test_cloud_embedding_needs_explicit_cloud_consent(workflow, monkeypatch):
         kind="cloud",
         base_url="https://api.example.com/v1",
         model="cloud-embed",
-        api_key="test-key-not-real",
+        api_key=KEY,
         purpose="embedding",
     ).id
     settings(w, profile)
