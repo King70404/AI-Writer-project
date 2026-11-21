@@ -21,3 +21,8 @@
 .writing-jobs li {
   margin-block: 0.4rem;
 }
+.writing-jobs__scenes {
+  margin-block: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--line, #d8cdbc);
+}

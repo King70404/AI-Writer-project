@@ -125,5 +125,6 @@ WRITING_JOB_OPERATIONS = {
     ("GET", "/api/v1/projects/{project_id}/writing-jobs"),
     ("GET", "/api/v1/writing-jobs/{job_id}"),
     ("POST", "/api/v1/writing-jobs/{job_id}/bind-run"),
+    ("POST", "/api/v1/writing-jobs/{job_id}/scene-progress"),
     ("POST", "/api/v1/writing-jobs/{job_id}/{action}"),
 }
