@@ -2276,6 +2276,18 @@ summary:focus-visible {
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
 }
+.story-control__proposal {
+  border: 1px solid var(--line, #ddd3c4);
+  border-radius: 6px;
+  margin-block: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+.story-control__preview {
+  max-height: 16rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .recall-control meter {
   width: 100%;
 }

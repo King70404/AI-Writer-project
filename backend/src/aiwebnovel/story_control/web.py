@@ -33,7 +33,22 @@ from aiwebnovel.story_control.models import (
     ThreadStatus,
     Timeline,
 )
+from aiwebnovel.story_control.proposal_models import (
+    AdoptCards,
+    PlanProposalConflict,
+    PlanProposalConsentRequired,
+    PlanProposalInvalid,
+    PlanProposalList,
+    PlanProposalNotFound,
+    PlanProposalOutputInvalid,
+    PlanProposalStale,
+    PlanProposalView,
+    PrepareProposal,
+    SendProposal,
+)
+from aiwebnovel.story_control.proposals import PlanProposalService
 from aiwebnovel.story_control.service import StoryControlService
+from aiwebnovel.usage.budget import SendEstimate
 
 _MAX_OFFSET = 1_000_000
 _ERRORS: dict[type[DomainError], tuple[int, str]] = {
@@ -42,6 +57,12 @@ _ERRORS: dict[type[DomainError], tuple[int, str]] = {
     StoryControlNotFound: (404, "STORY_CONTROL_NOT_FOUND"),
     StoryControlCycle: (422, "STORY_CONTROL_CYCLE"),
     RecallPinsInvalid: (409, "AI_RECALL_PINS_INVALID"),
+    PlanProposalConflict: (409, "PLAN_PROPOSAL_CONFLICT"),
+    PlanProposalStale: (409, "PLAN_PROPOSAL_STALE"),
+    PlanProposalInvalid: (422, "PLAN_PROPOSAL_INVALID"),
+    PlanProposalNotFound: (404, "PLAN_PROPOSAL_NOT_FOUND"),
+    PlanProposalConsentRequired: (403, "PLAN_PROPOSAL_CONSENT_REQUIRED"),
+    PlanProposalOutputInvalid: (422, "PLAN_PROPOSAL_OUTPUT_INVALID"),
 }
 
 
@@ -60,6 +81,17 @@ def get_story_control_service(request: Request) -> StoryControlService:
             status_code=503,
         )
     return service
+
+
+def get_plan_proposal_service(request: Request) -> PlanProposalService:
+    proposals = get_story_control_service(request).proposal_service
+    if not isinstance(proposals, PlanProposalService):
+        raise AppError(
+            code="STORY_CONTROL_UNAVAILABLE",
+            message="Story planning is unavailable.",
+            status_code=503,
+        )
+    return proposals
 
 
 def _invoke[T](response: Response, action: Callable[[], T], *, project: bool = False) -> T:
@@ -155,6 +187,7 @@ def get_fact_query(request: Request) -> dict[str, object]:
 
 Service = Annotated[StoryControlService, Depends(get_story_control_service)]
 Json = Annotated[None, Depends(require_json)]
+Proposals = Annotated[PlanProposalService, Depends(get_plan_proposal_service)]
 
 
 def create_story_control_router(*, api_prefix: str) -> APIRouter:
@@ -182,6 +215,79 @@ def create_story_control_router(*, api_prefix: str) -> APIRouter:
     ) -> Goal:
         return _invoke(
             response, lambda: service.save_goal(project_id, goal_id, payload), project=True
+        )
+
+    proposals = project + "/plan-proposals"
+
+    @router.get(proposals, response_model=PlanProposalList)
+    def list_proposals(project_id: str, response: Response, service: Proposals) -> PlanProposalList:
+        return _invoke(
+            response,
+            lambda: PlanProposalList(
+                project_id=project_id, items=service.list_proposals(project_id)
+            ),
+            project=True,
+        )
+
+    @router.post(proposals, response_model=PlanProposalView, status_code=201)
+    def prepare_proposal(
+        project_id: str,
+        payload: PrepareProposal,
+        response: Response,
+        service: Proposals,
+        _json: Json,
+    ) -> PlanProposalView:
+        # Freezes the goal, existing plans and chapter titles; no model request.
+        return _invoke(
+            response,
+            lambda: service.prepare(
+                project_id, payload.goal_id, payload.profile_id, payload.author_request
+            ),
+            project=True,
+        )
+
+    @router.get(proposals + "/{proposal_id}", response_model=PlanProposalView)
+    def get_proposal(
+        project_id: str, proposal_id: str, response: Response, service: Proposals
+    ) -> PlanProposalView:
+        return _invoke(response, lambda: service.get(project_id, proposal_id), project=True)
+
+    @router.get(proposals + "/{proposal_id}/estimate", response_model=SendEstimate)
+    def estimate_proposal(
+        project_id: str, proposal_id: str, response: Response, service: Proposals
+    ) -> SendEstimate:
+        return _invoke(response, lambda: service.estimate(project_id, proposal_id), project=True)
+
+    @router.post(proposals + "/{proposal_id}/send", response_model=PlanProposalView)
+    def send_proposal(
+        project_id: str,
+        proposal_id: str,
+        payload: SendProposal,
+        response: Response,
+        service: Proposals,
+        _json: Json,
+    ) -> PlanProposalView:
+        return _invoke(
+            response,
+            lambda: service.send(
+                project_id, proposal_id, payload.expected_version, payload.cloud_consent
+            ),
+            project=True,
+        )
+
+    @router.post(proposals + "/{proposal_id}/adopt", response_model=PlanProposalView)
+    def adopt_proposal(
+        project_id: str,
+        proposal_id: str,
+        payload: AdoptCards,
+        response: Response,
+        service: Proposals,
+        _json: Json,
+    ) -> PlanProposalView:
+        return _invoke(
+            response,
+            lambda: service.adopt(project_id, proposal_id, payload.card_indexes),
+            project=True,
         )
 
     @router.get(project + "/timeline", response_model=Timeline)

@@ -25,6 +25,8 @@ import {
   type ThreadStatus,
   type Timeline,
 } from "../api/storyControl";
+import type { PlanProposalClient } from "../api/planProposal";
+import { PlanProposalPanel } from "./PlanProposalPanel";
 
 type Editing =
   | { readonly kind: "goal"; readonly item: Goal | null }
@@ -784,13 +786,16 @@ export function StoryControlPanel({
   focusThreadId,
   refreshKey = 0,
   client = storyControlClient,
+  proposalClient,
 }: {
   readonly projectId: string;
   readonly focusThreadId?: string;
   readonly refreshKey?: number;
   readonly client?: StoryControlClient;
+  readonly proposalClient?: PlanProposalClient;
 }) {
   const [plan, setPlan] = useState<ArcPlan | null>(null);
+  const [splitting, setSplitting] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -927,6 +932,29 @@ export function StoryControlPanel({
               >
                 编辑「{view.goal.title}」
               </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setSplitting((current) =>
+                    current === view.goal.id ? null : view.goal.id,
+                  )
+                }
+              >
+                建议拆分「{view.goal.title}」
+              </button>
+              {splitting === view.goal.id ? (
+                <PlanProposalPanel
+                  projectId={projectId}
+                  goal={view.goal}
+                  plan={plan}
+                  client={proposalClient}
+                  onAdopted={() => {
+                    setNotice("已采用所选建议卡，规划已更新。");
+                    void load();
+                  }}
+                  onClose={() => setSplitting(null)}
+                />
+              ) : null}
             </li>
           ))}
         </ul>
@@ -1175,11 +1203,13 @@ export function StoryControlSection({
   focusThreadId,
   refreshKey,
   client,
+  proposalClient,
 }: {
   readonly projectId: string;
   readonly focusThreadId?: string;
   readonly refreshKey?: number;
   readonly client?: StoryControlClient;
+  readonly proposalClient?: PlanProposalClient;
 }) {
   const [opened, setOpened] = useState(false);
   return (
@@ -1199,6 +1229,7 @@ export function StoryControlSection({
           projectId={projectId}
           refreshKey={refreshKey}
           client={client}
+          proposalClient={proposalClient}
         />
       ) : null}
     </details>

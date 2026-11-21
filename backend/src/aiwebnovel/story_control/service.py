@@ -9,7 +9,7 @@ from collections import deque
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Literal, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 from uuid import uuid4
 
 from aiwebnovel.ai_writing.application.models import ContextSource
@@ -74,6 +74,9 @@ from aiwebnovel.story_control.models import (
 )
 from aiwebnovel.story_memory.models import Fact, RecallSelectionPolicy
 from aiwebnovel.story_memory.service import StoryMemoryService
+
+if TYPE_CHECKING:
+    from aiwebnovel.story_control.proposals import PlanProposalService
 
 GUIDE_CHARACTER_LIMIT = 4_000
 MAX_CHARACTER_OPTIONS = 500
@@ -170,6 +173,8 @@ class StoryControlService:
         self._structure = structure
         self._characters = characters
         self._memory = memory
+        # Composed only with the metered provider and budgets; None leaves proposals off.
+        self.proposal_service: PlanProposalService | None = None
 
     # ------------------------------------------------------------------ helpers
 
@@ -227,6 +232,7 @@ class StoryControlService:
         document: dict[str, object],
         validate: Callable[[Layout, list[T], T | None, T], None],
         limit: int,
+        create_id: str | None = None,
     ) -> T:
         def previous_of(items: Iterable[ControlItem]) -> T | None:
             current = next(
@@ -244,7 +250,7 @@ class StoryControlService:
         item = kind.model_validate(
             {
                 **document,
-                "id": entity_id or str(uuid4()),
+                "id": entity_id or create_id or str(uuid4()),
                 "revision_id": str(uuid4()),
                 "project_id": project_id,
                 "version": expected_version + 1,
@@ -306,6 +312,25 @@ class StoryControlService:
             data.model_dump(exclude={"expected_version"}),
             self._validate_goal,
             MAX_GOALS,
+        )
+
+    def create_goal_with_id(self, project_id: str, goal_id: str, data: SaveGoal) -> Goal:
+        """Create a goal under a caller-chosen id; an existing id is a version conflict.
+
+        Plan proposal adoption uses a deterministic id per card, so a repeated or
+        interrupted adoption can never create the same suggested goal twice.
+        """
+        if data.expected_version != 0:
+            raise StoryControlInvalid
+        return self._save(
+            project_id,
+            None,
+            Goal,
+            0,
+            data.model_dump(exclude={"expected_version"}),
+            self._validate_goal,
+            MAX_GOALS,
+            create_id=goal_id,
         )
 
     @staticmethod
