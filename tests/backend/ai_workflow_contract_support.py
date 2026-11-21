@@ -105,6 +105,13 @@ STORY_CONTROL_OPERATIONS = {
     ("GET", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}/estimate"),
     ("POST", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}/send"),
     ("POST", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}/adopt"),
+    ("GET", "/api/v1/projects/{project_id}/foreshadow-proposals"),
+    ("POST", "/api/v1/projects/{project_id}/foreshadow-proposals"),
+    ("POST", "/api/v1/projects/{project_id}/foreshadow-proposals/preview"),
+    ("GET", "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}"),
+    ("GET", "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}/estimate"),
+    ("POST", "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}/send"),
+    ("POST", "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}/adopt"),
 }
 
 IMPORT_OPERATIONS = {

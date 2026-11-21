@@ -25,7 +25,9 @@ import {
   type ThreadStatus,
   type Timeline,
 } from "../api/storyControl";
+import type { ForeshadowExtractionClient } from "../api/foreshadowExtraction";
 import type { PlanProposalClient } from "../api/planProposal";
+import { ForeshadowExtractionPanel } from "./ForeshadowExtractionPanel";
 import { PlanProposalPanel } from "./PlanProposalPanel";
 
 type Editing =
@@ -787,15 +789,18 @@ export function StoryControlPanel({
   refreshKey = 0,
   client = storyControlClient,
   proposalClient,
+  foreshadowClient,
 }: {
   readonly projectId: string;
   readonly focusThreadId?: string;
   readonly refreshKey?: number;
   readonly client?: StoryControlClient;
   readonly proposalClient?: PlanProposalClient;
+  readonly foreshadowClient?: ForeshadowExtractionClient;
 }) {
   const [plan, setPlan] = useState<ArcPlan | null>(null);
   const [splitting, setSplitting] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -1065,6 +1070,24 @@ export function StoryControlPanel({
       >
         新建伏笔
       </button>
+      <button
+        type="button"
+        onClick={() => setExtracting((current) => !current)}
+      >
+        批量提取伏笔建议
+      </button>
+      {extracting ? (
+        <ForeshadowExtractionPanel
+          projectId={projectId}
+          plan={plan}
+          client={foreshadowClient}
+          onAdopted={() => {
+            setNotice("已采用所选伏笔建议卡，伏笔已更新。");
+            void load();
+          }}
+          onClose={() => setExtracting(false)}
+        />
+      ) : null}
       {editing?.kind === "thread" ? (
         <ThreadForm
           key={editing.item?.id ?? "new"}
@@ -1204,12 +1227,14 @@ export function StoryControlSection({
   refreshKey,
   client,
   proposalClient,
+  foreshadowClient,
 }: {
   readonly projectId: string;
   readonly focusThreadId?: string;
   readonly refreshKey?: number;
   readonly client?: StoryControlClient;
   readonly proposalClient?: PlanProposalClient;
+  readonly foreshadowClient?: ForeshadowExtractionClient;
 }) {
   const [opened, setOpened] = useState(false);
   return (
@@ -1230,6 +1255,7 @@ export function StoryControlSection({
           refreshKey={refreshKey}
           client={client}
           proposalClient={proposalClient}
+          foreshadowClient={foreshadowClient}
         />
       ) : null}
     </details>

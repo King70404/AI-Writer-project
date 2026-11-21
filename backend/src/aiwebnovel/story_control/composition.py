@@ -38,4 +38,12 @@ def compose_story_control(
         service.proposal_service = PlanProposalService(
             store, service, provider, model_reader, budgets
         )
+        from aiwebnovel.story_control.foreshadow import ForeshadowExtractionService
+        from aiwebnovel.story_control.foreshadow_persistence import SqlAlchemyForeshadowStore
+
+        extractions = SqlAlchemyForeshadowStore(sessions, projects)
+        extractions.recover_interrupted()
+        service.foreshadow_service = ForeshadowExtractionService(
+            extractions, service, provider, model_reader, budgets
+        )
     return service

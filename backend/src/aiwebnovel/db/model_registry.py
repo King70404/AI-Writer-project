@@ -52,6 +52,7 @@ WRITING_JOB_TABLE_NAMES = frozenset({"writing_jobs"})
 WRITING_JOB_BUDGET_TABLE_NAMES = frozenset({"writing_job_budgets", "writing_job_runs"})
 WRITING_JOB_SCENE_TABLE_NAMES = frozenset({"writing_job_scene_marks"})
 PLAN_PROPOSAL_TABLE_NAMES = frozenset({"plan_proposals"})
+FORESHADOW_PROPOSAL_TABLE_NAMES = frozenset({"foreshadow_proposals"})
 HANDOFF_TABLE_NAMES = frozenset({"handoff_snapshots", "external_candidates"})
 IMPORT_TABLE_NAMES = frozenset({"import_previews", "import_receipts"})
 STORY_CONTROL_TABLE_NAMES = frozenset({"story_control_revisions"})
@@ -77,6 +78,7 @@ BUSINESS_TABLE_NAMES = (
     | METHOD_VALIDATION_TABLE_NAMES
     | WRITING_JOB_SCENE_TABLE_NAMES
     | PLAN_PROPOSAL_TABLE_NAMES
+    | FORESHADOW_PROPOSAL_TABLE_NAMES
 )
 
 
@@ -117,6 +119,7 @@ def load_model_metadata() -> MetaData:
         StoryBibleRecord,
         StoryBibleRevisionRecord,
     )
+    from aiwebnovel.story_control.foreshadow_persistence import ForeshadowProposalRecord
     from aiwebnovel.story_control.persistence import StoryControlRevisionRecord
     from aiwebnovel.story_control.proposal_persistence import PlanProposalRecord
     from aiwebnovel.story_memory.persistence import StoryMemoryRevisionRecord
@@ -152,6 +155,7 @@ def load_model_metadata() -> MetaData:
         WritingJobRunRecord,
         WritingJobSceneMarkRecord,
         PlanProposalRecord,
+        ForeshadowProposalRecord,
         HandoffRecord,
         ExternalCandidateRecord,
         ImportPreviewRecord,

@@ -76,6 +76,7 @@ from aiwebnovel.story_memory.models import Fact, RecallSelectionPolicy
 from aiwebnovel.story_memory.service import StoryMemoryService
 
 if TYPE_CHECKING:
+    from aiwebnovel.story_control.foreshadow import ForeshadowExtractionService
     from aiwebnovel.story_control.proposals import PlanProposalService
 
 GUIDE_CHARACTER_LIMIT = 4_000
@@ -175,6 +176,7 @@ class StoryControlService:
         self._memory = memory
         # Composed only with the metered provider and budgets; None leaves proposals off.
         self.proposal_service: PlanProposalService | None = None
+        self.foreshadow_service: ForeshadowExtractionService | None = None
 
     # ------------------------------------------------------------------ helpers
 
@@ -449,6 +451,62 @@ class StoryControlService:
             self._validate_thread,
             MAX_THREADS,
         )
+
+    def create_thread_with_id(self, project_id: str, thread_id: str, data: SaveThread) -> Thread:
+        """Create a thread under a caller-chosen id; an existing id is a version conflict.
+
+        Foreshadow extraction adoption uses a deterministic id per card, so a repeated or
+        interrupted adoption can never create the same suggested thread twice.
+        """
+        if data.expected_version != 0:
+            raise StoryControlInvalid
+        return self._save(
+            project_id,
+            None,
+            Thread,
+            0,
+            data.model_dump(exclude={"expected_version"}),
+            self._validate_thread,
+            MAX_THREADS,
+            create_id=thread_id,
+        )
+
+    def list_threads(self, project_id: str) -> list[Thread]:
+        return self._of(self._items(project_id), Thread)
+
+    def chapter_revisions(self, project_id: str) -> dict[str, str]:
+        """Current saved revision of every chapter in the project, in book order."""
+        return {
+            item.chapter_id: item.current_revision_id for item in self._layout(project_id).chapters
+        }
+
+    def chapter_texts(
+        self, project_id: str, chapter_ids: Iterable[str]
+    ) -> list[tuple[ChapterOption, str]]:
+        """Saved text of the chosen chapters of this project, in book order; no model call."""
+        layout = self._layout(project_id)
+        wanted = set(chapter_ids)
+        if any(layout.chapter(chapter_id) is None for chapter_id in wanted):
+            raise StoryControlInvalid
+        result = []
+        for item in layout.chapters:
+            if item.chapter_id not in wanted:
+                continue
+            content = self._structure.get_chapter_content(GetChapterContentQuery(item.chapter_id))
+            result.append(
+                (
+                    ChapterOption(
+                        chapter_id=item.chapter_id,
+                        volume_id=item.volume_id,
+                        title=item.title,
+                        volume_position=layout.volume_position(item.volume_id),
+                        position=item.position,
+                        revision_id=content.current_revision_id,
+                    ),
+                    content.content,
+                )
+            )
+        return result
 
     def _payoff_reached(self, layout: Layout, thread: Thread) -> str | None:
         target: ChapterSnapshot | None = None
