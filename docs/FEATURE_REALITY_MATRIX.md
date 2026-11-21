@@ -147,6 +147,8 @@ M7/V1 已验收：本地 Windows 单用户运行、SQLite 持久化、小说/设
 
 **C/D 集成分支（`codex/c-d-integration`，仅用于 Windows 门禁，不直接合并）**：在 `codex/d3-chapter-draft`（#56，已含 #52–#55）上依次合并 #57 建议卡修改与撤销、#58 候选稿分段编辑与任务草稿列表、#60 语义索引（迁移 0025）、#59 事件与人物状态提取（迁移 0026，`down_revision` 改接 0025，账本操作列表含 `semantic_index`）。合并后实数：生产 API 168 条、AI 工作流操作 21 条、STORY_CONTROL 操作 39 条、业务表 49 张、启动后 SQLite 触发器 43 个。集成修复：章节候选稿持久化由 `ai_writing/chapter_draft_persistence.py` 移到 `ai_writing/persistence/chapter_drafts.py`，不再导入 Project ORM 记录（改由 Novel Structure 工作流事务载入的活跃章节限定项目），任务步骤绑定改走 `writing_jobs.transaction`，`test_backend_boundaries`/`test_ai_writing_boundaries` 恢复通过；嵌入（语义索引）用途的模型在“检查连接”结果为不支持元数据时不再显示“发送测试消息”（后端本就不对嵌入模型发送测试消息）；伏笔推进卡与 #57 的修改/撤销互通。Linux 只跑了受影响的后端/前端定向测试与 `tests/architecture`（剩余失败均需 powershell.exe）；Windows 门禁结果以该草稿 PR 的 CI 为准。
 
+集成 E2E `E2E-INT-031`（分支 `codex/c-d-e2e-031`，基于集成分支 0990d7b）：在 `127.0.0.1:18123` 受控 OpenAI 兼容服务（含 `/embeddings`）下经真实 UI 一条用例走通 C-1 建议拆分采用写回规划、C-2 伏笔建议卡采用后撤销（#57）、D3-C 整章候选稿三段生成后编辑一段/丢弃一段再采用、C-4 在模型配置添加嵌入用途本机模型并确认预估后建立语义索引至“已是最新”；断言准备/预估/保存设置不产生模型请求。未覆盖 F03 事件/人物状态提案与 D3-S 场景进度。仅在 Linux 近似运行器上连续通过 3 次；`run_e2e.ps1` 已注册（含 18123 受控端口集合），Windows 尚未实际运行。
+
 ## 旧稿导入与窄屏助手（D1，已合并 main，Windows 已验证）
 
 | 能力 | 当前实现 | 边界 |
