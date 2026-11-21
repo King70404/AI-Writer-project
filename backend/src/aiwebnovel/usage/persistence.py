@@ -63,7 +63,7 @@ class ModelUsageAttemptRecord(Base):
         CheckConstraint(
             "operation IN ('generation','reference_analysis','story_review','connection_check',"
             "'method_trial','plan_proposal','foreshadow_extraction',"
-            "'chapter_draft')",
+            "'chapter_draft','semantic_index','timeline_extraction')",
             name="ck_model_usage_operation",
         ),
         CheckConstraint("model_kind IN ('local','cloud')", name="ck_model_usage_kind"),

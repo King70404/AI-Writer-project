@@ -412,7 +412,8 @@ def test_application_and_list_reader_imports_have_no_runtime_or_schema_side_effe
         '"character_heads", "character_revisions", "characters", "external_candidates", "foreshadow_proposals", "handoff_snapshots", "import_previews", "import_receipts", "method_annotations", "method_templates", "method_trials", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
         '"outline_heads", "outline_revisions", "outlines", "plan_proposals", '
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '
-        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", '
+        '"semantic_index_entries", "semantic_index_settings", '
+        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", "timeline_proposals", '
         '"volume_heads", "volume_revisions", "volumes", '
         '"writing_job_budgets", "writing_job_runs", "writing_job_scene_marks", "writing_jobs", "writing_references", "writing_rule_versions"]'
     )
@@ -456,7 +457,8 @@ def test_character_web_import_has_no_runtime_or_schema_side_effects(
         '"character_heads", "character_revisions", "characters", "external_candidates", "foreshadow_proposals", "handoff_snapshots", "import_previews", "import_receipts", "method_annotations", "method_templates", "method_trials", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
         '"outline_heads", "outline_revisions", "outlines", "plan_proposals", '
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '
-        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", '
+        '"semantic_index_entries", "semantic_index_settings", '
+        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", "timeline_proposals", '
         '"volume_heads", "volume_revisions", "volumes", '
         '"writing_job_budgets", "writing_job_runs", "writing_job_scene_marks", "writing_jobs", "writing_references", "writing_rule_versions"]'
     )

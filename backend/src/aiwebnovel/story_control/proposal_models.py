@@ -6,6 +6,12 @@ The model is sent the frozen snapshot once, on an explicit author action, and it
 parsed as strict JSON into bounded suggestion cards. Cards are suggestions only: a card
 changes real plans only when the author adopts it, one card at a time, idempotently and
 only while every goal still has the version frozen at preparation.
+
+Before adopting, the author may edit a card's fields; the model's original card is kept
+unchanged next to the edit for comparison, and adoption uses the edited card. An adopted
+card can be undone: the goal it created is retracted, or the chapter link it added is
+removed, but only while that plan is still exactly as this proposal left it; otherwise the
+undo is refused so the author's later changes are never overwritten.
 """
 
 from typing import Annotated, Literal, Self
@@ -20,6 +26,7 @@ MAX_CARD_CHAPTERS = 20
 MAX_FROZEN_CHAPTERS = 300
 MAX_FROZEN_CHILDREN = 50
 MAX_PROPOSALS_PER_PROJECT = 200
+MAX_UNDOS = 100
 MAX_OUTPUT_CHARACTERS = 40_000
 EVIDENCE_LIMIT = 20_000
 PROPOSAL_OUTPUT_LIMIT = 16_000
@@ -49,6 +56,17 @@ class PlanProposalNotFound(DomainError):
 
 class PlanProposalConsentRequired(DomainError):
     message = "Confirm sending the frozen plan snapshot to the cloud model."
+
+
+class PlanProposalCardInvalid(DomainError):
+    message = "The edited card is invalid or refers to a plan item outside the snapshot."
+
+
+class PlanProposalUndoConflict(DomainError):
+    message = (
+        "The plan this card wrote was changed afterwards; undoing it would overwrite those "
+        "changes. Reload the plan and change it by hand."
+    )
 
 
 class PlanProposalOutputInvalid(DomainError):
@@ -154,6 +172,23 @@ class Adoption(Strict):
     goal_id: str
     goal_version: int
     adopted_at: str
+    # True when the author's edited card (not the model's original) was adopted.
+    edited: bool = False
+
+
+class CardEdit(Strict):
+    """The author's edited version of one card; the original card stays in ``cards``."""
+
+    index: int = Field(ge=0, lt=MAX_CARDS)
+    card: Card
+    edited_at: str
+
+
+class Undo(Strict):
+    index: int
+    action: AdoptAction
+    goal_id: str
+    undone_at: str
 
 
 class PlanProposal(Strict):
@@ -176,6 +211,8 @@ class PlanProposal(Strict):
     evidence: str | None = None
     evidence_truncated: bool = False
     adoptions: list[Adoption] = Field(default_factory=list, max_length=MAX_CARDS)
+    edits: list[CardEdit] = Field(default_factory=list, max_length=MAX_CARDS)
+    undos: list[Undo] = Field(default_factory=list, max_length=MAX_UNDOS)
     known_goal_version: int
     created_goal_ids: list[str] = Field(default_factory=list, max_length=MAX_CARDS)
     created_at: str
@@ -217,6 +254,17 @@ class AdoptCards(Strict):
         ):
             raise ValueError("Card indexes must be distinct and in range.")
         return self
+
+
+class EditCard(Strict):
+    expected_version: int = Field(ge=1)
+    # The edited card; null restores the model's original card.
+    card: Card | None = None
+
+
+class UndoAdoption(Strict):
+    expected_version: int = Field(ge=1)
+    card_index: int = Field(ge=0, lt=MAX_CARDS)
 
 
 class PlanProposalList(Strict):

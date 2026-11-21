@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Path, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from aiwebnovel.ai_writing.application.workflow import AIWorkflowService
@@ -18,6 +18,7 @@ from aiwebnovel.ai_writing.application.workflow_models import (
 from aiwebnovel.ai_writing.chapter_draft import ChapterDraftService
 from aiwebnovel.ai_writing.chapter_draft_models import (
     AdoptChapterDraft,
+    ChangeDraftSegment,
     ChapterDraftConflict,
     ChapterDraftConsentRequired,
     ChapterDraftInvalid,
@@ -334,6 +335,29 @@ def create_ai_workflow_router(*, api_prefix: str) -> APIRouter:
             response,
             lambda: drafts.adopt(
                 chapter_id, draft_id, payload.segment_indexes, payload.idempotency_key
+            ),
+        )
+
+    @router.post("/drafts/{draft_id}/segments/{index}", response_model=ChapterDraftView)
+    def change_draft_segment(
+        chapter_id: str,
+        draft_id: str,
+        index: Annotated[int, Path(ge=0, le=99)],
+        payload: ChangeDraftSegment,
+        response: Response,
+        drafts: Drafts,
+        _json: Json,
+    ) -> ChapterDraftView:
+        # Author edit / discard / restore of one segment: no model request, no chapter write.
+        return _invoke(
+            response,
+            lambda: drafts.change_segment(
+                chapter_id,
+                draft_id,
+                index,
+                payload.expected_version,
+                payload.action,
+                payload.text,
             ),
         )
 

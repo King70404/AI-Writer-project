@@ -5,12 +5,20 @@ The author picks a bounded range of chapters (at most ``MAX_CHAPTERS`` with at m
 text plus the open plot threads and their versions; preparing never calls a model. The
 frozen snapshot is sent once, on an explicit author action, as a single metered request.
 The reply is parsed as strict JSON into suggestion cards: a new plot thread planted in a
-frozen chapter, or the payoff of a frozen open thread. Every card's quote is checked
-verbatim against the frozen chapter text; a card whose quote is not found (or that names a
+frozen chapter, the payoff of a frozen open thread, or the advance of a frozen planted
+thread. Every card's quote is checked verbatim against the frozen chapter text; a card whose quote is not found (or that names a
 chapter or thread outside the snapshot) is kept but marked invalid and cannot be adopted.
 Only the author's adoption of selected valid cards writes plot threads, through the normal
 story control validation, and only while the quoted chapter revision and the thread are
 still exactly as frozen.
+
+Before adopting, the author may edit a card; the model's original card and its check stay
+unchanged for comparison, the edit is checked against the frozen text the same way (so an
+edit can also repair an unverifiable quote), and adoption uses the edited card. An adopted
+card can be undone: the thread it created is retracted, or the payoff/advance evidence it
+recorded is removed and the thread's earlier status restored (other still-adopted payoff or
+advance cards of the same extraction keep their effect), but only while the thread is still exactly as this
+extraction left it; otherwise the undo is refused so later changes are never overwritten.
 """
 
 from typing import Annotated, Literal, Self
@@ -27,6 +35,7 @@ FROZEN_THREAD_TEXT_LIMIT = 300
 MAX_CARDS = 30
 MAX_QUOTE_CHARACTERS = 300
 MAX_PROPOSALS_PER_PROJECT = 200
+MAX_UNDOS = 100
 MAX_OUTPUT_CHARACTERS = 60_000
 EVIDENCE_LIMIT = 20_000
 FORESHADOW_OUTPUT_LIMIT = 16_000
@@ -39,9 +48,15 @@ CardQuote = Annotated[
 Reason = Annotated[str, StringConstraints(max_length=500)]
 ExtractionStatus = Literal["ready", "running", "completed", "failed"]
 RangeProblem = Literal["too_many_chapters", "too_many_characters", "empty_chapter"]
-AdoptAction = Literal["created", "paid_off", "already_recorded"]
+AdoptAction = Literal["created", "paid_off", "advanced", "already_recorded"]
 CardProblem = Literal[
-    "quote_not_found", "unknown_chapter", "unknown_thread", "duplicate_payoff", "duplicate_title"
+    "quote_not_found",
+    "unknown_chapter",
+    "unknown_thread",
+    "duplicate_payoff",
+    "duplicate_title",
+    "thread_not_planted",
+    "duplicate_advance",
 ]
 
 
@@ -71,6 +86,13 @@ class ForeshadowOutputInvalid(DomainError):
 
 class ForeshadowCardInvalid(DomainError):
     message = "The selected card's evidence was not found in the frozen chapter text."
+
+
+class ForeshadowUndoConflict(DomainError):
+    message = (
+        "The plot thread this card wrote was changed afterwards; undoing it would overwrite "
+        "those changes. Reload the threads and change them by hand."
+    )
 
 
 class Strict(BaseModel):
@@ -113,7 +135,22 @@ class PayoffCard(Strict):
         return self
 
 
-Card = Annotated[NewThreadCard | PayoffCard, Field(discriminator="kind")]
+class AdvanceCard(Strict):
+    """A frozen planted thread is advanced (developed further) in a frozen chapter."""
+
+    kind: Literal["advance"]
+    thread_id: Identifier
+    chapter_id: Identifier
+    quote: CardQuote
+    reason: Reason = ""
+
+    @model_validator(mode="after")
+    def checked(self) -> Self:
+        _safe([self.quote, self.reason])
+        return self
+
+
+Card = Annotated[NewThreadCard | PayoffCard | AdvanceCard, Field(discriminator="kind")]
 
 
 class ExtractionOutput(Strict):
@@ -162,6 +199,23 @@ class Adoption(Strict):
     thread_id: str
     thread_version: int
     adopted_at: str
+    # True when the author's edited card (not the model's original) was adopted.
+    edited: bool = False
+
+
+class CardEdit(Strict):
+    """The author's edited version of one card; the original card stays in ``cards``."""
+
+    index: int = Field(ge=0, lt=MAX_CARDS)
+    card: Card
+    edited_at: str
+
+
+class Undo(Strict):
+    index: int
+    action: AdoptAction
+    thread_id: str
+    undone_at: str
 
 
 class ForeshadowProposal(Strict):
@@ -182,6 +236,8 @@ class ForeshadowProposal(Strict):
     evidence: str | None = None
     evidence_truncated: bool = False
     adoptions: list[Adoption] = Field(default_factory=list, max_length=MAX_CARDS)
+    edits: list[CardEdit] = Field(default_factory=list, max_length=MAX_CARDS)
+    undos: list[Undo] = Field(default_factory=list, max_length=MAX_UNDOS)
     # Thread versions this proposal expects; its own payoff adoptions move them forward.
     thread_versions: dict[str, int]
     created_thread_ids: list[str] = Field(default_factory=list, max_length=MAX_CARDS)
@@ -220,6 +276,10 @@ class ForeshadowProposalView(Strict):
     evidence: str | None
     evidence_truncated: bool
     adoptions: list[Adoption]
+    edits: list[CardEdit]
+    # Checks of the cards as adoption would use them (with the author's edits applied).
+    effective_checks: list[CardCheck]
+    undos: list[Undo]
     created_at: str
     updated_at: str
     # The exact system and user messages one send transmits, for the author's preview.
@@ -306,3 +366,14 @@ class AdoptForeshadowCards(Strict):
         ):
             raise ValueError("Card indexes must be distinct and in range.")
         return self
+
+
+class EditForeshadowCard(Strict):
+    expected_version: int = Field(ge=1)
+    # The edited card; null restores the model's original card.
+    card: Card | None = None
+
+
+class UndoForeshadowAdoption(Strict):
+    expected_version: int = Field(ge=1)
+    card_index: int = Field(ge=0, lt=MAX_CARDS)

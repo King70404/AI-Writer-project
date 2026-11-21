@@ -9,6 +9,7 @@ import {
   type WorkspaceClient,
 } from "../workbench/api/workspace";
 import {
+  type JobDraftSummary,
   sceneSummary,
   writingJobsClient,
   type JobAction,
@@ -19,6 +20,12 @@ import {
 import { SceneProgress } from "./SceneProgress";
 import "./writing-jobs.css";
 
+const DRAFT_STATUS: Record<JobDraftSummary["status"], string> = {
+  ready: "可继续生成",
+  running: "正在生成",
+  failed: "已停止（失败）",
+  exhausted: "额度已用完",
+};
 const STATUS: Record<WritingJob["status"], string> = {
   planned: "进行中",
   paused: "已暂停",
@@ -328,6 +335,38 @@ export function WritingJobsPanel({
                     </li>
                   ))}
                 </ol>
+                {job.drafts?.length ? (
+                  <section
+                    className="writing-jobs__drafts"
+                    aria-label={`「${job.title}」产出的章节候选稿`}
+                  >
+                    <h6>本任务产出的章节候选稿</h6>
+                    <ul>
+                      {job.drafts.map((draft) => (
+                        <li key={draft.draft_id}>
+                          {chapterName(draft.chapter_id, draft.step_index)} ·{" "}
+                          {DRAFT_STATUS[draft.status]}
+                          {draft.draft_id === job.active_draft_id
+                            ? "（当前步骤）"
+                            : ""}{" "}
+                          · 共 {draft.segments} 段：已采用 {draft.adopted} ·
+                          待采用 {draft.pending}
+                          {draft.discarded
+                            ? ` · 已丢弃 ${draft.discarded}`
+                            : ""}
+                          {draft.edited ? ` · 作者编辑 ${draft.edited}` : ""} ·
+                          生成 {draft.generated_characters} 字 / 采用{" "}
+                          {draft.adopted_characters} 字{" "}
+                          <Link
+                            to={`${chapterWritingPath(projectId, draft.chapter_id)}?job=${encodeURIComponent(job.job_id)}`}
+                          >
+                            打开该章查看候选稿
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
                 {(job.status === "planned" || job.status === "paused") &&
                 job.scene_progress[job.current_index] ? (
                   <SceneProgress

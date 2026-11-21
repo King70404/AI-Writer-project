@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { OperationSendGuard } from "../../usage/components/SendEstimatePanel";
 import {
+  effectiveCard,
   foreshadowExtractionClient,
   foreshadowExtractionError,
   type CardCheck,
@@ -29,6 +30,8 @@ const CARD_PROBLEMS: Record<CardProblem, string> = {
   unknown_thread: "引用了不存在或未冻结的伏笔，不能采用",
   duplicate_payoff: "与前一张卡重复兑现同一伏笔，不能采用",
   duplicate_title: "与已有伏笔或前一张卡同名，不能采用",
+  thread_not_planted: "该伏笔尚未埋下，不能记为推进",
+  duplicate_advance: "与前一张卡重复推进同一伏笔的同一段原文，不能采用",
 };
 
 function chapterLabel(plan: ArcPlan, chapterId: string): string {
@@ -53,7 +56,7 @@ function CardBody({
   const head =
     card.kind === "new_thread"
       ? `新伏笔「${card.title}」埋于${where}${card.content ? `：${card.content}` : ""}`
-      : `兑现伏笔「${
+      : `${card.kind === "payoff" ? "兑现" : "推进"}伏笔「${
           extraction.threads.find((item) => item.id === card.thread_id)
             ?.title ?? "未知伏笔"
         }」于${where}`;
@@ -69,20 +72,112 @@ function CardBody({
   );
 }
 
+function CardEditor({
+  plan,
+  extraction,
+  draft,
+  onChange,
+}: {
+  readonly plan: ArcPlan;
+  readonly extraction: ForeshadowExtraction;
+  readonly draft: ForeshadowCard;
+  readonly onChange: (card: ForeshadowCard) => void;
+}) {
+  return (
+    <>
+      {draft.kind === "new_thread" ? (
+        <>
+          <label className="story-control__field">
+            <span>伏笔名（最多 120 字）</span>
+            <input
+              maxLength={120}
+              value={draft.title}
+              onChange={(event) =>
+                onChange({ ...draft, title: event.target.value })
+              }
+            />
+          </label>
+          <label className="story-control__field">
+            <span>伏笔说明（最多 1000 字）</span>
+            <textarea
+              maxLength={1000}
+              value={draft.content}
+              onChange={(event) =>
+                onChange({ ...draft, content: event.target.value })
+              }
+            />
+          </label>
+        </>
+      ) : (
+        <label className="story-control__field">
+          <span>{draft.kind === "payoff" ? "兑现的伏笔" : "推进的伏笔"}</span>
+          <select
+            value={draft.thread_id}
+            onChange={(event) =>
+              onChange({ ...draft, thread_id: event.target.value })
+            }
+          >
+            {extraction.threads.map((thread) => (
+              <option key={thread.id} value={thread.id}>
+                {thread.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <label className="story-control__field">
+        <span>
+          {draft.kind === "new_thread"
+            ? "埋设章节"
+            : draft.kind === "payoff"
+              ? "兑现章节"
+              : "推进章节"}
+        </span>
+        <select
+          value={draft.chapter_id}
+          onChange={(event) =>
+            onChange({ ...draft, chapter_id: event.target.value })
+          }
+        >
+          {extraction.chapters.map((chapter) => (
+            <option key={chapter.chapter_id} value={chapter.chapter_id}>
+              {chapterLabel(plan, chapter.chapter_id)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="story-control__field">
+        <span>引文（必须逐字出自该章冻结原文，最多 300 字）</span>
+        <textarea
+          maxLength={300}
+          value={draft.quote}
+          onChange={(event) =>
+            onChange({ ...draft, quote: event.target.value })
+          }
+        />
+      </label>
+    </>
+  );
+}
+
 /**
  * 批量提取伏笔建议。选择范围、预览、准备与预估都不调用模型；作者确认后整段只发送一次。
  * 引文未能在冻结原文中逐字找到的卡不能勾选；勾选并点击“采用所选”后才写入伏笔。
+ * 采用前可修改卡片（原始建议与核对结果保留以便对照，修改同样逐字核对，可借此修正引文）；
+ * 已采用的卡可撤销，伏笔之后被改过时拒绝撤销。
  */
 export function ForeshadowExtractionPanel({
   projectId,
   plan,
   onAdopted,
+  onUndone = onAdopted,
   onClose,
   client = foreshadowExtractionClient,
 }: {
   readonly projectId: string;
   readonly plan: ArcPlan;
   readonly onAdopted: () => void;
+  readonly onUndone?: () => void;
   readonly onClose: () => void;
   readonly client?: ForeshadowExtractionClient;
 }) {
@@ -99,6 +194,8 @@ export function ForeshadowExtractionPanel({
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [stale, setStale] = useState(false);
+  const [editing, setEditing] = useState<number | null>(null);
+  const [draft, setDraft] = useState<ForeshadowCard | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -186,12 +283,47 @@ export function ForeshadowExtractionPanel({
       onAdopted();
     });
 
+  const startEdit = (index: number) => {
+    if (!extraction) return;
+    setEditing(index);
+    setDraft(effectiveCard(extraction, index));
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setDraft(null);
+  };
+
+  const saveEdit = (index: number, card: ForeshadowCard | null) =>
+    act(
+      card ? "正在核对并保存修改（不写入伏笔）…" : "正在恢复原始建议…",
+      async () => {
+        if (!extraction) return;
+        const next = await client.editCard(projectId, extraction, index, card);
+        setExtraction(next);
+        setSelected((current) =>
+          current.filter((item) => next.effective_checks[item]?.valid),
+        );
+        cancelEdit();
+      },
+    );
+
+  const undo = (index: number) =>
+    act("正在撤销该卡的采用…", async () => {
+      if (!extraction) return;
+      const next = await client.undo(projectId, extraction, index);
+      setExtraction(next);
+      setSelected((current) => current.filter((item) => item !== index));
+      onUndone();
+    });
+
   const reset = () => {
     setExtraction(null);
     setPreview(null);
     setSelected([]);
     setStale(false);
     setError("");
+    cancelEdit();
   };
 
   const adopted = new Set(extraction?.adoptions.map((item) => item.index));
@@ -206,7 +338,7 @@ export function ForeshadowExtractionPanel({
         <div>
           <p>
             选择最多 {MAX_CHAPTERS}{" "}
-            章已保存正文，由你确认预估后整段发送一次给模型，生成伏笔建议卡（新伏笔或已有伏笔的兑现）。
+            章已保存正文，由你确认预估后整段发送一次给模型，生成伏笔建议卡（新伏笔、已有伏笔的推进或兑现）。
             每张卡的引文都会在原文中逐字核对；只有你勾选采用的有效卡才会写入伏笔，正文不会被修改。
           </p>
           <fieldset>
@@ -376,8 +508,15 @@ export function ForeshadowExtractionPanel({
             <p>模型没有给出建议卡；伏笔未改变。</p>
           ) : (
             <ul className="story-control__list">
-              {extraction.cards.map((card, index) => {
-                const check = extraction.checks[index];
+              {extraction.cards.map((original, index) => {
+                const card = effectiveCard(extraction, index);
+                const check = extraction.effective_checks[index];
+                const edited = extraction.edits.some(
+                  (item) => item.index === index,
+                );
+                const adoption = extraction.adoptions.find(
+                  (item) => item.index === index,
+                );
                 return (
                   <li key={index}>
                     <label>
@@ -385,7 +524,10 @@ export function ForeshadowExtractionPanel({
                         type="checkbox"
                         aria-label={`选择伏笔建议卡 ${index + 1}`}
                         disabled={
-                          !check.valid || adopted.has(index) || Boolean(busy)
+                          !check.valid ||
+                          adopted.has(index) ||
+                          editing === index ||
+                          Boolean(busy)
                         }
                         checked={adopted.has(index) || selected.includes(index)}
                         onChange={() =>
@@ -402,8 +544,86 @@ export function ForeshadowExtractionPanel({
                         card={card}
                         check={check}
                       />
-                      {adopted.has(index) ? " · 已采用" : ""}
+                      {edited && !adoption ? " · 已修改" : ""}
+                      {adoption
+                        ? adoption.edited
+                          ? " · 已按修改版采用"
+                          : " · 已采用"
+                        : ""}
                     </label>
+                    {edited ? (
+                      <details>
+                        <summary>对照模型原始建议</summary>
+                        <CardBody
+                          plan={plan}
+                          extraction={extraction}
+                          card={original}
+                          check={extraction.checks[index]}
+                        />
+                      </details>
+                    ) : null}
+                    {adoption ? (
+                      <button
+                        type="button"
+                        aria-label={`撤销采用伏笔建议卡 ${index + 1}`}
+                        disabled={Boolean(busy) || stale}
+                        onClick={() => void undo(index)}
+                      >
+                        撤销采用
+                      </button>
+                    ) : editing === index && draft ? (
+                      <form
+                        aria-label={`修改伏笔建议卡 ${index + 1}`}
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void saveEdit(index, draft);
+                        }}
+                      >
+                        <CardEditor
+                          plan={plan}
+                          extraction={extraction}
+                          draft={draft}
+                          onChange={setDraft}
+                        />
+                        {original.reason ? (
+                          <p>模型理由（不可修改）：{original.reason}</p>
+                        ) : null}
+                        <button
+                          type="submit"
+                          disabled={
+                            Boolean(busy) ||
+                            !draft.quote.trim() ||
+                            (draft.kind === "new_thread" && !draft.title.trim())
+                          }
+                        >
+                          核对并保存修改
+                        </button>
+                        <button type="button" onClick={cancelEdit}>
+                          取消修改
+                        </button>
+                      </form>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          aria-label={`修改伏笔建议卡 ${index + 1}`}
+                          disabled={Boolean(busy) || stale || editing !== null}
+                          onClick={() => startEdit(index)}
+                        >
+                          修改
+                        </button>
+                        {edited ? (
+                          <button
+                            type="button"
+                            aria-label={`恢复伏笔建议卡 ${index + 1} 的原始建议`}
+                            disabled={Boolean(busy) || editing !== null}
+                            onClick={() => void saveEdit(index, null)}
+                          >
+                            恢复原始建议
+                          </button>
+                        ) : null}
+                      </>
+                    )}
                   </li>
                 );
               })}

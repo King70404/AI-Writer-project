@@ -14,6 +14,12 @@ Adoption appends the selected segments (or the whole draft) to the chapter in on
 transaction with an idempotency receipt, and only while the chapter is still at the revision
 the draft tracks. A hand edit since then refuses adoption (409) and keeps the draft for
 comparison; nothing is ever overwritten.
+
+Before adoption the author may edit a pending segment (the model's original text is kept beside
+the edit, and the edit is what later "本次候选稿" context and adoption use), discard a pending
+segment (it is never sent again or adopted, and stays visible as discarded) or restore a
+discarded segment. These changes never call a model, never return quota already used and never
+touch chapter text.
 """
 
 from typing import Literal
@@ -29,9 +35,11 @@ SEGMENT_MAX_CHARACTERS = 300
 MAX_DRAFTS_PER_CHAPTER = 50
 EVIDENCE_LIMIT = 2000
 MAX_INSTRUCTION_CHARACTERS = 4000
+MAX_SEGMENT_EDIT_CHARACTERS = 3000
 
 DraftStatus = Literal["ready", "running", "failed", "exhausted"]
-SegmentStatus = Literal["pending", "adopted"]
+SegmentStatus = Literal["pending", "adopted", "discarded"]
+SegmentAction = Literal["edit", "discard", "restore"]
 
 
 class ChapterDraftConflict(DomainError):
@@ -73,6 +81,20 @@ class DraftSegment(Strict):
     model: str
     status: SegmentStatus = "pending"
     adopted_revision_id: str | None = None
+    # The author's edit of a pending segment; ``text`` stays the model's original reply.
+    edited_text: str | None = None
+    edited_characters: int | None = None
+    edited_at: str | None = None
+    discarded_at: str | None = None
+
+
+def segment_text(segment: DraftSegment) -> str:
+    """The text the author currently stands behind: the edit when there is one."""
+    return segment.text if segment.edited_text is None else segment.edited_text
+
+
+def segment_characters(segment: DraftSegment) -> int:
+    return segment.characters if segment.edited_characters is None else segment.edited_characters
 
 
 class DraftFailure(Strict):
@@ -166,7 +188,10 @@ class ChapterDraftSummary(Strict):
     status: DraftStatus
     segments: int
     adopted: int
+    discarded: int
+    edited: int
     generated_characters: int
+    writing_job_id: str | None
     created_at: str
 
 
@@ -197,3 +222,29 @@ class AdoptChapterDraft(Strict):
     idempotency_key: str = Field(min_length=8, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
     # Ascending pending segment indexes; omitted means the whole remaining draft.
     segment_indexes: list[int] | None = Field(default=None, min_length=1, max_length=MAX_SEGMENTS)
+
+
+class ChangeDraftSegment(Strict):
+    """Edit, discard or restore one segment; never calls a model or writes chapter text."""
+
+    expected_version: int = Field(ge=1)
+    action: SegmentAction
+    # Required for ``edit`` only; the original text again removes the edit.
+    text: str | None = Field(default=None, min_length=1, max_length=MAX_SEGMENT_EDIT_CHARACTERS)
+
+
+def remaining(draft: ChapterDraft) -> tuple[int, int]:
+    """Requests and generated characters still allowed by the draft's own quota."""
+    return (
+        draft.max_segments - draft.attempts,
+        draft.max_output_characters - draft.generated_characters,
+    )
+
+
+def step_upper(draft: ChapterDraft) -> int:
+    return min(SEGMENT_MAX_CHARACTERS, remaining(draft)[1])
+
+
+def has_quota(draft: ChapterDraft) -> bool:
+    requests, _ = remaining(draft)
+    return requests > 0 and step_upper(draft) >= SEGMENT_MIN_CHARACTERS

@@ -15,7 +15,9 @@ export type UsageOperation =
   | "method_trial"
   | "plan_proposal"
   | "foreshadow_extraction"
-  | "chapter_draft";
+  | "chapter_draft"
+  | "semantic_index"
+  | "timeline_extraction";
 export type AttemptStatus =
   "running" | "completed" | "failed" | "timeout" | "interrupted";
 export type UsageSource = "provider_reported" | "unknown";
@@ -29,6 +31,8 @@ export const OPERATION_LABELS: Record<UsageOperation, string> = {
   plan_proposal: "规划拆分建议",
   foreshadow_extraction: "批量提取伏笔建议",
   chapter_draft: "章节候选稿",
+  semantic_index: "建立语义索引（嵌入）",
+  timeline_extraction: "批量提取事件与人物状态",
 };
 export const STATUS_LABELS: Record<AttemptStatus, string> = {
   running: "进行中",

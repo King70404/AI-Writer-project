@@ -81,6 +81,7 @@ from aiwebnovel.security import (
     is_security_healthy,
 )
 from aiwebnovel.security.redaction import redact_text, safe_request_path
+from aiwebnovel.semantic_index.web import create_semantic_index_router
 from aiwebnovel.storage.health import check_storage_health
 from aiwebnovel.storage.initializer import (
     initialize_storage,
@@ -680,6 +681,7 @@ def create_app(
     application.include_router(create_method_router(api_prefix=api_prefix))
     application.include_router(create_chapter_planning_router(api_prefix=api_prefix))
     application.include_router(create_story_memory_router(api_prefix=api_prefix))
+    application.include_router(create_semantic_index_router(api_prefix=api_prefix))
     application.include_router(create_workbench_router(api_prefix=api_prefix))
     application.include_router(create_import_router(api_prefix=api_prefix))
     application.include_router(create_handoff_router(api_prefix=api_prefix))

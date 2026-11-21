@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 from aiwebnovel.ai_writing.application.models import (
     GeneratedText,
     GenerationMessage,
+    ProviderUsage,
     parse_provider_usage,
 )
 from aiwebnovel.ai_writing.errors import (
@@ -203,3 +204,136 @@ def generate_text(
         raise AIProviderUnavailable from None
     finally:
         connection.close()
+
+
+# -- embeddings (C-4 semantic index) -----------------------------------------------------
+
+MAX_EMBEDDING_INPUTS = 32
+MAX_EMBEDDING_CHARACTERS = 24_000
+MAX_EMBEDDING_DIMENSIONS = 8192
+
+
+@dataclass(frozen=True, slots=True)
+class EmbeddingResult:
+    """Vectors in input order and the provider's usage report exactly as given."""
+
+    vectors: tuple[tuple[float, ...], ...]
+    model: str
+    usage: ProviderUsage | None
+
+
+def embeddings_endpoint(kind: str, base_url: str) -> Endpoint:
+    """The OpenAI-compatible ``/embeddings`` path beside ``/chat/completions``."""
+    endpoint = endpoint_for(kind, base_url)
+    return Endpoint(
+        endpoint.scheme,
+        endpoint.host,
+        endpoint.port,
+        endpoint.path.removesuffix("/chat/completions") + "/embeddings",
+    )
+
+
+def _vector(value: object) -> tuple[float, ...]:
+    if (
+        type(value) is not list
+        or not 1 <= len(value) <= MAX_EMBEDDING_DIMENSIONS
+        or any(type(item) not in (int, float) for item in value)
+    ):
+        raise AIProviderInvalidResponse
+    vector = tuple(float(item) for item in value)
+    if any(item != item or item in (float("inf"), float("-inf")) for item in vector):
+        raise AIProviderInvalidResponse
+    return vector
+
+
+def parse_embeddings(data: object, expected: int) -> tuple[tuple[float, ...], ...]:
+    try:
+        assert isinstance(data, dict)
+        items = data["data"]
+        if type(items) is not list or len(items) != expected:
+            raise AIProviderInvalidResponse
+        ordered: dict[int, tuple[float, ...]] = {}
+        for position, item in enumerate(items):
+            index = item.get("index", position)
+            if type(index) is not int or not 0 <= index < expected or index in ordered:
+                raise AIProviderInvalidResponse
+            ordered[index] = _vector(item["embedding"])
+    except (AssertionError, KeyError, TypeError, AttributeError):
+        raise AIProviderInvalidResponse from None
+    vectors = tuple(ordered[index] for index in range(expected))
+    if len({len(vector) for vector in vectors}) != 1:
+        raise AIProviderInvalidResponse
+    return vectors
+
+
+def embed_texts(
+    profile: ModelProfile,
+    texts: tuple[str, ...],
+    *,
+    api_key: str | None,
+) -> EmbeddingResult:
+    """One bounded ``/embeddings`` request; same SSRF, proxy and error rules as chat."""
+    if (
+        profile.purpose != "embedding"
+        or not texts
+        or len(texts) > MAX_EMBEDDING_INPUTS
+        or any(type(text) is not str or not text for text in texts)
+        or sum(len(text) for text in texts) > MAX_EMBEDDING_CHARACTERS
+    ):
+        raise InvalidAIInput
+    endpoint = embeddings_endpoint(profile.kind, profile.base_url)
+    connection: http.client.HTTPConnection
+    if profile.kind == "cloud":
+        connection = _PublicHTTPSConnection(
+            endpoint.host, endpoint.port, timeout=PROVIDER_TIMEOUT_SECONDS
+        )
+    else:
+        factory = (
+            http.client.HTTPSConnection
+            if endpoint.scheme == "https"
+            else http.client.HTTPConnection
+        )
+        connection = factory(endpoint.host, endpoint.port, timeout=PROVIDER_TIMEOUT_SECONDS)
+    headers = {"Content-Type": "application/json"}
+    if api_key is not None:
+        headers["Authorization"] = f"Bearer {api_key}"
+    try:
+        payload = json.dumps(
+            {"model": profile.model, "input": list(texts)}, ensure_ascii=True
+        ).encode("utf-8")
+        connection.request("POST", endpoint.path, body=payload, headers=headers)
+        response = connection.getresponse()
+        if response.status != 200:
+            failures = {
+                400: AIProviderRequestRejected,
+                401: AIProviderAuthFailed,
+                402: AIProviderPaymentRequired,
+                403: AIProviderAccessDenied,
+                404: AIProviderEndpointInvalid,
+                405: AIProviderEndpointInvalid,
+                422: AIProviderRequestRejected,
+                429: AIProviderRateLimited,
+            }
+            if failure := failures.get(response.status):
+                raise failure
+            raise AIProviderUnavailable
+        raw = response.read(MAX_EMBEDDING_RESPONSE_BYTES + 1)
+        if len(raw) > MAX_EMBEDDING_RESPONSE_BYTES:
+            raise AIProviderInvalidResponse
+        try:
+            data = json.loads(raw)
+        except (ValueError, RecursionError):
+            raise AIProviderInvalidResponse from None
+        return EmbeddingResult(
+            parse_embeddings(data, len(texts)), profile.model, parse_provider_usage(data)
+        )
+    except TimeoutError:
+        raise AIProviderTimeout from None
+    except (OSError, http.client.HTTPException):
+        raise AIProviderUnavailable from None
+    finally:
+        connection.close()
+
+
+# 32 vectors x 8192 dimensions of JSON numbers fit comfortably; larger replies are refused.
+MAX_EMBEDDING_RESPONSE_BYTES = 16 * 1024 * 1024

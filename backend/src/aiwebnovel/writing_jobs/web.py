@@ -117,21 +117,47 @@ def render(row: object, session: Session) -> dict[str, object]:
             adopted_text = edit.text if edit else candidate.text
             adopted_characters += sum(not character.isspace() for character in adopted_text)
     # A chapter draft bound as a step counts its own generated and adopted segments.
-    from aiwebnovel.ai_writing.chapter_draft_persistence import ChapterDraftRecord
+    from aiwebnovel.ai_writing.persistence.chapter_drafts import ChapterDraftRecord
 
     active_draft_id = None
+    drafts: list[dict[str, object]] = []
     has_drafts = inspect(session.get_bind()).has_table("chapter_drafts")
-    for binding in bindings if has_drafts else ():
+    for binding in sorted(bindings, key=lambda item: item.step_index) if has_drafts else ():
         draft = session.get(ChapterDraftRecord, binding.run_id)
         if draft is None:
             continue
         if active is not None and binding.run_id == active.run_id:
             active_draft_id = draft.id
-        generated_characters += int(draft.payload.get("generated_characters", 0))
-        adopted_characters += sum(
-            int(segment["characters"])
-            for segment in draft.payload.get("segments", [])
+        segments = draft.payload.get("segments", [])
+        # An author's edit is what was adopted, so it is what the job counts.
+        draft_adopted = sum(
+            int(
+                segment["characters"]
+                if segment.get("edited_characters") is None
+                else segment["edited_characters"]
+            )
+            for segment in segments
             if segment.get("status") == "adopted"
+        )
+        draft_generated = int(draft.payload.get("generated_characters", 0))
+        generated_characters += draft_generated
+        adopted_characters += draft_adopted
+        # Counts only: the drawer links to the chapter; no segment text leaves this summary.
+        drafts.append(
+            {
+                "draft_id": draft.id,
+                "chapter_id": str(draft.chapter_id),
+                "step_index": binding.step_index,
+                "status": draft.payload.get("status"),
+                "segments": len(segments),
+                "pending": sum(item.get("status") == "pending" for item in segments),
+                "adopted": sum(item.get("status") == "adopted" for item in segments),
+                "discarded": sum(item.get("status") == "discarded" for item in segments),
+                "edited": sum(item.get("edited_text") is not None for item in segments),
+                "generated_characters": draft_generated,
+                "adopted_characters": draft_adopted,
+                "created_at": draft.created_at,
+            }
         )
     return {
         "generated_characters": generated_characters,
@@ -142,6 +168,7 @@ def render(row: object, session: Session) -> dict[str, object]:
         "used_characters": budget.used_characters if budget else 0,
         "active_run_id": active.run_id if active else None,
         "active_draft_id": active_draft_id,
+        "drafts": drafts,
         "job_id": row.id,
         "project_id": row.project_id,
         "title": row.title,

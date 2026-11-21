@@ -78,6 +78,7 @@ from aiwebnovel.story_memory.service import StoryMemoryService
 if TYPE_CHECKING:
     from aiwebnovel.story_control.foreshadow import ForeshadowExtractionService
     from aiwebnovel.story_control.proposals import PlanProposalService
+    from aiwebnovel.story_control.timeline_extraction import TimelineExtractionService
 
 GUIDE_CHARACTER_LIMIT = 4_000
 MAX_CHARACTER_OPTIONS = 500
@@ -93,6 +94,15 @@ class StoryControlRepository(Protocol):
         expected_version: int,
         validate: Callable[[tuple[ControlItem, ...]], None],
     ) -> ControlItem: ...
+
+    def retract(
+        self,
+        project_id: str,
+        kind: str,
+        entity_id: str,
+        expected_version: int,
+        validate: Callable[[tuple[ControlItem, ...]], None],
+    ) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +187,7 @@ class StoryControlService:
         # Composed only with the metered provider and budgets; None leaves proposals off.
         self.proposal_service: PlanProposalService | None = None
         self.foreshadow_service: ForeshadowExtractionService | None = None
+        self.timeline_service: TimelineExtractionService | None = None
 
     # ------------------------------------------------------------------ helpers
 
@@ -335,6 +346,19 @@ class StoryControlService:
             create_id=goal_id,
         )
 
+    def retract_goal(self, project_id: str, goal_id: str, expected_version: int) -> None:
+        """Remove a goal only at the expected version and while no goal names it as parent.
+
+        Used to undo a goal an author adopted from a plan proposal; the revision history
+        keeps every earlier revision and gains a tombstone.
+        """
+
+        def checked(items: tuple[ControlItem, ...]) -> None:
+            if any(goal_id in item.parent_goal_ids for item in self._of(items, Goal)):
+                raise StoryControlConflict
+
+        self._repository.retract(project_id, "goal", goal_id, expected_version, checked)
+
     @staticmethod
     def _link_view(layout: Layout, link: GoalLink) -> LinkView:
         chapter = layout.chapter(link.chapter_id)
@@ -395,6 +419,10 @@ class StoryControlService:
                 break
             after = page.next_position
         return options[:MAX_CHARACTER_OPTIONS]
+
+    def character_options(self, project_id: str) -> list[CharacterOption]:
+        """The project's characters (ids and names only), bounded; no model call."""
+        return self._character_options(project_id)
 
     def arc_plan(self, project_id: str) -> ArcPlan:
         items = self._items(project_id)
@@ -470,6 +498,10 @@ class StoryControlService:
             MAX_THREADS,
             create_id=thread_id,
         )
+
+    def retract_thread(self, project_id: str, thread_id: str, expected_version: int) -> None:
+        """Remove a plot thread only at the expected version (undo of an adopted suggestion)."""
+        self._repository.retract(project_id, "thread", thread_id, expected_version, lambda _: None)
 
     def list_threads(self, project_id: str) -> list[Thread]:
         return self._of(self._items(project_id), Thread)
@@ -577,6 +609,31 @@ class StoryControlService:
             MAX_EVENTS,
         )
 
+    def create_event_with_id(self, project_id: str, event_id: str, data: SaveEvent) -> Event:
+        """Create an event under a caller-chosen id; an existing id is a version conflict.
+
+        Timeline extraction adoption uses a deterministic id per card, so a repeated or
+        interrupted adoption can never create the same suggested event twice.
+        """
+        if data.expected_version != 0:
+            raise StoryControlInvalid
+        return self._save(
+            project_id,
+            None,
+            Event,
+            0,
+            data.model_dump(exclude={"expected_version"}),
+            self._validate_event,
+            MAX_EVENTS,
+            create_id=event_id,
+        )
+
+    def list_events(self, project_id: str) -> list[Event]:
+        return self._of(self._items(project_id), Event)
+
+    def list_states(self, project_id: str) -> list[State]:
+        return self._of(self._items(project_id), State)
+
     def _validate_state(
         self, layout: Layout, _states: list[State], _previous: State | None, state: State
     ) -> None:
@@ -605,6 +662,21 @@ class StoryControlService:
             data.model_dump(exclude={"expected_version"}),
             self._validate_state,
             MAX_STATES,
+        )
+
+    def create_state_with_id(self, project_id: str, state_id: str, data: SaveState) -> State:
+        """Create a state interval under a caller-chosen id (see ``create_event_with_id``)."""
+        if data.expected_version != 0:
+            raise StoryControlInvalid
+        return self._save(
+            project_id,
+            None,
+            State,
+            0,
+            data.model_dump(exclude={"expected_version"}),
+            self._validate_state,
+            MAX_STATES,
+            create_id=state_id,
         )
 
     @staticmethod
@@ -932,6 +1004,9 @@ class StoryControlService:
                     title=titles.get(item.id, item.title),
                     reason="pinned" if outcome.reasons[item.id] == "pinned" else "related",
                     characters=outcome.costs[item.id],
+                    similarity=None
+                    if outcome.similarity is None
+                    else outcome.similarity.get(item.id),
                 )
                 for item in outcome.selected
             ],
@@ -945,6 +1020,8 @@ class StoryControlService:
             character_limit=RECALL_CHARACTER_LIMIT,
             item_limit=RECALL_ITEM_LIMIT,
             blocked=outcome.blocked,
+            mode=outcome.mode,
+            semantic_note=outcome.semantic_note,
         )
 
     def search_facts(

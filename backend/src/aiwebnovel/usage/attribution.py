@@ -20,6 +20,8 @@ UsageOperation = Literal[
     "plan_proposal",
     "foreshadow_extraction",
     "chapter_draft",
+    "semantic_index",
+    "timeline_extraction",
 ]
 
 

@@ -1,4 +1,4 @@
-import { getJson, postJson } from "../../../api/client";
+import { getJson, postJson, putJson } from "../../../api/client";
 import { ApiError } from "../../../api/errors";
 import { securitySession } from "../../../api/security-session";
 import { parseEstimate, type SendEstimate } from "../../usage/api/budget";
@@ -7,7 +7,8 @@ import { parseEstimate, type SendEstimate } from "../../usage/api/budget";
  * 批量提取伏笔建议（F03 / C-2）。作者选定有限的章节范围（最多 10 章、正文合计不超过上限），
  * 预览与准备只读取已保存正文并冻结，不调用模型；确认预估后整段只发送一次。
  * 每张建议卡的引文都会在冻结正文中逐字核对，找不到的卡不能采用；
- * 只有作者勾选采用的有效卡才会写入伏笔。
+ * 只有作者勾选采用的有效卡才会写入伏笔。作者可以先修改建议卡再采用（原始建议与核对结果保留以便对照，
+ * 修改后的引文同样逐字核对），也可以撤销已采用的卡；伏笔之后被改过时服务端会拒绝撤销。
  */
 export type ExtractionStatus = "ready" | "running" | "completed" | "failed";
 export type CardProblem =
@@ -15,7 +16,9 @@ export type CardProblem =
   | "unknown_chapter"
   | "unknown_thread"
   | "duplicate_payoff"
-  | "duplicate_title";
+  | "duplicate_title"
+  | "thread_not_planted"
+  | "duplicate_advance";
 export type RangeProblem =
   "too_many_chapters" | "too_many_characters" | "empty_chapter";
 
@@ -34,15 +37,31 @@ export interface PayoffCard {
   readonly quote: string;
   readonly reason: string;
 }
-export type ForeshadowCard = NewThreadCard | PayoffCard;
+export interface AdvanceCard {
+  readonly kind: "advance";
+  readonly thread_id: string;
+  readonly chapter_id: string;
+  readonly quote: string;
+  readonly reason: string;
+}
+export type ForeshadowCard = NewThreadCard | PayoffCard | AdvanceCard;
 export interface CardCheck {
   readonly valid: boolean;
   readonly problem: CardProblem | null;
 }
 export interface ForeshadowAdoption {
   readonly index: number;
-  readonly action: "created" | "paid_off" | "already_recorded";
+  readonly action: "created" | "paid_off" | "advanced" | "already_recorded";
   readonly thread_id: string;
+  readonly edited: boolean;
+}
+export interface ForeshadowCardEdit {
+  readonly index: number;
+  readonly card: ForeshadowCard;
+}
+export interface ForeshadowUndo {
+  readonly index: number;
+  readonly action: ForeshadowAdoption["action"];
 }
 export interface FrozenChapter {
   readonly chapter_id: string;
@@ -69,12 +88,27 @@ export interface ForeshadowExtraction {
   readonly summary: string | null;
   readonly cards: readonly ForeshadowCard[];
   readonly checks: readonly CardCheck[];
+  /** 按作者修改后的卡重新核对的结果；采用以它为准。 */
+  readonly effective_checks: readonly CardCheck[];
+  readonly edits: readonly ForeshadowCardEdit[];
+  readonly undos: readonly ForeshadowUndo[];
   readonly error: string | null;
   readonly evidence: string | null;
   readonly evidence_truncated: boolean;
   readonly adoptions: readonly ForeshadowAdoption[];
   readonly request_preview: string;
 }
+/** 采用时实际使用的卡：有作者修改时用修改版，否则用模型原始建议。 */
+export function effectiveCard(
+  extraction: ForeshadowExtraction,
+  index: number,
+): ForeshadowCard {
+  return (
+    extraction.edits.find((item) => item.index === index)?.card ??
+    extraction.cards[index]
+  );
+}
+
 export interface ExtractionSummary {
   readonly id: string;
   readonly status: ExtractionStatus;
@@ -156,6 +190,7 @@ const kind = oneOf<"local" | "cloud">(["local", "cloud"]);
 const action = oneOf<ForeshadowAdoption["action"]>([
   "created",
   "paid_off",
+  "advanced",
   "already_recorded",
 ]);
 const cardProblem = oneOf<CardProblem>([
@@ -164,6 +199,8 @@ const cardProblem = oneOf<CardProblem>([
   "unknown_thread",
   "duplicate_payoff",
   "duplicate_title",
+  "thread_not_planted",
+  "duplicate_advance",
 ]);
 const rangeProblem = oneOf<RangeProblem>([
   "too_many_chapters",
@@ -181,6 +218,13 @@ function chapter(value: unknown): FrozenChapter {
     characters: int(item.characters),
   };
 }
+function cardCheck(value: unknown): CardCheck {
+  const check = obj(value);
+  return {
+    valid: bool(check.valid),
+    problem: nullable(check.problem, cardProblem),
+  };
+}
 function card(value: unknown): ForeshadowCard {
   const item = obj(value);
   if (item.kind === "new_thread")
@@ -192,9 +236,9 @@ function card(value: unknown): ForeshadowCard {
       quote: str(item.quote),
       reason: str(item.reason),
     };
-  if (item.kind === "payoff")
+  if (item.kind === "payoff" || item.kind === "advance")
     return {
-      kind: "payoff",
+      kind: item.kind,
       thread_id: id(item.thread_id),
       chapter_id: id(item.chapter_id),
       quote: str(item.quote),
@@ -211,15 +255,11 @@ export function parseExtraction(
   if (item.project_id !== projectId) invalid();
   const model = obj(item.model);
   const cards = list(item.cards, card);
-  const checks = list(item.checks, (raw) => {
-    const check = obj(raw);
-    return {
-      valid: bool(check.valid),
-      problem: nullable(check.problem, cardProblem),
-    };
-  });
+  const checks = list(item.checks, cardCheck);
+  const effectiveChecks = list(item.effective_checks, cardCheck);
   // A card without its server check is never treated as adoptable.
-  if (checks.length !== cards.length) invalid();
+  if (checks.length !== cards.length || effectiveChecks.length !== cards.length)
+    invalid();
   return {
     id: id(item.id),
     version: int(item.version),
@@ -237,6 +277,15 @@ export function parseExtraction(
     summary: nullable(item.summary, str),
     cards,
     checks,
+    effective_checks: effectiveChecks,
+    edits: list(item.edits, (raw) => {
+      const edit = obj(raw);
+      return { index: int(edit.index), card: card(edit.card) };
+    }),
+    undos: list(item.undos, (raw) => {
+      const undo = obj(raw);
+      return { index: int(undo.index), action: action(undo.action) };
+    }),
     error: nullable(item.error, str),
     evidence: nullable(item.evidence, str),
     evidence_truncated: bool(item.evidence_truncated),
@@ -246,6 +295,7 @@ export function parseExtraction(
         index: int(adoption.index),
         action: action(adoption.action),
         thread_id: id(adoption.thread_id),
+        edited: bool(adoption.edited),
       };
     }),
     request_preview: str(item.request_preview),
@@ -275,7 +325,10 @@ const MESSAGES: Record<string, string> = {
     "提取状态已变化（可能已在其他窗口发送或失败），请刷新后再操作。",
   FORESHADOW_EXTRACTION_INVALID:
     "所选范围无效（超过章节或字数上限、含空章或章节已不存在），或建议记录已达上限。",
-  FORESHADOW_CARD_INVALID: "所选卡片的引文没有在冻结的原文中找到，不能采用。",
+  FORESHADOW_CARD_INVALID:
+    "卡片无效：引文必须逐字出自所选章节的冻结原文，伏笔名不能与已有伏笔重复，且不能改变卡片类型。",
+  FORESHADOW_UNDO_CONFLICT:
+    "这张卡写入的伏笔之后已被修改，为避免覆盖你的改动，没有撤销。请在伏笔里手动调整。",
   FORESHADOW_EXTRACTION_NOT_FOUND: "该提取记录已不存在，请刷新。",
   FORESHADOW_EXTRACTION_CONSENT_REQUIRED:
     "这是云端模型：请先勾选同意发送所选章节的正文。",
@@ -326,7 +379,18 @@ export const foreshadowExtractionClient = {
     request(() =>
       getJson("ai/models", (value) => {
         const item = obj(value);
-        return list(item.items, (raw) => {
+        // 嵌入模型只用于语义索引，不能用于生成建议。
+        const items = Array.isArray(item.items)
+          ? item.items.filter(
+              (raw: unknown) =>
+                !(
+                  typeof raw === "object" &&
+                  raw !== null &&
+                  (raw as { purpose?: unknown }).purpose === "embedding"
+                ),
+            )
+          : item.items;
+        return list(items, (raw) => {
           const profile = obj(raw);
           return {
             id: id(profile.id),
@@ -408,6 +472,29 @@ export const foreshadowExtractionClient = {
       postJson(
         `${base(projectId)}/${id(extractionId)}/adopt`,
         { card_indexes: indexes },
+        (value) => parseExtraction(value, projectId),
+        await csrf(),
+      ),
+    ),
+  editCard: (
+    projectId: string,
+    extraction: ForeshadowExtraction,
+    index: number,
+    card: ForeshadowCard | null,
+  ) =>
+    request(async () =>
+      putJson(
+        `${base(projectId)}/${id(extraction.id)}/cards/${int(index)}`,
+        { expected_version: extraction.version, card },
+        (value) => parseExtraction(value, projectId),
+        await csrf(),
+      ),
+    ),
+  undo: (projectId: string, extraction: ForeshadowExtraction, index: number) =>
+    request(async () =>
+      postJson(
+        `${base(projectId)}/${id(extraction.id)}/undo`,
+        { expected_version: extraction.version, card_index: int(index) },
         (value) => parseExtraction(value, projectId),
         await csrf(),
       ),

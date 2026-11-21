@@ -1,6 +1,11 @@
 import { getJson, postJson, putJson } from "../../../api/client";
 import { ApiError } from "../../../api/errors";
 import { securitySession } from "../../../api/security-session";
+import {
+  parseRecallMode,
+  parseSimilarity,
+  type RecallMode,
+} from "../../story-control/api/storyControl";
 import { AIWritingError } from "./ai-writing";
 import { workflowFailureMessage } from "./ai-workflow";
 
@@ -44,6 +49,7 @@ export interface ReviewRecall {
     readonly title: string;
     readonly reason: "pinned" | "related";
     readonly characters: number;
+    readonly similarity?: number;
   }[];
   readonly omitted: readonly {
     readonly id: string;
@@ -55,6 +61,8 @@ export interface ReviewRecall {
   readonly used_characters: number;
   readonly character_limit: number;
   readonly item_limit: number;
+  readonly mode?: RecallMode;
+  readonly semantic_note?: string;
 }
 export interface MemoryReview {
   readonly id: string;
@@ -163,6 +171,7 @@ export function parseReviewRecall(
       title: str(choice.title),
       reason: oneOf(choice.reason, ["pinned", "related"] as const),
       characters: number(choice.characters),
+      ...parseSimilarity(choice.similarity),
     };
   });
   // The explanation must describe exactly the facts that were frozen, in order.
@@ -189,6 +198,7 @@ export function parseReviewRecall(
     used_characters: number(item.used_characters),
     character_limit: number(item.character_limit),
     item_limit: number(item.item_limit),
+    ...parseRecallMode(item),
   };
 }
 export function parseMemoryFact(value: unknown, project: string): MemoryFact {

@@ -223,8 +223,10 @@ export function AIWorkflowAssistant({
     event.preventDefault();
     selectTab(target.id, true);
   };
-  const profile = ai.models.find(
-    (item) => item.id === (profileId || ai.models[0]?.id),
+  // 嵌入模型只用于语义索引，不出现在生成用模型选择中。
+  const chatModels = ai.models.filter((item) => item.purpose !== "embedding");
+  const profile = chatModels.find(
+    (item) => item.id === (profileId || chatModels[0]?.id),
   );
   const runProfile =
     ai.active?.model_snapshot ??
@@ -494,7 +496,7 @@ export function AIWorkflowAssistant({
         hidden={tab !== "generate"}
       >
         <section className="ai-model-summary" aria-label="当前模型">
-          {ai.models.length === 0 ? (
+          {chatModels.length === 0 ? (
             <>
               <p>
                 {ai.loading
@@ -535,7 +537,7 @@ export function AIWorkflowAssistant({
           focusRequest={settingsFocus}
           onSaved={(saved) => {
             ai.modelSaved(saved);
-            setProfileId(saved.id);
+            if (saved.purpose !== "embedding") setProfileId(saved.id);
           }}
           client={client}
         />
@@ -546,10 +548,10 @@ export function AIWorkflowAssistant({
           disabled={unavailable}
           onChange={(event) => setProfileId(event.target.value)}
         >
-          {ai.models.length === 0 ? (
+          {chatModels.length === 0 ? (
             <option value="">请先添加模型</option>
           ) : null}
-          {ai.models.map((item) => (
+          {chatModels.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name} · {item.kind === "cloud" ? "云端" : "本地"}
             </option>
@@ -989,6 +991,11 @@ export function AIWorkflowAssistant({
                 chapterId={chapterId}
                 profileId={profile.id}
                 jobId={jobId}
+                draftId={
+                  job?.drafts
+                    ?.filter((item) => item.chapter_id === chapterId)
+                    .at(-1)?.draft_id ?? null
+                }
                 savedContent={writing.state.snapshot.resource.content}
                 savedRevisionId={
                   writing.state.snapshot.resource.current_revision_id

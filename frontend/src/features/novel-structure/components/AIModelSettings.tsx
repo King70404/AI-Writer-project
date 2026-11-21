@@ -9,6 +9,7 @@ import {
   type AIWorkflowClient,
   type ModelProfile,
 } from "../api/ai-workflow";
+import { EmbeddingPriceForm } from "./EmbeddingPriceForm";
 
 export function AIModelSettings({
   models,
@@ -36,6 +37,7 @@ export function AIModelSettings({
   const [id, setId] = useState<string | undefined>();
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"local" | "cloud">("local");
+  const [purpose, setPurpose] = useState<"chat" | "embedding">("chat");
   const [url, setUrl] = useState("http://127.0.0.1:1234/v1");
   const [model, setModel] = useState("");
   const [tokens, setTokens] = useState("2048");
@@ -95,6 +97,7 @@ export function AIModelSettings({
     setId(profile?.id);
     setName(profile?.name ?? "");
     setKind(profile?.kind ?? "local");
+    setPurpose(profile?.purpose ?? "chat");
     setUrl(profile?.base_url ?? "http://127.0.0.1:1234/v1");
     setModel(profile?.model ?? "");
     setTokens(String(profile?.max_output_tokens ?? 2048));
@@ -129,6 +132,7 @@ export function AIModelSettings({
           base_url: url.trim(),
           model: model.trim(),
           max_output_tokens: outputTokens,
+          ...(purpose === "embedding" ? { purpose } : {}),
           ...(kind === "cloud" && key ? { api_key: key } : {}),
           ...(id && clearKey ? { clear_key: true } : {}),
         },
@@ -141,8 +145,10 @@ export function AIModelSettings({
       setConnection({});
       setMessage(
         saved.kind === "cloud" && !saved.has_key
-          ? `配置已保存，已选中“${saved.name}”。还需填写 API Key 才能向云端发送。`
-          : `配置已保存，已选中“${saved.name}”。密钥不会回显；尚未检查服务连接。`,
+          ? `配置已保存${saved.purpose === "embedding" ? "" : `，已选中“${saved.name}”`}。还需填写 API Key 才能向云端发送。`
+          : saved.purpose === "embedding"
+            ? `嵌入模型“${saved.name}”已保存。可在下方填写嵌入单价，并在“长篇记忆与评审”的语义索引中选用。`
+            : `配置已保存，已选中“${saved.name}”。密钥不会回显；尚未检查服务连接。`,
       );
     } catch (failure) {
       if (
@@ -176,6 +182,7 @@ export function AIModelSettings({
         {models.map((profile) => (
           <li key={profile.id}>
             {profile.name} · {profile.model} ·{" "}
+            {profile.purpose === "embedding" ? "嵌入（语义索引） · " : ""}
             {profile.kind === "cloud"
               ? profile.has_key
                 ? "已保存密钥"
@@ -208,7 +215,14 @@ export function AIModelSettings({
                 {connection[profile.id].configuration_version.slice(0, 12)}
               </p>
             ) : null}
-            {connection[profile.id]?.status === "unsupported" ? (
+            {connection[profile.id]?.status === "unsupported" &&
+            profile.purpose === "embedding" ? (
+              <p>
+                嵌入模型不提供测试消息；首次建立语义索引时会在你确认预估费用后实际调用。
+              </p>
+            ) : null}
+            {connection[profile.id]?.status === "unsupported" &&
+            profile.purpose !== "embedding" ? (
               <div>
                 <p>
                   将发送一条测试消息，可能计费。费用计入当前小说用量并受预算约束；测试结果不会进入正文。
@@ -272,6 +286,24 @@ export function AIModelSettings({
             maxLength={100}
             onChange={(event) => setName(event.target.value)}
           />
+          <label htmlFor="ai-model-purpose">用途</label>
+          <select
+            id="ai-model-purpose"
+            value={purpose}
+            onChange={(event) =>
+              setPurpose(
+                event.target.value === "embedding" ? "embedding" : "chat",
+              )
+            }
+          >
+            <option value="chat">生成与评审</option>
+            <option value="embedding">嵌入（语义索引）</option>
+          </select>
+          {purpose === "embedding" ? (
+            <p>
+              嵌入模型只在你确认预估费用后用于建立语义索引，每次建立/更新索引都会按服务商价格计费，并计入用量与预算；不会用于生成正文。
+            </p>
+          ) : null}
           <label htmlFor="ai-model-kind">服务位置</label>
           <select
             id="ai-model-kind"
@@ -305,13 +337,17 @@ export function AIModelSettings({
             value={model}
             onChange={(event) => setModel(event.target.value)}
           />
-          <label htmlFor="ai-model-tokens">每次输出 Token 上限</label>
-          <input
-            id="ai-model-tokens"
-            inputMode="numeric"
-            value={tokens}
-            onChange={(event) => setTokens(event.target.value)}
-          />
+          {purpose === "chat" ? (
+            <>
+              <label htmlFor="ai-model-tokens">每次输出 Token 上限</label>
+              <input
+                id="ai-model-tokens"
+                inputMode="numeric"
+                value={tokens}
+                onChange={(event) => setTokens(event.target.value)}
+              />
+            </>
+          ) : null}
           {kind === "cloud" ? (
             <>
               <label htmlFor="ai-model-key">API Key（留空保留已有密钥）</label>
@@ -345,6 +381,13 @@ export function AIModelSettings({
           </button>
         </fieldset>
       </form>
+      {id && purpose === "embedding" ? (
+        <EmbeddingPriceForm
+          key={id}
+          profileId={id}
+          profileName={models.find((item) => item.id === id)?.name ?? name}
+        />
+      ) : null}
       {message ? <p role="status">{message}</p> : null}
       {error ? <p role="alert">{error}</p> : null}
     </details>
