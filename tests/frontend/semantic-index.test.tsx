@@ -158,7 +158,7 @@ it("builds only after the author confirms the exact plan", async () => {
   const fake = client(status());
   await open(fake);
   const button = screen.getByRole("button", { name: "确认并建立/更新索引" });
-  expect((button as HTMLButtonElement).disabled).toBe(true);
+  expect(button).toHaveProperty("disabled", true);
   fireEvent.click(screen.getByLabelText("我已核对以上预估，确认发送并计费"));
   fireEvent.click(button);
   await screen.findByText(/已发送 1 个嵌入请求/u);
@@ -183,12 +183,8 @@ it("refuses a strict-budget plan and requires cloud consent", async () => {
   await open(refused);
   expect(screen.getByText(/严格预算将拒绝/u)).toBeTruthy();
   expect(
-    (
-      screen.getByRole("button", {
-        name: "确认并建立/更新索引",
-      }) as HTMLButtonElement
-    ).disabled,
-  ).toBe(true);
+    screen.getByRole("button", { name: "确认并建立/更新索引" }),
+  ).toHaveProperty("disabled", true);
   refused.build.mockClear();
   document.body.innerHTML = "";
 
@@ -200,7 +196,7 @@ it("refuses a strict-budget plan and requires cloud consent", async () => {
   await open(cloud);
   fireEvent.click(screen.getByLabelText("我已核对以上预估，确认发送并计费"));
   const button = screen.getByRole("button", { name: "确认并建立/更新索引" });
-  expect((button as HTMLButtonElement).disabled).toBe(true);
+  expect(button).toHaveProperty("disabled", true);
   fireEvent.click(screen.getByLabelText(/同意把上述事实与正文分块发送给云端/u));
   fireEvent.click(button);
   await waitFor(() =>
@@ -216,10 +212,7 @@ it("parses status strictly and keeps chat profiles in their old shape", () => {
   expect(parseSemanticStatus(status(), PROJECT).plan?.requests).toBe(1);
   expect(() => parseSemanticStatus(status(), "prj_other")).toThrow();
   expect(() =>
-    parseSemanticStatus(
-      { ...status(), profile_problem: "unknown" } as unknown,
-      PROJECT,
-    ),
+    parseSemanticStatus({ ...status(), profile_problem: "unknown" }, PROJECT),
   ).toThrow();
   expect(parseModelProfile({ ...CHAT, purpose: "chat" })).not.toHaveProperty(
     "purpose",
