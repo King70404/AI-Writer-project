@@ -15,6 +15,20 @@ from aiwebnovel.ai_writing.application.workflow_models import (
     WorkflowOutputInvalid,
     WorkflowRun,
 )
+from aiwebnovel.ai_writing.chapter_draft import ChapterDraftService
+from aiwebnovel.ai_writing.chapter_draft_models import (
+    AdoptChapterDraft,
+    ChapterDraftConflict,
+    ChapterDraftConsentRequired,
+    ChapterDraftInvalid,
+    ChapterDraftList,
+    ChapterDraftNotFound,
+    ChapterDraftQuotaExhausted,
+    ChapterDraftStale,
+    ChapterDraftView,
+    PrepareChapterDraft,
+    SendChapterDraft,
+)
 from aiwebnovel.ai_writing.web import map_error, require_json
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.domain.concurrency import ConcurrencyVersion
@@ -74,6 +88,27 @@ def get_workflow_service(request: Request) -> AIWorkflowService:
     return service
 
 
+def get_chapter_draft_service(request: Request) -> ChapterDraftService:
+    drafts = get_workflow_service(request).chapter_drafts
+    if not isinstance(drafts, ChapterDraftService):
+        raise AppError(
+            code="AI_SERVICE_UNAVAILABLE",
+            message="AI workflow service is unavailable.",
+            status_code=503,
+        )
+    return drafts
+
+
+_DRAFT_ERRORS: dict[type[DomainError], tuple[int, str]] = {
+    ChapterDraftConflict: (409, "CHAPTER_DRAFT_CONFLICT"),
+    ChapterDraftStale: (409, "CHAPTER_DRAFT_STALE"),
+    ChapterDraftQuotaExhausted: (409, "CHAPTER_DRAFT_QUOTA_EXHAUSTED"),
+    ChapterDraftInvalid: (422, "CHAPTER_DRAFT_INVALID"),
+    ChapterDraftNotFound: (404, "CHAPTER_DRAFT_NOT_FOUND"),
+    ChapterDraftConsentRequired: (403, "CHAPTER_DRAFT_CONSENT_REQUIRED"),
+}
+
+
 def _invoke[T](response: Response, call: Callable[[], T]) -> T:
     response.headers["Cache-Control"] = "no-store"
     try:
@@ -89,6 +124,9 @@ def _invoke[T](response: Response, call: Callable[[], T]) -> T:
             ),
         ):
             raise map_model_error(error) from None
+        if type(error) in _DRAFT_ERRORS:
+            status, code = _DRAFT_ERRORS[type(error)]
+            raise AppError(code=code, message=error.message, status_code=status) from None
         if isinstance(error, WorkflowConflict):
             raise AppError(
                 code="AI_WORKFLOW_CONFLICT", message=error.message, status_code=409
@@ -115,6 +153,7 @@ def _invoke[T](response: Response, call: Callable[[], T]) -> T:
 
 
 Service = Annotated[AIWorkflowService, Depends(get_workflow_service)]
+Drafts = Annotated[ChapterDraftService, Depends(get_chapter_draft_service)]
 Json = Annotated[None, Depends(require_json)]
 
 
@@ -231,5 +270,71 @@ def create_ai_workflow_router(*, api_prefix: str) -> APIRouter:
         _json: Json,
     ) -> WorkflowRun:
         return _invoke(response, lambda: service.discard(chapter_id, candidate_id))
+
+    # Chapter drafts (``chapter_draft``): preparation and reads never call a model.
+    @router.get("/drafts", response_model=ChapterDraftList)
+    def list_drafts(chapter_id: str, response: Response, drafts: Drafts) -> ChapterDraftList:
+        return _invoke(
+            response,
+            lambda: ChapterDraftList(chapter_id=chapter_id, items=drafts.list_drafts(chapter_id)),
+        )
+
+    @router.post("/drafts", response_model=ChapterDraftView, status_code=201)
+    def prepare_draft(
+        chapter_id: str,
+        payload: PrepareChapterDraft,
+        response: Response,
+        drafts: Drafts,
+        _json: Json,
+    ) -> ChapterDraftView:
+        return _invoke(response, lambda: drafts.prepare(chapter_id, **payload.model_dump()))
+
+    @router.get("/drafts/{draft_id}", response_model=ChapterDraftView)
+    def get_draft(
+        chapter_id: str, draft_id: str, response: Response, drafts: Drafts
+    ) -> ChapterDraftView:
+        return _invoke(response, lambda: drafts.get(chapter_id, draft_id))
+
+    @router.get("/drafts/{draft_id}/estimate", response_model=SendEstimate)
+    def estimate_draft(
+        chapter_id: str, draft_id: str, response: Response, drafts: Drafts
+    ) -> SendEstimate:
+        return _invoke(response, lambda: drafts.estimate(chapter_id, draft_id))
+
+    @router.post("/drafts/{draft_id}/send", response_model=ChapterDraftView)
+    def send_draft(
+        chapter_id: str,
+        draft_id: str,
+        payload: SendChapterDraft,
+        response: Response,
+        drafts: Drafts,
+        _json: Json,
+    ) -> ChapterDraftView:
+        return _invoke(
+            response,
+            lambda: drafts.send(
+                chapter_id,
+                draft_id,
+                payload.expected_version,
+                payload.cloud_consent,
+                payload.segments,
+            ),
+        )
+
+    @router.post("/drafts/{draft_id}/adopt", response_model=ChapterDraftView)
+    def adopt_draft(
+        chapter_id: str,
+        draft_id: str,
+        payload: AdoptChapterDraft,
+        response: Response,
+        drafts: Drafts,
+        _json: Json,
+    ) -> ChapterDraftView:
+        return _invoke(
+            response,
+            lambda: drafts.adopt(
+                chapter_id, draft_id, payload.segment_indexes, payload.idempotency_key
+            ),
+        )
 
     return router

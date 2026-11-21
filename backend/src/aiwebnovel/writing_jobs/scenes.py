@@ -30,9 +30,27 @@ def current_plan(session: Session, chapter_id: str) -> "ChapterPlanRevisionRecor
 
 
 def step_adopted(session: Session, job_id: str, step_index: int) -> bool:
+    from sqlalchemy import func, inspect
+
+    from aiwebnovel.ai_writing.chapter_draft_persistence import ChapterDraftRecord
     from aiwebnovel.ai_writing.persistence.models import AIWorkflowCandidateRecord
     from aiwebnovel.writing_jobs.persistence import WritingJobRunRecord
 
+    # A bound chapter draft counts once the author adopted any of its segments.
+    if inspect(session.get_bind()).has_table("chapter_drafts") and (
+        session.scalar(
+            select(ChapterDraftRecord.id)
+            .join(WritingJobRunRecord, WritingJobRunRecord.run_id == ChapterDraftRecord.id)
+            .where(
+                WritingJobRunRecord.job_id == job_id,
+                WritingJobRunRecord.step_index == step_index,
+                func.json_array_length(ChapterDraftRecord.payload, "$.receipts") > 0,
+            )
+            .limit(1)
+        )
+        is not None
+    ):
+        return True
     return (
         session.scalar(
             select(AIWorkflowCandidateRecord.id)

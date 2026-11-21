@@ -19,6 +19,7 @@ UsageOperation = Literal[
     "method_trial",
     "plan_proposal",
     "foreshadow_extraction",
+    "chapter_draft",
 ]
 
 

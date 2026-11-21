@@ -116,6 +116,23 @@ def render(row: object, session: Session) -> dict[str, object]:
             edit = session.get(AICandidateEditRecord, adoption.edit_id) if adoption else None
             adopted_text = edit.text if edit else candidate.text
             adopted_characters += sum(not character.isspace() for character in adopted_text)
+    # A chapter draft bound as a step counts its own generated and adopted segments.
+    from aiwebnovel.ai_writing.chapter_draft_persistence import ChapterDraftRecord
+
+    active_draft_id = None
+    has_drafts = inspect(session.get_bind()).has_table("chapter_drafts")
+    for binding in bindings if has_drafts else ():
+        draft = session.get(ChapterDraftRecord, binding.run_id)
+        if draft is None:
+            continue
+        if active is not None and binding.run_id == active.run_id:
+            active_draft_id = draft.id
+        generated_characters += int(draft.payload.get("generated_characters", 0))
+        adopted_characters += sum(
+            int(segment["characters"])
+            for segment in draft.payload.get("segments", [])
+            if segment.get("status") == "adopted"
+        )
     return {
         "generated_characters": generated_characters,
         "adopted_characters": adopted_characters,
@@ -124,6 +141,7 @@ def render(row: object, session: Session) -> dict[str, object]:
         "claimed_requests": budget.claimed_requests if budget else 0,
         "used_characters": budget.used_characters if budget else 0,
         "active_run_id": active.run_id if active else None,
+        "active_draft_id": active_draft_id,
         "job_id": row.id,
         "project_id": row.project_id,
         "title": row.title,

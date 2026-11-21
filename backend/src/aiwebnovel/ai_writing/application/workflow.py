@@ -3,6 +3,7 @@
 import hashlib
 import re
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from aiwebnovel.ai_writing.application.context import ChapterWritingContextBuilder
@@ -34,6 +35,9 @@ from aiwebnovel.usage.attribution import usage_attribution
 from aiwebnovel.usage.budget import BudgetRefused, SendEstimate
 from aiwebnovel.usage.models import UsageLedgerUnavailable
 
+if TYPE_CHECKING:
+    from aiwebnovel.ai_writing.chapter_draft import ChapterDraftService
+
 Estimator = Callable[..., SendEstimate]
 
 
@@ -56,6 +60,8 @@ class AIWorkflowService:
         self._provider = provider
         self._model_reader = model_reader
         self._estimator = estimator
+        # Composed only with the metered provider and budgets; None leaves drafts off.
+        self.chapter_drafts: ChapterDraftService | None = None
 
     def create(
         self,

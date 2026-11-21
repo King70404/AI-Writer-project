@@ -414,7 +414,7 @@ def test_migration_adds_ledger_operation_and_downgrade_keeps_records(tmp_path):
 
     assert _run_alembic(path, "upgrade", "0022_add_plan_proposals").returncode == 0
     before = triggers()
-    upgraded = _run_alembic(path, "upgrade", "head")
+    upgraded = _run_alembic(path, "upgrade", "0023_add_foreshadow_proposals")
     assert upgraded.returncode == 0, upgraded.stderr
     ledger = objects("SELECT sql FROM sqlite_master WHERE name='model_usage_attempts'")[0][0]
     assert "'foreshadow_extraction'" in ledger and "'plan_proposal'" in ledger
