@@ -33,6 +33,7 @@ export function memoryReview(patch: Partial<MemoryReview> = {}): MemoryReview {
     content_truncated: false,
     facts: [],
     omitted_facts: 0,
+    recall: null,
     model: {
       name: "评审模型",
       kind: "cloud",

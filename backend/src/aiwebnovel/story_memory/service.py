@@ -21,6 +21,9 @@ from aiwebnovel.novel_structure.application.queries import (
 )
 from aiwebnovel.novel_structure.application.services import NovelStructureQueryService
 from aiwebnovel.story_memory.models import (
+    RECALL_CHARACTER_LIMIT,
+    RECALL_EXPLANATION_LIMIT,
+    RECALL_ITEM_LIMIT,
     Fact,
     FactInput,
     FrozenFact,
@@ -31,11 +34,16 @@ from aiwebnovel.story_memory.models import (
     MemoryItem,
     MemoryNotFound,
     MemoryRepository,
+    RecallMode,
     RecallOutcome,
     RecallPinsInvalid,
     RecallSelectionPolicy,
     Review,
+    ReviewRecall,
+    ReviewRecallChoice,
+    ReviewRecallOmission,
     ReviewResult,
+    SemanticRanking,
     Workspace,
     snapshot_model,
 )
@@ -52,6 +60,19 @@ fact_ids 只能引用提供的事实 id;不得把未来剧情或模型推测当�
 引文最多2000字。引文必须逐字来自当前正文。保持简洁，不输出代码围栏。"""
 
 
+SemanticRanker = Callable[[ChapterContentSnapshot, tuple[Fact, ...]], SemanticRanking]
+_BIGRAM = r"(?=([\w\u4e00-\u9fff]{2}))"
+
+
+SEMANTIC_WEIGHT = 0.7
+LEXICAL_WEIGHT = 0.3
+RECALL_ORDER_LABELS: dict[RecallMode, str] = {
+    "deterministic": "按文字关联及前文顺序召回",
+    "semantic": "按语义相似度(作者建立的嵌入索引)与文字关联混合排序召回",
+    "fallback": "语义召回不可用，已回退为按文字关联及前文顺序召回",
+}
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -65,6 +86,7 @@ class StoryMemoryService:
         model_reader: Callable[[str | None], ModelSnapshot],
         generation_sources: Callable[[str], tuple[ContextSource, ...]] | None = None,
         policy_reader: Callable[[str], RecallSelectionPolicy | None] | None = None,
+        semantic_ranker: SemanticRanker | None = None,
     ) -> None:
         self._repository = repository
         self._structure = structure
@@ -72,6 +94,9 @@ class StoryMemoryService:
         self._model_reader = model_reader
         self._generation_sources = generation_sources
         self._policy_reader = policy_reader
+        self.semantic_ranker = semantic_ranker
+        # C-4: the composed semantic index service (Search), attached at composition.
+        self.semantic_index: object | None = None
 
     def _chapter(self, chapter_id: str) -> ChapterContentSnapshot:
         return self._structure.get_chapter_content(GetChapterContentQuery(chapter_id))
@@ -147,14 +172,6 @@ class StoryMemoryService:
             for chapter in self._structure.list_chapters(ListChaptersQuery(volume.volume_id))
         )
 
-    def _facts(
-        self,
-        chapter: ChapterContentSnapshot,
-        items: tuple[MemoryItem, ...],
-    ) -> tuple[list[Fact], list[FrozenFact], int]:
-        outcome = self.recall(chapter, items, None)
-        return list(outcome.facts), list(outcome.selected), outcome.omitted_total
-
     def recall(
         self,
         chapter: ChapterContentSnapshot,
@@ -194,16 +211,49 @@ class StoryMemoryService:
         related = [item for item in eligible if item.id not in excluded and item.id not in pinned]
         # Character n-gram overlap is deterministic and inspectable. Recency breaks ties;
         # explicit author confirmation remains the eligibility requirement.
-        query = set(re.findall(r"(?=([\w\u4e00-\u9fff]{2}))", chapter.content[-8000:]))
-        related.sort(
-            key=lambda item: (
-                len(query & set(re.findall(r"(?=([\w\u4e00-\u9fff]{2}))", item.title + item.text))),
-                order[item.chapter_id],
-                item.updated_at,
-                item.id,
-            ),
-            reverse=True,
-        )
+        query = set(re.findall(_BIGRAM, chapter.content[-8000:]))
+        overlap = {
+            item.id: len(query & set(re.findall(_BIGRAM, item.title + item.text)))
+            for item in related
+        }
+        # C-4: with a valid, author-built index the order blends stored-vector similarity
+        # with the same overlap; otherwise it stays deterministic and says why.
+        mode: RecallMode = "deterministic"
+        note: str | None = None
+        similarity: dict[str, float] | None = None
+        if self.semantic_ranker is not None:
+            ranking = self.semantic_ranker(chapter, tuple(related))
+            if ranking.requested and ranking.available:
+                mode = "semantic"
+                similarity = {item.id: ranking.similarity[item.id] for item in related}
+            elif ranking.requested:
+                mode, note = "fallback", ranking.note
+        if similarity is None:
+            related.sort(
+                key=lambda item: (
+                    overlap[item.id],
+                    order[item.chapter_id],
+                    item.updated_at,
+                    item.id,
+                ),
+                reverse=True,
+            )
+        else:
+            scores = similarity
+            top = max(overlap.values(), default=0) or 1
+            related.sort(
+                key=lambda item: (
+                    round(
+                        SEMANTIC_WEIGHT * max(scores[item.id], 0.0)
+                        + LEXICAL_WEIGHT * overlap[item.id] / top,
+                        9,
+                    ),
+                    order[item.chapter_id],
+                    item.updated_at,
+                    item.id,
+                ),
+                reverse=True,
+            )
         selected: list[FrozenFact] = []
         reasons: dict[str, str] = {}
         costs: dict[str, int] = {}
@@ -228,7 +278,7 @@ class StoryMemoryService:
                 )
             )
             cost = len(json.dumps(snapshot.model_dump(), ensure_ascii=False)) + 2
-            if len(selected) >= 24 or used + cost > 10_000:
+            if len(selected) >= RECALL_ITEM_LIMIT or used + cost > RECALL_CHARACTER_LIMIT:
                 return False
             selected.append(snapshot)
             reasons[item.id] = reason
@@ -271,6 +321,9 @@ class StoryMemoryService:
             excluded_total=excluded_total,
             used=used,
             blocked=blocked,
+            mode=mode,
+            semantic_note=note,
+            similarity=similarity,
         )
 
     def recall_for_chapter(
@@ -312,7 +365,7 @@ class StoryMemoryService:
 
     def workspace(self, chapter_id: str) -> Workspace:
         chapter, items = self._list(chapter_id)
-        policy = None if self._policy_reader is None else self._policy_reader(chapter_id)
+        policy = self._read_policy(chapter_id)
         outcome = self.recall(chapter, items, policy)
         facts, recalled, omitted = (
             list(outcome.facts),
@@ -381,7 +434,7 @@ class StoryMemoryService:
 
     def context_sources(self, chapter_id: str) -> tuple[ContextSource, ...]:
         chapter, items = self._list(chapter_id)
-        policy = None if self._policy_reader is None else self._policy_reader(chapter_id)
+        policy = self._read_policy(chapter_id)
         outcome = self.recall(chapter, items, policy)
         if outcome.blocked:
             raise RecallPinsInvalid
@@ -391,7 +444,10 @@ class StoryMemoryService:
             json.dumps([item.model_dump() for item in facts], ensure_ascii=False) if facts else ""
         )
         reason = (
-            f"作者已确认且来源未变化的前文章节事实;按文字关联及前文顺序召回，另省略 {omitted} 项"
+            "作者已确认且来源未变化的前文章节事实;"
+            + RECALL_ORDER_LABELS[outcome.mode]
+            + (f"({outcome.semantic_note})" if outcome.semantic_note else "")
+            + f"，另省略 {omitted} 项"
         )
         if policy is not None:
             pinned = sum(value == "pinned" for value in outcome.reasons.values())
@@ -416,7 +472,13 @@ class StoryMemoryService:
             raise MemoryConflict
         if sum(isinstance(item, Review) and item.chapter_id == chapter_id for item in items) >= 100:
             raise MemoryInvalid
-        _, facts, omitted = self._facts(chapter, items)
+        # The review follows the same per-chapter recall policy as generation: excluded
+        # facts are never sent, pinned facts come first, and an invalid or over-budget
+        # pin refuses preparation instead of being dropped. No model is called here.
+        policy = self._read_policy(chapter_id)
+        outcome = self.recall(chapter, items, policy)
+        if outcome.blocked:
+            raise RecallPinsInvalid
         review = Review(
             id=str(uuid4()),
             revision_id=str(uuid4()),
@@ -427,21 +489,66 @@ class StoryMemoryService:
             content=chapter.content[-24_000:],
             content_truncated=len(chapter.content) > 24_000,
             model=snapshot_model(self._model_reader(profile_id)),
-            facts=facts,
-            omitted_facts=omitted,
+            facts=list(outcome.selected),
+            omitted_facts=outcome.omitted_total,
+            recall=self._review_recall(policy, outcome),
             status="ready",
             attempts=0,
             result=None,
             last_error=None,
             updated_at=_now(),
         )
-        return cast(
-            Review,
-            self._repository.save(
-                review,
-                0,
-                lambda: self._require_source(chapter_id, chapter.project_id, revision),
-            ),
+
+        def validate() -> None:
+            self._require_source(chapter_id, chapter.project_id, revision)
+            current = self._read_policy(chapter_id)
+            if (0 if current is None else current.version) != (
+                0 if policy is None else policy.version
+            ):
+                raise MemoryConflict
+
+        return cast(Review, self._repository.save(review, 0, validate))
+
+    def _read_policy(self, chapter_id: str) -> RecallSelectionPolicy | None:
+        return None if self._policy_reader is None else self._policy_reader(chapter_id)
+
+    @staticmethod
+    def _review_recall(
+        policy: RecallSelectionPolicy | None, outcome: RecallOutcome
+    ) -> ReviewRecall:
+        return ReviewRecall(
+            policy_version=0 if policy is None else policy.version,
+            pinned_fact_ids=[] if policy is None else list(policy.pinned),
+            excluded_fact_ids=[] if policy is None else list(policy.excluded),
+            selected=[
+                ReviewRecallChoice(
+                    id=item.id,
+                    revision_id=item.revision_id,
+                    chapter_id=item.chapter_id,
+                    title=item.title,
+                    reason="pinned" if outcome.reasons[item.id] == "pinned" else "related",
+                    characters=outcome.costs[item.id],
+                    similarity=(
+                        None
+                        if outcome.similarity is None or item.id not in outcome.similarity
+                        else max(-1.0, min(1.0, round(outcome.similarity[item.id], 6)))
+                    ),
+                )
+                for item in outcome.selected
+            ],
+            omitted=[
+                ReviewRecallOmission(
+                    id=fact_id,
+                    title=title,
+                    reason="excluded" if reason == "excluded" else "budget",
+                )
+                for fact_id, title, reason in outcome.omitted[:RECALL_EXPLANATION_LIMIT]
+            ],
+            omitted_total=outcome.omitted_total,
+            excluded_total=outcome.excluded_total,
+            used_characters=outcome.used,
+            mode=outcome.mode,
+            semantic_note=outcome.semantic_note,
         )
 
     @staticmethod

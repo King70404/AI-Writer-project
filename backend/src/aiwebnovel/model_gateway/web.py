@@ -28,6 +28,8 @@ class ProfileInput(BaseModel):
     model: str = Field(min_length=1, max_length=200)
     max_output_tokens: int = Field(default=2048, ge=1, le=MAX_OUTPUT_TOKENS)
     api_key: SecretStr | None = Field(default=None, min_length=1, max_length=4096)
+    # C-4: an "embedding" profile serves only confirmed semantic-index builds.
+    purpose: Literal["chat", "embedding"] = "chat"
 
 
 class ProfileUpdate(ProfileInput):
@@ -43,6 +45,7 @@ class ProfileResponse(BaseModel):
     model: str
     max_output_tokens: int
     has_key: bool
+    purpose: Literal["chat", "embedding"] = "chat"
 
 
 class ProfilesResponse(BaseModel):
@@ -122,6 +125,7 @@ def create_model_gateway_router(*, api_prefix: str) -> APIRouter:
                     model=payload.model,
                     max_output_tokens=payload.max_output_tokens,
                     api_key=key,
+                    purpose=payload.purpose,
                 )
             )
         except DomainError as error:
@@ -148,6 +152,7 @@ def create_model_gateway_router(*, api_prefix: str) -> APIRouter:
                     max_output_tokens=payload.max_output_tokens,
                     api_key=key,
                     clear_key=payload.clear_key,
+                    purpose=payload.purpose,
                 )
             )
         except DomainError as error:

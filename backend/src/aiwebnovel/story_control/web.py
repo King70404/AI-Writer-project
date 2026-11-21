@@ -9,6 +9,26 @@ from aiwebnovel.ai_writing.web import map_error, require_json
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.domain.errors import DomainError, InvalidDomainIdentifier
 from aiwebnovel.project.errors import ProjectNotFound
+from aiwebnovel.story_control.foreshadow import ForeshadowExtractionService
+from aiwebnovel.story_control.foreshadow_models import (
+    AdoptForeshadowCards,
+    EditForeshadowCard,
+    ForeshadowCardInvalid,
+    ForeshadowConflict,
+    ForeshadowConsentRequired,
+    ForeshadowInvalid,
+    ForeshadowNotFound,
+    ForeshadowOutputInvalid,
+    ForeshadowProposalList,
+    ForeshadowProposalView,
+    ForeshadowStale,
+    ForeshadowUndoConflict,
+    PrepareExtraction,
+    PreviewRange,
+    RangePreview,
+    SendExtraction,
+    UndoForeshadowAdoption,
+)
 from aiwebnovel.story_control.models import (
     ArcPlan,
     ChapterGuide,
@@ -33,7 +53,41 @@ from aiwebnovel.story_control.models import (
     ThreadStatus,
     Timeline,
 )
+from aiwebnovel.story_control.proposal_models import (
+    AdoptCards,
+    EditCard,
+    PlanProposalCardInvalid,
+    PlanProposalConflict,
+    PlanProposalConsentRequired,
+    PlanProposalInvalid,
+    PlanProposalList,
+    PlanProposalNotFound,
+    PlanProposalOutputInvalid,
+    PlanProposalStale,
+    PlanProposalUndoConflict,
+    PlanProposalView,
+    PrepareProposal,
+    SendProposal,
+    UndoAdoption,
+)
+from aiwebnovel.story_control.proposals import PlanProposalService
 from aiwebnovel.story_control.service import StoryControlService
+from aiwebnovel.story_control.timeline_extraction import TimelineExtractionService
+from aiwebnovel.story_control.timeline_extraction_models import (
+    AdoptTimelineCards,
+    TimelineCardInvalid,
+    TimelineCardNeedsEvent,
+    TimelineConflict,
+    TimelineConsentRequired,
+    TimelineInvalid,
+    TimelineNotFound,
+    TimelineOutputInvalid,
+    TimelineProposalList,
+    TimelineProposalView,
+    TimelineRangePreview,
+    TimelineStale,
+)
+from aiwebnovel.usage.budget import SendEstimate
 
 _MAX_OFFSET = 1_000_000
 _ERRORS: dict[type[DomainError], tuple[int, str]] = {
@@ -42,6 +96,30 @@ _ERRORS: dict[type[DomainError], tuple[int, str]] = {
     StoryControlNotFound: (404, "STORY_CONTROL_NOT_FOUND"),
     StoryControlCycle: (422, "STORY_CONTROL_CYCLE"),
     RecallPinsInvalid: (409, "AI_RECALL_PINS_INVALID"),
+    PlanProposalConflict: (409, "PLAN_PROPOSAL_CONFLICT"),
+    PlanProposalStale: (409, "PLAN_PROPOSAL_STALE"),
+    PlanProposalInvalid: (422, "PLAN_PROPOSAL_INVALID"),
+    PlanProposalNotFound: (404, "PLAN_PROPOSAL_NOT_FOUND"),
+    PlanProposalConsentRequired: (403, "PLAN_PROPOSAL_CONSENT_REQUIRED"),
+    PlanProposalOutputInvalid: (422, "PLAN_PROPOSAL_OUTPUT_INVALID"),
+    PlanProposalCardInvalid: (422, "PLAN_PROPOSAL_CARD_INVALID"),
+    PlanProposalUndoConflict: (409, "PLAN_PROPOSAL_UNDO_CONFLICT"),
+    ForeshadowConflict: (409, "FORESHADOW_EXTRACTION_CONFLICT"),
+    ForeshadowStale: (409, "FORESHADOW_EXTRACTION_STALE"),
+    ForeshadowInvalid: (422, "FORESHADOW_EXTRACTION_INVALID"),
+    ForeshadowCardInvalid: (422, "FORESHADOW_CARD_INVALID"),
+    ForeshadowNotFound: (404, "FORESHADOW_EXTRACTION_NOT_FOUND"),
+    ForeshadowConsentRequired: (403, "FORESHADOW_EXTRACTION_CONSENT_REQUIRED"),
+    ForeshadowOutputInvalid: (422, "FORESHADOW_EXTRACTION_OUTPUT_INVALID"),
+    ForeshadowUndoConflict: (409, "FORESHADOW_UNDO_CONFLICT"),
+    TimelineConflict: (409, "TIMELINE_EXTRACTION_CONFLICT"),
+    TimelineStale: (409, "TIMELINE_EXTRACTION_STALE"),
+    TimelineInvalid: (422, "TIMELINE_EXTRACTION_INVALID"),
+    TimelineCardInvalid: (422, "TIMELINE_CARD_INVALID"),
+    TimelineCardNeedsEvent: (422, "TIMELINE_CARD_NEEDS_EVENT"),
+    TimelineNotFound: (404, "TIMELINE_EXTRACTION_NOT_FOUND"),
+    TimelineConsentRequired: (403, "TIMELINE_EXTRACTION_CONSENT_REQUIRED"),
+    TimelineOutputInvalid: (422, "TIMELINE_EXTRACTION_OUTPUT_INVALID"),
 }
 
 
@@ -60,6 +138,39 @@ def get_story_control_service(request: Request) -> StoryControlService:
             status_code=503,
         )
     return service
+
+
+def get_plan_proposal_service(request: Request) -> PlanProposalService:
+    proposals = get_story_control_service(request).proposal_service
+    if not isinstance(proposals, PlanProposalService):
+        raise AppError(
+            code="STORY_CONTROL_UNAVAILABLE",
+            message="Story planning is unavailable.",
+            status_code=503,
+        )
+    return proposals
+
+
+def get_foreshadow_service(request: Request) -> ForeshadowExtractionService:
+    extractions = get_story_control_service(request).foreshadow_service
+    if not isinstance(extractions, ForeshadowExtractionService):
+        raise AppError(
+            code="STORY_CONTROL_UNAVAILABLE",
+            message="Story planning is unavailable.",
+            status_code=503,
+        )
+    return extractions
+
+
+def get_timeline_extraction_service(request: Request) -> TimelineExtractionService:
+    timelines = get_story_control_service(request).timeline_service
+    if not isinstance(timelines, TimelineExtractionService):
+        raise AppError(
+            code="STORY_CONTROL_UNAVAILABLE",
+            message="Story planning is unavailable.",
+            status_code=503,
+        )
+    return timelines
 
 
 def _invoke[T](response: Response, action: Callable[[], T], *, project: bool = False) -> T:
@@ -155,6 +266,9 @@ def get_fact_query(request: Request) -> dict[str, object]:
 
 Service = Annotated[StoryControlService, Depends(get_story_control_service)]
 Json = Annotated[None, Depends(require_json)]
+Proposals = Annotated[PlanProposalService, Depends(get_plan_proposal_service)]
+Extractions = Annotated[ForeshadowExtractionService, Depends(get_foreshadow_service)]
+Timelines = Annotated[TimelineExtractionService, Depends(get_timeline_extraction_service)]
 
 
 def create_story_control_router(*, api_prefix: str) -> APIRouter:
@@ -182,6 +296,329 @@ def create_story_control_router(*, api_prefix: str) -> APIRouter:
     ) -> Goal:
         return _invoke(
             response, lambda: service.save_goal(project_id, goal_id, payload), project=True
+        )
+
+    proposals = project + "/plan-proposals"
+
+    @router.get(proposals, response_model=PlanProposalList)
+    def list_proposals(project_id: str, response: Response, service: Proposals) -> PlanProposalList:
+        return _invoke(
+            response,
+            lambda: PlanProposalList(
+                project_id=project_id, items=service.list_proposals(project_id)
+            ),
+            project=True,
+        )
+
+    @router.post(proposals, response_model=PlanProposalView, status_code=201)
+    def prepare_proposal(
+        project_id: str,
+        payload: PrepareProposal,
+        response: Response,
+        service: Proposals,
+        _json: Json,
+    ) -> PlanProposalView:
+        # Freezes the goal, existing plans and chapter titles; no model request.
+        return _invoke(
+            response,
+            lambda: service.prepare(
+                project_id, payload.goal_id, payload.profile_id, payload.author_request
+            ),
+            project=True,
+        )
+
+    @router.get(proposals + "/{proposal_id}", response_model=PlanProposalView)
+    def get_proposal(
+        project_id: str, proposal_id: str, response: Response, service: Proposals
+    ) -> PlanProposalView:
+        return _invoke(response, lambda: service.get(project_id, proposal_id), project=True)
+
+    @router.get(proposals + "/{proposal_id}/estimate", response_model=SendEstimate)
+    def estimate_proposal(
+        project_id: str, proposal_id: str, response: Response, service: Proposals
+    ) -> SendEstimate:
+        return _invoke(response, lambda: service.estimate(project_id, proposal_id), project=True)
+
+    @router.post(proposals + "/{proposal_id}/send", response_model=PlanProposalView)
+    def send_proposal(
+        project_id: str,
+        proposal_id: str,
+        payload: SendProposal,
+        response: Response,
+        service: Proposals,
+        _json: Json,
+    ) -> PlanProposalView:
+        return _invoke(
+            response,
+            lambda: service.send(
+                project_id, proposal_id, payload.expected_version, payload.cloud_consent
+            ),
+            project=True,
+        )
+
+    @router.post(proposals + "/{proposal_id}/adopt", response_model=PlanProposalView)
+    def adopt_proposal(
+        project_id: str,
+        proposal_id: str,
+        payload: AdoptCards,
+        response: Response,
+        service: Proposals,
+        _json: Json,
+    ) -> PlanProposalView:
+        return _invoke(
+            response,
+            lambda: service.adopt(project_id, proposal_id, payload.card_indexes),
+            project=True,
+        )
+
+    @router.put(proposals + "/{proposal_id}/cards/{card_index}", response_model=PlanProposalView)
+    def edit_proposal_card(
+        project_id: str,
+        proposal_id: str,
+        card_index: int,
+        payload: EditCard,
+        response: Response,
+        service: Proposals,
+        _json: Json,
+    ) -> PlanProposalView:
+        # Stores the author's edit beside the untouched original card; writes no plan.
+        return _invoke(
+            response,
+            lambda: service.edit_card(
+                project_id, proposal_id, card_index, payload.expected_version, payload.card
+            ),
+            project=True,
+        )
+
+    @router.post(proposals + "/{proposal_id}/undo", response_model=PlanProposalView)
+    def undo_proposal_card(
+        project_id: str,
+        proposal_id: str,
+        payload: UndoAdoption,
+        response: Response,
+        service: Proposals,
+        _json: Json,
+    ) -> PlanProposalView:
+        return _invoke(
+            response,
+            lambda: service.undo(
+                project_id, proposal_id, payload.card_index, payload.expected_version
+            ),
+            project=True,
+        )
+
+    extractions = project + "/foreshadow-proposals"
+
+    @router.get(extractions, response_model=ForeshadowProposalList)
+    def list_extractions(
+        project_id: str, response: Response, service: Extractions
+    ) -> ForeshadowProposalList:
+        return _invoke(
+            response,
+            lambda: ForeshadowProposalList(
+                project_id=project_id, items=service.list_proposals(project_id)
+            ),
+            project=True,
+        )
+
+    @router.post(extractions + "/preview", response_model=RangePreview)
+    def preview_extraction(
+        project_id: str,
+        payload: PreviewRange,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> RangePreview:
+        # Lists the chosen chapters and their saved sizes; no model request, nothing stored.
+        return _invoke(
+            response, lambda: service.preview(project_id, payload.chapter_ids), project=True
+        )
+
+    @router.post(extractions, response_model=ForeshadowProposalView, status_code=201)
+    def prepare_extraction(
+        project_id: str,
+        payload: PrepareExtraction,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> ForeshadowProposalView:
+        # Freezes the chosen chapters' saved text and the open threads; no model request.
+        return _invoke(
+            response,
+            lambda: service.prepare(
+                project_id, payload.chapter_ids, payload.profile_id, payload.author_request
+            ),
+            project=True,
+        )
+
+    @router.get(extractions + "/{proposal_id}", response_model=ForeshadowProposalView)
+    def get_extraction(
+        project_id: str, proposal_id: str, response: Response, service: Extractions
+    ) -> ForeshadowProposalView:
+        return _invoke(response, lambda: service.get(project_id, proposal_id), project=True)
+
+    @router.get(extractions + "/{proposal_id}/estimate", response_model=SendEstimate)
+    def estimate_extraction(
+        project_id: str, proposal_id: str, response: Response, service: Extractions
+    ) -> SendEstimate:
+        return _invoke(response, lambda: service.estimate(project_id, proposal_id), project=True)
+
+    @router.post(extractions + "/{proposal_id}/send", response_model=ForeshadowProposalView)
+    def send_extraction(
+        project_id: str,
+        proposal_id: str,
+        payload: SendExtraction,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> ForeshadowProposalView:
+        return _invoke(
+            response,
+            lambda: service.send(
+                project_id, proposal_id, payload.expected_version, payload.cloud_consent
+            ),
+            project=True,
+        )
+
+    @router.post(extractions + "/{proposal_id}/adopt", response_model=ForeshadowProposalView)
+    def adopt_extraction(
+        project_id: str,
+        proposal_id: str,
+        payload: AdoptForeshadowCards,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> ForeshadowProposalView:
+        return _invoke(
+            response,
+            lambda: service.adopt(project_id, proposal_id, payload.card_indexes),
+            project=True,
+        )
+
+    @router.put(
+        extractions + "/{proposal_id}/cards/{card_index}", response_model=ForeshadowProposalView
+    )
+    def edit_extraction_card(
+        project_id: str,
+        proposal_id: str,
+        card_index: int,
+        payload: EditForeshadowCard,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> ForeshadowProposalView:
+        # Stores the author's edit beside the untouched original card; writes no thread.
+        return _invoke(
+            response,
+            lambda: service.edit_card(
+                project_id, proposal_id, card_index, payload.expected_version, payload.card
+            ),
+            project=True,
+        )
+
+    @router.post(extractions + "/{proposal_id}/undo", response_model=ForeshadowProposalView)
+    def undo_extraction_card(
+        project_id: str,
+        proposal_id: str,
+        payload: UndoForeshadowAdoption,
+        response: Response,
+        service: Extractions,
+        _json: Json,
+    ) -> ForeshadowProposalView:
+        return _invoke(
+            response,
+            lambda: service.undo(
+                project_id, proposal_id, payload.card_index, payload.expected_version
+            ),
+            project=True,
+        )
+
+    timelines = project + "/timeline-proposals"
+
+    @router.get(timelines, response_model=TimelineProposalList)
+    def list_timeline_extractions(
+        project_id: str, response: Response, service: Timelines
+    ) -> TimelineProposalList:
+        return _invoke(
+            response,
+            lambda: TimelineProposalList(
+                project_id=project_id, items=service.list_proposals(project_id)
+            ),
+            project=True,
+        )
+
+    @router.post(timelines + "/preview", response_model=TimelineRangePreview)
+    def preview_timeline_extraction(
+        project_id: str,
+        payload: PreviewRange,
+        response: Response,
+        service: Timelines,
+        _json: Json,
+    ) -> TimelineRangePreview:
+        # Lists the chosen chapters, their saved sizes and what else is sent; no model request.
+        return _invoke(
+            response, lambda: service.preview(project_id, payload.chapter_ids), project=True
+        )
+
+    @router.post(timelines, response_model=TimelineProposalView, status_code=201)
+    def prepare_timeline_extraction(
+        project_id: str,
+        payload: PrepareExtraction,
+        response: Response,
+        service: Timelines,
+        _json: Json,
+    ) -> TimelineProposalView:
+        # Freezes the chosen chapters' saved text, characters, events and states; no request.
+        return _invoke(
+            response,
+            lambda: service.prepare(
+                project_id, payload.chapter_ids, payload.profile_id, payload.author_request
+            ),
+            project=True,
+        )
+
+    @router.get(timelines + "/{proposal_id}", response_model=TimelineProposalView)
+    def get_timeline_extraction(
+        project_id: str, proposal_id: str, response: Response, service: Timelines
+    ) -> TimelineProposalView:
+        return _invoke(response, lambda: service.get(project_id, proposal_id), project=True)
+
+    @router.get(timelines + "/{proposal_id}/estimate", response_model=SendEstimate)
+    def estimate_timeline_extraction(
+        project_id: str, proposal_id: str, response: Response, service: Timelines
+    ) -> SendEstimate:
+        return _invoke(response, lambda: service.estimate(project_id, proposal_id), project=True)
+
+    @router.post(timelines + "/{proposal_id}/send", response_model=TimelineProposalView)
+    def send_timeline_extraction(
+        project_id: str,
+        proposal_id: str,
+        payload: SendExtraction,
+        response: Response,
+        service: Timelines,
+        _json: Json,
+    ) -> TimelineProposalView:
+        return _invoke(
+            response,
+            lambda: service.send(
+                project_id, proposal_id, payload.expected_version, payload.cloud_consent
+            ),
+            project=True,
+        )
+
+    @router.post(timelines + "/{proposal_id}/adopt", response_model=TimelineProposalView)
+    def adopt_timeline_extraction(
+        project_id: str,
+        proposal_id: str,
+        payload: AdoptTimelineCards,
+        response: Response,
+        service: Timelines,
+        _json: Json,
+    ) -> TimelineProposalView:
+        return _invoke(
+            response,
+            lambda: service.adopt(project_id, proposal_id, payload.card_indexes),
+            project=True,
         )
 
     @router.get(project + "/timeline", response_model=Timeline)

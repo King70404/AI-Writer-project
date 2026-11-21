@@ -21,6 +21,7 @@ from aiwebnovel.usage.budget import (
     SendEstimate,
     SendRequest,
     Spend,
+    embedding_tokens_upper,
     format_amount,
     input_tokens_upper,
     optional_amount,
@@ -95,6 +96,36 @@ class UsageBudgetService:
             input_tokens_upper(messages),
             profile.max_output_tokens,
         )
+        return self._estimate(profile, request)
+
+    def estimate_embedding(
+        self,
+        *,
+        project_id: str,
+        task_id: str,
+        profile_id: str,
+        batches: tuple[tuple[str, ...], ...],
+    ) -> SendEstimate:
+        """Aggregate upper bound for every embeddings request of one planned build.
+
+        Each batch is one request; output tokens are zero. The whole build is checked
+        as one task against the author's budget, before anything is sent.
+        """
+        profile = self._profile(profile_id)
+        if profile.purpose != "embedding" or not batches:
+            raise BudgetInputInvalid
+        request = SendRequest(
+            project_id,
+            None,
+            task_id,
+            profile.id,
+            sum(len(text) for batch in batches for text in batch),
+            sum(embedding_tokens_upper(batch) for batch in batches),
+            0,
+        )
+        return self._estimate(profile, request)
+
+    def _estimate(self, profile: ModelProfile, request: SendRequest) -> SendEstimate:
         check = self._store.estimate(request)
         budget = check.budget
         return SendEstimate(

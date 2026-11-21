@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from aiwebnovel.ai_writing.web import require_json
 from aiwebnovel.core.errors import AppError
 from aiwebnovel.imports.web import import_session
+from aiwebnovel.writing_jobs.scenes import SETTLED, step_adopted, step_progress
 
 if TYPE_CHECKING:
     from aiwebnovel.writing_jobs.persistence import WritingJobRecord
@@ -31,6 +32,17 @@ class BindRun(BaseModel):
     run_id: str = Field(min_length=36, max_length=36)
 
 
+class MarkScene(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    expected_version: int = Field(ge=1)
+    step_index: int = Field(ge=0, le=9)
+    plan_revision_id: str = Field(min_length=1, max_length=36)
+    action: Literal["target", "done", "skipped", "pending", "recheck"]
+    scene_id: str | None = Field(
+        default=None, min_length=1, max_length=60, pattern=r"^[A-Za-z0-9_-]+$"
+    )
+
+
 class ChangeJob(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     expected_version: int = Field(ge=1)
@@ -47,7 +59,12 @@ def session_dep(request: Request, response: Response) -> Generator[Session, None
         inspector = inspect(session.get_bind())
         if not all(
             inspector.has_table(name)
-            for name in ("writing_jobs", "writing_job_budgets", "writing_job_runs")
+            for name in (
+                "writing_jobs",
+                "writing_job_budgets",
+                "writing_job_runs",
+                "writing_job_scene_marks",
+            )
         ):
             raise fail("WRITING_JOB_UNAVAILABLE", 503)
         session.info["writing_job_project_store"] = request.app.state.writing_job_project_store
@@ -99,6 +116,49 @@ def render(row: object, session: Session) -> dict[str, object]:
             edit = session.get(AICandidateEditRecord, adoption.edit_id) if adoption else None
             adopted_text = edit.text if edit else candidate.text
             adopted_characters += sum(not character.isspace() for character in adopted_text)
+    # A chapter draft bound as a step counts its own generated and adopted segments.
+    from aiwebnovel.ai_writing.persistence.chapter_drafts import ChapterDraftRecord
+
+    active_draft_id = None
+    drafts: list[dict[str, object]] = []
+    has_drafts = inspect(session.get_bind()).has_table("chapter_drafts")
+    for binding in sorted(bindings, key=lambda item: item.step_index) if has_drafts else ():
+        draft = session.get(ChapterDraftRecord, binding.run_id)
+        if draft is None:
+            continue
+        if active is not None and binding.run_id == active.run_id:
+            active_draft_id = draft.id
+        segments = draft.payload.get("segments", [])
+        # An author's edit is what was adopted, so it is what the job counts.
+        draft_adopted = sum(
+            int(
+                segment["characters"]
+                if segment.get("edited_characters") is None
+                else segment["edited_characters"]
+            )
+            for segment in segments
+            if segment.get("status") == "adopted"
+        )
+        draft_generated = int(draft.payload.get("generated_characters", 0))
+        generated_characters += draft_generated
+        adopted_characters += draft_adopted
+        # Counts only: the drawer links to the chapter; no segment text leaves this summary.
+        drafts.append(
+            {
+                "draft_id": draft.id,
+                "chapter_id": str(draft.chapter_id),
+                "step_index": binding.step_index,
+                "status": draft.payload.get("status"),
+                "segments": len(segments),
+                "pending": sum(item.get("status") == "pending" for item in segments),
+                "adopted": sum(item.get("status") == "adopted" for item in segments),
+                "discarded": sum(item.get("status") == "discarded" for item in segments),
+                "edited": sum(item.get("edited_text") is not None for item in segments),
+                "generated_characters": draft_generated,
+                "adopted_characters": draft_adopted,
+                "created_at": draft.created_at,
+            }
+        )
     return {
         "generated_characters": generated_characters,
         "adopted_characters": adopted_characters,
@@ -107,6 +167,8 @@ def render(row: object, session: Session) -> dict[str, object]:
         "claimed_requests": budget.claimed_requests if budget else 0,
         "used_characters": budget.used_characters if budget else 0,
         "active_run_id": active.run_id if active else None,
+        "active_draft_id": active_draft_id,
+        "drafts": drafts,
         "job_id": row.id,
         "project_id": row.project_id,
         "title": row.title,
@@ -119,6 +181,9 @@ def render(row: object, session: Session) -> dict[str, object]:
                 "status": "completed" if index < row.current_index else "pending",
             }
             for index, chapter in enumerate(row.chapter_ids)
+        ],
+        "scene_progress": [
+            step_progress(session, row, index) for index in range(len(row.chapter_ids))
         ],
     }
 
@@ -255,6 +320,65 @@ def router(api_prefix: str) -> APIRouter:
         session.add(
             WritingJobRunRecord(
                 run_id=run.id, job_id=job.id, step_index=job.current_index, reserved_characters=0
+            )
+        )
+        job.version += 1
+        session.commit()
+        return render(job, session)
+
+    @r.post("/writing-jobs/{job_id}/scene-progress")
+    def mark_scene(job_id: str, body: MarkScene, session: SessionDep, _: Json) -> dict[str, object]:
+        """Record one author decision about a planned scene; no model request is made."""
+        from datetime import UTC, datetime
+
+        from aiwebnovel.writing_jobs.persistence import WritingJobSceneMarkRecord
+
+        session.execute(text("BEGIN IMMEDIATE"))
+        job = get(session, job_id)
+        if (
+            job.version != body.expected_version
+            or job.status not in ("planned", "paused")
+            or body.step_index != job.current_index
+            or body.step_index >= len(job.chapter_ids)
+        ):
+            raise fail("WRITING_JOB_CONFLICT")
+        progress = step_progress(session, job, body.step_index)
+        if body.plan_revision_id != progress["current_plan_revision_id"]:
+            raise fail("WRITING_JOB_SCENE_PLAN_CHANGED")
+        if body.action == "recheck":
+            if body.scene_id is not None or not progress["needs_recheck"]:
+                raise fail("WRITING_JOB_CONFLICT")
+        else:
+            if progress["needs_recheck"]:
+                raise fail("WRITING_JOB_SCENE_RECHECK_REQUIRED")
+            scenes = progress["scenes"]
+            assert isinstance(scenes, list)
+            status = {scene["scene_id"]: scene["status"] for scene in scenes}
+            if body.scene_id is None or body.scene_id not in status:
+                raise fail("WRITING_JOB_INVALID", 422)
+            current = status[body.scene_id]
+            if body.action == "pending":
+                allowed = current in SETTLED
+            elif body.action == "target":
+                allowed = current == "pending" and progress["target_scene_id"] != body.scene_id
+            else:
+                allowed = current == "pending"
+            # Only an author adoption already recorded for this chapter step can back a
+            # "done" mark; nothing here inspects or judges the generated text.
+            if body.action == "done" and allowed:
+                allowed = step_adopted(session, job.id, body.step_index)
+            if not allowed:
+                raise fail("WRITING_JOB_CONFLICT")
+        session.add(
+            WritingJobSceneMarkRecord(
+                id=str(uuid4()),
+                job_id=job.id,
+                step_index=body.step_index,
+                sequence=job.version,
+                plan_revision_id=body.plan_revision_id,
+                scene_id=body.scene_id,
+                action=body.action,
+                created_at=datetime.now(UTC),
             )
         )
         job.version += 1

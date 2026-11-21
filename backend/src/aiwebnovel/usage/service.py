@@ -1,7 +1,7 @@
 """Meter outgoing model requests and read the ledger; never calls a model itself."""
 
 from collections.abc import Callable
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from aiwebnovel.ai_writing.application.models import GeneratedText, GenerationMessage
 from aiwebnovel.ai_writing.errors import AIProviderTimeout
@@ -9,9 +9,12 @@ from aiwebnovel.core.logging import get_logger
 from aiwebnovel.domain.errors import DomainError
 from aiwebnovel.model_gateway.models import ModelProfile
 from aiwebnovel.usage.attribution import UsageAttribution, current_usage_attribution
-from aiwebnovel.usage.budget import SendRequest, input_tokens_upper
+from aiwebnovel.usage.budget import SendRequest, embedding_tokens_upper, input_tokens_upper
 from aiwebnovel.usage.models import AttemptStatus, UsageAttributionMissing, UsagePage
 from aiwebnovel.usage.records import AttemptOutcome, AttemptStart
+
+if TYPE_CHECKING:
+    from aiwebnovel.model_gateway.provider import EmbeddingResult
 
 logger = get_logger("usage")
 
@@ -34,6 +37,7 @@ class UsageLedger(Protocol):
 
 
 Send = Callable[[Callable[[ModelProfile], None]], GeneratedText]
+EmbedSend = Callable[[Callable[[ModelProfile], None]], "EmbeddingResult"]
 
 
 def _error_code(error: BaseException) -> str:
@@ -96,6 +100,54 @@ class UsageLedgerService:
                 AttemptOutcome("completed", None, generated.usage, len(generated.text)),
             )
         return generated
+
+    def metered_embedding(self, texts: tuple[str, ...], send: EmbedSend) -> "EmbeddingResult":
+        """Meter one embeddings request exactly like ``metered`` meters a generation.
+
+        The budget is checked with zero output tokens (embeddings produce none); the
+        row settles with the provider's reported usage, or unknown when not reported.
+        """
+        attribution: UsageAttribution | None = current_usage_attribution()
+        if attribution is None:
+            raise UsageAttributionMissing
+        input_characters = sum(len(text) for text in texts)
+        opened: list[str] = []
+
+        def before_send(profile: ModelProfile) -> None:
+            request = SendRequest(
+                attribution.project_id,
+                attribution.chapter_id,
+                attribution.task_id,
+                profile.id,
+                input_characters,
+                embedding_tokens_upper(texts),
+                0,
+            )
+            opened.append(
+                self._ledger.start(
+                    AttemptStart(
+                        attribution,
+                        profile.id,
+                        profile.kind,
+                        profile.model,
+                        input_characters,
+                        request,
+                    )
+                )
+            )
+
+        try:
+            result = send(before_send)
+        except BaseException as error:
+            if opened:
+                status: AttemptStatus = (
+                    "timeout" if isinstance(error, AIProviderTimeout) else "failed"
+                )
+                self._settle(opened[0], AttemptOutcome(status, _error_code(error), None, None))
+            raise
+        if opened:
+            self._settle(opened[0], AttemptOutcome("completed", None, result.usage, 0))
+        return result
 
     def _settle(self, attempt_id: str, outcome: AttemptOutcome) -> None:
         try:

@@ -15,6 +15,13 @@ AI_WORKFLOW_OPERATIONS = {
     ("POST", "/api/v1/chapters/{chapter_id}/ai/runs/{run_id}/resume"),
     ("POST", "/api/v1/chapters/{chapter_id}/ai/candidates/{candidate_id}/adopt"),
     ("POST", "/api/v1/chapters/{chapter_id}/ai/candidates/{candidate_id}/discard"),
+    ("GET", "/api/v1/chapters/{chapter_id}/ai/drafts"),
+    ("POST", "/api/v1/chapters/{chapter_id}/ai/drafts"),
+    ("GET", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}"),
+    ("GET", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}/estimate"),
+    ("POST", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}/send"),
+    ("POST", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}/adopt"),
+    ("POST", "/api/v1/chapters/{chapter_id}/ai/drafts/{draft_id}/segments/{index}"),
 }
 
 WRITING_PREPARATION_OPERATIONS = {
@@ -49,6 +56,10 @@ STORY_MEMORY_OPERATIONS = {
     ("PUT", "/api/v1/chapters/{chapter_id}/memory/facts/{fact_id}"),
     ("POST", "/api/v1/chapters/{chapter_id}/memory/reviews"),
     ("POST", "/api/v1/chapters/{chapter_id}/memory/reviews/{review_id}/send"),
+    # C-4 semantic index (Search): reads never call a model; build needs confirmation.
+    ("GET", "/api/v1/projects/{project_id}/semantic-index"),
+    ("PUT", "/api/v1/projects/{project_id}/semantic-index/settings"),
+    ("POST", "/api/v1/projects/{project_id}/semantic-index/build"),
 }
 
 BACKUP_OPERATIONS = {
@@ -99,6 +110,33 @@ STORY_CONTROL_OPERATIONS = {
     ("GET", "/api/v1/chapters/{chapter_id}/recall-policy"),
     ("PUT", "/api/v1/chapters/{chapter_id}/recall-policy"),
     ("POST", "/api/v1/chapters/{chapter_id}/recall-preview"),
+    ("GET", "/api/v1/projects/{project_id}/plan-proposals"),
+    ("POST", "/api/v1/projects/{project_id}/plan-proposals"),
+    ("GET", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}"),
+    ("GET", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}/estimate"),
+    ("POST", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}/send"),
+    ("POST", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}/adopt"),
+    ("PUT", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}/cards/{card_index}"),
+    ("POST", "/api/v1/projects/{project_id}/plan-proposals/{proposal_id}/undo"),
+    ("GET", "/api/v1/projects/{project_id}/foreshadow-proposals"),
+    ("POST", "/api/v1/projects/{project_id}/foreshadow-proposals"),
+    ("POST", "/api/v1/projects/{project_id}/foreshadow-proposals/preview"),
+    ("GET", "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}"),
+    ("GET", "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}/estimate"),
+    ("POST", "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}/send"),
+    ("POST", "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}/adopt"),
+    (
+        "PUT",
+        "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}/cards/{card_index}",
+    ),
+    ("POST", "/api/v1/projects/{project_id}/foreshadow-proposals/{proposal_id}/undo"),
+    ("GET", "/api/v1/projects/{project_id}/timeline-proposals"),
+    ("POST", "/api/v1/projects/{project_id}/timeline-proposals"),
+    ("POST", "/api/v1/projects/{project_id}/timeline-proposals/preview"),
+    ("GET", "/api/v1/projects/{project_id}/timeline-proposals/{proposal_id}"),
+    ("GET", "/api/v1/projects/{project_id}/timeline-proposals/{proposal_id}/estimate"),
+    ("POST", "/api/v1/projects/{project_id}/timeline-proposals/{proposal_id}/send"),
+    ("POST", "/api/v1/projects/{project_id}/timeline-proposals/{proposal_id}/adopt"),
 }
 
 IMPORT_OPERATIONS = {
@@ -125,5 +163,6 @@ WRITING_JOB_OPERATIONS = {
     ("GET", "/api/v1/projects/{project_id}/writing-jobs"),
     ("GET", "/api/v1/writing-jobs/{job_id}"),
     ("POST", "/api/v1/writing-jobs/{job_id}/bind-run"),
+    ("POST", "/api/v1/writing-jobs/{job_id}/scene-progress"),
     ("POST", "/api/v1/writing-jobs/{job_id}/{action}"),
 }

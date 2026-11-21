@@ -61,7 +61,9 @@ class ModelUsageAttemptRecord(Base):
     __tablename__ = "model_usage_attempts"
     __table_args__ = (
         CheckConstraint(
-            "operation IN ('generation','reference_analysis','story_review','connection_check','method_trial')",
+            "operation IN ('generation','reference_analysis','story_review','connection_check',"
+            "'method_trial','plan_proposal','foreshadow_extraction',"
+            "'chapter_draft','semantic_index','timeline_extraction')",
             name="ck_model_usage_operation",
         ),
         CheckConstraint("model_kind IN ('local','cloud')", name="ck_model_usage_kind"),

@@ -13,6 +13,10 @@ import {
   type AIWorkflowClient,
   type WorkflowRun,
 } from "../api/ai-workflow";
+import {
+  chapterDraftClient as defaultChapterDraftClient,
+  type ChapterDraftClient,
+} from "../api/chapter-draft";
 import { useAIWorkflow } from "../hooks/useAIWorkflow";
 import type { SelectionSnapshot } from "../hooks/useAIWriting";
 import type { useChapterWriting } from "../hooks/useChapterWriting";
@@ -28,6 +32,7 @@ import { BudgetSettingsPanel } from "../../usage/components/BudgetSettingsPanel"
 import { ModelUsagePanel } from "../../usage/components/ModelUsagePanel";
 import { SendEstimatePanel } from "../../usage/components/SendEstimatePanel";
 import { AIModelSettings } from "./AIModelSettings";
+import { ChapterDraftPanel } from "./ChapterDraftPanel";
 import { CandidateComparison } from "./CandidateComparison";
 import { editIsCurrent } from "../candidate-edit";
 import { CandidateEditor } from "./CandidateEditor";
@@ -78,8 +83,10 @@ export function AIWorkflowAssistant({
   usageClient = defaultUsageClient,
   budgetClient = defaultBudgetClient,
   storyControlClient,
+  chapterDraftClient = defaultChapterDraftClient,
 }: {
   readonly chapterId: string;
+  readonly chapterDraftClient?: ChapterDraftClient;
   readonly jobId?: string;
   /** 用于读取本章模型用量；缺省时不显示用量面板。 */
   readonly projectId?: string;
@@ -102,6 +109,7 @@ export function AIWorkflowAssistant({
   const [planningDirty, setPlanningDirty] = useState(false);
   const [memoryMounted, setMemoryMounted] = useState(false);
   const [storyControlOpen, setStoryControlOpen] = useState(false);
+  const [draftOpen, setDraftOpen] = useState(false);
   const [tab, setTab] = useState<AssistantTab>("generate");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState(0);
@@ -215,8 +223,10 @@ export function AIWorkflowAssistant({
     event.preventDefault();
     selectTab(target.id, true);
   };
-  const profile = ai.models.find(
-    (item) => item.id === (profileId || ai.models[0]?.id),
+  // 嵌入模型只用于语义索引，不出现在生成用模型选择中。
+  const chatModels = ai.models.filter((item) => item.purpose !== "embedding");
+  const profile = chatModels.find(
+    (item) => item.id === (profileId || chatModels[0]?.id),
   );
   const runProfile =
     ai.active?.model_snapshot ??
@@ -486,7 +496,7 @@ export function AIWorkflowAssistant({
         hidden={tab !== "generate"}
       >
         <section className="ai-model-summary" aria-label="当前模型">
-          {ai.models.length === 0 ? (
+          {chatModels.length === 0 ? (
             <>
               <p>
                 {ai.loading
@@ -527,7 +537,7 @@ export function AIWorkflowAssistant({
           focusRequest={settingsFocus}
           onSaved={(saved) => {
             ai.modelSaved(saved);
-            setProfileId(saved.id);
+            if (saved.purpose !== "embedding") setProfileId(saved.id);
           }}
           client={client}
         />
@@ -538,10 +548,10 @@ export function AIWorkflowAssistant({
           disabled={unavailable}
           onChange={(event) => setProfileId(event.target.value)}
         >
-          {ai.models.length === 0 ? (
+          {chatModels.length === 0 ? (
             <option value="">请先添加模型</option>
           ) : null}
-          {ai.models.map((item) => (
+          {chatModels.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name} · {item.kind === "cloud" ? "云端" : "本地"}
             </option>
@@ -968,6 +978,34 @@ export function AIWorkflowAssistant({
               </details>
             ) : null}
           </section>
+        ) : null}
+        {!ai.upgradeRequired && profile ? (
+          <details
+            className="ai-chapter-draft"
+            onToggle={(event) => setDraftOpen(event.currentTarget.open)}
+          >
+            <summary>章节候选稿（整章多段，可选）</summary>
+            {/* 展开后才读取候选稿记录；读取本身也不调用模型。 */}
+            {draftOpen ? (
+              <ChapterDraftPanel
+                chapterId={chapterId}
+                profileId={profile.id}
+                jobId={jobId}
+                draftId={
+                  job?.drafts
+                    ?.filter((item) => item.chapter_id === chapterId)
+                    .at(-1)?.draft_id ?? null
+                }
+                savedContent={writing.state.snapshot.resource.content}
+                savedRevisionId={
+                  writing.state.snapshot.resource.current_revision_id
+                }
+                saved={writing.state.status === "saved"}
+                acceptExternal={writing.acceptExternal}
+                client={chapterDraftClient}
+              />
+            ) : null}
+          </details>
         ) : null}
         {projectId ? (
           <ModelUsagePanel

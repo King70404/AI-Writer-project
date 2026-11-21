@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { analysisEstimateClient } from "../../usage/api/budget";
 import { OperationSendGuard } from "../../usage/components/SendEstimatePanel";
 import { Link } from "react-router";
+import { RecallExplanation } from "../../story-control/components/ChapterStoryControl";
 import type { ModelProfile } from "../api/ai-workflow";
 import {
   storyMemoryClient,
@@ -13,6 +14,7 @@ import {
   type StoryMemoryClient,
   type SuggestedFact,
 } from "../api/story-memory";
+import { SemanticIndexPanel } from "./SemanticIndexPanel";
 
 const FACT_STATUS = {
   pending: "待确认",
@@ -282,13 +284,15 @@ export function StoryMemoryWorkbench({
             </li>
           ))}
       </ul>
+      <SemanticIndexPanel projectId={projectId} />
       <details>
         <summary>
           查看本章可召回的前文事实（{workspace?.recalled_facts.length ?? 0}）
         </summary>
         <p>
-          最多24项、10000字符，按文字关联和前文顺序选择；另省略{" "}
-          {workspace?.omitted_facts ?? 0} 项。
+          最多24项、10000字符；遵循本章召回设置（固定优先、排除不发送），其余按文字关联和前文顺序选择（启用且有有效语义索引时改为语义相似度与文字关联混合排序）；另省略{" "}
+          {workspace?.omitted_facts ?? 0}{" "}
+          项。准备评审使用同一设置，固定事实失效或超预算时会拒绝准备。
         </p>
         <ul>
           {workspace?.recalled_facts.map((fact) => (
@@ -359,6 +363,24 @@ export function StoryMemoryWorkbench({
               已纳入 {selected.facts.length} 项前文确认事实，另省略{" "}
               {selected.omitted_facts} 项。
             </p>
+            {selected.recall ? (
+              <section aria-label="评审召回说明">
+                <p>
+                  {selected.recall.policy_version
+                    ? `按准备时的本章召回设置第 ${selected.recall.policy_version} 版冻结：作者固定的事实优先，作者排除的事实不发送。`
+                    : selected.recall.mode
+                      ? "准备时本章没有召回设置。"
+                      : "准备时本章没有召回设置，按文字关联及前文顺序选择。"}
+                  之后修改召回设置不会改变这份评审。
+                </p>
+                <RecallExplanation
+                  recall={{ ...selected.recall, blocked: false }}
+                  showOmitted
+                />
+              </section>
+            ) : (
+              <p>此评审准备于评审使用召回设置之前，没有记录召回说明。</p>
+            )}
             <pre>{JSON.stringify(selected.facts, null, 2)}</pre>
           </details>
           {selected.model.kind === "cloud" ? (

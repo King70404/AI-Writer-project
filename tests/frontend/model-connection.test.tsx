@@ -74,3 +74,33 @@ it("requires another author confirmation before a metered test message", async (
   });
   expect(await screen.findByText(/连接已验证/u)).toBeVisible();
 });
+
+it("never offers a chat test message for an embedding model", async () => {
+  const check = vi.spyOn(modelConnectionClient, "check").mockResolvedValue({
+    status: "unsupported",
+    configuration_version: "embedding-version",
+    model_available: false,
+  });
+  render(
+    <AIModelSettings
+      models={[{ ...profile, purpose: "embedding" as const }]}
+      projectId="project"
+      onSaved={vi.fn()}
+      open
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "检查连接 测试" }));
+  expect(await screen.findByText(/嵌入模型不提供测试消息/u)).toBeVisible();
+  expect(
+    screen.queryByText(/将发送一条测试消息，可能计费/u),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /确认发送测试消息/u }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("checkbox", {
+      name: "我同意发送可能计费的测试消息",
+    }),
+  ).not.toBeInTheDocument();
+  expect(check).toHaveBeenCalledExactlyOnceWith("test");
+});

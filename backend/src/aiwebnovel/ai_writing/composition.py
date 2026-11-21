@@ -116,6 +116,12 @@ def compose_ai_workflow(
         "method_trials",
         "method_annotations",
         "method_templates",
+        "plan_proposals",
+        "foreshadow_proposals",
+        "chapter_drafts",
+        "semantic_index_entries",
+        "semantic_index_settings",
+        "timeline_proposals",
     } <= set(inspect(engine).get_table_names()):
         raise AIWorkflowSchemaRequired
     from aiwebnovel.ai_writing.persistence.repository import SqlAlchemyWorkflowRepository
@@ -201,7 +207,54 @@ def compose_ai_workflow(
             generation_sources,
             lambda chapter_id: control.selection_policy(chapter_id),
         )
-        control = compose_story_control(session_factory, projects, structure, characters, memory)
+        from aiwebnovel.semantic_index.composition import compose_semantic_index
+        from aiwebnovel.semantic_index.models import EmbeddingModel
+
+        def read_embedding_model(profile_id: str) -> EmbeddingModel | None:
+            try:
+                profile = gateway.get_profile(profile_id)
+            except ModelProfileNotFound:
+                return None
+            return EmbeddingModel(
+                profile.id,
+                profile.name,
+                profile.kind,
+                profile.base_url,
+                profile.model,
+                profile.purpose,
+            )
+
+        def embed(
+            profile_id: str, texts: tuple[str, ...], expected: tuple[str, str, str]
+        ) -> tuple[tuple[float, ...], ...]:
+            # Only an explicitly confirmed build reaches here; each request is metered
+            # under ``semantic_index`` and checked against the budget before it leaves.
+            return usage.metered_embedding(
+                texts,
+                lambda before_send: gateway.embed(
+                    profile_id, texts, expected_configuration=expected, before_send=before_send
+                ),
+            ).vectors
+
+        compose_semantic_index(
+            session_factory,
+            projects,
+            memory,
+            structure,
+            read_embedding_model,
+            embed,
+            budgets.estimate_embedding,
+        )
+        control = compose_story_control(
+            session_factory,
+            projects,
+            structure,
+            characters,
+            memory,
+            provider=generate,
+            model_reader=read_model,
+            budgets=budgets,
+        )
 
         def extra_sources(chapter_id: str) -> tuple[ContextSource, ...]:
             # Author plans are labelled guidance; confirmed facts follow the recall policy.
@@ -222,6 +275,23 @@ def compose_ai_workflow(
             budgets.estimate,
         )
         service.recover_interrupted()
+        from aiwebnovel.ai_writing.chapter_draft import ChapterDraftService
+        from aiwebnovel.ai_writing.persistence.chapter_drafts import SqlAlchemyChapterDraftStore
+
+        drafts = SqlAlchemyChapterDraftStore(session_factory)
+        drafts.recover_interrupted()
+        # Chapter drafts share the frozen writing context but always send through the
+        # metered gateway under their own ``chapter_draft`` usage operation.
+        service.chapter_drafts = ChapterDraftService(
+            drafts,
+            ChapterWritingContextBuilder(
+                structure, projects, story_bibles, characters, extra_sources
+            ),
+            structure,
+            generate,
+            read_model,
+            budgets.estimate,
+        )
         return (
             service,
             gateway,

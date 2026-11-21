@@ -1,6 +1,11 @@
 import { getJson, postJson, putJson } from "../../../api/client";
 import { ApiError } from "../../../api/errors";
 import { securitySession } from "../../../api/security-session";
+import {
+  parseRecallMode,
+  parseSimilarity,
+  type RecallMode,
+} from "../../story-control/api/storyControl";
 import { AIWritingError } from "./ai-writing";
 import { workflowFailureMessage } from "./ai-workflow";
 
@@ -28,6 +33,37 @@ export interface MemoryFinding {
   readonly instruction: string;
   readonly fact_ids: readonly string[];
 }
+/**
+ * C-3：评审准备时冻结的本章召回设置说明。固定项优先、排除项不发送；
+ * 固定项失效或超预算时准备会被拒绝，所以快照里只有“排除/预算”两种省略原因。
+ * 旧评审没有这份说明（null）。
+ */
+export interface ReviewRecall {
+  readonly policy_version: number;
+  readonly pinned_fact_ids: readonly string[];
+  readonly excluded_fact_ids: readonly string[];
+  readonly selected: readonly {
+    readonly id: string;
+    readonly revision_id: string;
+    readonly chapter_id: string;
+    readonly title: string;
+    readonly reason: "pinned" | "related";
+    readonly characters: number;
+    readonly similarity?: number;
+  }[];
+  readonly omitted: readonly {
+    readonly id: string;
+    readonly title: string | null;
+    readonly reason: "excluded" | "budget";
+  }[];
+  readonly omitted_total: number;
+  readonly excluded_total: number;
+  readonly used_characters: number;
+  readonly character_limit: number;
+  readonly item_limit: number;
+  readonly mode?: RecallMode;
+  readonly semantic_note?: string;
+}
 export interface MemoryReview {
   readonly id: string;
   readonly chapter_id: string;
@@ -37,6 +73,7 @@ export interface MemoryReview {
   readonly content_truncated: boolean;
   readonly facts: readonly (SuggestedFact & { readonly id: string })[];
   readonly omitted_facts: number;
+  readonly recall: ReviewRecall | null;
   readonly model: {
     readonly name: string;
     readonly kind: "local" | "cloud";
@@ -115,6 +152,55 @@ function suggested(value: unknown): SuggestedFact {
 function frozen(value: unknown): SuggestedFact & { readonly id: string } {
   return { ...suggested(value), id: id(obj(value).id) };
 }
+function oneOf<T extends string>(value: unknown, allowed: readonly T[]): T {
+  if (!allowed.includes(value as T)) invalid();
+  return value as T;
+}
+export function parseReviewRecall(
+  value: unknown,
+  facts: readonly { readonly id: string }[],
+): ReviewRecall | null {
+  if (value === undefined || value === null) return null;
+  const item = obj(value);
+  const selected = array(item.selected, (raw) => {
+    const choice = obj(raw);
+    return {
+      id: id(choice.id),
+      revision_id: id(choice.revision_id),
+      chapter_id: id(choice.chapter_id),
+      title: str(choice.title),
+      reason: oneOf(choice.reason, ["pinned", "related"] as const),
+      characters: number(choice.characters),
+      ...parseSimilarity(choice.similarity),
+    };
+  });
+  // The explanation must describe exactly the facts that were frozen, in order.
+  if (
+    selected.length !== facts.length ||
+    selected.some((choice, index) => choice.id !== facts[index]?.id)
+  )
+    invalid();
+  return {
+    policy_version: number(item.policy_version),
+    pinned_fact_ids: array(item.pinned_fact_ids, id),
+    excluded_fact_ids: array(item.excluded_fact_ids, id),
+    selected,
+    omitted: array(item.omitted, (raw) => {
+      const omission = obj(raw);
+      return {
+        id: id(omission.id),
+        title: omission.title === null ? null : str(omission.title),
+        reason: oneOf(omission.reason, ["excluded", "budget"] as const),
+      };
+    }),
+    omitted_total: number(item.omitted_total),
+    excluded_total: number(item.excluded_total),
+    used_characters: number(item.used_characters),
+    character_limit: number(item.character_limit),
+    item_limit: number(item.item_limit),
+    ...parseRecallMode(item),
+  };
+}
 export function parseMemoryFact(value: unknown, project: string): MemoryFact {
   const item = obj(value);
   if (
@@ -189,6 +275,7 @@ export function parseMemoryReview(
     content_truncated: bool(item.content_truncated),
     facts,
     omitted_facts: number(item.omitted_facts),
+    recall: parseReviewRecall(item.recall, facts),
     model: {
       name: str(model.name),
       kind: model.kind as "local" | "cloud",
@@ -246,6 +333,8 @@ export function memoryError(error: unknown): AIWritingError {
         "输入或模型回复无效：引文必须来自当前正文，模型输出须完整且引用有效事实。",
       MEMORY_CONSENT_REQUIRED: "请先勾选向此云模型发送预览内容的同意。",
       MEMORY_NOT_FOUND: "事实或评审不存在于当前章节，请刷新。",
+      AI_RECALL_PINS_INVALID:
+        "本章召回设置里有固定事实已失效（来源正文修改、未确认或不在本章之前）或超出召回预算，评审未准备。请在“生成”的“本次依据”中调整后再准备评审；未调用模型。",
       AI_WORKFLOW_SCHEMA_REQUIRED:
         "请先点击“备份并启用 AI 协作”，再使用故事记忆。",
       MEMORY_UNAVAILABLE: "故事记忆暂不可用，请重启并启用新版 AI 协作。",

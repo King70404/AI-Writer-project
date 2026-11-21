@@ -462,13 +462,14 @@ def test_application_package_import_has_no_runtime_or_schema_side_effects(
     evidence = completed.stdout.strip()
     expected_tables = (
         '["ai_candidate_edit_adoptions", "ai_candidate_edits", "ai_workflow_candidates", "ai_workflow_runs", '
-        '"chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
-        '"character_heads", "character_revisions", "characters", "external_candidates", "handoff_snapshots", "import_previews", "import_receipts", "method_annotations", "method_templates", "method_trials", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
-        '"outline_heads", "outline_revisions", "outlines", '
+        '"chapter_drafts", "chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
+        '"character_heads", "character_revisions", "characters", "external_candidates", "foreshadow_proposals", "handoff_snapshots", "import_previews", "import_receipts", "method_annotations", "method_templates", "method_trials", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
+        '"outline_heads", "outline_revisions", "outlines", "plan_proposals", '
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '
-        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", '
+        '"semantic_index_entries", "semantic_index_settings", '
+        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", "timeline_proposals", '
         '"volume_heads", "volume_revisions", "volumes", '
-        '"writing_job_budgets", "writing_job_runs", "writing_jobs", "writing_references", "writing_rule_versions"]'
+        '"writing_job_budgets", "writing_job_runs", "writing_job_scene_marks", "writing_jobs", "writing_references", "writing_rule_versions"]'
     )
     assert f'"before": {expected_tables}' in evidence
     assert f'"after": {expected_tables}' in evidence
@@ -506,13 +507,14 @@ def test_web_package_import_has_no_runtime_or_schema_side_effects(
     evidence = completed.stdout.strip()
     expected_tables = (
         '["ai_candidate_edit_adoptions", "ai_candidate_edits", "ai_workflow_candidates", "ai_workflow_runs", '
-        '"chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
-        '"character_heads", "character_revisions", "characters", "external_candidates", "handoff_snapshots", "import_previews", "import_receipts", "method_annotations", "method_templates", "method_trials", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
-        '"outline_heads", "outline_revisions", "outlines", '
+        '"chapter_drafts", "chapter_editorial_revisions", "chapter_heads", "chapter_plan_revisions", "chapter_revisions", "chapters", '
+        '"character_heads", "character_revisions", "characters", "external_candidates", "foreshadow_proposals", "handoff_snapshots", "import_previews", "import_receipts", "method_annotations", "method_templates", "method_trials", "model_budget_reservations", "model_price_revisions", "model_usage_attempts", '
+        '"outline_heads", "outline_revisions", "outlines", "plan_proposals", '
         '"project_budget_revisions", "project_heads", "project_revisions", "projects", '
-        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", '
+        '"semantic_index_entries", "semantic_index_settings", '
+        '"story_bible_heads", "story_bible_revisions", "story_bibles", "story_control_revisions", "story_memory_revisions", "timeline_proposals", '
         '"volume_heads", "volume_revisions", "volumes", '
-        '"writing_job_budgets", "writing_job_runs", "writing_jobs", "writing_references", "writing_rule_versions"]'
+        '"writing_job_budgets", "writing_job_runs", "writing_job_scene_marks", "writing_jobs", "writing_references", "writing_rule_versions"]'
     )
     assert f'"before": {expected_tables}' in evidence
     assert f'"after": {expected_tables}' in evidence

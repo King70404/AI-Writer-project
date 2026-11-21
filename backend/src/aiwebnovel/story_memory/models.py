@@ -46,6 +46,24 @@ class RecallSelectionPolicy:
     excluded: tuple[str, ...]
 
 
+RecallMode = Literal["deterministic", "semantic", "fallback"]
+
+
+@dataclass(frozen=True, slots=True)
+class SemanticRanking:
+    """C-4: similarity per recallable fact id, or why semantic ranking is unavailable.
+
+    ``requested`` is the author's project setting; ``available`` is true only when the
+    current chapter and every candidate fact have a valid stored vector. Producing a
+    ranking reads stored vectors only and never calls a model.
+    """
+
+    requested: bool
+    available: bool
+    note: str | None
+    similarity: Mapping[str, float]
+
+
 @dataclass(frozen=True, slots=True)
 class RecallOutcome:
     facts: tuple["Fact", ...]
@@ -57,6 +75,9 @@ class RecallOutcome:
     excluded_total: int
     used: int
     blocked: bool
+    mode: RecallMode = "deterministic"
+    semantic_note: str | None = None
+    similarity: Mapping[str, float] | None = None
 
 
 class Document(BaseModel):
@@ -127,6 +148,50 @@ class FrozenFact(Document):
     quote: Quote
 
 
+RECALL_ITEM_LIMIT = 24
+RECALL_CHARACTER_LIMIT = 10_000
+RECALL_EXPLANATION_LIMIT = 100
+
+
+class ReviewRecallChoice(Document):
+    """One fact frozen into a review and why it was chosen."""
+
+    id: Identifier
+    revision_id: Identifier
+    chapter_id: Identifier
+    title: str = Field(max_length=1000)
+    reason: Literal["pinned", "related"]
+    characters: int = Field(ge=0)
+    # C-4: cosine similarity when the review was ranked semantically.
+    similarity: float | None = Field(default=None, ge=-1, le=1)
+
+
+class ReviewRecallOmission(Document):
+    """A recallable fact left out of a prepared review (never an invalid pin: those refuse)."""
+
+    id: Identifier
+    title: str | None = Field(default=None, max_length=1000)
+    reason: Literal["excluded", "budget"]
+
+
+class ReviewRecall(Document):
+    """Frozen explanation of the per-chapter recall policy applied when the review was prepared."""
+
+    policy_version: int = Field(ge=0)
+    pinned_fact_ids: list[Identifier] = Field(max_length=RECALL_ITEM_LIMIT)
+    excluded_fact_ids: list[Identifier] = Field(max_length=200)
+    selected: list[ReviewRecallChoice] = Field(max_length=RECALL_ITEM_LIMIT)
+    omitted: list[ReviewRecallOmission] = Field(max_length=RECALL_EXPLANATION_LIMIT)
+    omitted_total: int = Field(ge=0)
+    excluded_total: int = Field(ge=0)
+    used_characters: int = Field(ge=0)
+    character_limit: int = RECALL_CHARACTER_LIMIT
+    item_limit: int = RECALL_ITEM_LIMIT
+    # C-4: how related facts were ordered. Reviews prepared earlier are deterministic.
+    mode: RecallMode = "deterministic"
+    semantic_note: str | None = Field(default=None, max_length=200)
+
+
 class Review(Document):
     id: Identifier
     revision_id: Identifier
@@ -140,6 +205,8 @@ class Review(Document):
     model: dict[str, str | int]
     facts: list[FrozenFact] = Field(max_length=24)
     omitted_facts: int = Field(ge=0)
+    # Reviews prepared before the recall policy applied to reviews carry no explanation.
+    recall: ReviewRecall | None = None
     status: Literal["ready", "running", "completed", "failed"]
     attempts: int = Field(ge=0, le=3)
     result: ReviewResult | None

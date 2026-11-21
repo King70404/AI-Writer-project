@@ -28,14 +28,20 @@ from aiwebnovel.db.model_registry import (
     AI_WORKFLOW_TABLE_NAMES,
     BUSINESS_TABLE_NAMES,
     CANDIDATE_BUDGET_TABLE_NAMES,
+    CHAPTER_DRAFT_TABLE_NAMES,
+    FORESHADOW_PROPOSAL_TABLE_NAMES,
     HANDOFF_TABLE_NAMES,
     IMPORT_TABLE_NAMES,
     METHOD_VALIDATION_TABLE_NAMES,
+    PLAN_PROPOSAL_TABLE_NAMES,
+    SEMANTIC_INDEX_TABLE_NAMES,
     STORY_CONTROL_TABLE_NAMES,
     STORY_MEMORY_TABLE_NAMES,
+    TIMELINE_PROPOSAL_TABLE_NAMES,
     USAGE_TABLE_NAMES,
     WORKBENCH_TABLE_NAMES,
     WRITING_JOB_BUDGET_TABLE_NAMES,
+    WRITING_JOB_SCENE_TABLE_NAMES,
     WRITING_JOB_TABLE_NAMES,
     WRITING_STUDIO_TABLE_NAMES,
 )
@@ -46,10 +52,16 @@ from .test_novel_structure_migration import _run_alembic
 
 pytestmark = pytest.mark.integration
 _OLD = "0006_add_chapter_manuscript_content"
-_NEW = "0020_add_method_validation"
+_NEW = "0026_add_timeline_proposals"
 _AUTHOR_TABLES = (
     BUSINESS_TABLE_NAMES
     - METHOD_VALIDATION_TABLE_NAMES
+    - WRITING_JOB_SCENE_TABLE_NAMES
+    - PLAN_PROPOSAL_TABLE_NAMES
+    - FORESHADOW_PROPOSAL_TABLE_NAMES
+    - CHAPTER_DRAFT_TABLE_NAMES
+    - SEMANTIC_INDEX_TABLE_NAMES
+    - TIMELINE_PROPOSAL_TABLE_NAMES
     - AI_WORKFLOW_TABLE_NAMES
     - WRITING_STUDIO_TABLE_NAMES
     - STORY_MEMORY_TABLE_NAMES
@@ -328,7 +340,7 @@ def _snapshot(path: Path) -> tuple[dict[str, list[tuple]], list[tuple]]:
         objects = connection.execute(
             "SELECT type, name, tbl_name, sql FROM sqlite_master "
             "WHERE name NOT LIKE 'sqlite_%' AND tbl_name NOT LIKE 'ai_workflow_%' "
-            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions', 'model_usage_attempts', 'ai_candidate_edits', 'ai_candidate_edit_adoptions', 'model_price_revisions', 'project_budget_revisions', 'model_budget_reservations', 'story_control_revisions', 'import_previews', 'import_receipts', 'handoff_snapshots', 'external_candidates', 'writing_jobs', 'writing_job_budgets', 'writing_job_runs', 'method_trials', 'method_annotations', 'method_templates') ORDER BY name"
+            "AND tbl_name NOT IN ('writing_references', 'writing_rule_versions', 'chapter_plan_revisions', 'story_memory_revisions', 'chapter_editorial_revisions', 'model_usage_attempts', 'ai_candidate_edits', 'ai_candidate_edit_adoptions', 'model_price_revisions', 'project_budget_revisions', 'model_budget_reservations', 'story_control_revisions', 'import_previews', 'import_receipts', 'handoff_snapshots', 'external_candidates', 'writing_jobs', 'writing_job_budgets', 'writing_job_runs', 'method_trials', 'method_annotations', 'method_templates', 'writing_job_scene_marks', 'plan_proposals', 'foreshadow_proposals', 'chapter_drafts', 'semantic_index_entries', 'semantic_index_settings', 'timeline_proposals') ORDER BY name"
         ).fetchall()
         return data, objects
 
